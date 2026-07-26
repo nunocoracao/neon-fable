@@ -1,16 +1,15 @@
 import { createCharacter, defaultAllocation } from "../character";
 import type { CharacterState } from "../character";
 import { DEFAULT_BACKGROUND_ID, getBackground } from "../data/backgrounds";
+import { applyStartingGear, emptyInventory } from "../inventory";
+import type { InventoryState } from "../inventory";
 import type { FlagMap } from "./flags";
 import type { RngState } from "./rng";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 2;
+export const GAME_STATE_VERSION = 3;
 
-/** Inventory placeholder — fleshed out by the inventory task. */
-export interface InventoryState {
-  items: string[];
-}
+export type { InventoryState };
 
 /**
  * Central serializable game state. Every system reads from and writes to
@@ -44,14 +43,13 @@ export function createNewGame(options: NewGameOptions = {}): GameState {
       background: getBackground(DEFAULT_BACKGROUND_ID)!,
       allocation: defaultAllocation(),
     });
+  const loadout = applyStartingGear(character, emptyInventory());
   return {
     version: GAME_STATE_VERSION,
-    player: character,
+    player: loadout.character,
     flags: {},
     location: "main-menu",
-    inventory: {
-      items: [...(getBackground(character.backgroundId)?.startingGearIds ?? [])],
-    },
+    inventory: loadout.inventory,
     rng: { seed: (options.seed ?? Date.now()) >>> 0 },
   };
 }

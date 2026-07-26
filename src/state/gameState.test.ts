@@ -15,11 +15,13 @@ describe("createNewGame", () => {
     expect(state.rng.seed).toBe(42);
   });
 
-  it("seeds the inventory with the background's starting gear", () => {
+  it("grants and equips the background's starting gear", () => {
     const state = createNewGame({ seed: 1 });
-    expect(state.inventory.items).toEqual(
-      getBackground(state.player.backgroundId)!.startingGearIds,
-    );
+    const [weaponId, outfitId] =
+      getBackground(state.player.backgroundId)!.startingGearIds;
+    expect(state.player.equipment.weapon).toBe(weaponId);
+    expect(state.player.equipment.outfit).toBe(outfitId);
+    expect(state.inventory.stacks).toEqual([]);
   });
 
   it("uses a fully created character when one is provided", () => {
@@ -29,10 +31,10 @@ describe("createNewGame", () => {
       allocation: defaultAllocation(),
     });
     const state = createNewGame({ character, seed: 9 });
-    expect(state.player).toBe(character);
-    expect(state.inventory.items).toEqual(
-      getBackground("grid-diver")!.startingGearIds,
-    );
+    expect(state.player.name).toBe("Nyx");
+    expect(state.player.backgroundId).toBe("grid-diver");
+    expect(state.player.equipment.weapon).toBe("wpn-stun-baton");
+    expect(state.player.equipment.outfit).toBe("out-diver-harness");
   });
 
   it("defaults to an unnamed player and a numeric seed", () => {
