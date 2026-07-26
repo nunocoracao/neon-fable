@@ -1,13 +1,38 @@
-/**
- * Central serializable game state. Every system reads from and writes to
- * this object; save/load serializes it to localStorage as JSON.
- * Fleshed out as systems land in later tasks.
- */
-export interface GameState {
-  /** Save-format version for future migrations. */
-  version: number;
-}
-
-export function createNewGameState(): GameState {
-  return { version: 1 };
-}
+export {
+  GAME_STATE_VERSION,
+  createNewGame,
+  type GameState,
+  type InventoryState,
+  type NewGameOptions,
+  type PlayerState,
+} from "./gameState";
+export {
+  checkFlag,
+  clearFlag,
+  getFlag,
+  hasFlag,
+  setFlag,
+  type FlagMap,
+  type FlagValue,
+  type HasFlags,
+} from "./flags";
+export {
+  createRng,
+  nextFloat,
+  nextInt,
+  type RngResult,
+  type RngState,
+} from "./rng";
+export {
+  SAVE_SLOTS,
+  SaveError,
+  createMemoryStorage,
+  deleteSave,
+  listSaves,
+  loadGame,
+  saveGame,
+  type SaveErrorCode,
+  type SaveMetadata,
+  type SaveSlot,
+  type SaveStorage,
+} from "./save";
