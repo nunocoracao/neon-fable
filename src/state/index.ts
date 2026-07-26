@@ -4,7 +4,6 @@ export {
   type GameState,
   type InventoryState,
   type NewGameOptions,
-  type PlayerState,
 } from "./gameState";
 export {
   checkFlag,

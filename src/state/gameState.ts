@@ -1,16 +1,11 @@
+import { createCharacter, defaultAllocation } from "../character";
+import type { CharacterState } from "../character";
+import { DEFAULT_BACKGROUND_ID, getBackground } from "../data/backgrounds";
 import type { FlagMap } from "./flags";
 import type { RngState } from "./rng";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 1;
-
-/**
- * Player character placeholder — fleshed out by the character-creation
- * task. Kept minimal so saves stay forward-migratable.
- */
-export interface PlayerState {
-  name: string;
-}
+export const GAME_STATE_VERSION = 2;
 
 /** Inventory placeholder — fleshed out by the inventory task. */
 export interface InventoryState {
@@ -25,7 +20,7 @@ export interface InventoryState {
  */
 export interface GameState {
   version: number;
-  player: PlayerState;
+  player: CharacterState;
   flags: FlagMap;
   /** Current location or screen id (e.g. "main-menu", "hub:market"). */
   location: string;
@@ -37,15 +32,26 @@ export interface GameState {
 export interface NewGameOptions {
   playerName?: string;
   seed?: number;
+  /** Fully created character; when absent a default one is generated. */
+  character?: CharacterState;
 }
 
 export function createNewGame(options: NewGameOptions = {}): GameState {
+  const character =
+    options.character ??
+    createCharacter({
+      name: options.playerName ?? "",
+      background: getBackground(DEFAULT_BACKGROUND_ID)!,
+      allocation: defaultAllocation(),
+    });
   return {
     version: GAME_STATE_VERSION,
-    player: { name: options.playerName ?? "" },
+    player: character,
     flags: {},
     location: "main-menu",
-    inventory: { items: [] },
+    inventory: {
+      items: [...(getBackground(character.backgroundId)?.startingGearIds ?? [])],
+    },
     rng: { seed: (options.seed ?? Date.now()) >>> 0 },
   };
 }
