@@ -30,6 +30,7 @@ describe("createCharacter", () => {
       derived: deriveAttributes(character.stats),
       hp: character.derived.maxHp,
       neuralLoad: 0,
+      equipment: { weapon: null, outfit: null, enhancements: {} },
       tags: ["street", "courier"],
     });
   });

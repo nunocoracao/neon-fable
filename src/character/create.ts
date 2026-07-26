@@ -1,4 +1,5 @@
 import type { Background } from "../data/backgrounds";
+import { emptyEquipment, type EquipmentState } from "../inventory/equipment";
 import { deriveAttributes, type DerivedAttributes } from "./derived";
 import {
   applyBonuses,
@@ -21,6 +22,8 @@ export interface CharacterState {
   hp: number;
   /** Neural load consumed by installed enhancements; starts at 0. */
   neuralLoad: number;
+  /** Equipped weapon/outfit and installed enhancements, by item id. */
+  equipment: EquipmentState;
   /** Narrative tags inherited from the background. */
   tags: string[];
 }
@@ -67,6 +70,7 @@ export function createCharacter(input: CreateCharacterInput): CharacterState {
     derived,
     hp: derived.maxHp,
     neuralLoad: 0,
+    equipment: emptyEquipment(),
     tags: [...input.background.tags],
   };
 }
