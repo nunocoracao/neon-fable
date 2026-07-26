@@ -7,7 +7,10 @@ import type { FlagMap } from "./flags";
 import type { RngState } from "./rng";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 3;
+export const GAME_STATE_VERSION = 4;
+
+/** Credits a fresh character starts with. */
+export const STARTING_CREDITS = 25;
 
 export type { InventoryState };
 
@@ -24,6 +27,8 @@ export interface GameState {
   /** Current location or screen id (e.g. "main-menu", "hub:market"). */
   location: string;
   inventory: InventoryState;
+  /** Money on hand; never negative. Narrative effects grant and spend it. */
+  credits: number;
   /** Deterministic RNG state; advance via the rng module, never Math.random. */
   rng: RngState;
 }
@@ -50,6 +55,7 @@ export function createNewGame(options: NewGameOptions = {}): GameState {
     flags: {},
     location: "main-menu",
     inventory: loadout.inventory,
+    credits: STARTING_CREDITS,
     rng: { seed: (options.seed ?? Date.now()) >>> 0 },
   };
 }

@@ -1,5 +1,6 @@
 export {
   GAME_STATE_VERSION,
+  STARTING_CREDITS,
   createNewGame,
   type GameState,
   type InventoryState,

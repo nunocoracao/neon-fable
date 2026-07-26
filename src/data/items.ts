@@ -95,6 +95,16 @@ export const items: Item[] = [
       "afterward is somebody else's problem.",
     effect: { type: "combat-boost", stat: "reflexes", amount: 2, turns: 3 },
   },
+  // --- Misc / story items ---
+  {
+    id: "msc-cracked-spike",
+    kind: "misc",
+    name: "Cracked Data Spike",
+    description:
+      "A matte-black storage spike, casing split by whoever tried it " +
+      "first. Whatever's on it, Auric wants it back badly.",
+    tags: ["evidence", "auric"],
+  },
   // --- Cyber enhancements ---
   {
     id: "cyb-optic-suite",
