@@ -7,6 +7,7 @@
  * this layer never imports the combat engine. All effect timing math
  * comes from the pure helpers in ./animation.
  */
+import { settings } from "../settings";
 import {
   dissolve01,
   dissolvedAt,
@@ -270,7 +271,7 @@ export function createCombatScene(
     const pose = {
       facing: entity.facing,
       moving: entity.queue.length > 0,
-      timeMs: now,
+      timeMs: settings.get().reducedMotion ? 0 : now,
     };
     const sprite = sprites.entity(entity.spriteId, pose);
     const lunge = lungeOffset(entity, now);
@@ -350,12 +351,14 @@ export function createCombatScene(
     ctx!.save();
     ctx!.translate(snap(viewportW / 2 - camera.sx), snap(viewportH / 2 - camera.sy));
 
-    // Ground pass.
+    // Ground pass. Reduced motion freezes the ambient clock so neon
+    // flicker and water shimmer go still.
+    const tileTime = settings.get().reducedMotion ? 0 : now;
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         const tileId = map.tiles[y]?.[x];
         if (tileId === undefined) continue;
-        const sprite = sprites.tile(tileId, x, y, now);
+        const sprite = sprites.tile(tileId, x, y, tileTime);
         const { sx, sy } = worldToScreen(x, y);
         ctx!.drawImage(
           sprite.image,
@@ -502,6 +505,8 @@ export function createCombatScene(
           target.position.x - attacker.position.x,
           target.position.y - attacker.position.y,
         ) ?? attacker.facing;
+      // Reduced motion: face the target but skip the lunge.
+      if (settings.get().reducedMotion) return;
       const from = worldToScreen(attacker.visual.x, attacker.visual.y);
       const to = worldToScreen(target.visual.x, target.visual.y);
       const dx = to.sx - from.sx;
@@ -512,6 +517,9 @@ export function createCombatScene(
     },
 
     flashEntity(id: string): void {
+      // Reduced motion: no flash or shake — floating numbers and the
+      // combat log still report every hit.
+      if (settings.get().reducedMotion) return;
       const entity = entities.get(id);
       if (entity) entity.flashStart = performance.now();
     },

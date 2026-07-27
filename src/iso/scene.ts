@@ -4,6 +4,7 @@
  * callback — this layer never imports narrative or combat code.
  */
 import { audio } from "../audio";
+import { settings } from "../settings";
 import { facingFromDelta, type Facing } from "./animation";
 import { createPixelArtSprites } from "./art/provider";
 import { clampCamera, mapPixelBounds, type Camera } from "./camera";
@@ -251,7 +252,10 @@ export function createIsoScene(
           moving: walkQueue.length > 0,
         },
       ],
-      timeMs: time,
+      // Reduced motion freezes the animation clock: neon flicker, water
+      // shimmer, and marker pulses go still while movement (driven by
+      // positions, not the clock) stays fully visible.
+      timeMs: settings.get().reducedMotion ? 0 : time,
       dpr: window.devicePixelRatio || 1,
     };
     renderScene(ctx!, sprites, view);
