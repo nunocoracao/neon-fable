@@ -15,12 +15,13 @@ import { COMBAT_RESUME_FLAG, createCombatScreen } from "./combatScreen";
 import { createDialogueOverlay } from "./dialogueOverlay";
 import { createEpilogueScreen } from "./epilogueScreen";
 import { createInventoryOverlay } from "./inventoryOverlay";
-import { focusFirst } from "./focus";
+import { focusFirst, installListNav } from "./focus";
 import { createMainMenuScreen } from "./mainMenu";
 import type { OverlayHandle } from "./overlay";
 import { createSaveLoadPanel } from "./saveLoad";
 import { showScreen, type Screen } from "./screen";
 import { autosave, enterMap, type Session } from "./session";
+import { createSettingsOverlay } from "./settingsScreen";
 
 /**
  * The in-game screen: iso scene on the background canvas, a HUD bar,
@@ -34,7 +35,13 @@ export interface GameScreenOptions {
   dialogueNodeId?: string | null;
 }
 
-type OverlayKind = "dialogue" | "inventory" | "advance" | "saves" | "menu";
+type OverlayKind =
+  | "dialogue"
+  | "inventory"
+  | "advance"
+  | "saves"
+  | "menu"
+  | "settings";
 
 export function createGameScreen(options: GameScreenOptions): Screen {
   const { session } = options;
@@ -220,6 +227,15 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     );
   }
 
+  function openSettings(): void {
+    // Settings live outside the session; the game state is untouched
+    // and Back returns to the pause menu.
+    openOverlay(
+      "settings",
+      createSettingsOverlay({ onClose: openSystemMenu }),
+    );
+  }
+
   function openSystemMenu(): void {
     const el = document.createElement("div");
     el.className = "nf-overlay nf-overlay-center";
@@ -233,6 +249,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     const entries: Array<[string, () => void]> = [
       ["Resume", closeOverlay],
       ["Save / Load", openSaves],
+      ["Settings", openSettings],
       [
         "Quit to Main Menu",
         () => showScreen(createMainMenuScreen()),
@@ -336,6 +353,9 @@ export function createGameScreen(options: GameScreenOptions): Screen {
 
       overlayLayer = document.createElement("div");
       overlayLayer.className = "nf-overlay-layer";
+      // One delegated listener covers every overlay mounted here —
+      // dialogue choices, inventory, saves, and menus all arrow-navigate.
+      installListNav(overlayLayer);
       root.append(overlayLayer);
 
       toast = document.createElement("div");

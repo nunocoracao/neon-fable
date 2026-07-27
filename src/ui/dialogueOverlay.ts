@@ -5,6 +5,7 @@ import {
   getNode,
   type StoryArc,
 } from "../narrative";
+import { revealDelayMs, settings } from "../settings";
 import { focusFirst } from "./focus";
 import { requirementLabels } from "./format";
 import type { OverlayHandle } from "./overlay";
@@ -63,7 +64,7 @@ export function createDialogueOverlay(
 
     const text = document.createElement("p");
     text.className = "nf-dialogue-text";
-    text.textContent = node.text;
+    renderNodeText(text, node.text);
     panel.append(text);
 
     const choices = document.createElement("div");
@@ -86,6 +87,31 @@ export function createDialogueOverlay(
     panel.append(choices);
     // Keyboard flow: Enter takes the focused (first enabled) choice.
     focusFirst(choices);
+  }
+
+  /**
+   * Typewriter reveal: at non-instant speeds each character is a span
+   * whose reveal animation starts after a per-index delay, so the full
+   * text is always in the DOM (screen readers and tests see it whole)
+   * and reduced-motion CSS collapses the reveal to instant. Clicking
+   * the text skips to the end.
+   */
+  function renderNodeText(target: HTMLElement, content: string): void {
+    const speed = settings.get().textSpeed;
+    if (speed === "instant") {
+      target.textContent = content;
+      return;
+    }
+    for (let i = 0; i < content.length; i++) {
+      const span = document.createElement("span");
+      span.className = "nf-reveal-char";
+      span.textContent = content[i] ?? "";
+      span.style.animationDelay = `${revealDelayMs(i, speed)}ms`;
+      target.append(span);
+    }
+    target.addEventListener("pointerdown", () =>
+      target.classList.add("nf-reveal-skip"),
+    );
   }
 
   /** Number keys pick choices: 1 takes the first presented choice, etc. */

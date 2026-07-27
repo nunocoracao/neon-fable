@@ -147,8 +147,12 @@ body::after {
   box-shadow: 2px 2px 0 rgba(5, 6, 12, 0.65), var(--nf-shadow-inset);
 }
 
+/* Disabled controls dim via explicit colors, not opacity, so their
+   text (often a gameplay hint) keeps readable contrast. */
 .nf-button:disabled {
-  opacity: 0.4;
+  color: var(--nf-ink-dim);
+  border-color: var(--nf-border);
+  background: var(--nf-bg-deep);
   cursor: not-allowed;
 }
 
@@ -367,7 +371,8 @@ body::after {
 }
 
 .nf-choice:disabled {
-  opacity: 0.45;
+  color: var(--nf-ink-dim);
+  border-color: var(--nf-border);
   cursor: not-allowed;
 }
 
@@ -706,8 +711,10 @@ body::after {
   color: var(--nf-ink);
 }
 
+/* Dead combatants: strikethrough carries the state, dimming stays
+   mild enough that the name is still legible. */
 .nf-init-dead {
-  opacity: 0.35;
+  opacity: 0.6;
   text-decoration: line-through;
 }
 
@@ -905,10 +912,30 @@ body::after {
   animation: nf-fade-in 320ms ease both;
 }
 
+/* Typewriter reveal: every character is in the DOM immediately (screen
+   readers and find-in-page see whole text); visibility staggers via
+   per-span animation-delay set inline by the dialogue overlay. */
+@keyframes nf-char-in {
+  to {
+    opacity: 1;
+  }
+}
+
+.nf-reveal-char {
+  opacity: 0;
+  animation: nf-char-in 1ms steps(1, end) forwards;
+}
+
+/* Clicking the text skips the rest of the reveal. */
+.nf-reveal-skip .nf-reveal-char {
+  animation: none;
+  opacity: 1;
+}
+
 /* --- Settings --- */
 
 .nf-settings {
-  min-width: 22rem;
+  width: min(30rem, calc(100vw - 3rem));
 }
 
 .nf-setting-row {
@@ -932,21 +959,71 @@ body::after {
   accent-color: var(--nf-glow-cyan);
 }
 
+.nf-segmented {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+/* The active segment reads by border + aria-pressed, not color alone. */
+.nf-button.nf-selected {
+  border-color: var(--nf-glow-cyan);
+  color: var(--nf-glow-cyan);
+  box-shadow: 2px 2px 0 rgba(20, 102, 95, 0.8), var(--nf-shadow-inset);
+}
+
+/* --- Controls reference --- */
+
+.nf-controls-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--nf-border);
+  font-size: 0.8rem;
+}
+
+.nf-kbd {
+  flex-shrink: 0;
+  width: 9.5rem;
+  font-family: var(--nf-font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--nf-glow-cyan);
+}
+
+.nf-controls-desc {
+  color: var(--nf-ink-dim);
+}
+
 /* --- Keyboard focus --- */
 
 .nf-button:focus-visible,
 .nf-choice:focus-visible,
 .nf-bg-card:focus-visible,
-.nf-input:focus-visible {
+.nf-input:focus-visible,
+.nf-setting-row input[type="range"]:focus-visible {
   outline: 2px solid var(--nf-glow-cyan);
   outline-offset: 2px;
 }
 
+/* Reduced motion: honored from the OS preference and from the in-game
+   setting (the settings store mirrors it onto <html> as a class).
+   Zeroing animation-delay too collapses the typewriter to instant. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+.nf-reduced-motion *,
+.nf-reduced-motion *::before,
+.nf-reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-delay: 0ms !important;
+  transition-duration: 0.01ms !important;
 }
