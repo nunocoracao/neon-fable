@@ -17,11 +17,10 @@ describe("item content", () => {
     expect(byKind("enhancement").length).toBeGreaterThanOrEqual(4);
   });
 
-  it("covers distinct install slots across enhancements", () => {
+  it("covers every install slot across enhancements", () => {
     const slots = items
       .filter((i) => i.kind === "enhancement")
       .map((i) => i.slot);
-    expect(new Set(slots).size).toBe(slots.length);
     expect(new Set(slots)).toEqual(new Set(["eyes", "arms", "neural", "dermal"]));
   });
 

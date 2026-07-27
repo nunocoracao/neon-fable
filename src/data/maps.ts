@@ -83,11 +83,123 @@ const cinderPlaza: IsoMap = {
       spriteId: "npc",
       interaction: { kind: "combat", encounterId: "enc-rustyard-ambush" },
     },
+    {
+      id: "flick",
+      x: 8,
+      y: 7,
+      label: "Flick",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "a1-start" },
+    },
   ],
   spawns: [
     { id: "player-start", x: 6, y: 9 },
     { id: "south-road", x: 6, y: 10 },
   ],
+};
+
+/**
+ * Greywater Steps — the Undercroft settlement where most of Act 1 plays
+ * out. Lantern-lit terraces above a black cistern pool (north-west), the
+ * Cistern Court's glow-lit forecourt at the center, and the pump-deck
+ * gate in the south wall. Reached via travel effects from the story, not
+ * from the hub's interactables.
+ */
+const greywaterLegend: Record<string, LegendEntry> = {
+  "#": { tile: "foundation", prop: { propId: "building", blocks: true } },
+  ".": { tile: "pavement" },
+  ",": { tile: "pavement-cracked" },
+  "=": { tile: "plaza-glow" },
+  "~": { tile: "canal" },
+  l: { tile: "pavement", prop: { propId: "streetlight", blocks: true } },
+  b: { tile: "pavement", prop: { propId: "barrier", blocks: true } },
+  v: { tile: "pavement", prop: { propId: "vent-stack", blocks: true } },
+  c: { tile: "pavement", prop: { propId: "crate", blocks: true } },
+};
+
+const greywaterRows = [
+  "##############",
+  "#..~~~..,....#",
+  "#..~~~.......#",
+  "#..b,....l...#",
+  "#............#",
+  "#.,...==.....#",
+  "#.....==...v.#",
+  "#.l.......c..#",
+  "#.....,......#",
+  "#..........l.#",
+  "#,...........#",
+  "##############",
+];
+
+const greywaterGrid = buildMapGrid(greywaterLegend, greywaterRows);
+
+const greywaterSteps: IsoMap = {
+  id: "greywater-steps",
+  name: "Greywater Steps",
+  width: greywaterGrid.width,
+  height: greywaterGrid.height,
+  tiles: greywaterGrid.tiles,
+  props: greywaterGrid.props,
+  interactables: [
+    {
+      id: "matron-ferrow",
+      x: 6,
+      y: 4,
+      label: "Matron Ferrow",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "a1-ferrow" },
+    },
+    {
+      id: "patch-den",
+      x: 2,
+      y: 8,
+      label: "Patch's Den",
+      spriteId: "door",
+      interaction: { kind: "dialogue", nodeId: "a1-patch" },
+    },
+    {
+      id: "dead-relay-shrine",
+      x: 11,
+      y: 8,
+      label: "Dead Relay Shrine",
+      spriteId: "terminal",
+      interaction: { kind: "dialogue", nodeId: "a1-shrine" },
+    },
+    {
+      id: "flick-steps",
+      x: 9,
+      y: 5,
+      label: "Flick",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "a1-flick-steps" },
+    },
+    {
+      id: "notice-board",
+      x: 7,
+      y: 2,
+      label: "Notice Board",
+      spriteId: "terminal",
+      interaction: { kind: "dialogue", nodeId: "a1-board" },
+    },
+    {
+      id: "pump-deck-gate",
+      x: 3,
+      y: 10,
+      label: "Pump-Deck Gate",
+      spriteId: "door",
+      interaction: { kind: "dialogue", nodeId: "a1-pumpgate" },
+    },
+    {
+      id: "chainwell-stair",
+      x: 12,
+      y: 1,
+      label: "Chainwell Stair",
+      spriteId: "door",
+      interaction: { kind: "dialogue", nodeId: "a1-ascend" },
+    },
+  ],
+  spawns: [{ id: "player-start", x: 7, y: 9 }],
 };
 
 /**
@@ -194,11 +306,78 @@ const vaultArena: IsoMap = {
   spawns: [{ id: "player-start", x: 1, y: 2 }],
 };
 
+/**
+ * Pumpworks deck — the Undertow manifold hall under Greywater Steps.
+ * Shared by the three chapter-climax encounters (9x7).
+ */
+const pumpworksLegend: Record<string, LegendEntry> = {
+  ".": { tile: "pavement" },
+  ",": { tile: "pavement-cracked" },
+  r: { tile: "rust-floor" },
+};
+
+const pumpworksRows = [
+  ".,.......",
+  "...r.....",
+  ".....,...",
+  "...r.....",
+  ".,.......",
+  ".....r...",
+  "........,",
+];
+
+const pumpworksGrid = buildMapGrid(pumpworksLegend, pumpworksRows);
+
+const pumpworksArena: IsoMap = {
+  id: "pumpworks-arena",
+  name: "Undertow Pumpworks",
+  width: pumpworksGrid.width,
+  height: pumpworksGrid.height,
+  tiles: pumpworksGrid.tiles,
+  props: pumpworksGrid.props,
+  interactables: [],
+  spawns: [{ id: "player-start", x: 1, y: 3 }],
+};
+
+/**
+ * Relay Crown — the antenna platform above Cinder Row (enc-relay-crown,
+ * 7x6). Glow strips mark the mast anchors.
+ */
+const relayCrownLegend: Record<string, LegendEntry> = {
+  ".": { tile: "pavement" },
+  "=": { tile: "plaza-glow" },
+};
+
+const relayCrownRows = [
+  ".......",
+  "..=.=..",
+  "...=...",
+  "..=.=..",
+  ".......",
+  ".......",
+];
+
+const relayCrownGrid = buildMapGrid(relayCrownLegend, relayCrownRows);
+
+const relayCrownArena: IsoMap = {
+  id: "relay-crown-arena",
+  name: "Relay Crown",
+  width: relayCrownGrid.width,
+  height: relayCrownGrid.height,
+  tiles: relayCrownGrid.tiles,
+  props: relayCrownGrid.props,
+  interactables: [],
+  spawns: [{ id: "player-start", x: 3, y: 5 }],
+};
+
 export const maps: readonly IsoMap[] = [
   cinderPlaza,
+  greywaterSteps,
   rustyardArena,
   undercroftArena,
   vaultArena,
+  pumpworksArena,
+  relayCrownArena,
 ];
 
 export const HUB_MAP_ID = cinderPlaza.id;

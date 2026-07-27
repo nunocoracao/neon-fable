@@ -176,4 +176,23 @@ describe("applyChoice", () => {
     expect(outcome.encounterId).toBe("enc-test");
     expect(outcome.nextNodeId).toBe("aftermath");
   });
+
+  it("travel surfaces the destination map alongside the next node", () => {
+    const node: StoryNode = {
+      id: "n",
+      text: "",
+      choices: [
+        {
+          id: "c",
+          label: "",
+          target: "arrival",
+          effects: [{ type: "travel", mapId: "greywater-steps" }],
+        },
+      ],
+    };
+    const outcome = applyChoice(makeState(), node, "c");
+    expect(outcome.travelTo).toBe("greywater-steps");
+    expect(outcome.nextNodeId).toBe("arrival");
+    expect(outcome.state.location).toBe("greywater-steps");
+  });
 });

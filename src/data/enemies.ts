@@ -75,6 +75,42 @@ export const enemies: Enemy[] = [
     armor: 3,
     abilityIds: ["ability-stun-strike"],
   },
+  {
+    id: "nme-auric-warden",
+    name: "Auric Warden",
+    description:
+      "Reclamation-division security in flood-grey plate. Paid by the " +
+      "hour to make sure nobody interferes with the water.",
+    stats: { body: 6, reflexes: 5, tech: 4, cool: 5, intelligence: 4 },
+    maxHp: 16,
+    weapon: { name: "Riot Pistol", damage: 4, rangeType: "ranged" },
+    armor: 2,
+    abilityIds: [],
+  },
+  {
+    id: "nme-court-sapper",
+    name: "Cistern Court Sapper",
+    description:
+      "A Greywater engineer in a patched wet-rig, cutter in hand. Fights " +
+      "like someone defending the only home left below the waterline.",
+    stats: { body: 5, reflexes: 6, tech: 7, cool: 4, intelligence: 5 },
+    maxHp: 12,
+    weapon: { name: "Spark Cutter", damage: 4, rangeType: "melee" },
+    armor: 1,
+    abilityIds: ["ability-shock-dart"],
+  },
+  {
+    id: "nme-pump-custodian",
+    name: "Pump Custodian",
+    description:
+      "The Undertow's original caretaker machine, barnacled with fifty " +
+      "years of mineral crust. It still keeps the deck. It always will.",
+    stats: { body: 8, reflexes: 3, tech: 2, cool: 6, intelligence: 2 },
+    maxHp: 24,
+    weapon: { name: "Valve Hammer", damage: 6, rangeType: "melee" },
+    armor: 3,
+    abilityIds: ["ability-stun-strike"],
+  },
 ];
 
 const enemiesById = new Map(enemies.map((e) => [e.id, e]));

@@ -3,15 +3,18 @@ import { findPathToAdjacent } from "../iso/path";
 import { inBounds, isWalkable, requireSpawn } from "../iso/tilemap";
 import { encounters, getEncounter } from "./encounters";
 import { HUB_MAP_ID, getMap, maps, requireMap } from "./maps";
-import { introArc } from "./story";
+import { findArcByNode } from "./story";
 
 describe("map registry", () => {
-  it("exposes the hub and arena maps", () => {
+  it("exposes the hub, settlement, and arena maps", () => {
     expect(maps.map((m) => m.id)).toEqual([
       "cinder-plaza",
+      "greywater-steps",
       "rustyard-arena",
       "undercroft-arena",
       "vault-arena",
+      "pumpworks-arena",
+      "relay-crown-arena",
     ]);
     expect(getMap(HUB_MAP_ID)?.name).toBe("Cinder Row Plaza");
     expect(getMap("nowhere")).toBeUndefined();
@@ -44,33 +47,36 @@ describe.each(maps.map((m) => [m.id, m] as const))("map %s", (_id, map) => {
   });
 });
 
-describe("cinder-plaza hub", () => {
-  const hub = requireMap(HUB_MAP_ID);
-  const start = requireSpawn(hub, "player-start");
+describe.each([["cinder-plaza"], ["greywater-steps"]])(
+  "explorable map %s",
+  (mapId) => {
+    const map = requireMap(mapId);
+    const start = requireSpawn(map, "player-start");
 
-  it("can reach every interactable from the player spawn", () => {
-    for (const interactable of hub.interactables) {
-      const path = findPathToAdjacent(hub, { x: start.x, y: start.y }, interactable);
-      expect(path, `interactable ${interactable.id} unreachable`).not.toBeNull();
-    }
-  });
-
-  it("references only real story nodes and encounters", () => {
-    for (const { interaction } of hub.interactables) {
-      if (interaction.kind === "dialogue") {
-        expect(
-          introArc.nodes.some((n) => n.id === interaction.nodeId),
-          `story node ${interaction.nodeId} missing`,
-        ).toBe(true);
-      } else {
-        expect(
-          getEncounter(interaction.encounterId),
-          `encounter ${interaction.encounterId} missing`,
-        ).toBeDefined();
+    it("can reach every interactable from the player spawn", () => {
+      for (const interactable of map.interactables) {
+        const path = findPathToAdjacent(map, { x: start.x, y: start.y }, interactable);
+        expect(path, `interactable ${interactable.id} unreachable`).not.toBeNull();
       }
-    }
-  });
-});
+    });
+
+    it("references only real story nodes and encounters", () => {
+      for (const { interaction } of map.interactables) {
+        if (interaction.kind === "dialogue") {
+          expect(
+            findArcByNode(interaction.nodeId),
+            `story node ${interaction.nodeId} missing`,
+          ).toBeDefined();
+        } else {
+          expect(
+            getEncounter(interaction.encounterId),
+            `encounter ${interaction.encounterId} missing`,
+          ).toBeDefined();
+        }
+      }
+    });
+  },
+);
 
 describe.each(encounters.map((e) => [e.id, e] as const))(
   "arena for %s",
