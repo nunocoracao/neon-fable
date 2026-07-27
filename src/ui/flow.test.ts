@@ -1,0 +1,276 @@
+// @vitest-environment happy-dom
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { initScreenRouter, showScreen } from "./screen";
+import { createMainMenuScreen } from "./mainMenu";
+
+/**
+ * Integration test of the DOM screens: drives the real UI (main menu ->
+ * character creation -> intro dialogue -> combat stub -> inventory ->
+ * save/load) through clicks and key events in happy-dom. The canvas 2D
+ * context is stubbed — iso rendering itself is not under test, only that
+ * the screens wire the pure systems together correctly.
+ */
+
+/** A value whose every property/call yields another such value — enough to
+ * satisfy the canvas 2D API without rendering anything. */
+function anything(): unknown {
+  const fn = (): unknown => anything();
+  return new Proxy(fn, {
+    get: (_target, prop) =>
+      prop === Symbol.toPrimitive ? () => 0 : anything(),
+    set: () => true,
+    apply: () => anything(),
+  });
+}
+
+function buttons(): HTMLButtonElement[] {
+  return [...document.querySelectorAll("button")];
+}
+
+function buttonByText(text: string): HTMLButtonElement | undefined {
+  return buttons().find((b) => (b.textContent ?? "").trim().startsWith(text));
+}
+
+function click(text: string): void {
+  const button = buttonByText(text);
+  if (!button) throw new Error(`no button labelled "${text}"`);
+  if (button.disabled) throw new Error(`button "${text}" is disabled`);
+  button.click();
+}
+
+function textOf(selector: string): string {
+  return document.querySelector(selector)?.textContent ?? "";
+}
+
+function pressKey(key: string): void {
+  window.dispatchEvent(new KeyboardEvent("keydown", { key }));
+}
+
+function setName(value: string): void {
+  const input = document.getElementById("nf-name-input") as HTMLInputElement;
+  input.value = value;
+  input.dispatchEvent(new Event("input"));
+}
+
+/** Clicks a stat row's +/− button (buttons[1] is +, buttons[0] is −). */
+function bumpStat(row: number, times: number): void {
+  for (let i = 0; i < times; i++) {
+    const rows = document.querySelectorAll(".nf-stat-row");
+    const plus = rows[row]?.querySelectorAll("button")[1];
+    if (!plus) throw new Error(`no + button on stat row ${row}`);
+    plus.click();
+  }
+}
+
+/** New game -> named character with body/tech/intelligence maxed out and
+ * reflexes/cool left at minimum, so stat gates fail visibly later. */
+function createTestCharacter(): void {
+  click("New Game");
+  setName("Vex");
+  bumpStat(0, 5); // body
+  bumpStat(2, 5); // tech
+  bumpStat(4, 5); // intelligence
+  click("Jack In");
+}
+
+beforeEach(() => {
+  document.body.innerHTML =
+    '<canvas id="iso-canvas"></canvas><div id="ui-root"></div>';
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+    () => anything() as CanvasRenderingContext2D,
+  );
+  localStorage.clear();
+  initScreenRouter(document.getElementById("ui-root")!);
+  showScreen(createMainMenuScreen());
+});
+
+describe("main menu", () => {
+  it("enables New Game and disables Continue without saves", () => {
+    expect(buttonByText("New Game")?.disabled).toBe(false);
+    expect(buttonByText("Continue")?.disabled).toBe(true);
+  });
+
+  it("shows the settings stub and returns", () => {
+    click("Settings");
+    expect(document.querySelector(".nf-settings")).toBeTruthy();
+    click("Back");
+    expect(buttonByText("New Game")).toBeTruthy();
+  });
+});
+
+describe("character creation", () => {
+  it("surfaces name and point-buy errors inline on confirm", () => {
+    click("New Game");
+    click("Jack In");
+    const errors = [...document.querySelectorAll(".nf-error")]
+      .map((el) => el.textContent)
+      .join(" | ");
+    expect(errors).toMatch(/name/i);
+    expect(errors).toMatch(/remaining/i);
+  });
+
+  it("tracks remaining points and previews derived attributes", () => {
+    click("New Game");
+    expect(textOf(".nf-remaining")).toMatch(/15/);
+    bumpStat(0, 5);
+    expect(textOf(".nf-remaining")).toMatch(/10/);
+    // body 8 + courier bonus 1 = 9 -> maxHp 12 + 27 = 39.
+    expect(textOf(".nf-derived")).toMatch(/Max HP: 39/);
+  });
+
+  it("creates the character and opens the intro dialogue over the hub", () => {
+    createTestCharacter();
+    expect(textOf(".nf-dialogue-text")).toMatch(/Rain drums/);
+    expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
+    // Map transition autosave fired.
+    expect(localStorage.getItem("neon-fable:save:autosave")).not.toBeNull();
+  });
+});
+
+describe("dialogue overlay", () => {
+  it("plays the intro with gating: disabled reasons, hidden choices, flags", () => {
+    createTestCharacter();
+    click("Reply: you'll take the meet");
+    expect(textOf(".nf-dialogue-text")).toMatch(/Wet Market/);
+
+    // Stat gate fails (reflexes left at minimum) -> disabled with reason.
+    const gated = buttonByText("Palm a trauma patch");
+    expect(gated?.disabled).toBe(true);
+    expect(gated?.textContent).toMatch(/\[Reflexes 8\]/);
+    click("Keep walking");
+
+    // Background gating: corp choice hidden, street choice visible,
+    // item choice disabled with its requirement shown.
+    const labels = buttons().map((b) => b.textContent ?? "");
+    expect(labels.join("|")).not.toMatch(/guest-list policy/);
+    expect(labels.join("|")).toMatch(/who ran his packages/);
+    const bribe = buttonByText("Offer a trauma patch");
+    expect(bribe?.disabled).toBe(true);
+    expect(bribe?.textContent).toMatch(/Trauma Patch/);
+    click("Remind him who ran his packages");
+
+    // Flag gate: the "agreed" terms route to Sable's warm scene.
+    click("Take the chair");
+    expect(textOf(".nf-dialogue-text")).toMatch(/professional/);
+    click("Pocket the advance");
+    expect(textOf(".nf-hud-status")).toMatch(/75 cr/);
+  });
+
+  it("hands off to combat and resumes dialogue after resolution", () => {
+    createTestCharacter();
+    click("Reply: you'll take the meet");
+    click("Keep walking");
+    click("Remind him who ran his packages");
+    click("Take the chair");
+    click("Pocket the advance");
+    click("Take the job");
+    click("Rush them before the sweep");
+
+    // start-combat effect -> combat stub screen for the encounter.
+    expect(textOf(".nf-combat-stub")).toMatch(/Auric Scout Team/);
+    click("Resolve: Victory");
+
+    // Dialogue resumed at the post-combat node; rewards paid (75 + 40).
+    expect(textOf(".nf-dialogue-text")).toMatch(/junction box/);
+    expect(textOf(".nf-hud-status")).toMatch(/115 cr/);
+
+    // Finish the thread: end marker closes dialogue and toasts the ending.
+    click("Head back to the Filament");
+    click("Hand over the spike");
+    expect(document.querySelector(".nf-dialogue")).toBeNull();
+    expect(textOf(".nf-toast")).toMatch(/job-done/);
+    expect(textOf(".nf-hud-status")).toMatch(/315 cr/);
+  });
+});
+
+describe("inventory overlay", () => {
+  it("opens with I, shows equipment and neural meter, closes with Escape", () => {
+    createTestCharacter();
+    click("Reply: you'll take the meet"); // leave the first node
+    pressKey("i");
+    expect(document.querySelector(".nf-inventory")).toBeNull(); // dialogue is modal
+    click("Keep walking");
+    click("Remind him who ran his packages");
+    click("Take the chair");
+    click("Pocket the advance");
+    click("Walk away"); // end thread so overlays are free
+
+    pressKey("i");
+    expect(document.querySelector(".nf-inventory")).toBeTruthy();
+    expect(textOf(".nf-neural")).toMatch(/Neural load 0\//);
+    expect(textOf(".nf-inventory")).toMatch(/Shard Knife/);
+    pressKey("Escape");
+    expect(document.querySelector(".nf-inventory")).toBeNull();
+  });
+
+  it("routes actions through the pure functions and surfaces their errors", () => {
+    // Full combat route: the victory reward is a trauma patch to Use later.
+    createTestCharacter();
+    click("Reply: you'll take the meet");
+    click("Keep walking");
+    click("Remind him who ran his packages");
+    click("Take the chair");
+    click("Pocket the advance");
+    click("Take the job");
+    click("Rush them before the sweep");
+    click("Resolve: Victory");
+    click("Head back to the Filament");
+    click("Hand over the spike");
+
+    pressKey("i");
+    // Healing at full HP is rejected by useConsumable, not by the UI.
+    click("Use");
+    expect(textOf(".nf-message")).toMatch(/full health/);
+
+    // Unequip returns the weapon to the carried grid; equip moves it back.
+    click("Unequip");
+    expect(textOf(".nf-slot-value")).toBe("—");
+    click("Equip");
+    expect(textOf(".nf-slot-value")).toMatch(/Shard Knife|Courier Slicker/);
+  });
+});
+
+describe("save/load", () => {
+  function reachHubIdle(): void {
+    createTestCharacter();
+    click("Delete the message");
+    click("Keep walking");
+    click("Remind him who ran his packages");
+    click("Take the chair");
+    click("Hear the job anyway");
+    click("Walk away");
+  }
+
+  it("saves to a slot, deletes with confirm, loads back into the game", () => {
+    reachHubIdle();
+    pressKey("Escape");
+    expect(document.querySelector(".nf-system-menu")).toBeTruthy();
+    click("Save / Load");
+
+    // Save to Slot 1 -> metadata row appears.
+    document.querySelectorAll(".nf-save-row")[0]?.querySelector("button")?.click();
+    expect(textOf(".nf-save-meta")).toMatch(/Vex — Cinder Row Plaza — \d{4}-/);
+
+    // Delete requires a confirm click.
+    click("Delete");
+    expect(buttonByText("Confirm delete")).toBeTruthy();
+    click("Confirm delete");
+    expect(textOf(".nf-save-meta")).toMatch(/Empty/);
+
+    // Save again and load through the panel -> back on the game screen.
+    document.querySelectorAll(".nf-save-row")[1]?.querySelector("button")?.click();
+    click("Load");
+    expect(document.querySelector(".nf-saves")).toBeNull();
+    expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
+  });
+
+  it("enables Continue once saves exist and resumes the newest one", () => {
+    reachHubIdle();
+    pressKey("Escape");
+    click("Quit to Main Menu");
+    const cont = buttonByText("Continue");
+    expect(cont?.disabled).toBe(false);
+    cont?.click();
+    expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
+  });
+});
