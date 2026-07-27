@@ -4,6 +4,7 @@ import {
   getNode,
   type StoryArc,
 } from "../narrative";
+import { focusFirst } from "./focus";
 import { requirementLabels } from "./format";
 import type { OverlayHandle } from "./overlay";
 import type { Session } from "./session";
@@ -82,6 +83,21 @@ export function createDialogueOverlay(
       choices.append(button);
     }
     panel.append(choices);
+    // Keyboard flow: Enter takes the focused (first enabled) choice.
+    focusFirst(choices);
+  }
+
+  /** Number keys pick choices: 1 takes the first presented choice, etc. */
+  function onKeyDown(event: KeyboardEvent): void {
+    const index = Number.parseInt(event.key, 10);
+    if (!Number.isInteger(index) || index < 1 || index > 9) return;
+    const button = panel.querySelectorAll<HTMLButtonElement>(".nf-choice")[
+      index - 1
+    ];
+    if (button && !button.disabled) {
+      event.preventDefault();
+      button.click();
+    }
   }
 
   function takeChoice(choiceId: string): void {
@@ -111,10 +127,12 @@ export function createDialogueOverlay(
   }
 
   render();
+  window.addEventListener("keydown", onKeyDown);
 
   return {
     el,
     destroy(): void {
+      window.removeEventListener("keydown", onKeyDown);
       el.remove();
     },
   };

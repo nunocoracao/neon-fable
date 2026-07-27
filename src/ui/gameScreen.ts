@@ -11,6 +11,7 @@ import { createIsoScene, type IsoScene } from "../iso";
 import { COMBAT_RESUME_FLAG, createCombatScreen } from "./combatScreen";
 import { createDialogueOverlay } from "./dialogueOverlay";
 import { createInventoryOverlay } from "./inventoryOverlay";
+import { focusFirst } from "./focus";
 import { createMainMenuScreen } from "./mainMenu";
 import type { OverlayHandle } from "./overlay";
 import { createSaveLoadPanel } from "./saveLoad";
@@ -85,6 +86,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     closeOverlay();
     overlay = { kind, handle };
     overlayLayer?.append(handle.el);
+    focusFirst(handle.el);
   }
 
   function openDialogue(nodeId: string): void {

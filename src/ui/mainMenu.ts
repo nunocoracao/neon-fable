@@ -9,6 +9,7 @@ import {
 import { createCharacterCreateScreen } from "./characterCreate";
 import { isDevMode } from "./dev";
 import { createExploreScreen } from "./exploreScreen";
+import { focusFirst } from "./focus";
 import { saveErrorMessage } from "./format";
 import { createGameScreen } from "./gameScreen";
 import { createSaveLoadPanel } from "./saveLoad";
@@ -81,6 +82,7 @@ export function createMainMenuScreen(): Screen {
       );
 
       menu.append(newGame, cont, load, settings);
+      focusFirst(menu);
 
       // Dev route into the iso scene without a character; ?dev only.
       if (isDevMode()) {
@@ -109,6 +111,11 @@ export function createMainMenuScreen(): Screen {
   };
 }
 
+/** Escape returns to the main menu, matching every screen's Back button. */
+function escapeToMenu(event: KeyboardEvent): void {
+  if (event.key === "Escape") showScreen(createMainMenuScreen());
+}
+
 /** Full-screen wrapper around the save/load panel in load-only mode. */
 function createLoadScreen(): Screen {
   let container: HTMLElement | null = null;
@@ -128,9 +135,12 @@ function createLoadScreen(): Screen {
       });
       container.append(panel.el);
       root.append(container);
+      window.addEventListener("keydown", escapeToMenu);
+      focusFirst(panel.el);
     },
 
     unmount(): void {
+      window.removeEventListener("keydown", escapeToMenu);
       container?.remove();
       container = null;
     },
@@ -161,9 +171,12 @@ function createSettingsScreen(): Screen {
       panel.append(title, note, back);
       container.append(panel);
       root.append(container);
+      window.addEventListener("keydown", escapeToMenu);
+      focusFirst(panel);
     },
 
     unmount(): void {
+      window.removeEventListener("keydown", escapeToMenu);
       container?.remove();
       container = null;
     },

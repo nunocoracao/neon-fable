@@ -764,3 +764,73 @@ body {
   margin: 0.6rem 0;
   line-height: 1.5;
 }
+
+/* --- Motion --- */
+
+@keyframes nf-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes nf-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Screen transitions: full screens and fixed bars fade in on mount. */
+.nf-screen,
+.nf-hud,
+.nf-combat-top,
+.nf-combat-log,
+.nf-combat-bottom,
+.nf-explore-hud {
+  animation: nf-fade-in 220ms ease both;
+}
+
+/* Panels rise slightly as they appear (menus, overlays, outcomes). */
+.nf-panel {
+  animation: nf-rise-in 200ms ease both;
+}
+
+.nf-overlay-center {
+  animation: nf-fade-in 160ms ease both;
+}
+
+/* Dialogue beats: each node's re-rendered text slides in. */
+.nf-dialogue-speaker,
+.nf-dialogue-text {
+  animation: nf-rise-in 260ms ease both;
+}
+
+.nf-dialogue-choices {
+  animation: nf-fade-in 320ms ease both;
+}
+
+/* --- Keyboard focus --- */
+
+.nf-button:focus-visible,
+.nf-choice:focus-visible,
+.nf-bg-card:focus-visible,
+.nf-input:focus-visible {
+  outline: 1px solid var(--nf-glow-cyan);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

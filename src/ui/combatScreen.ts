@@ -23,6 +23,7 @@ import { getAbility, getEncounter, getItem, requireMap } from "../data";
 import { createCombatScene, type CombatScene } from "../iso";
 import type { IsoMap, TilePoint } from "../iso";
 import { SaveError, loadGame, type GameState } from "../state";
+import { focusFirst } from "./focus";
 import {
   combatEventText,
   combatantDisplayNames,
@@ -636,6 +637,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       }
       panel.append(list);
       panel.append(panelButton("Continue", () => backToGame(resumeNodeId)));
+      focusFirst(panel);
       return;
     }
 
@@ -647,6 +649,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         "You break contact and melt back into Cinder Row. Word of it will " +
         "travel.";
       panel.append(note, panelButton("Return", () => backToGame(null)));
+      focusFirst(panel);
       return;
     }
 
@@ -694,6 +697,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       panelButton("Main Menu", () => showScreen(createMainMenuScreen())),
     );
     panel.append(note, message, menu);
+    focusFirst(panel);
   }
 
   // --- Screen lifecycle ------------------------------------------------
