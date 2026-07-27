@@ -7,7 +7,7 @@ import type { FlagMap } from "./flags";
 import type { RngState } from "./rng";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 5;
+export const GAME_STATE_VERSION = 6;
 
 /** Credits a fresh character starts with. */
 export const STARTING_CREDITS = 25;

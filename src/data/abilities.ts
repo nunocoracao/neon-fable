@@ -90,6 +90,36 @@ export const abilities: Ability[] = [
     effect: { type: "damage", amount: 4, stunTurns: 1 },
   },
   {
+    id: "ability-overclock-burst",
+    name: "Overclock Burst",
+    description:
+      "A trained micro-seizure of the reflex chain: three shots downrange " +
+      "in the time most people spend deciding to flinch.",
+    range: 5,
+    cooldown: 3,
+    effect: { type: "damage", amount: 5 },
+  },
+  {
+    id: "ability-shatter-hand",
+    name: "Shatter Hand",
+    description:
+      "A strike drilled against pump housings and lock plates, aimed at " +
+      "where a thing carries its own weight. Plating folds around it.",
+    range: 1,
+    cooldown: 3,
+    effect: { type: "damage", amount: 6, ignoresArmor: true },
+  },
+  {
+    id: "ability-bulwark-surge",
+    name: "Bulwark Surge",
+    description:
+      "A diver's trick for the crush at depth: flood the frame with " +
+      "borrowed strength and let the body argue with physics for a while.",
+    range: 0,
+    cooldown: 4,
+    effect: { type: "boost", stat: "body", amount: 2, turns: 2 },
+  },
+  {
     id: "ability-combat-focus",
     name: "Combat Focus",
     description:
@@ -99,6 +129,24 @@ export const abilities: Ability[] = [
     cooldown: 4,
     effect: { type: "boost", stat: "reflexes", amount: 2, turns: 2 },
   },
+];
+
+/** An ability purchasable with advancement points. */
+export interface AdvancementPoolEntry {
+  abilityId: string;
+  /** Advancement points the unlock costs. */
+  cost: number;
+}
+
+/**
+ * Abilities the advancement system can unlock (see
+ * src/character/advancement.ts). Costs are content, not code.
+ */
+export const advancementPool: AdvancementPoolEntry[] = [
+  { abilityId: "ability-combat-focus", cost: 1 },
+  { abilityId: "ability-bulwark-surge", cost: 1 },
+  { abilityId: "ability-overclock-burst", cost: 2 },
+  { abilityId: "ability-shatter-hand", cost: 2 },
 ];
 
 const abilitiesById = new Map(abilities.map((a) => [a.id, a]));

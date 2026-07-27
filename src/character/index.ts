@@ -32,6 +32,16 @@ export {
   CharacterCreationError,
   createCharacter,
   defaultAllocation,
+  type AdvancementState,
   type CharacterState,
   type CreateCharacterInput,
 } from "./create";
+export {
+  AdvancementError,
+  availablePoints,
+  earnedPoints,
+  raiseStat,
+  unlockAbility,
+  type AdvancementErrorCode,
+  type AdvancementView,
+} from "./advancement";
