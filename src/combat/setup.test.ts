@@ -1,0 +1,113 @@
+import { describe, expect, it } from "vitest";
+import { addItem } from "../inventory";
+import { createNewGame } from "../state";
+import { moveSpeed } from "./grid";
+import { PLAYER_COMBATANT_ID, createCombat } from "./setup";
+import { combatStat, playerCombatant } from "./state";
+
+/**
+ * The default new game is a Gutter Courier: base Reflexes 7 (6 + 1
+ * background), +1 from the Shard Knife and +1 from the Courier Slicker,
+ * for an effective 9 — faster than every enemy in the data.
+ */
+function makeGame(seed = 7) {
+  return createNewGame({ seed });
+}
+
+describe("createCombat", () => {
+  it("throws on an unknown encounter id", () => {
+    expect(() => createCombat(makeGame(), "enc-nope")).toThrow(
+      'No encounter with id "enc-nope"',
+    );
+  });
+
+  it("snapshots the player from GameState equipment", () => {
+    const combat = createCombat(makeGame(), "enc-auric-scout");
+    const player = playerCombatant(combat);
+    expect(player.id).toBe(PLAYER_COMBATANT_ID);
+    expect(player.weapon).toEqual({
+      name: "Shard Knife",
+      damage: 4,
+      rangeType: "melee",
+    });
+    expect(player.armor).toBe(2); // Courier Slicker
+    expect(combatStat(player, "reflexes")).toBe(9);
+    expect(player.hp).toBe(player.maxHp);
+    expect(player.consumables).toEqual([]);
+  });
+
+  it("lists carried consumables (merged across stacks) on the player", () => {
+    const state = makeGame();
+    let inventory = addItem(state.inventory, "con-trauma-patch", 2);
+    inventory = addItem(inventory, "con-surge-stim", 1);
+    const combat = createCombat({ ...state, inventory }, "enc-auric-scout");
+    expect(playerCombatant(combat).consumables).toEqual([
+      { itemId: "con-trauma-patch", quantity: 2 },
+      { itemId: "con-surge-stim", quantity: 1 },
+    ]);
+  });
+
+  it("spawns enemies from the encounter at full hp on their tiles", () => {
+    const combat = createCombat(makeGame(), "enc-auric-scout");
+    const enemies = combat.combatants.filter((c) => c.kind === "enemy");
+    expect(enemies.map((e) => e.enemyId)).toEqual([
+      "nme-auric-agent",
+      "nme-static-drone",
+    ]);
+    for (const enemy of enemies) {
+      expect(enemy.hp).toBe(enemy.maxHp);
+    }
+    expect(enemies.map((e) => e.position)).toEqual([
+      { x: 6, y: 2 },
+      { x: 6, y: 4 },
+    ]);
+  });
+
+  it("orders initiative by effective Reflexes, highest first", () => {
+    const combat = createCombat(makeGame(), "enc-auric-scout");
+    // player 9, static drone 8, auric agent 6
+    expect(combat.initiativeOrder).toEqual([
+      "player",
+      "nme-static-drone-2",
+      "nme-auric-agent-1",
+    ]);
+    expect(combat.turnIndex).toBe(0);
+    expect(combat.round).toBe(1);
+  });
+
+  it("breaks Reflexes ties with the seeded RNG, deterministically", () => {
+    const state = makeGame(123);
+    // enc-rustyard-ambush spawns two identical bruisers (Reflexes 4).
+    const first = createCombat(state, "enc-rustyard-ambush");
+    const second = createCombat(state, "enc-rustyard-ambush");
+    expect(first.initiativeOrder).toEqual(second.initiativeOrder);
+    expect(first.initiativeOrder[0]).toBe("player");
+    expect(first.initiativeOrder.slice(1).sort()).toEqual([
+      "nme-rustyard-bruiser-1",
+      "nme-rustyard-bruiser-2",
+    ]);
+    expect(first.rng).toEqual(second.rng);
+    expect(first.rng).not.toEqual(state.rng);
+  });
+
+  it("gives the first combatant its move budget and opens the log", () => {
+    const combat = createCombat(makeGame(), "enc-auric-scout");
+    expect(combat.moveRemaining).toBe(moveSpeed(9));
+    expect(combat.actionUsed).toBe(false);
+    expect(combat.log).toEqual([
+      { type: "combat-started", encounterId: "enc-auric-scout" },
+      { type: "round-started", round: 1 },
+      { type: "turn-started", combatantId: "player" },
+    ]);
+  });
+
+  it("copies encounter fleeability onto the state", () => {
+    expect(createCombat(makeGame(), "enc-auric-scout").fleeable).toBe(true);
+    expect(createCombat(makeGame(), "enc-vault-guardian").fleeable).toBe(false);
+  });
+
+  it("survives a JSON round-trip unchanged", () => {
+    const combat = createCombat(makeGame(), "enc-vault-guardian");
+    expect(JSON.parse(JSON.stringify(combat))).toEqual(combat);
+  });
+});
