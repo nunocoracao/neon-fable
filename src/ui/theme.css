@@ -426,6 +426,23 @@ body {
   width: min(60rem, calc(100vw - 3rem));
 }
 
+/* --- Advancement --- */
+
+.nf-advancement {
+  width: min(60rem, calc(100vw - 3rem));
+}
+
+.nf-advancement-available {
+  color: var(--nf-glow-cyan);
+}
+
+/* HUD nudge that unspent advancement points are waiting. */
+.nf-button-attention {
+  border-color: var(--nf-glow-cyan);
+  color: var(--nf-glow-cyan);
+  box-shadow: 0 0 10px rgba(46, 230, 214, 0.35);
+}
+
 .nf-inventory-status {
   display: flex;
   align-items: center;

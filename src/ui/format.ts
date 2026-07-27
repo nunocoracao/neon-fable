@@ -178,6 +178,11 @@ export function saveErrorMessage(error: SaveError): string {
   }
 }
 
+/** Advancement points with their unit, e.g. "1 point", "3 points". */
+export function pointsLabel(amount: number): string {
+  return `${amount} ${amount === 1 ? "point" : "points"}`;
+}
+
 /** A chance in [0, 1] as a whole percentage, e.g. "65%". */
 export function percentLabel(chance: number): string {
   return `${Math.round(chance * 100)}%`;
