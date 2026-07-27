@@ -20,6 +20,7 @@ import {
   pointBuyErrorMessage,
   statLabel,
 } from "./format";
+import { installListNav } from "./focus";
 import { createGameScreen } from "./gameScreen";
 import { createMainMenuScreen } from "./mainMenu";
 import { showScreen, type Screen } from "./screen";
@@ -297,6 +298,7 @@ export function createCharacterCreateScreen(): Screen {
       container.append(panel);
       root.append(container);
 
+      installListNav(panel);
       renderBackgrounds();
       renderStats();
       nameInput.focus();

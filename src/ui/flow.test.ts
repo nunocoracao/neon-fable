@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { baseStats, createCharacter } from "../character";
 import { getBackground } from "../data";
+import { DEFAULT_SETTINGS, SETTINGS_KEY, settings } from "../settings";
 import { createNewGame, type GameState } from "../state";
 import { findFightSeed, replayStep } from "./combatTestSupport";
 import { createGameScreen } from "./gameScreen";
@@ -111,6 +112,9 @@ beforeEach(() => {
   vi.stubGlobal("requestAnimationFrame", () => 0);
   vi.stubGlobal("cancelAnimationFrame", () => {});
   localStorage.clear();
+  // The settings store is a module singleton; reset it (and the
+  // reduced-motion class its subscription mirrors) between tests.
+  settings.update({ ...DEFAULT_SETTINGS });
   initScreenRouter(document.getElementById("ui-root")!);
   showScreen(createMainMenuScreen());
 });
@@ -127,11 +131,103 @@ describe("main menu", () => {
     expect(buttonByText("Continue")?.disabled).toBe(true);
   });
 
-  it("shows the settings stub and returns", () => {
+  it("shows the settings screen and returns", () => {
     click("Settings");
     expect(document.querySelector(".nf-settings")).toBeTruthy();
     click("Back");
     expect(buttonByText("New Game")).toBeTruthy();
+  });
+
+  it("arrow keys move focus through the menu, skipping disabled buttons", () => {
+    expect(document.activeElement?.textContent).toBe("New Game");
+    // Continue is disabled (no saves), so ArrowDown lands on Load Game.
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+    expect(document.activeElement?.textContent).toBe("Load Game");
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }),
+    );
+    expect(document.activeElement?.textContent).toBe("New Game");
+    // ArrowUp from the top wraps to the last control.
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }),
+    );
+    expect(document.activeElement?.textContent).toBe("Settings");
+  });
+});
+
+describe("settings", () => {
+  it("persists a text-speed change from the main menu across screens", () => {
+    click("Settings");
+    expect(buttonByText("Normal")?.classList.contains("nf-selected")).toBe(
+      true,
+    );
+    click("Instant");
+    expect(localStorage.getItem(SETTINGS_KEY)).toMatch(
+      /"textSpeed":"instant"/,
+    );
+    click("Back");
+    // Reopening shows the persisted selection, aria-pressed included.
+    click("Settings");
+    const instant = buttonByText("Instant");
+    expect(instant?.classList.contains("nf-selected")).toBe(true);
+    expect(instant?.getAttribute("aria-pressed")).toBe("true");
+    expect(document.querySelector(".nf-controls-row")).toBeTruthy();
+    click("Back");
+  });
+
+  it("opens in-game from the pause menu without losing game state", () => {
+    createTestCharacter();
+    click("Delete the message");
+    click("Keep walking");
+    click("Remind him who ran his packages");
+    click("Take the chair");
+    click("Hear the job anyway");
+    click("Walk away");
+
+    pressKey("Escape");
+    expect(document.querySelector(".nf-system-menu")).toBeTruthy();
+    click("Settings");
+    expect(document.querySelector(".nf-settings")).toBeTruthy();
+
+    // Toggling reduced motion persists and mirrors onto the root element.
+    click("Reduced");
+    expect(settings.get().reducedMotion).toBe(true);
+    expect(localStorage.getItem(SETTINGS_KEY)).toMatch(
+      /"reducedMotion":true/,
+    );
+    expect(
+      document.documentElement.classList.contains("nf-reduced-motion"),
+    ).toBe(true);
+
+    // Back returns to the pause menu; the game underneath is untouched.
+    click("Back");
+    expect(document.querySelector(".nf-system-menu")).toBeTruthy();
+    click("Resume");
+    expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
+    // Settings live outside save slots.
+    expect(localStorage.getItem("neon-fable:save:autosave")).not.toMatch(
+      /reducedMotion/,
+    );
+  });
+
+  it("dialogue text renders as a typewriter at normal speed and plain when instant", () => {
+    createTestCharacter();
+    // Default speed: per-character spans with staggered reveal delays.
+    const chars = document.querySelectorAll(".nf-dialogue-text .nf-reveal-char");
+    expect(chars.length).toBeGreaterThan(10);
+    expect((chars[0] as HTMLElement).style.animationDelay).toBe("0ms");
+    expect((chars[10] as HTMLElement).style.animationDelay).toBe("280ms");
+    // Full text is present immediately for assistive tech (and tests).
+    expect(textOf(".nf-dialogue-text")).toMatch(/Rain drums/);
+
+    settings.update({ textSpeed: "instant" });
+    click("Reply: you'll take the meet");
+    expect(
+      document.querySelector(".nf-dialogue-text .nf-reveal-char"),
+    ).toBeNull();
+    expect(textOf(".nf-dialogue-text")).toMatch(/Wet Market/);
   });
 });
 

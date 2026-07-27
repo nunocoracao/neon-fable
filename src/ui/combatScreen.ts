@@ -25,7 +25,7 @@ import { getAbility, getEncounter, getItem, requireMap } from "../data";
 import { createCombatScene, type CombatScene } from "../iso";
 import type { IsoMap, TilePoint } from "../iso";
 import { SaveError, loadGame, type GameState } from "../state";
-import { focusFirst } from "./focus";
+import { focusFirst, installListNav } from "./focus";
 import {
   combatEventText,
   combatantDisplayNames,
@@ -437,14 +437,16 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
           scene.floatText(tile, `-${event.damage}`, "#ff4d5e");
           break;
         }
+        // Float texts carry a sign and unit so damage, heals, and
+        // boosts stay distinguishable without relying on hue alone.
         case "healed": {
           const tile = getCombatant(combat, event.combatantId)?.position;
-          if (tile) scene.floatText(tile, `+${event.amount}`, "#2ee6d6");
+          if (tile) scene.floatText(tile, `+${event.amount} HP`, "#2ee6d6");
           break;
         }
         case "boosted": {
           const tile = getCombatant(combat, event.combatantId)?.position;
-          if (tile) scene.floatText(tile, `+${event.amount}`, "#f0b429");
+          if (tile) scene.floatText(tile, `+${event.amount} PWR`, "#f0b429");
           break;
         }
         case "flee-attempted": {
@@ -626,6 +628,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     heading.textContent = title;
     panel.append(heading);
     overlay.append(panel);
+    installListNav(overlay);
     overlayEl = overlay;
     root?.append(overlay);
     return { overlay, panel };

@@ -1,4 +1,7 @@
 import { audio, installAutoUnlock } from "./audio";
+// Importing the settings store applies persisted preferences (reduced
+// motion class, text speed) before the first screen mounts.
+import "./settings";
 import { initScreenRouter, setFallbackScreen, showScreen } from "./ui/screen";
 import { createMainMenuScreen } from "./ui/mainMenu";
 

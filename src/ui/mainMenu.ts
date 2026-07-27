@@ -1,4 +1,4 @@
-import { audio, type VolumeChannel } from "../audio";
+import { audio } from "../audio";
 import { HUB_MAP_ID } from "../data";
 import {
   SaveError,
@@ -10,15 +10,16 @@ import {
 import { createCharacterCreateScreen } from "./characterCreate";
 import { isDevMode } from "./dev";
 import { createExploreScreen } from "./exploreScreen";
-import { focusFirst } from "./focus";
+import { focusFirst, installListNav } from "./focus";
 import { saveErrorMessage } from "./format";
 import { createGameScreen } from "./gameScreen";
 import { createSaveLoadPanel } from "./saveLoad";
 import type { Screen } from "./screen";
 import { showScreen } from "./screen";
 import { createSession } from "./session";
+import { createSettingsScreen } from "./settingsScreen";
 
-/** Title screen: New Game, Continue, Load Game, and a settings stub. */
+/** Title screen: New Game, Continue, Load Game, and Settings. */
 export function createMainMenuScreen(): Screen {
   let container: HTMLElement | null = null;
 
@@ -80,11 +81,15 @@ export function createMainMenuScreen(): Screen {
       settings.className = "nf-button";
       settings.textContent = "Settings";
       settings.addEventListener("click", () =>
-        showScreen(createSettingsScreen()),
+        showScreen(
+          createSettingsScreen({
+            onBack: () => showScreen(createMainMenuScreen()),
+          }),
+        ),
       );
 
       menu.append(newGame, cont, load, settings);
-      focusFirst(menu);
+      installListNav(menu);
 
       // Dev route into the iso scene without a character; ?dev only.
       if (isDevMode()) {
@@ -104,6 +109,8 @@ export function createMainMenuScreen(): Screen {
       }
       container.append(title, subtitle, menu, errorLine);
       root.append(container);
+      // Focus after attach — focusing a detached element is a no-op.
+      focusFirst(menu);
     },
 
     unmount(): void {
@@ -138,83 +145,8 @@ function createLoadScreen(): Screen {
       container.append(panel.el);
       root.append(container);
       window.addEventListener("keydown", escapeToMenu);
+      installListNav(panel.el);
       focusFirst(panel.el);
-    },
-
-    unmount(): void {
-      window.removeEventListener("keydown", escapeToMenu);
-      container?.remove();
-      container = null;
-    },
-  };
-}
-
-/** Settings: audio mixer controls, persisted as device preferences. */
-function createSettingsScreen(): Screen {
-  let container: HTMLElement | null = null;
-
-  function volumeRow(label: string, channel: VolumeChannel): HTMLElement {
-    const row = document.createElement("div");
-    row.className = "nf-setting-row";
-    const name = document.createElement("span");
-    name.className = "nf-setting-label";
-    name.textContent = label;
-    const slider = document.createElement("input");
-    slider.type = "range";
-    slider.min = "0";
-    slider.max = "100";
-    slider.value = String(Math.round(audio.getMixer()[channel] * 100));
-    slider.addEventListener("input", () => {
-      audio.setVolume(channel, Number(slider.value) / 100);
-    });
-    // A sample blip on release so the new level is audible immediately.
-    slider.addEventListener("change", () => audio.play("ui-confirm"));
-    row.append(name, slider);
-    return row;
-  }
-
-  return {
-    mount(root: HTMLElement): void {
-      audio.setMusicContext("menu");
-      container = document.createElement("div");
-      container.className = "nf-screen";
-
-      const panel = document.createElement("div");
-      panel.className = "nf-panel nf-settings";
-      const title = document.createElement("h2");
-      title.textContent = "Settings";
-      panel.append(title);
-
-      panel.append(
-        volumeRow("Master volume", "master"),
-        volumeRow("Sound effects", "sfx"),
-        volumeRow("Music", "music"),
-      );
-
-      const muteRow = document.createElement("div");
-      muteRow.className = "nf-setting-row";
-      const muteLabel = document.createElement("span");
-      muteLabel.className = "nf-setting-label";
-      muteLabel.textContent = "Audio";
-      const mute = document.createElement("button");
-      mute.className = "nf-button nf-button-small";
-      mute.textContent = audio.getMixer().muted ? "Unmute" : "Mute";
-      mute.addEventListener("click", () => {
-        const muted = audio.toggleMuted();
-        mute.textContent = muted ? "Unmute" : "Mute";
-      });
-      muteRow.append(muteLabel, mute);
-      panel.append(muteRow);
-
-      const back = document.createElement("button");
-      back.className = "nf-button";
-      back.textContent = "Back";
-      back.addEventListener("click", () => showScreen(createMainMenuScreen()));
-      panel.append(back);
-      container.append(panel);
-      root.append(container);
-      window.addEventListener("keydown", escapeToMenu);
-      focusFirst(panel);
     },
 
     unmount(): void {
