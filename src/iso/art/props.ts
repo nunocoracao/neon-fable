@@ -125,8 +125,8 @@ const ventStack: string[] = [
 const crate: string[] = [
   "......0000......",
   "....00cccc00....",
-  "..00ccbbbbcc00..",
-  "00ccbbbbbbbbcc00",
+  "..00ccccbccc00..",
+  "00ccccccbccccc00",
   "0bbbbbb11aaaaaa0",
   "0bbbbbb11aaaaaa0",
   "0mommom11aaaaaa0",
@@ -161,10 +161,10 @@ const barrierDim = remapped(barrierBase, { j: "l" });
 /* --- Streetlight: cyan lamp on a slim pole; flickers off briefly. --- */
 
 const streetlightOn: string[] = [
-  "......0000......",
-  ".....0hhhh0.....",
-  ".....0hggh0.....",
-  "......0gg0......",
+  ".....000000.....",
+  "....0hhhhhh0....",
+  "....0hggggh0....",
+  ".....0gggg0.....",
   "......0770......",
   ...rep(33, "......0760......"),
   ".....007600.....",
