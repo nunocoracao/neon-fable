@@ -1,3 +1,4 @@
+import { audio, type SoundId } from "../audio";
 import { getItem } from "../data/items";
 import {
   ENHANCEMENT_SLOTS,
@@ -48,7 +49,7 @@ export function createInventoryOverlay(
   /** Slot whose Uninstall button is waiting on its confirm click. */
   let pendingUninstall: EnhancementSlot | null = null;
 
-  function apply(action: () => Loadout): void {
+  function apply(action: () => Loadout, sound: SoundId): void {
     try {
       const loadout = action();
       session.state = {
@@ -56,6 +57,7 @@ export function createInventoryOverlay(
         player: loadout.character,
         inventory: loadout.inventory,
       };
+      audio.play(sound);
       message = "";
       messageIsError = false;
       options.onStateChange();
@@ -133,7 +135,7 @@ export function createInventoryOverlay(
       if (itemId) {
         row.append(
           actionButton("Unequip", () =>
-            apply(() => unequip(player, session.state.inventory, slot)),
+            apply(() => unequip(player, session.state.inventory, slot), "unequip"),
           ),
         );
       }
@@ -155,8 +157,10 @@ export function createInventoryOverlay(
         if (pendingUninstall === slot) {
           row.append(
             actionButton("Confirm extraction", () =>
-              apply(() =>
-                uninstallEnhancement(player, session.state.inventory, slot),
+              apply(
+                () =>
+                  uninstallEnhancement(player, session.state.inventory, slot),
+                "unequip",
               ),
             ),
           );
@@ -226,19 +230,19 @@ export function createInventoryOverlay(
         if (item.kind === "weapon" || item.kind === "outfit") {
           card.append(
             actionButton("Equip", () =>
-              apply(() => equip(player, inventory, item.id)),
+              apply(() => equip(player, inventory, item.id), "equip"),
             ),
           );
         } else if (item.kind === "enhancement") {
           card.append(
             actionButton("Install", () =>
-              apply(() => installEnhancement(player, inventory, item.id)),
+              apply(() => installEnhancement(player, inventory, item.id), "install"),
             ),
           );
         } else if (item.kind === "consumable") {
           card.append(
             actionButton("Use", () =>
-              apply(() => useConsumable(player, inventory, item.id)),
+              apply(() => useConsumable(player, inventory, item.id), "item-use"),
             ),
           );
         }

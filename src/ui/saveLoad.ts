@@ -1,3 +1,4 @@
+import { audio } from "../audio";
 import { getMap } from "../data";
 import {
   SAVE_SLOTS,
@@ -92,6 +93,7 @@ export function createSaveLoadPanel(
           const session = options.session;
           if (!session) return;
           saveGame(session.state, slot, storage);
+          audio.play("save-confirm");
           setMessage(`Saved to ${slotDisplayName(slot)}.`, false);
           pendingDelete = null;
           render();
@@ -102,7 +104,9 @@ export function createSaveLoadPanel(
       actions.append(
         slotButton("Load", () => {
           try {
-            options.onLoaded(loadGame(slot, storage));
+            const state = loadGame(slot, storage);
+            audio.play("load-confirm");
+            options.onLoaded(state);
           } catch (error) {
             if (error instanceof SaveError) {
               setMessage(saveErrorMessage(error), true);

@@ -905,6 +905,33 @@ body::after {
   animation: nf-fade-in 320ms ease both;
 }
 
+/* --- Settings --- */
+
+.nf-settings {
+  min-width: 22rem;
+}
+
+.nf-setting-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--nf-border);
+}
+
+.nf-setting-label {
+  width: 8.5rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--nf-ink-dim);
+}
+
+.nf-setting-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--nf-glow-cyan);
+}
+
 /* --- Keyboard focus --- */
 
 .nf-button:focus-visible,

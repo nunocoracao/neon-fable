@@ -1,3 +1,4 @@
+import { audio } from "../audio";
 import {
   HUB_MAP_ID,
   findArcByNode,
@@ -252,6 +253,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   function onKeyDown(event: KeyboardEvent): void {
     if (event.key === "Escape") {
       if (overlay?.kind === "dialogue") return;
+      audio.play("ui-cancel");
       if (overlay) closeOverlay();
       else openSystemMenu();
       return;
@@ -307,6 +309,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
 
       // Map transition (and post-combat return): record location + autosave.
       enterMap(session, mapId);
+      audio.setMusicContext("hub");
 
       hud = document.createElement("div");
       hud.className = "nf-hud";
@@ -346,6 +349,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         spawnId: "player-start",
         onInteract(event): void {
           if (overlay) return;
+          audio.play("interact");
           if (event.interaction.kind === "dialogue") {
             openDialogue(event.interaction.nodeId);
           } else {

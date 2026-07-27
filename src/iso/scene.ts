@@ -3,6 +3,7 @@
  * player's walk animation. Interactions are forwarded through a typed
  * callback — this layer never imports narrative or combat code.
  */
+import { audio } from "../audio";
 import { facingFromDelta, type Facing } from "./animation";
 import { createPixelArtSprites } from "./art/provider";
 import { clampCamera, mapPixelBounds, type Camera } from "./camera";
@@ -205,6 +206,7 @@ export function createIsoScene(
     while (walkProgress >= 1 && walkQueue.length > 0) {
       walkProgress -= 1;
       playerTile = walkQueue.shift() ?? playerTile;
+      audio.play("footstep");
     }
     const next = walkQueue[0];
     if (next) {

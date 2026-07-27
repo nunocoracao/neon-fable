@@ -16,9 +16,11 @@ import {
   runEnemyTurns,
   takeAction,
   type CombatAction,
+  type CombatEvent,
   type CombatState,
   type GridPosition,
 } from "../combat";
+import { audio, hitSoundForDamage } from "../audio";
 import { getAbility, getEncounter, getItem, requireMap } from "../data";
 import { createCombatScene, type CombatScene } from "../iso";
 import type { IsoMap, TilePoint } from "../iso";
@@ -380,6 +382,29 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     logEl.scrollTop = logEl.scrollHeight;
   }
 
+  function playEventSfx(event: CombatEvent): void {
+    switch (event.type) {
+      case "attacked":
+        audio.play("attack-swing");
+        audio.play(event.hit ? hitSoundForDamage(event.damage) : "attack-miss");
+        break;
+      case "ability-used":
+        audio.play("ability-use");
+        if (event.damage > 0) audio.play(hitSoundForDamage(event.damage));
+        break;
+      case "item-used":
+        audio.play("item-use");
+        break;
+      case "defeated":
+        if (event.combatantId !== PLAYER_COMBATANT_ID) {
+          audio.play("enemy-defeat");
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
   /** Renders log lines and scene effects for events not yet processed. */
   function processNewEvents(): void {
     if (!combat) return;
@@ -388,6 +413,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       if (!event) continue;
       const text = combatEventText(event, nameOf);
       if (text) appendLogLine(text);
+      playEventSfx(event);
       if (!scene) continue;
       switch (event.type) {
         case "attacked": {
@@ -619,6 +645,8 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     session.state = withoutResumeFlag(resolveCombat(session.state, combat));
 
     if (combat.status === "victory") {
+      audio.setMusicContext(null);
+      audio.play("victory");
       const { panel } = outcomePanel("Victory");
       const rewards = getEncounter(encounterId)?.rewards;
       const list = document.createElement("div");
@@ -655,6 +683,8 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       return;
     }
 
+    audio.setMusicContext(null);
+    audio.play("defeat");
     showDefeatPanel();
   }
 
@@ -748,6 +778,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         },
       };
       autosave(session);
+      audio.setMusicContext("combat");
       scene = createCombatScene(canvas, {
         map: arenaMap,
         onTileClick,
