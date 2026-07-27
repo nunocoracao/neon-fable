@@ -1,13 +1,16 @@
 import { audio } from "../audio";
 import { HUB_MAP_ID } from "../data";
 import {
+  NG_PLUS_BONUS_POINTS,
   SaveError,
   listSaves,
   loadGame,
+  loadMetaProgress,
   mostRecentSave,
   type GameState,
 } from "../state";
 import { createCharacterCreateScreen } from "./characterCreate";
+import { createCodexScreen } from "./codexScreen";
 import { isDevMode } from "./dev";
 import { createExploreScreen } from "./exploreScreen";
 import { focusFirst, installListNav } from "./focus";
@@ -55,6 +58,25 @@ export function createMainMenuScreen(): Screen {
         showScreen(createCharacterCreateScreen()),
       );
 
+      // Meta-progress (read-only here): NG+ unlock and the codex.
+      const meta = loadMetaProgress(window.localStorage);
+      let newGamePlus: HTMLButtonElement | null = null;
+      if (meta.ngPlusUnlocked) {
+        newGamePlus = document.createElement("button");
+        newGamePlus.className = "nf-button";
+        newGamePlus.textContent = "New Game+";
+        newGamePlus.addEventListener("click", () =>
+          showScreen(
+            createCharacterCreateScreen({
+              ngPlus: {
+                bonusPoints: NG_PLUS_BONUS_POINTS,
+                legacyItemIds: meta.legacyItemIds,
+              },
+            }),
+          ),
+        );
+      }
+
       const recent = mostRecentSave(listSaves(window.localStorage));
       const cont = document.createElement("button");
       cont.className = "nf-button";
@@ -77,6 +99,17 @@ export function createMainMenuScreen(): Screen {
       load.textContent = "Load Game";
       load.addEventListener("click", () => showScreen(createLoadScreen()));
 
+      const codex = document.createElement("button");
+      codex.className = "nf-button";
+      codex.textContent = "Endings Codex";
+      codex.addEventListener("click", () =>
+        showScreen(
+          createCodexScreen({
+            onBack: () => showScreen(createMainMenuScreen()),
+          }),
+        ),
+      );
+
       const settings = document.createElement("button");
       settings.className = "nf-button";
       settings.textContent = "Settings";
@@ -88,7 +121,9 @@ export function createMainMenuScreen(): Screen {
         ),
       );
 
-      menu.append(newGame, cont, load, settings);
+      menu.append(newGame);
+      if (newGamePlus) menu.append(newGamePlus);
+      menu.append(cont, load, codex, settings);
       installListNav(menu);
 
       // Dev route into the iso scene without a character; ?dev only.

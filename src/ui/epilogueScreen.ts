@@ -1,6 +1,7 @@
 import { audio } from "../audio";
 import { epilogueVignettes, getEnding } from "../data";
 import { selectVignettes } from "../narrative";
+import { loadMetaProgress } from "../state";
 import { focusFirst } from "./focus";
 import { createMainMenuScreen } from "./mainMenu";
 import { showScreen, type Screen } from "./screen";
@@ -81,6 +82,16 @@ export function createEpilogueScreen(options: EpilogueScreenOptions): Screen {
         `${state.player.name}'s story is told. The Sprawl keeps every ` +
         "receipt.";
       panel.append(closer);
+
+      // Read-only meta peek: point finished players at what's next.
+      if (loadMetaProgress(options.session.storage).ngPlusUnlocked) {
+        const unlock = document.createElement("p");
+        unlock.className = "nf-dim";
+        unlock.textContent =
+          "New Game+ is open from the main menu — a fresh run with a " +
+          "small legacy carry-over.";
+        panel.append(unlock);
+      }
 
       const menu = document.createElement("div");
       menu.className = "nf-menu";

@@ -34,6 +34,21 @@ export const introArc: StoryArc = {
           target: "wet-market",
           effects: [{ type: "set-flag", key: "sable-terms", value: "cold" }],
         },
+        {
+          // New Game+ returning-echo flavor: same route, knowing eyes.
+          id: "echo-terms",
+          label:
+            "Watch the rain a beat longer. You've read this message before, " +
+            "in another life — reply on your own terms.",
+          target: "wet-market",
+          requirements: [
+            { type: "flag-equals", key: "ng-plus", value: true },
+          ],
+          effects: [
+            { type: "set-flag", key: "sable-terms", value: "agreed" },
+            { type: "set-flag", key: "echo-noticed", value: true },
+          ],
+        },
       ],
     },
     {

@@ -59,6 +59,8 @@ export interface CreateCharacterInput {
   background: Background;
   /** Point-buy allocation, before background bonuses. */
   allocation: Stats;
+  /** Point pool the allocation must spend; defaults to POINT_POOL (New Game+ passes more). */
+  pointPool?: number;
 }
 
 /** A valid allocation that spends the whole pool evenly (all stats at 6). */
@@ -71,7 +73,7 @@ export function defaultAllocation(): Stats {
  * if the allocation fails point-buy validation.
  */
 export function createCharacter(input: CreateCharacterInput): CharacterState {
-  const validation = validateAllocation(input.allocation);
+  const validation = validateAllocation(input.allocation, input.pointPool);
   if (!validation.valid) {
     throw new CharacterCreationError(validation.errors);
   }

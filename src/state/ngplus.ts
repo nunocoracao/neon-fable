@@ -1,0 +1,56 @@
+import type { CharacterState } from "../character";
+import { requireItem } from "../data/items";
+import { addItem } from "../inventory";
+import type { ItemResolver } from "../inventory";
+import type { GameState } from "./gameState";
+
+/**
+ * New Game+: a modest carry-over into a fresh run after any completed
+ * playthrough. The bonus lives in character creation (extra point-buy
+ * points) and one legacy item granted here; everything is recorded on
+ * the new run's own GameState via flags, so NG+ saves stay
+ * self-contained and pre-NG+ saves load exactly as before.
+ */
+
+/** Extra point-buy points a New Game+ character allocates. */
+export const NG_PLUS_BONUS_POINTS = 3;
+
+/** Set on a GameState created through New Game+. */
+export const NG_PLUS_FLAG = "ng-plus";
+
+/** Item id of the legacy carry-over, when one was chosen. */
+export const NG_PLUS_CARRYOVER_FLAG = "ng-plus-carryover";
+
+export function isNewGamePlus(state: GameState): boolean {
+  return state.flags[NG_PLUS_FLAG] === true;
+}
+
+/**
+ * The item ids a finishing character can pass forward: equipped weapon
+ * and outfit plus every installed enhancement.
+ */
+export function carryoverCandidates(character: CharacterState): string[] {
+  const { weapon, outfit, enhancements } = character.equipment;
+  return [weapon, outfit, ...Object.values(enhancements)].filter(
+    (id): id is string => typeof id === "string",
+  );
+}
+
+/**
+ * Marks a fresh GameState as New Game+ and grants the chosen legacy
+ * item (into the inventory — enhancements still have to be installed,
+ * neural capacity permitting). Pure: returns a new state.
+ */
+export function applyNewGamePlus(
+  state: GameState,
+  carryoverItemId: string | null,
+  resolve: ItemResolver = requireItem,
+): GameState {
+  const flags: GameState["flags"] = { ...state.flags, [NG_PLUS_FLAG]: true };
+  let inventory = state.inventory;
+  if (carryoverItemId !== null) {
+    flags[NG_PLUS_CARRYOVER_FLAG] = carryoverItemId;
+    inventory = addItem(inventory, carryoverItemId, 1, resolve);
+  }
+  return { ...state, flags, inventory };
+}

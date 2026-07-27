@@ -861,6 +861,65 @@ body::after {
   margin: 0.8rem 0 0.1rem;
 }
 
+/* --- Endings codex --- */
+
+.nf-codex {
+  max-width: 34rem;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.nf-codex-stats {
+  font-family: var(--nf-font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--nf-glow-amber);
+  margin: 0.25rem 0 0;
+}
+
+.nf-codex-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.nf-codex-entry {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  background: var(--nf-bg-raised);
+  border: 2px solid var(--nf-border);
+}
+
+.nf-codex-entry.nf-codex-found {
+  border-color: var(--nf-glow-cyan);
+  box-shadow: 3px 3px 0 rgba(5, 6, 12, 0.8);
+}
+
+.nf-codex-title {
+  font-family: var(--nf-font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  color: var(--nf-glow-cyan);
+}
+
+.nf-codex-locked .nf-codex-title {
+  color: var(--nf-ink-dim);
+}
+
+.nf-codex-text {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.nf-codex-locked .nf-codex-text {
+  color: var(--nf-ink-dim);
+  font-style: italic;
+}
+
 /* --- Motion --- */
 
 @keyframes nf-fade-in {

@@ -13,7 +13,7 @@ import {
   type Stats,
 } from "../character";
 import { backgrounds, getItem, introArc } from "../data";
-import { createNewGame } from "../state";
+import { applyNewGamePlus, createNewGame } from "../state";
 import {
   characterNameError,
   formatBonuses,
@@ -29,19 +29,43 @@ import { createSession } from "./session";
 /**
  * Character creation: name, background, and point-buy stats with a live
  * derived-attribute preview. Validation and creation go through the
- * character module; this screen only renders its results.
+ * character module; this screen only renders its results. In New Game+
+ * mode a modest, clearly-labeled carry-over applies: bonus point-buy
+ * points and one legacy item picked from the finishing character's gear.
  */
-export function createCharacterCreateScreen(): Screen {
+export interface NewGamePlusOffer {
+  /** Extra point-buy points on top of the standard pool. */
+  bonusPoints: number;
+  /** Item ids the finishing character passed forward; the player picks one. */
+  legacyItemIds: string[];
+}
+
+export interface CharacterCreateOptions {
+  ngPlus?: NewGamePlusOffer;
+}
+
+export function createCharacterCreateScreen(
+  options: CharacterCreateOptions = {},
+): Screen {
   let container: HTMLElement | null = null;
+
+  const ngPlus = options.ngPlus ?? null;
+  // Drop legacy ids with no content behind them (future-proofing).
+  const legacyChoices = ngPlus
+    ? ngPlus.legacyItemIds.filter((id) => getItem(id) !== undefined)
+    : [];
+  const pointPool = POINT_POOL + (ngPlus?.bonusPoints ?? 0);
 
   let name = "";
   let backgroundId = backgrounds[0]?.id ?? "";
+  let legacyItemId: string | null = legacyChoices[0] ?? null;
   const allocation: Stats = baseStats();
   /** Errors shown after a rejected confirm; cleared on any edit. */
   let submitErrors: string[] = [];
 
   let backgroundList: HTMLElement | null = null;
   let backgroundDetail: HTMLElement | null = null;
+  let legacyList: HTMLElement | null = null;
   let statRows: HTMLElement | null = null;
   let remainingEl: HTMLElement | null = null;
   let previewEl: HTMLElement | null = null;
@@ -90,10 +114,46 @@ export function createCharacterCreateScreen(): Screen {
     backgroundDetail.append(description, gear);
   }
 
+  /** New Game+ only: pick one legacy item (or travel light). */
+  function renderLegacy(): void {
+    if (!legacyList) return;
+    legacyList.replaceChildren();
+    const picks: Array<[string | null, string, string]> = legacyChoices.map(
+      (id) => {
+        const item = getItem(id)!;
+        return [id, item.name, item.description] as [string, string, string];
+      },
+    );
+    picks.push([
+      null,
+      "Travel light",
+      "Carry nothing forward but the bonus points.",
+    ]);
+    for (const [id, title, detail] of picks) {
+      const button = document.createElement("button");
+      button.className = "nf-bg-card";
+      if (id === legacyItemId) button.classList.add("nf-selected");
+      const nameEl = document.createElement("div");
+      nameEl.className = "nf-bg-name";
+      nameEl.textContent = title;
+      const detailEl = document.createElement("div");
+      detailEl.className = "nf-bg-bonuses";
+      detailEl.textContent = detail;
+      button.append(nameEl, detailEl);
+      button.addEventListener("click", () => {
+        legacyItemId = id;
+        submitErrors = [];
+        renderLegacy();
+        renderStats();
+      });
+      legacyList.append(button);
+    }
+  }
+
   function renderStats(): void {
     if (!statRows || !remainingEl || !previewEl || !errorsEl) return;
     const background = selectedBackground();
-    const validation = validateAllocation(allocation);
+    const validation = validateAllocation(allocation, pointPool);
     const finalStats = background
       ? applyBonuses(allocation, background.statBonuses)
       : allocation;
@@ -179,7 +239,7 @@ export function createCharacterCreateScreen(): Screen {
     const errors: string[] = [];
     const nameError = characterNameError(name);
     if (nameError) errors.push(nameError);
-    const validation = validateAllocation(allocation);
+    const validation = validateAllocation(allocation, pointPool);
     for (const error of validation.errors) {
       errors.push(pointBuyErrorMessage(error));
     }
@@ -190,8 +250,14 @@ export function createCharacterCreateScreen(): Screen {
       return;
     }
     try {
-      const character = createCharacter({ name, background, allocation });
-      const state = createNewGame({ character });
+      const character = createCharacter({
+        name,
+        background,
+        allocation,
+        pointPool,
+      });
+      let state = createNewGame({ character });
+      if (ngPlus) state = applyNewGamePlus(state, legacyItemId);
       const session = createSession(state);
       audio.play("ui-confirm");
       showScreen(
@@ -218,7 +284,7 @@ export function createCharacterCreateScreen(): Screen {
       const header = document.createElement("div");
       header.className = "nf-panel-header";
       const title = document.createElement("h2");
-      title.textContent = "New Runner";
+      title.textContent = ngPlus ? "New Runner — New Game+" : "New Runner";
       const back = document.createElement("button");
       back.className = "nf-button nf-button-small";
       back.textContent = "Back";
@@ -265,12 +331,28 @@ export function createCharacterCreateScreen(): Screen {
         backgroundDetail,
       );
 
+      // New Game+ carry-over: clearly labeled, one pick, nothing hidden.
+      if (ngPlus) {
+        const legacyHeading = document.createElement("h3");
+        legacyHeading.textContent = "Legacy carry-over";
+        const legacyNote = document.createElement("p");
+        legacyNote.className = "nf-dim";
+        legacyNote.textContent =
+          `New Game+ bonus: +${ngPlus.bonusPoints} point-buy points and ` +
+          "one piece of your last runner's gear.";
+        legacyList = document.createElement("div");
+        legacyList.className = "nf-bg-list";
+        identity.append(legacyHeading, legacyNote, legacyList);
+      }
+
       // Right column: point-buy stats and derived preview.
       const statsColumn = document.createElement("div");
       statsColumn.className = "nf-create-column";
 
       const statsHeading = document.createElement("h3");
-      statsHeading.textContent = `Stats (${POINT_POOL} points)`;
+      statsHeading.textContent = ngPlus
+        ? `Stats (${POINT_POOL} + ${ngPlus.bonusPoints} legacy points)`
+        : `Stats (${POINT_POOL} points)`;
       remainingEl = document.createElement("div");
       remainingEl.className = "nf-remaining";
       statRows = document.createElement("div");
@@ -300,6 +382,7 @@ export function createCharacterCreateScreen(): Screen {
 
       installListNav(panel);
       renderBackgrounds();
+      renderLegacy();
       renderStats();
       nameInput.focus();
     },
@@ -309,6 +392,7 @@ export function createCharacterCreateScreen(): Screen {
       container = null;
       backgroundList = null;
       backgroundDetail = null;
+      legacyList = null;
       statRows = null;
       remainingEl = null;
       previewEl = null;

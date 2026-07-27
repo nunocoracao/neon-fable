@@ -14,6 +14,14 @@ export interface ChapterEnding {
    * instead of the chapter-end panel, and the save is finished.
    */
   final?: boolean;
+  /**
+   * One-line spoiler-safe hint for the endings codex while this ending
+   * is undiscovered. Must tease the path, never retell the ending —
+   * the codex shows it verbatim to players who haven't been there.
+   */
+  hint?: string;
+  /** Short codex summary shown once the ending has been reached. */
+  summary?: string;
 }
 
 export const endings: ChapterEnding[] = [
@@ -125,6 +133,11 @@ export const endings: ChapterEnding[] = [
     id: "ending-commons",
     title: "A City With Its Own Name",
     final: true,
+    hint: "Some say the Sprawl could belong to everyone who argues over it.",
+    summary:
+      "The founders' keys went out to every district board, and the " +
+      "Meridian Sprawl learned to hold its own title — loudly, jointly, " +
+      "for good.",
     paragraphs: [
       "You feed the founders' keys to the Charter boards one district at " +
         "a time, and the Meridian Locus watches its own succession " +
@@ -144,6 +157,11 @@ export const endings: ChapterEnding[] = [
     id: "ending-regency",
     title: "The Salt-Plant Throne",
     final: true,
+    hint: "Some say a patient auditor is only ever one signature from a throne.",
+    summary:
+      "The keys went to Imre Voss, and the Sprawl gained a regent who " +
+      "governs to schedule — while you keep the one receipt that proves " +
+      "where the throne came from.",
     paragraphs: [
       "You hand Imre Voss the founders' keys the way Voss once handed " +
         "you a retainer: without ceremony, with every string attached. " +
@@ -164,6 +182,11 @@ export const endings: ChapterEnding[] = [
     id: "ending-freehold",
     title: "The Freehold Dark",
     final: true,
+    hint: "Some say a city is only free once nobody at all can hold it.",
+    summary:
+      "The founders' keys burned in the register, the master title " +
+      "dissolved, and the Sprawl scattered into a hundred small lights " +
+      "no one upstairs can switch off.",
     paragraphs: [
       "You burn the founders' keys in the Locus's own register — title " +
         "by title, deed by deed, until the Meridian Sprawl has no master " +
@@ -185,6 +208,11 @@ export const endings: ChapterEnding[] = [
     id: "ending-ghost",
     title: "The Caretaker Signal",
     final: true,
+    hint: "Some say an older signal still hums beneath the drowned shrines.",
+    summary:
+      "The keys poured down the wire to something older than the towers, " +
+      "and the city's records passed to a ghost that archives everything " +
+      "and forecloses nothing.",
     paragraphs: [
       "You pour the founders' keys down the wire, and Hex — archive of " +
         "three dead networks, patron ghost of drowned shrines — becomes " +

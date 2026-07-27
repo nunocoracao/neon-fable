@@ -1,6 +1,11 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createNewGame, type GameState } from "../state";
+import {
+  META_PROGRESS_KEY,
+  createNewGame,
+  loadMetaProgress,
+  type GameState,
+} from "../state";
 import type { FlagValue } from "../state/flags";
 import { createEpilogueScreen } from "./epilogueScreen";
 import { createGameScreen } from "./gameScreen";
@@ -112,6 +117,18 @@ describe("finished saves", () => {
     expect(document.querySelector(".nf-hud")).toBeNull();
     expect(textOf(".nf-epilogue")).toMatch(/The Freehold Dark/);
   });
+
+  it("does not record meta-progress when reopening a finished save", () => {
+    const session = createSession(finishedState());
+    showScreen(createGameScreen({ session }));
+    expect(localStorage.getItem(META_PROGRESS_KEY)).toBeNull();
+  });
+
+  it("mounting the epilogue screen alone writes nothing", () => {
+    const session = createSession(finishedState());
+    showScreen(createEpilogueScreen({ session }));
+    expect(localStorage.getItem(META_PROGRESS_KEY)).toBeNull();
+  });
 });
 
 describe("final ending handoff", () => {
@@ -137,5 +154,21 @@ describe("final ending handoff", () => {
     const saved = JSON.parse(raw!).state;
     expect(saved.flags["game-complete"]).toBe(true);
     expect(saved.flags["ending"]).toBe("ending-ghost");
+
+    // The completion landed in meta-progress exactly once, at the
+    // moment the epilogue was shown, and marked the save as recorded.
+    const meta = loadMetaProgress(localStorage);
+    expect(meta.endingsSeen).toEqual(["ending-ghost"]);
+    expect(meta.completions).toBe(1);
+    expect(meta.ngPlusUnlocked).toBe(true);
+    expect(meta.epiloguesSeen).toContain("hex-registrar");
+    expect(meta.legacyItemIds).toContain(saved.player.equipment.weapon);
+    expect(saved.flags["meta-recorded"]).toBe(true);
+
+    // Reopening that finished autosave shows the epilogue again but
+    // records nothing new.
+    showScreen(createGameScreen({ session }));
+    expect(document.querySelector(".nf-epilogue")).not.toBeNull();
+    expect(loadMetaProgress(localStorage).completions).toBe(1);
   });
 });

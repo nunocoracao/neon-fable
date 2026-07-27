@@ -57,9 +57,13 @@ export interface PointBuyValidation {
 
 /**
  * Validates a point-buy allocation: every stat must be an integer in
- * [STAT_MIN, STAT_MAX] and the pool must be spent exactly.
+ * [STAT_MIN, STAT_MAX] and the pool must be spent exactly. The pool
+ * defaults to POINT_POOL; New Game+ passes a larger one.
  */
-export function validateAllocation(allocation: Stats): PointBuyValidation {
+export function validateAllocation(
+  allocation: Stats,
+  pool: number = POINT_POOL,
+): PointBuyValidation {
   const errors: PointBuyError[] = [];
   for (const key of STAT_KEYS) {
     const value = allocation[key];
@@ -68,16 +72,16 @@ export function validateAllocation(allocation: Stats): PointBuyValidation {
     }
   }
   const spent = pointsSpent(allocation);
-  if (spent > POINT_POOL) {
+  if (spent > pool) {
     errors.push({ code: "overspent" });
-  } else if (spent < POINT_POOL) {
+  } else if (spent < pool) {
     errors.push({ code: "underspent" });
   }
   return {
     valid: errors.length === 0,
     errors,
     spent,
-    remaining: POINT_POOL - spent,
+    remaining: pool - spent,
   };
 }
 
