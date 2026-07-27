@@ -119,9 +119,13 @@ function paintGrid(
   });
 }
 
-/** Row widths of the 32×16 (1x) tile diamond, top to bottom. */
+/**
+ * Row widths of the 32×16 (1x) tile diamond, top to bottom. This is the
+ * exact pixel-ownership mask of screenToTile, so adjacent tiles
+ * tessellate with no gaps and no overlap.
+ */
 export const DIAMOND_WIDTHS: readonly number[] = [
-  4, 8, 12, 16, 20, 24, 28, 32, 32, 28, 24, 20, 16, 12, 8, 4,
+  2, 6, 10, 14, 18, 22, 26, 30, 30, 26, 22, 18, 14, 10, 6, 2,
 ];
 
 /**

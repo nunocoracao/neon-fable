@@ -59,10 +59,14 @@ describe("tile art", () => {
     expect(TILE_ART["plaza-glow"].variants[0]?.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("diamond widths are symmetric and 2:1", () => {
+  it("diamond widths tessellate the plane exactly", () => {
     expect(DIAMOND_WIDTHS.length).toBe(16);
     expect([...DIAMOND_WIDTHS].reverse()).toEqual([...DIAMOND_WIDTHS]);
-    expect(Math.max(...DIAMOND_WIDTHS)).toBe(32);
+    // The mask must match pixel ownership under screenToTile (rounding
+    // world coordinates at pixel centers): row r owns 4*min(r, 15-r)+2.
+    DIAMOND_WIDTHS.forEach((width, r) => {
+      expect(width).toBe(4 * Math.min(r, 15 - r) + 2);
+    });
   });
 });
 
