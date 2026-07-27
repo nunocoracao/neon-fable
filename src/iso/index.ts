@@ -49,4 +49,16 @@ export {
   type TileId,
 } from "./tilemap";
 export { createIsoScene, type IsoScene, type IsoSceneOptions } from "./scene";
-export { createPlaceholderSprites, type Sprite, type SpriteProvider } from "./sprites";
+export {
+  createCombatScene,
+  type CombatHighlights,
+  type CombatScene,
+  type CombatSceneEntity,
+  type CombatSceneOptions,
+} from "./combatScene";
+export {
+  createPlaceholderSprites,
+  type EntitySpriteId,
+  type Sprite,
+  type SpriteProvider,
+} from "./sprites";
