@@ -5,9 +5,10 @@ import type { GameState } from "../state/gameState";
 import type { Effect } from "./types";
 
 /**
- * Effect application: immutable updates over GameState. Flow-control
- * effects (start-combat, goto, end) do not touch state here — applyChoice
- * folds them into the ChoiceOutcome instead.
+ * Effect application: immutable updates over GameState. start-combat marks
+ * the encounter as pending on GameState (the UI layer launches it); the
+ * remaining flow-control effects (goto, end) do not touch state here —
+ * applyChoice folds them into the ChoiceOutcome instead.
  */
 
 export function applyEffect(
@@ -52,6 +53,7 @@ export function applyEffect(
     case "credits":
       return { ...state, credits: Math.max(0, state.credits + effect.amount) };
     case "start-combat":
+      return { ...state, pendingEncounterId: effect.encounterId };
     case "goto":
     case "end":
       return state;
