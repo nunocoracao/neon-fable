@@ -56,9 +56,100 @@ export const introArc: StoryArc = {
           ],
         },
         {
+          id: "back-shelf",
+          label: "Ask what the stallkeeper keeps off the rack these days.",
+          target: "wet-market-back",
+          requirements: [
+            { type: "flag-equals", key: "act1-complete", value: true },
+          ],
+        },
+        {
           id: "walk-on",
           label: "Keep walking. The Filament is two blocks on.",
           target: "filament-door",
+        },
+      ],
+    },
+    {
+      id: "wet-market-back",
+      text:
+        "The stallkeeper looks you over — the Undertow job travels ahead " +
+        "of you now — and folds back an oilcloth. Underneath: checkpoint " +
+        "plate with the insignia ground off, coil-fed hardware in " +
+        "customs-auction wrap, a surgery case sweating cold. \"Post-flood " +
+        "prices,\" they say. \"You're the reason there's a market.\"",
+      location: "cinder-row:wet-market",
+      choices: [
+        {
+          id: "buy-rail-spitter",
+          label: "Buy the Rail Spitter. (320 cr)",
+          target: "wet-market-back",
+          requirements: [{ type: "credits", value: 320 }],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "credits", amount: -320 },
+            { type: "add-item", itemId: "wpn-rail-spitter" },
+          ],
+        },
+        {
+          id: "buy-torque-cleaver",
+          label: "Buy the Torque Cleaver. (320 cr)",
+          target: "wet-market-back",
+          requirements: [{ type: "credits", value: 320 }],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "credits", amount: -320 },
+            { type: "add-item", itemId: "wpn-torque-cleaver" },
+          ],
+        },
+        {
+          id: "buy-ghostline-mantle",
+          label: "Buy the Ghostline Mantle. (300 cr)",
+          target: "wet-market-back",
+          requirements: [{ type: "credits", value: 300 }],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "credits", amount: -300 },
+            { type: "add-item", itemId: "out-ghostline-mantle" },
+          ],
+        },
+        {
+          id: "buy-cordon-plate",
+          label: "Buy the Cordon Plate Rig. (380 cr)",
+          target: "wet-market-back",
+          requirements: [{ type: "credits", value: 380 }],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "credits", amount: -380 },
+            { type: "add-item", itemId: "out-cordon-plate" },
+          ],
+        },
+        {
+          id: "buy-warden-optics",
+          label: "Buy the Warden Optics. (450 cr)",
+          target: "wet-market-back",
+          requirements: [{ type: "credits", value: 450 }],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "credits", amount: -450 },
+            { type: "add-item", itemId: "cyb-warden-optics" },
+          ],
+        },
+        {
+          id: "buy-cascade-governor",
+          label: "Buy the Cascade Governor. (500 cr)",
+          target: "wet-market-back",
+          requirements: [{ type: "credits", value: 500 }],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "credits", amount: -500 },
+            { type: "add-item", itemId: "cyb-cascade-governor" },
+          ],
+        },
+        {
+          id: "done",
+          label: "\"Another time.\"",
+          target: "wet-market",
         },
       ],
     },

@@ -689,9 +689,10 @@ export const act2Arc: StoryArc = {
         "Patch sets the case on a crate like it's a patient. Inside, in " +
         "clinic seals: a Static Veil, subdermal projection film, the " +
         "kind of hardware that makes recognition systems file you under " +
-        "weather. \"Held it through two offers,\" Patch says. \"Flood " +
-        "season prices, same as ever — and no warranty on what it does " +
-        "to mirrors.\"",
+        "weather — and beneath it, packed in foam, a Torsion Frame " +
+        "stripped from a cycler crew auction. \"Held both through two " +
+        "offers,\" Patch says. \"Flood season prices, same as ever — and " +
+        "no warranty on what any of it does to mirrors.\"",
       location: "cinder-row:tram-loop",
       choices: [
         {
@@ -703,6 +704,17 @@ export const act2Arc: StoryArc = {
           effects: [
             { type: "credits", amount: -150 },
             { type: "add-item", itemId: "cyb-static-veil" },
+          ],
+        },
+        {
+          id: "buy-frame",
+          label: "Buy the Torsion Frame. (400 cr)",
+          target: "a2-lone-veil",
+          requirements: [{ type: "credits", value: 400 }],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "credits", amount: -400 },
+            { type: "add-item", itemId: "cyb-torsion-frame" },
           ],
         },
         {
@@ -979,7 +991,9 @@ export const act2Arc: StoryArc = {
         "a wall of tagged lockers — and hung in pride of place, an arc " +
         "lash, its cable spool still live. Someone chalked a name above " +
         "it and then crossed the name out. Crews don't take a dead " +
-        "colleague's tools. They wait for the tools to choose.",
+        "colleague's tools. They wait for the tools to choose. On the " +
+        "survey bench below, a spindle projector sits mid-calibration, " +
+        "its safety stops already filed away.",
       location: "exchange:coolant-vault",
       choices: [
         {
@@ -987,6 +1001,14 @@ export const act2Arc: StoryArc = {
           label: "Take the arc lash off its hook.",
           target: "a2-vent-arrival",
           effects: [{ type: "add-item", itemId: "wpn-arc-lash" }],
+        },
+        {
+          id: "take-projector",
+          label: "Lift the spindle projector from the bench.",
+          target: "a2-vent-arrival",
+          requirements: [{ type: "stat", stat: "tech", value: 6 }],
+          ifUnavailable: "disabled",
+          effects: [{ type: "add-item", itemId: "wpn-spindle-projector" }],
         },
       ],
     },

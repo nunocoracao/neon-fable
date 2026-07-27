@@ -62,6 +62,34 @@ describe("intro arc gating", () => {
     expect(slow.find((p) => p.choice.id === "lift-patch")?.enabled).toBe(false);
   });
 
+  it("hides the tier-2 back shelf until Act 1 is complete", () => {
+    const market = requireNode(introArc, "wet-market");
+    const before = availableChoices(makeState("gutter-courier"), market);
+    expect(before.some((p) => p.choice.id === "back-shelf")).toBe(false);
+
+    const state = makeState("gutter-courier");
+    state.flags["act1-complete"] = true;
+    const after = availableChoices(state, market);
+    expect(
+      after.find((p) => p.choice.id === "back-shelf")?.enabled,
+    ).toBe(true);
+  });
+
+  it("prices tier-2 gear beyond starting money, purchasable when rich", () => {
+    const state = makeState("gutter-courier");
+    state.flags["act1-complete"] = true;
+    const shelf = requireNode(introArc, "wet-market-back");
+    // Fresh-out-of-Act-1 pockets: every buy shows as disabled.
+    const broke = availableChoices(state, shelf);
+    for (const p of broke) {
+      if (p.choice.id.startsWith("buy-")) expect(p.enabled).toBe(false);
+    }
+    state.credits = 500;
+    const bought = take(state, "wet-market-back", "buy-rail-spitter");
+    expect(hasItem(bought.state.inventory, "wpn-rail-spitter")).toBe(true);
+    expect(bought.state.credits).toBe(500 - 320);
+  });
+
   it("item-gates the bouncer bribe on carrying a trauma patch", () => {
     const door = requireNode(introArc, "filament-door");
     const state = makeState("grid-diver");

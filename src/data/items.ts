@@ -88,6 +88,113 @@ export const items: Item[] = [
     requirement: { stat: "tech", value: 5 },
     effects: [],
   },
+  // --- Tier-2 gear (Act 2+ shops and rewards; steep prices, stiff
+  // stat requirements — not meant to be reachable on Act 1 money) ---
+  {
+    id: "wpn-rail-spitter",
+    kind: "weapon",
+    name: "Rail Spitter",
+    description:
+      "A coil-fed pistol built around a salvaged mag-lev governor. It " +
+      "doesn't bark, it exhales — and something downrange sits down.",
+    damage: 8,
+    rangeType: "ranged",
+    requirement: { stat: "reflexes", value: 6 },
+    effects: [],
+  },
+  {
+    id: "wpn-torque-cleaver",
+    kind: "weapon",
+    name: "Torque Cleaver",
+    description:
+      "A dock-breaker's blade with a gyro core that swings itself. The " +
+      "trick isn't the cut; it's stopping the cut where you meant to.",
+    damage: 8,
+    rangeType: "melee",
+    requirement: { stat: "body", value: 6 },
+    effects: [],
+  },
+  {
+    id: "wpn-spindle-projector",
+    kind: "weapon",
+    name: "Spindle Projector",
+    description:
+      "A vent-crew survey tool retuned past every safety stop: a focused " +
+      "resonance beam that finds the seams in things and opens them.",
+    damage: 7,
+    rangeType: "ranged",
+    requirement: { stat: "tech", value: 6 },
+    effects: [{ type: "stat-mod", stat: "tech", amount: 1 }],
+  },
+  {
+    id: "out-cordon-plate",
+    kind: "outfit",
+    name: "Cordon Plate Rig",
+    description:
+      "Auric checkpoint plate with the insignia ground off. Heavy enough " +
+      "to stop what checkpoints stop, and to slow what checkpoints slow.",
+    armor: 4,
+    effects: [{ type: "stat-mod", stat: "reflexes", amount: -1 }],
+  },
+  {
+    id: "out-ghostline-mantle",
+    kind: "outfit",
+    name: "Ghostline Mantle",
+    description:
+      "A courier-guild longcoat threaded with signal-eating mesh and " +
+      "ballistic weave. Rooms remember someone was there, never who.",
+    armor: 3,
+    effects: [{ type: "stat-mod", stat: "cool", amount: 1 }],
+  },
+  {
+    id: "cyb-warden-optics",
+    kind: "enhancement",
+    name: "Warden Optics",
+    description:
+      "Checkpoint-grade replacement eyes: predictive tracking, threat " +
+      "lattices, a targeting reticle that never quite blinks off. People " +
+      "can tell they're being solved.",
+    slot: "eyes",
+    neuralCost: 3,
+    effects: [
+      { type: "stat-mod", stat: "reflexes", amount: 2 },
+      { type: "stat-mod", stat: "cool", amount: -1 },
+      { type: "unlock-dialogue", tag: "optic-scan" },
+    ],
+  },
+  {
+    id: "cyb-torsion-frame",
+    kind: "enhancement",
+    name: "Torsion Frame",
+    description:
+      "A load-bearing endoskeletal truss rated for cycler maintenance. " +
+      "You stop borrowing strength from your body and start billing it.",
+    slot: "arms",
+    neuralCost: 4,
+    effects: [
+      { type: "stat-mod", stat: "body", amount: 2 },
+      { type: "stat-mod", stat: "reflexes", amount: 1 },
+      { type: "stat-mod", stat: "tech", amount: -1 },
+      { type: "grant-ability", abilityId: "ability-crush" },
+    ],
+  },
+  {
+    id: "cyb-cascade-governor",
+    kind: "enhancement",
+    name: "Cascade Governor",
+    description:
+      "A second-generation cortical lattice that schedules your thoughts " +
+      "like freight. Brilliant, tireless — and it files your feelings " +
+      "under overhead.",
+    slot: "neural",
+    neuralCost: 4,
+    effects: [
+      { type: "stat-mod", stat: "intelligence", amount: 2 },
+      { type: "stat-mod", stat: "tech", amount: 1 },
+      { type: "stat-mod", stat: "cool", amount: -1 },
+      { type: "unlock-dialogue", tag: "machine-cant" },
+    ],
+  },
   // --- Consumables ---
   {
     id: "con-trauma-patch",
