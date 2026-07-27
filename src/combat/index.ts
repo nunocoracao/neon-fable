@@ -20,6 +20,18 @@ export {
   weaponRange,
 } from "./damage";
 export { inBounds, isOccupied, manhattan, moveSpeed } from "./grid";
+export {
+  abilityOptions,
+  attackOptions,
+  fleeChanceFor,
+  itemOptions,
+  manhattanPath,
+  reachableTiles,
+  type AbilityOption,
+  type AbilityTargetOption,
+  type AttackOption,
+  type ItemOption,
+} from "./legal";
 export { combatResultFlag, resolveCombat } from "./outcome";
 export { PLAYER_COMBATANT_ID, createCombat } from "./setup";
 export {

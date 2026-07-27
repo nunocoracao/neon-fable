@@ -1,0 +1,190 @@
+import { requireAbility } from "../data/abilities";
+import {
+  abilityDamage,
+  attackDamage,
+  attackStatKey,
+  fleeChance,
+  hitChance,
+  weaponRange,
+} from "./damage";
+import { inBounds, isOccupied, manhattan } from "./grid";
+import { activeCombatant, combatStat, isAlive, livingEnemies } from "./state";
+import type { CombatState, GridPosition } from "./types";
+
+/**
+ * Legal-option queries for the combat UI. The UI never re-derives combat
+ * rules: it asks these functions what the active combatant may do (and
+ * with what odds) and submits the chosen action back through takeAction.
+ * All pure reads over CombatState.
+ */
+
+/** A living opponent the active combatant can attack right now. */
+export interface AttackOption {
+  targetId: string;
+  /** Chance in [0, 1] the attack lands. */
+  hitChance: number;
+  /** Damage dealt if it lands (deterministic given stats and armor). */
+  damage: number;
+  distance: number;
+}
+
+export interface AbilityTargetOption {
+  targetId: string;
+  damage: number;
+  stunTurns: number;
+}
+
+/** One of the active combatant's abilities and who it could hit now. */
+export interface AbilityOption {
+  abilityId: string;
+  /** Turns until usable again; 0 when off cooldown. */
+  cooldown: number;
+  /** Off cooldown and the main action is still available. */
+  ready: boolean;
+  /** True for self-boost abilities, which target only the caster. */
+  selfTarget: boolean;
+  /** Legal targets right now; empty while not ready or out of range. */
+  targets: AbilityTargetOption[];
+}
+
+export interface ItemOption {
+  itemId: string;
+  quantity: number;
+}
+
+function mainActionAvailable(state: CombatState): boolean {
+  return state.status === "active" && !state.actionUsed;
+}
+
+/** Tiles the active combatant may move to with its remaining budget. */
+export function reachableTiles(state: CombatState): GridPosition[] {
+  if (state.status !== "active" || state.moveRemaining <= 0) return [];
+  const actor = activeCombatant(state);
+  const tiles: GridPosition[] = [];
+  for (let y = 0; y < state.grid.height; y++) {
+    for (let x = 0; x < state.grid.width; x++) {
+      const tile = { x, y };
+      const cost = manhattan(actor.position, tile);
+      if (
+        cost > 0 &&
+        cost <= state.moveRemaining &&
+        inBounds(state.grid, tile) &&
+        !isOccupied(state.combatants, tile, actor.id)
+      ) {
+        tiles.push(tile);
+      }
+    }
+  }
+  return tiles;
+}
+
+/** Weapon attacks the active combatant may make, with odds and damage. */
+export function attackOptions(state: CombatState): AttackOption[] {
+  if (!mainActionAvailable(state)) return [];
+  const actor = activeCombatant(state);
+  const range = weaponRange(actor.weapon.rangeType);
+  const attackStat = combatStat(actor, attackStatKey(actor.weapon.rangeType));
+  return state.combatants
+    .filter((c) => c.kind !== actor.kind && isAlive(c))
+    .map((target) => ({
+      targetId: target.id,
+      distance: manhattan(actor.position, target.position),
+      hitChance: hitChance(attackStat, combatStat(target, "reflexes")),
+      damage: attackDamage(actor.weapon, attackStat, target.armor),
+    }))
+    .filter((option) => option.distance <= range);
+}
+
+/** Every ability the active combatant carries, with its current targets. */
+export function abilityOptions(state: CombatState): AbilityOption[] {
+  if (state.status !== "active") return [];
+  const actor = activeCombatant(state);
+  return actor.abilityIds.map((abilityId) => {
+    const ability = requireAbility(abilityId);
+    const cooldown = actor.cooldowns[abilityId] ?? 0;
+    const ready = cooldown === 0 && !state.actionUsed;
+    if (ability.effect.type === "boost") {
+      return {
+        abilityId,
+        cooldown,
+        ready,
+        selfTarget: true,
+        targets: ready
+          ? [{ targetId: actor.id, damage: 0, stunTurns: 0 }]
+          : [],
+      };
+    }
+    const { amount, ignoresArmor, stunTurns } = ability.effect;
+    const targets = ready
+      ? state.combatants
+          .filter(
+            (c) =>
+              c.kind !== actor.kind &&
+              isAlive(c) &&
+              manhattan(actor.position, c.position) <= ability.range,
+          )
+          .map((target) => ({
+            targetId: target.id,
+            damage: abilityDamage(amount, target.armor, ignoresArmor ?? false),
+            stunTurns: stunTurns ?? 0,
+          }))
+      : [];
+    return { abilityId, cooldown, ready, selfTarget: false, targets };
+  });
+}
+
+/** Consumables the active combatant may use (player only). */
+export function itemOptions(state: CombatState): ItemOption[] {
+  if (!mainActionAvailable(state)) return [];
+  const actor = activeCombatant(state);
+  if (actor.kind !== "player") return [];
+  return actor.consumables
+    .filter((stack) => stack.quantity > 0)
+    .map(({ itemId, quantity }) => ({ itemId, quantity }));
+}
+
+/** Chance in [0, 1] a flee attempt succeeds now, or null when illegal. */
+export function fleeChanceFor(state: CombatState): number | null {
+  if (!mainActionAvailable(state)) return null;
+  const actor = activeCombatant(state);
+  if (actor.kind !== "player" || !state.fleeable) return null;
+  return fleeChance(
+    combatStat(actor, "reflexes"),
+    livingEnemies(state).map((e) => combatStat(e, "reflexes")),
+  );
+}
+
+/**
+ * The tiles stepped through going from `from` to `to` one axis at a time
+ * (dominant axis first, matching enemy pathing), excluding `from` and
+ * including `to`. Used to preview a move and to walk entities along it.
+ */
+export function manhattanPath(
+  from: GridPosition,
+  to: GridPosition,
+): GridPosition[] {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const steps: GridPosition[] = [];
+  let { x, y } = from;
+  const stepX = (): void => {
+    for (let i = 0; i < Math.abs(dx); i++) {
+      x += Math.sign(dx);
+      steps.push({ x, y });
+    }
+  };
+  const stepY = (): void => {
+    for (let i = 0; i < Math.abs(dy); i++) {
+      y += Math.sign(dy);
+      steps.push({ x, y });
+    }
+  };
+  if (Math.abs(dy) > Math.abs(dx)) {
+    stepY();
+    stepX();
+  } else {
+    stepX();
+    stepY();
+  }
+  return steps;
+}
