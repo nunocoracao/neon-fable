@@ -43,7 +43,8 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let overlay: { kind: OverlayKind; handle: OverlayHandle } | null = null;
 
-  if (!getMap(session.state.location)) {
+  // "main-menu" is the fresh-game sentinel, not a content error.
+  if (session.state.location !== "main-menu" && !getMap(session.state.location)) {
     console.error(
       `Unknown map id "${session.state.location}" — falling back to the hub`,
     );
