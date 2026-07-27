@@ -1,8 +1,9 @@
 /**
- * Dev exploration screen: runs the iso scene on the background canvas
- * with a thin DOM overlay (back button + last interaction readout).
- * Interaction events are only displayed here for now; routing them into
- * narrative/combat comes in a later task.
+ * Dev exploration screen (?dev only): runs the iso scene on the
+ * background canvas with a thin DOM overlay (back button + last
+ * interaction readout). Interaction events are displayed, not routed —
+ * the game screen owns the real narrative/combat wiring; this screen
+ * exists to inspect maps without a character.
  */
 import { createIsoScene, type IsoScene } from "../iso";
 import { requireMap } from "../data";
