@@ -87,6 +87,83 @@ export const encounters: Encounter[] = [
     },
     fleeable: false,
   },
+  {
+    id: "enc-pump-gate",
+    name: "Pump-Deck Gate Wardens",
+    grid: { width: 8, height: 6 },
+    arenaMapId: "undercroft-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [
+      { enemyId: "nme-auric-warden", position: { x: 6, y: 2 } },
+      { enemyId: "nme-auric-warden", position: { x: 6, y: 4 } },
+    ],
+    rewards: {
+      credits: 35,
+      items: [{ itemId: "con-trauma-patch" }],
+    },
+  },
+  {
+    id: "enc-pumpworks-court",
+    name: "Pumpworks Assault",
+    grid: { width: 9, height: 7 },
+    arenaMapId: "pumpworks-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [
+      { enemyId: "nme-auric-warden", position: { x: 7, y: 2 } },
+      { enemyId: "nme-static-drone", position: { x: 7, y: 4 } },
+    ],
+    rewards: {
+      credits: 60,
+      items: [{ itemId: "con-trauma-patch" }],
+    },
+    fleeable: false,
+  },
+  {
+    id: "enc-pumpworks-inner",
+    name: "The Custodian's Deck",
+    grid: { width: 9, height: 7 },
+    arenaMapId: "pumpworks-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [{ enemyId: "nme-pump-custodian", position: { x: 7, y: 3 } }],
+    rewards: {
+      credits: 60,
+      items: [{ itemId: "con-surge-stim" }],
+    },
+    fleeable: false,
+  },
+  {
+    id: "enc-pumpworks-voss",
+    name: "Pumpworks Holdout",
+    grid: { width: 9, height: 7 },
+    arenaMapId: "pumpworks-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [
+      { enemyId: "nme-court-sapper", position: { x: 7, y: 2 } },
+      { enemyId: "nme-court-sapper", position: { x: 6, y: 5 } },
+      { enemyId: "nme-court-sapper", position: { x: 7, y: 3 } },
+    ],
+    rewards: {
+      credits: 60,
+      items: [{ itemId: "con-trauma-patch" }],
+    },
+    fleeable: false,
+  },
+  {
+    id: "enc-relay-crown",
+    name: "Relay Crown Interdiction",
+    grid: { width: 7, height: 6 },
+    arenaMapId: "relay-crown-arena",
+    playerStart: { x: 3, y: 5 },
+    enemies: [
+      { enemyId: "nme-auric-agent", position: { x: 3, y: 0 } },
+      { enemyId: "nme-static-drone", position: { x: 5, y: 1 } },
+    ],
+    rewards: {
+      credits: 50,
+      items: [{ itemId: "con-trauma-patch" }],
+    },
+    fleeable: false,
+  },
 ];
 
 const encountersById = new Map(encounters.map((e) => [e.id, e]));

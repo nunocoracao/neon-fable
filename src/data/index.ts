@@ -25,5 +25,6 @@ export {
   type EncounterRewards,
   type EncounterSpawn,
 } from "./encounters";
-export { findArcByNode, getArc, introArc, storyArcs } from "./story";
+export { act1Arc, findArcByNode, getArc, introArc, storyArcs } from "./story";
 export { HUB_MAP_ID, getMap, maps, requireMap } from "./maps";
+export { endings, getEnding, type ChapterEnding } from "./endings";

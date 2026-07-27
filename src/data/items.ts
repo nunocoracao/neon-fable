@@ -105,6 +105,42 @@ export const items: Item[] = [
       "first. Whatever's on it, Auric wants it back badly.",
     tags: ["evidence", "auric"],
   },
+  {
+    id: "msc-glasshouse-pass",
+    kind: "misc",
+    name: "Reclamation Duty Pass",
+    description:
+      "An Auric duty roster chip, still warm from Auditor Lin's printer. " +
+      "Whoever holds it is, on paper, allowed anywhere the water goes.",
+    tags: ["auric", "key"],
+  },
+  {
+    id: "msc-override-key",
+    kind: "misc",
+    name: "Undertow Override Key",
+    description:
+      "A brass-and-chip key pried from a drowned foreman's lanyard. It " +
+      "opens the pump deck's inner doors, and it cost more than money.",
+    tags: ["key", "undercroft"],
+  },
+  {
+    id: "msc-ledger-ghost",
+    kind: "misc",
+    name: "Ledger Ghost-Copy",
+    description:
+      "Sable's shadow-image of the Undertow ledger, wrapped in three " +
+      "layers of dead-man's encryption and one of spite.",
+    tags: ["evidence", "auric"],
+  },
+  {
+    id: "msc-auric-writ",
+    kind: "misc",
+    name: "Auric Letter of Passage",
+    description:
+      "A countersigned writ over Director Voss's mark. Security reads it " +
+      "and decides, visibly, that you are somebody else's problem.",
+    tags: ["auric", "favor"],
+  },
   // --- Cyber enhancements ---
   {
     id: "cyb-optic-suite",
@@ -149,6 +185,22 @@ export const items: Item[] = [
       { type: "stat-mod", stat: "intelligence", amount: 2 },
       { type: "stat-mod", stat: "cool", amount: -1 },
       { type: "unlock-dialogue", tag: "machine-cant" },
+    ],
+  },
+  {
+    id: "cyb-silt-gills",
+    kind: "enhancement",
+    name: "Silt Gills",
+    description:
+      "Filtration slits grafted along the ribs, rated for floodwater. " +
+      "You can breathe the drowned levels — and you never stop tasting " +
+      "them.",
+    slot: "dermal",
+    neuralCost: 2,
+    effects: [
+      { type: "stat-mod", stat: "body", amount: 1 },
+      { type: "stat-mod", stat: "cool", amount: -1 },
+      { type: "unlock-dialogue", tag: "flood-diver" },
     ],
   },
   {
