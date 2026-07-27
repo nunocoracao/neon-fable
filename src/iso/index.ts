@@ -57,8 +57,17 @@ export {
   type CombatSceneOptions,
 } from "./combatScene";
 export {
-  createPlaceholderSprites,
+  type EntityPose,
   type EntitySpriteId,
   type Sprite,
   type SpriteProvider,
 } from "./sprites";
+export { createPixelArtSprites } from "./art/provider";
+export {
+  facingFromDelta,
+  frameAt,
+  pulse01,
+  variantIndex,
+  type Facing,
+  type MotionState,
+} from "./animation";

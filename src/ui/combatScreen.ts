@@ -393,6 +393,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         case "attacked": {
           const tile = getCombatant(combat, event.targetId)?.position;
           if (!tile) break;
+          scene.attackFx(event.attackerId, event.targetId);
           if (event.hit) {
             scene.flashEntity(event.targetId);
             scene.floatText(tile, `-${event.damage}`, "#ff4d5e");
@@ -405,6 +406,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
           if (event.damage <= 0) break;
           const tile = getCombatant(combat, event.targetId)?.position;
           if (!tile) break;
+          scene.attackFx(event.combatantId, event.targetId);
           scene.flashEntity(event.targetId);
           scene.floatText(tile, `-${event.damage}`, "#ff4d5e");
           break;
