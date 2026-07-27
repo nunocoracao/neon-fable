@@ -1,7 +1,7 @@
-/* Neon Fable — base theme */
+/* Neon Fable — pixel-art theme: hard edges, stepped shadows, no blur. */
 
 :root {
-  /* Palette */
+  /* Palette (mirrors the sprite palette in src/iso/art/palette.ts) */
   --nf-bg-deep: #0a0a12;
   --nf-bg-panel: #12121f;
   --nf-bg-raised: #1a1a2e;
@@ -12,10 +12,17 @@
   --nf-glow-amber: #f0b429;
   --nf-danger: #ff4d5e;
   --nf-border: #2a2a44;
+  --nf-outline: #05060c;
 
-  /* Type */
-  --nf-font-display: "Courier New", ui-monospace, monospace;
-  --nf-font-body: system-ui, -apple-system, sans-serif;
+  /* Type: chunky monospace reads as pixel UI while staying legible. */
+  --nf-font-display: "Courier New", ui-monospace, "SF Mono", Menlo, monospace;
+  --nf-font-body: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Hard-edged "sprite" drop shadow used across panels and chrome. */
+  --nf-shadow-hard: 4px 4px 0 rgba(5, 6, 12, 0.65);
+  --nf-shadow-inset:
+    inset 2px 2px 0 rgba(232, 230, 240, 0.06),
+    inset -2px -2px 0 rgba(5, 6, 12, 0.55);
 }
 
 * {
@@ -40,6 +47,30 @@ body {
   width: 100%;
   height: 100%;
   display: block;
+  image-rendering: pixelated;
+}
+
+/* Anywhere sprites or generated art land in DOM screens, keep pixels crisp. */
+#ui-root canvas,
+#ui-root img,
+.nf-sprite {
+  image-rendering: pixelated;
+}
+
+/* Subtle CRT scanlines over the whole game, canvas and UI alike. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(5, 6, 12, 0) 0,
+    rgba(5, 6, 12, 0) 3px,
+    rgba(5, 6, 12, 0.1) 3px,
+    rgba(5, 6, 12, 0.1) 4px
+  );
 }
 
 /* DOM UI overlay root */
@@ -62,14 +93,16 @@ body {
 
 .nf-title {
   font-family: var(--nf-font-display);
+  font-weight: 700;
   font-size: clamp(2.5rem, 8vw, 5rem);
   letter-spacing: 0.15em;
   text-transform: uppercase;
   margin: 0;
   color: var(--nf-glow-cyan);
+  /* Stepped shadow instead of a soft glow: reads as chunky pixel type. */
   text-shadow:
-    0 0 8px var(--nf-glow-cyan),
-    0 0 32px rgba(46, 230, 214, 0.4);
+    3px 3px 0 var(--nf-glow-magenta),
+    6px 6px 0 rgba(5, 6, 12, 0.8);
 }
 
 .nf-subtitle {
@@ -89,24 +122,29 @@ body {
 
 .nf-button {
   font-family: var(--nf-font-display);
+  font-weight: 700;
   font-size: 1rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding: 0.75rem 1.5rem;
   color: var(--nf-ink);
   background: var(--nf-bg-panel);
-  border: 1px solid var(--nf-border);
+  border: 2px solid var(--nf-border);
+  box-shadow: var(--nf-shadow-hard), var(--nf-shadow-inset);
   cursor: pointer;
   transition:
-    border-color 120ms ease,
-    box-shadow 120ms ease,
-    color 120ms ease;
+    border-color 120ms steps(2, end),
+    color 120ms steps(2, end);
 }
 
 .nf-button:hover:not(:disabled) {
   border-color: var(--nf-glow-magenta);
   color: var(--nf-glow-magenta);
-  box-shadow: 0 0 12px rgba(230, 62, 143, 0.35);
+}
+
+.nf-button:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 rgba(5, 6, 12, 0.65), var(--nf-shadow-inset);
 }
 
 .nf-button:disabled {
@@ -133,8 +171,11 @@ body {
 
 .nf-panel {
   background: rgba(18, 18, 31, 0.96);
-  border: 1px solid var(--nf-border);
-  box-shadow: 0 0 32px rgba(0, 0, 0, 0.6);
+  border: 2px solid var(--nf-border);
+  /* Double-frame: outline ring around the border, then a hard drop. */
+  box-shadow:
+    0 0 0 2px var(--nf-outline),
+    6px 6px 0 rgba(5, 6, 12, 0.6);
   padding: 1.25rem 1.5rem;
   max-width: min(64rem, calc(100vw - 3rem));
   max-height: calc(100vh - 6rem);
@@ -189,7 +230,7 @@ body {
   font-size: 1rem;
   color: var(--nf-ink);
   background: var(--nf-bg-deep);
-  border: 1px solid var(--nf-border);
+  border: 2px solid var(--nf-border);
   outline: none;
 }
 
@@ -250,7 +291,7 @@ body {
   letter-spacing: 0.05em;
   color: var(--nf-ink);
   background: rgba(18, 18, 31, 0.85);
-  border: 1px solid var(--nf-border);
+  border: 2px solid var(--nf-border);
 }
 
 .nf-hud-actions {
@@ -272,7 +313,8 @@ body {
   font-size: 0.85rem;
   color: var(--nf-glow-amber);
   background: rgba(18, 18, 31, 0.92);
-  border: 1px solid var(--nf-glow-amber);
+  border: 2px solid var(--nf-glow-amber);
+  box-shadow: var(--nf-shadow-hard);
   opacity: 0;
   transition: opacity 200ms ease;
   pointer-events: none;
@@ -315,7 +357,7 @@ body {
   padding: 0.5rem 0.75rem;
   color: var(--nf-ink);
   background: var(--nf-bg-raised);
-  border: 1px solid var(--nf-border);
+  border: 2px solid var(--nf-border);
   cursor: pointer;
 }
 
@@ -358,13 +400,13 @@ body {
   padding: 0.5rem 0.75rem;
   color: var(--nf-ink);
   background: var(--nf-bg-raised);
-  border: 1px solid var(--nf-border);
+  border: 2px solid var(--nf-border);
   cursor: pointer;
 }
 
 .nf-bg-card.nf-selected {
   border-color: var(--nf-glow-magenta);
-  box-shadow: 0 0 10px rgba(230, 62, 143, 0.3);
+  box-shadow: 3px 3px 0 rgba(110, 33, 72, 0.8);
 }
 
 .nf-bg-name {
@@ -440,7 +482,7 @@ body {
 .nf-button-attention {
   border-color: var(--nf-glow-cyan);
   color: var(--nf-glow-cyan);
-  box-shadow: 0 0 10px rgba(46, 230, 214, 0.35);
+  box-shadow: 3px 3px 0 rgba(20, 102, 95, 0.8), var(--nf-shadow-inset);
 }
 
 .nf-inventory-status {
@@ -461,15 +503,22 @@ body {
 .nf-meter {
   flex: 1;
   max-width: 12rem;
-  height: 0.5rem;
-  background: var(--nf-bg-deep);
-  border: 1px solid var(--nf-border);
+  height: 0.75rem;
+  background: var(--nf-outline);
+  border: 2px solid var(--nf-border);
 }
 
+/* Segmented fill: repeating blocks read as chunky pixel LEDs. */
 .nf-meter-fill {
   height: 100%;
-  background: var(--nf-glow-magenta);
-  transition: width 150ms ease;
+  background: repeating-linear-gradient(
+    to right,
+    var(--nf-glow-magenta) 0,
+    var(--nf-glow-magenta) 6px,
+    var(--nf-outline) 6px,
+    var(--nf-outline) 8px
+  );
+  transition: width 150ms steps(4, end);
 }
 
 .nf-inventory-columns {
@@ -511,7 +560,7 @@ body {
   gap: 0.3rem;
   padding: 0.6rem 0.75rem;
   background: var(--nf-bg-raised);
-  border: 1px solid var(--nf-border);
+  border: 2px solid var(--nf-border);
 }
 
 .nf-item-card .nf-button {
@@ -591,7 +640,7 @@ body {
   letter-spacing: 0.05em;
   color: var(--nf-ink-dim);
   background: rgba(18, 18, 31, 0.85);
-  border: 1px solid var(--nf-border);
+  border: 2px solid var(--nf-border);
 }
 
 /* --- Combat --- */
@@ -616,7 +665,7 @@ body {
   color: var(--nf-glow-magenta);
   padding: 0.35rem 0.75rem;
   background: rgba(18, 18, 31, 0.85);
-  border: 1px solid var(--nf-border);
+  border: 2px solid var(--nf-border);
 }
 
 .nf-initiative {
@@ -634,7 +683,7 @@ body {
   color: var(--nf-glow-amber);
   padding: 0.3rem 0.5rem;
   background: rgba(18, 18, 31, 0.85);
-  border: 1px solid var(--nf-border);
+  border: 2px solid var(--nf-border);
 }
 
 .nf-init-chip {
@@ -644,7 +693,7 @@ body {
   padding: 0.3rem 0.5rem;
   color: var(--nf-ink-dim);
   background: rgba(18, 18, 31, 0.85);
-  border: 1px solid var(--nf-border);
+  border: 2px solid var(--nf-border);
 }
 
 .nf-init-player {
@@ -653,7 +702,7 @@ body {
 
 .nf-init-active {
   border-color: var(--nf-glow-cyan);
-  box-shadow: 0 0 8px rgba(46, 230, 214, 0.4);
+  box-shadow: 2px 2px 0 rgba(20, 102, 95, 0.8);
   color: var(--nf-ink);
 }
 
@@ -674,7 +723,7 @@ body {
   line-height: 1.45;
   color: var(--nf-ink-dim);
   background: rgba(18, 18, 31, 0.85);
-  border: 1px solid var(--nf-border);
+  border: 2px solid var(--nf-border);
   pointer-events: auto;
 }
 
@@ -703,7 +752,7 @@ body {
   font-size: 0.8rem;
   color: var(--nf-ink);
   background: rgba(18, 18, 31, 0.85);
-  border: 1px solid var(--nf-border);
+  border: 2px solid var(--nf-border);
 }
 
 .nf-combat-hint {
@@ -862,7 +911,7 @@ body {
 .nf-choice:focus-visible,
 .nf-bg-card:focus-visible,
 .nf-input:focus-visible {
-  outline: 1px solid var(--nf-glow-cyan);
+  outline: 2px solid var(--nf-glow-cyan);
   outline-offset: 2px;
 }
 
