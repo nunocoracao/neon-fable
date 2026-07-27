@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import { UNINSTALL_TRAUMA_PER_LOAD } from "../inventory/equipment";
 import type { EnhancementItem, Item } from "../inventory/items";
 import { SaveError } from "../state/save";
+import type { CombatEvent } from "../combat/types";
 import {
   characterNameError,
+  combatEventText,
+  combatantDisplayNames,
   formatBonuses,
   formatTimestamp,
+  percentLabel,
   itemEffectLabels,
   itemSummary,
   pointBuyErrorMessage,
@@ -220,5 +224,128 @@ describe("misc labels", () => {
     expect(formatTimestamp(Date.UTC(2026, 0, 5, 12, 30))).toMatch(
       /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/,
     );
+  });
+});
+
+describe("combat log formatting", () => {
+  const names: Record<string, string> = {
+    player: "Vex",
+    "nme-static-drone-1": "Static Drone",
+  };
+  const nameOf = (id: string) => names[id] ?? id;
+  const line = (event: CombatEvent) => combatEventText(event, nameOf);
+
+  it("renders percentages from chances", () => {
+    expect(percentLabel(0.649)).toBe("65%");
+    expect(percentLabel(0.05)).toBe("5%");
+  });
+
+  it("describes attacks, hits, and misses", () => {
+    expect(
+      line({
+        type: "attacked",
+        attackerId: "player",
+        targetId: "nme-static-drone-1",
+        hit: true,
+        damage: 5,
+      }),
+    ).toBe("Vex hits Static Drone for 5 damage.");
+    expect(
+      line({
+        type: "attacked",
+        attackerId: "nme-static-drone-1",
+        targetId: "player",
+        hit: false,
+        damage: 0,
+      }),
+    ).toBe("Static Drone misses Vex.");
+  });
+
+  it("describes abilities by name, including self-casts and stuns", () => {
+    expect(
+      line({
+        type: "ability-used",
+        combatantId: "player",
+        abilityId: "ability-stun-strike",
+        targetId: "nme-static-drone-1",
+        damage: 2,
+        stunTurns: 1,
+      }),
+    ).toBe("Vex hits Static Drone with Stun Strike for 2 damage, stunning them.");
+    expect(
+      line({
+        type: "ability-used",
+        combatantId: "player",
+        abilityId: "ability-combat-focus",
+        targetId: "player",
+        damage: 0,
+        stunTurns: 0,
+      }),
+    ).toBe("Vex uses Combat Focus.");
+  });
+
+  it("describes items, healing, and boosts", () => {
+    expect(
+      line({ type: "item-used", combatantId: "player", itemId: "con-trauma-patch" }),
+    ).toBe("Vex uses a Trauma Patch.");
+    expect(line({ type: "healed", combatantId: "player", amount: 7 })).toBe(
+      "Vex recovers 7 HP.",
+    );
+    expect(
+      line({
+        type: "boosted",
+        combatantId: "player",
+        stat: "reflexes",
+        amount: 2,
+        turns: 3,
+      }),
+    ).toBe("Vex gains +2 Reflexes for 3 turns.");
+  });
+
+  it("describes rounds, stuns, flee attempts, and endings", () => {
+    expect(line({ type: "round-started", round: 3 })).toBe("— Round 3 —");
+    expect(
+      line({ type: "stun-skipped", combatantId: "nme-static-drone-1" }),
+    ).toMatch(/stunned/);
+    expect(
+      line({ type: "flee-attempted", combatantId: "player", success: false }),
+    ).toMatch(/no opening/);
+    expect(
+      line({ type: "flee-attempted", combatantId: "player", success: true }),
+    ).toMatch(/breaks away/);
+    expect(line({ type: "defeated", combatantId: "nme-static-drone-1" })).toBe(
+      "Static Drone goes down.",
+    );
+    expect(line({ type: "combat-ended", result: "victory" })).toMatch(/down/);
+    expect(line({ type: "combat-ended", result: "defeat" })).toMatch(/collapse/);
+    expect(line({ type: "combat-ended", result: "fled" })).toMatch(/clear/);
+  });
+
+  it("suppresses turn markers and moves — the scene conveys those", () => {
+    expect(line({ type: "turn-started", combatantId: "player" })).toBeNull();
+    expect(
+      line({
+        type: "moved",
+        combatantId: "player",
+        from: { x: 0, y: 0 },
+        to: { x: 1, y: 0 },
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("combatantDisplayNames", () => {
+  it("numbers duplicates and leaves unique names alone", () => {
+    expect(
+      combatantDisplayNames([
+        { id: "player", name: "Vex" },
+        { id: "nme-rustyard-bruiser-1", name: "Rustyard Bruiser" },
+        { id: "nme-rustyard-bruiser-2", name: "Rustyard Bruiser" },
+      ]),
+    ).toEqual({
+      player: "Vex",
+      "nme-rustyard-bruiser-1": "Rustyard Bruiser 1",
+      "nme-rustyard-bruiser-2": "Rustyard Bruiser 2",
+    });
   });
 });
