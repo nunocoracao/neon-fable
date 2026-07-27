@@ -26,3 +26,4 @@ export {
   type EncounterSpawn,
 } from "./encounters";
 export { getArc, introArc, storyArcs } from "./story";
+export { HUB_MAP_ID, getMap, maps, requireMap } from "./maps";
