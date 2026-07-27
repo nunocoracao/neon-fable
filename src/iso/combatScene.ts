@@ -1,10 +1,21 @@
 /**
  * Combat arena scene: renders an arena map with combatant entities, HP
  * bars, tile highlights (reachable / targets / path preview), walk
- * tweens, hit flashes, and floating combat numbers. Presentation only —
+ * tweens, and combat feedback — attack lunges, hit flash + shake,
+ * defeat dissolves, and floating combat numbers. Presentation only —
  * the combat screen feeds it authoritative state and interprets clicks;
- * this layer never imports the combat engine.
+ * this layer never imports the combat engine. All effect timing math
+ * comes from the pure helpers in ./animation.
  */
+import {
+  dissolve01,
+  dissolvedAt,
+  facingFromDelta,
+  lunge01,
+  shakeOffsetPx,
+  type Facing,
+} from "./animation";
+import { createPixelArtSprites } from "./art/provider";
 import { clampCamera, mapPixelBounds, type Camera } from "./camera";
 import {
   TILE_H,
@@ -16,12 +27,7 @@ import {
   type WorldPoint,
 } from "./coords";
 import { compareDrawables, type Drawable } from "./depth";
-import {
-  createPlaceholderSprites,
-  type EntitySpriteId,
-  type Sprite,
-  type SpriteProvider,
-} from "./sprites";
+import type { EntitySpriteId, SpriteProvider } from "./sprites";
 import type { IsoMap } from "./tilemap";
 
 /** Authoritative view of one combatant, pushed by the combat screen. */
@@ -58,7 +64,9 @@ export interface CombatScene {
   /** Replace the entity view; changed positions animate as walks. */
   setEntities(entities: readonly CombatSceneEntity[]): void;
   setHighlights(highlights: Partial<CombatHighlights>): void;
-  /** Brief bright ring on an entity (attack landing, ability hit). */
+  /** Lunge the attacker toward the target (attack or offensive ability). */
+  attackFx(attackerId: string, targetId: string): void;
+  /** Hit flash + brief shake on an entity (attack landing, ability hit). */
   flashEntity(id: string): void;
   /** Floating rise-and-fade text over a tile (damage, MISS, heals). */
   floatText(tile: TilePoint, text: string, color?: string): void;
@@ -67,7 +75,15 @@ export interface CombatScene {
 
 /** Tiles per second entities walk between logical positions. */
 const WALK_SPEED = 6;
-const FLASH_MS = 350;
+const LUNGE_MS = 220;
+const LUNGE_DISTANCE_PX = 12;
+/** Flash starts slightly after the event so it lands at the lunge apex. */
+const FLASH_DELAY_MS = 90;
+const FLASH_MS = 300;
+const SHAKE_PX = 3;
+const DISSOLVE_MS = 550;
+/** Side of the square pixel blocks removed during a defeat dissolve. */
+const DISSOLVE_BLOCK_PX = 4;
 const FLOAT_MS = 900;
 const FLOAT_RISE_PX = 28;
 
@@ -77,6 +93,13 @@ interface EntityView extends CombatSceneEntity {
   /** Tiles still to walk; [0] is the tile being entered. */
   queue: TilePoint[];
   progress: number;
+  facing: Facing;
+  /** Screen-space unit vector toward the last attack target. */
+  lungeDir: { dx: number; dy: number } | null;
+  lungeStart: number;
+  flashStart: number;
+  /** Timestamp the entity was seen dead, for the dissolve. */
+  diedAt: number;
 }
 
 interface FloatingText {
@@ -120,11 +143,13 @@ export function createCombatScene(
   const { map } = options;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not get 2d context for combat canvas");
-  const sprites = options.sprites ?? createPlaceholderSprites();
+  const sprites = options.sprites ?? createPixelArtSprites();
   const bounds = mapPixelBounds(map);
+  /** Scratch canvas the defeat dissolve punches pixel blocks out of. */
+  const scratch = document.createElement("canvas");
+  const scratchCtx = scratch.getContext("2d");
 
   const entities = new Map<string, EntityView>();
-  const flashes = new Map<string, number>();
   const floats: FloatingText[] = [];
   let highlights: CombatHighlights = {
     reachable: [],
@@ -135,14 +160,19 @@ export function createCombatScene(
 
   let viewportW = 0;
   let viewportH = 0;
+  let dpr = 1;
   // Fixed camera on the arena center; arenas are small enough to fit.
   let camera: Camera = {
     sx: (bounds.minX + bounds.maxX) / 2,
     sy: (bounds.minY + bounds.maxY) / 2,
   };
 
+  function snap(value: number): number {
+    return Math.round(value * dpr) / dpr;
+  }
+
   function resize(): void {
-    const dpr = window.devicePixelRatio || 1;
+    dpr = window.devicePixelRatio || 1;
     viewportW = canvas.clientWidth;
     viewportH = canvas.clientHeight;
     canvas.width = Math.round(viewportW * dpr);
@@ -187,6 +217,8 @@ export function createCombatScene(
       if (next) {
         const fromX = Math.round(entity.visual.x);
         const fromY = Math.round(entity.visual.y);
+        entity.facing =
+          facingFromDelta(next.x - fromX, next.y - fromY) ?? entity.facing;
         entity.visual = {
           x: fromX + (next.x - fromX) * entity.progress,
           y: fromY + (next.y - fromY) * entity.progress,
@@ -216,50 +248,120 @@ export function createCombatScene(
     }
     if (stroke) {
       ctx!.strokeStyle = stroke;
-      ctx!.lineWidth = 1.5;
+      ctx!.lineWidth = 2;
       ctx!.stroke();
     }
   }
 
-  function drawSprite(sprite: Sprite, x: number, y: number): void {
-    const { sx, sy } = worldToScreen(x, y);
-    ctx!.drawImage(
-      sprite.image,
-      Math.round(sx - sprite.anchorX),
-      Math.round(sy - sprite.anchorY),
-    );
+  /** Screen offset from the entity's in-flight attack lunge, if any. */
+  function lungeOffset(entity: EntityView, now: number): { x: number; y: number } {
+    if (!entity.lungeDir) return { x: 0, y: 0 };
+    const k = lunge01(now - entity.lungeStart, LUNGE_MS);
+    if (k === 0 && now - entity.lungeStart >= LUNGE_MS) entity.lungeDir = null;
+    return {
+      x: entity.lungeDir ? entity.lungeDir.dx * k * LUNGE_DISTANCE_PX : 0,
+      // Screen y is compressed 2:1 in iso space.
+      y: entity.lungeDir ? entity.lungeDir.dy * k * (LUNGE_DISTANCE_PX / 2) : 0,
+    };
+  }
+
+  function drawEntitySprite(entity: EntityView, now: number): void {
+    const { sx, sy } = worldToScreen(entity.visual.x, entity.visual.y);
+    const pose = {
+      facing: entity.facing,
+      moving: entity.queue.length > 0,
+      timeMs: now,
+    };
+    const sprite = sprites.entity(entity.spriteId, pose);
+    const lunge = lungeOffset(entity, now);
+    const flashElapsed = now - entity.flashStart - FLASH_DELAY_MS;
+    const shake =
+      entity.flashStart > 0 ? shakeOffsetPx(flashElapsed, FLASH_MS, SHAKE_PX) : 0;
+    const drawX = snap(sx - sprite.anchorX + lunge.x + shake);
+    const drawY = snap(sy - sprite.anchorY + lunge.y);
+    ctx!.drawImage(sprite.image, drawX, drawY);
+    if (entity.flashStart > 0) {
+      if (flashElapsed >= 0 && flashElapsed < FLASH_MS) {
+        const silhouette = sprites.entitySilhouette(entity.spriteId, pose);
+        ctx!.globalAlpha = 0.85 * (1 - flashElapsed / FLASH_MS);
+        ctx!.drawImage(silhouette.image, drawX, drawY);
+        ctx!.globalAlpha = 1;
+      } else if (flashElapsed >= FLASH_MS) {
+        entity.flashStart = 0;
+      }
+    }
+  }
+
+  /** Defeat dissolve: the sprite with pixel blocks punched out. */
+  function drawDissolving(entity: EntityView, now: number): void {
+    const progress = dissolve01(now - entity.diedAt, DISSOLVE_MS);
+    if (progress >= 1 || !scratchCtx) return;
+    const sprite = sprites.entity(entity.spriteId, {
+      facing: entity.facing,
+      moving: false,
+      timeMs: 0,
+    });
+    const image = sprite.image as HTMLCanvasElement;
+    const w = image.width;
+    const h = image.height;
+    if (w === 0 || h === 0) return;
+    if (scratch.width !== w || scratch.height !== h) {
+      scratch.width = w;
+      scratch.height = h;
+    }
+    scratchCtx.clearRect(0, 0, w, h);
+    scratchCtx.drawImage(image, 0, 0);
+    for (let by = 0; by * DISSOLVE_BLOCK_PX < h; by++) {
+      for (let bx = 0; bx * DISSOLVE_BLOCK_PX < w; bx++) {
+        if (dissolvedAt(progress, bx, by)) {
+          scratchCtx.clearRect(
+            bx * DISSOLVE_BLOCK_PX,
+            by * DISSOLVE_BLOCK_PX,
+            DISSOLVE_BLOCK_PX,
+            DISSOLVE_BLOCK_PX,
+          );
+        }
+      }
+    }
+    const { sx, sy } = worldToScreen(entity.visual.x, entity.visual.y);
+    ctx!.globalAlpha = 1 - progress * 0.5;
+    ctx!.drawImage(scratch, snap(sx - sprite.anchorX), snap(sy - sprite.anchorY));
+    ctx!.globalAlpha = 1;
   }
 
   function drawHpBar(entity: EntityView): void {
     const { sx, sy } = worldToScreen(entity.visual.x, entity.visual.y);
-    const width = 34;
-    const height = 5;
-    const x = sx - width / 2;
-    const y = sy - 46;
+    const width = 32;
+    const height = 6;
+    const x = Math.round(sx - width / 2);
+    const y = Math.round(sy - 52);
     const ratio = Math.max(0, Math.min(1, entity.hp / entity.maxHp));
-    ctx!.fillStyle = "rgba(10, 10, 18, 0.85)";
+    ctx!.fillStyle = "#05060c";
+    ctx!.fillRect(x - 1, y - 1, width + 2, height + 2);
+    ctx!.fillStyle = "#161a26";
     ctx!.fillRect(x, y, width, height);
     ctx!.fillStyle = ratio > 0.5 ? "#2ee6d6" : ratio > 0.25 ? "#f0b429" : "#ff4d5e";
-    ctx!.fillRect(x + 1, y + 1, (width - 2) * ratio, height - 2);
-    ctx!.strokeStyle = "#2a2a44";
-    ctx!.lineWidth = 1;
-    ctx!.strokeRect(x, y, width, height);
+    ctx!.fillRect(x + 1, y + 1, Math.round((width - 2) * ratio), height - 2);
   }
 
   function render(now: number): void {
     ctx!.clearRect(0, 0, viewportW, viewportH);
+    ctx!.imageSmoothingEnabled = false;
     ctx!.save();
-    ctx!.translate(
-      Math.round(viewportW / 2 - camera.sx),
-      Math.round(viewportH / 2 - camera.sy),
-    );
+    ctx!.translate(snap(viewportW / 2 - camera.sx), snap(viewportH / 2 - camera.sy));
 
     // Ground pass.
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         const tileId = map.tiles[y]?.[x];
         if (tileId === undefined) continue;
-        drawSprite(sprites.tile(tileId), x, y);
+        const sprite = sprites.tile(tileId, x, y, now);
+        const { sx, sy } = worldToScreen(x, y);
+        ctx!.drawImage(
+          sprite.image,
+          snap(sx - sprite.anchorX),
+          snap(sy - sprite.anchorY),
+        );
       }
     }
 
@@ -282,10 +384,11 @@ export function createCombatScene(
       }
     }
 
-    // Object pass: living entities, depth sorted.
+    // Object pass: living and dissolving entities, depth sorted.
     const drawables: Array<Drawable & { entity: EntityView }> = [];
     for (const entity of entities.values()) {
-      if (!entity.alive) continue;
+      if (!entity.alive && entity.diedAt === 0) continue;
+      if (!entity.alive && now - entity.diedAt >= DISSOLVE_MS) continue;
       drawables.push({
         x: entity.visual.x,
         y: entity.visual.y,
@@ -295,20 +398,12 @@ export function createCombatScene(
     }
     drawables.sort(compareDrawables);
     for (const d of drawables) {
-      drawSprite(sprites.entity(d.entity.spriteId), d.x, d.y);
-      const flashUntil = flashes.get(d.entity.id);
-      if (flashUntil !== undefined) {
-        if (now < flashUntil) {
-          drawDiamond(
-            { x: Math.round(d.x), y: Math.round(d.y) },
-            "rgba(255, 255, 255, 0.25)",
-            "rgba(255, 77, 94, 0.9)",
-          );
-        } else {
-          flashes.delete(d.entity.id);
-        }
+      if (d.entity.alive) {
+        drawEntitySprite(d.entity, now);
+        drawHpBar(d.entity);
+      } else {
+        drawDissolving(d.entity, now);
       }
-      drawHpBar(d.entity);
     }
 
     // Floating combat text, newest on top.
@@ -321,11 +416,14 @@ export function createCombatScene(
         continue;
       }
       const t = age / FLOAT_MS;
+      const textY = Math.round(float.sy - 44 - t * FLOAT_RISE_PX);
       ctx!.globalAlpha = 1 - t * t;
-      ctx!.fillStyle = float.color;
-      ctx!.font = "bold 14px monospace";
+      ctx!.font = "bold 14px 'Courier New', monospace";
       ctx!.textAlign = "center";
-      ctx!.fillText(float.text, float.sx, float.sy - 40 - t * FLOAT_RISE_PX);
+      ctx!.fillStyle = "#05060c";
+      ctx!.fillText(float.text, float.sx + 1, textY + 1);
+      ctx!.fillStyle = float.color;
+      ctx!.fillText(float.text, float.sx, textY);
       ctx!.globalAlpha = 1;
     }
 
@@ -361,12 +459,23 @@ export function createCombatScene(
             visual: { ...incoming.position },
             queue: [],
             progress: 0,
+            facing: incoming.spriteId === "player" ? "e" : "s",
+            lungeDir: null,
+            lungeStart: 0,
+            flashStart: 0,
+            diedAt: incoming.alive ? 0 : -DISSOLVE_MS,
           });
           continue;
         }
         const moved = !sameTile(existing.position, incoming.position);
+        const justDied = existing.alive && !incoming.alive;
         Object.assign(existing, incoming);
-        if (moved) {
+        if (justDied) {
+          existing.diedAt = performance.now();
+          existing.queue = [];
+          existing.visual = { ...incoming.position };
+        }
+        if (moved && incoming.alive) {
           const fromTile = {
             x: Math.round(existing.visual.x),
             y: Math.round(existing.visual.y),
@@ -384,8 +493,27 @@ export function createCombatScene(
       highlights = { ...highlights, ...next };
     },
 
+    attackFx(attackerId: string, targetId: string): void {
+      const attacker = entities.get(attackerId);
+      const target = entities.get(targetId);
+      if (!attacker || !target) return;
+      attacker.facing =
+        facingFromDelta(
+          target.position.x - attacker.position.x,
+          target.position.y - attacker.position.y,
+        ) ?? attacker.facing;
+      const from = worldToScreen(attacker.visual.x, attacker.visual.y);
+      const to = worldToScreen(target.visual.x, target.visual.y);
+      const dx = to.sx - from.sx;
+      const dy = to.sy - from.sy;
+      const length = Math.hypot(dx, dy) || 1;
+      attacker.lungeDir = { dx: dx / length, dy: dy / length };
+      attacker.lungeStart = performance.now();
+    },
+
     flashEntity(id: string): void {
-      flashes.set(id, performance.now() + FLASH_MS);
+      const entity = entities.get(id);
+      if (entity) entity.flashStart = performance.now();
     },
 
     floatText(tile: TilePoint, text: string, color = "#e8e6f0"): void {

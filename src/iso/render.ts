@@ -1,18 +1,23 @@
 /**
  * Canvas drawing for the iso scene: ground pass, tile highlights, then a
  * single painter's-order pass over props, interactables, and entities.
- * Stateless — the scene passes everything in each frame.
+ * Stateless — the scene passes everything (including the animation
+ * clock) in each frame. Sprites are pixel art: smoothing is disabled and
+ * every draw position snaps to whole device pixels so nothing shimmers.
  */
+import { pulse01, type Facing } from "./animation";
 import type { Camera } from "./camera";
 import { TILE_H, TILE_W, worldToScreen, type TilePoint, type WorldPoint } from "./coords";
 import { compareDrawables, type Drawable } from "./depth";
 import { isWalkable, type IsoMap } from "./tilemap";
-import type { Sprite, SpriteProvider } from "./sprites";
+import type { EntitySpriteId, Sprite, SpriteProvider } from "./sprites";
 
 export interface SceneEntity {
-  spriteId: "player";
+  spriteId: EntitySpriteId;
   /** Fractional while walking between tiles. */
   position: WorldPoint;
+  facing: Facing;
+  moving: boolean;
 }
 
 export interface RenderView {
@@ -24,10 +29,19 @@ export interface RenderView {
   /** Remaining tiles of the active walk path, for the path preview. */
   path: readonly TilePoint[];
   entities: readonly SceneEntity[];
+  /** Animation clock in milliseconds. */
+  timeMs: number;
+  /** Device pixel ratio, for whole-device-pixel position snapping. */
+  dpr: number;
 }
 
 interface SceneDrawable extends Drawable {
   sprite: Sprite;
+}
+
+/** Round a CSS-pixel offset onto the device pixel grid. */
+function snap(value: number, dpr: number): number {
+  return Math.round(value * dpr) / dpr;
 }
 
 export function renderScene(
@@ -35,13 +49,14 @@ export function renderScene(
   sprites: SpriteProvider,
   view: RenderView,
 ): void {
-  const { map, camera, viewportW, viewportH } = view;
+  const { map, camera, viewportW, viewportH, timeMs, dpr } = view;
   ctx.clearRect(0, 0, viewportW, viewportH);
+  ctx.imageSmoothingEnabled = false;
 
   ctx.save();
   ctx.translate(
-    Math.round(viewportW / 2 - camera.sx),
-    Math.round(viewportH / 2 - camera.sy),
+    snap(viewportW / 2 - camera.sx, dpr),
+    snap(viewportH / 2 - camera.sy, dpr),
   );
 
   // Ground pass: flat tiles never overlap, so simple row order suffices.
@@ -49,15 +64,21 @@ export function renderScene(
     for (let x = 0; x < map.width; x++) {
       const tileId = map.tiles[y]?.[x];
       if (tileId === undefined) continue;
-      drawSprite(ctx, sprites.tile(tileId), x, y);
+      drawSprite(ctx, sprites.tile(tileId, x, y, timeMs), x, y, dpr);
     }
   }
 
   // Highlights sit on the ground, under all objects.
-  // Soft marker under every interactable so points of interest read at
-  // a glance without hunting with the cursor.
+  // Pulsing marker under every interactable so points of interest read
+  // at a glance without hunting with the cursor.
+  const markerAlpha = 0.08 + 0.1 * pulse01(timeMs, 1600);
   for (const interactable of map.interactables) {
-    drawDiamond(ctx, interactable, "rgba(240, 180, 41, 0.12)", "rgba(240, 180, 41, 0.35)");
+    drawDiamond(
+      ctx,
+      interactable,
+      `rgba(240, 180, 41, ${markerAlpha.toFixed(3)})`,
+      "rgba(240, 180, 41, 0.35)",
+    );
   }
   for (const step of view.path) {
     drawDiamond(ctx, step, "rgba(46, 230, 214, 0.18)", null);
@@ -80,24 +101,28 @@ export function renderScene(
       x: p.x,
       y: p.y,
       layer: "object" as const,
-      sprite: sprites.prop(p.propId),
+      sprite: sprites.prop(p.propId, p.x, p.y, timeMs),
     })),
     ...map.interactables.map((i) => ({
       x: i.x,
       y: i.y,
       layer: "object" as const,
-      sprite: sprites.interactable(i.spriteId),
+      sprite: sprites.interactable(i.spriteId, i.x, i.y, timeMs),
     })),
     ...view.entities.map((e) => ({
       x: e.position.x,
       y: e.position.y,
       layer: "object" as const,
-      sprite: sprites.entity(e.spriteId),
+      sprite: sprites.entity(e.spriteId, {
+        facing: e.facing,
+        moving: e.moving,
+        timeMs,
+      }),
     })),
   ];
   drawables.sort(compareDrawables);
   for (const d of drawables) {
-    drawSprite(ctx, d.sprite, d.x, d.y);
+    drawSprite(ctx, d.sprite, d.x, d.y, dpr);
   }
 
   ctx.restore();
@@ -108,9 +133,14 @@ function drawSprite(
   sprite: Sprite,
   x: number,
   y: number,
+  dpr: number,
 ): void {
   const { sx, sy } = worldToScreen(x, y);
-  ctx.drawImage(sprite.image, Math.round(sx - sprite.anchorX), Math.round(sy - sprite.anchorY));
+  ctx.drawImage(
+    sprite.image,
+    snap(sx - sprite.anchorX, dpr),
+    snap(sy - sprite.anchorY, dpr),
+  );
 }
 
 function drawDiamond(
@@ -132,7 +162,7 @@ function drawDiamond(
   }
   if (stroke) {
     ctx.strokeStyle = stroke;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 2;
     ctx.stroke();
   }
 }

@@ -3,6 +3,8 @@
  * player's walk animation. Interactions are forwarded through a typed
  * callback — this layer never imports narrative or combat code.
  */
+import { facingFromDelta, type Facing } from "./animation";
+import { createPixelArtSprites } from "./art/provider";
 import { clampCamera, mapPixelBounds, type Camera } from "./camera";
 import {
   sameTile,
@@ -15,7 +17,7 @@ import {
 import type { IsoInteractionHandler } from "./events";
 import { findPath, findPathToAdjacent } from "./path";
 import { renderScene, type RenderView } from "./render";
-import { createPlaceholderSprites, type SpriteProvider } from "./sprites";
+import type { SpriteProvider } from "./sprites";
 import {
   interactableAt,
   isWalkable,
@@ -49,12 +51,14 @@ export function createIsoScene(
   const { map, onInteract } = options;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not get 2d context for iso canvas");
-  const sprites = options.sprites ?? createPlaceholderSprites();
+  const sprites = options.sprites ?? createPixelArtSprites();
   const bounds = mapPixelBounds(map);
 
   const spawn = requireSpawn(map, options.spawnId);
   let playerTile: TilePoint = { x: spawn.x, y: spawn.y };
   let playerPos: WorldPoint = { x: spawn.x, y: spawn.y };
+  /** Last walk direction; the idle sprite keeps facing it. */
+  let playerFacing: Facing = "s";
   /** Tiles still to walk; [0] is the tile currently being entered. */
   let walkQueue: TilePoint[] = [];
   /** 0..1 progress from playerTile toward walkQueue[0]. */
@@ -204,6 +208,9 @@ export function createIsoScene(
     }
     const next = walkQueue[0];
     if (next) {
+      playerFacing =
+        facingFromDelta(next.x - playerTile.x, next.y - playerTile.y) ??
+        playerFacing;
       playerPos = {
         x: playerTile.x + (next.x - playerTile.x) * walkProgress,
         y: playerTile.y + (next.y - playerTile.y) * walkProgress,
@@ -234,7 +241,16 @@ export function createIsoScene(
       viewportH,
       hoverTile,
       path: walkQueue,
-      entities: [{ spriteId: "player", position: playerPos }],
+      entities: [
+        {
+          spriteId: "player",
+          position: playerPos,
+          facing: playerFacing,
+          moving: walkQueue.length > 0,
+        },
+      ],
+      timeMs: time,
+      dpr: window.devicePixelRatio || 1,
     };
     renderScene(ctx!, sprites, view);
     rafId = requestAnimationFrame(frame);
