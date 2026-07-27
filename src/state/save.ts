@@ -131,6 +131,15 @@ export function listSaves(storage: SaveStorage): SaveMetadata[] {
   return saves;
 }
 
+/** The newest save by savedAt, or null when none exist. */
+export function mostRecentSave(saves: SaveMetadata[]): SaveMetadata | null {
+  let best: SaveMetadata | null = null;
+  for (const save of saves) {
+    if (!best || save.savedAt > best.savedAt) best = save;
+  }
+  return best;
+}
+
 function isEnvelope(value: unknown): value is SaveEnvelope {
   if (typeof value !== "object" || value === null) return false;
   const env = value as Record<string, unknown>;

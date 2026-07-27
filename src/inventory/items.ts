@@ -89,7 +89,8 @@ export type InventoryErrorCode =
   | "slot-occupied"
   | "neural-capacity"
   | "not-equipped"
-  | "not-installed";
+  | "not-installed"
+  | "not-usable";
 
 export class InventoryError extends Error {
   constructor(
