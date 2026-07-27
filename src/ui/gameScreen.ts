@@ -12,6 +12,7 @@ import { createIsoScene, type IsoScene } from "../iso";
 import { createAdvancementOverlay } from "./advancementOverlay";
 import { COMBAT_RESUME_FLAG, createCombatScreen } from "./combatScreen";
 import { createDialogueOverlay } from "./dialogueOverlay";
+import { createEpilogueScreen } from "./epilogueScreen";
 import { createInventoryOverlay } from "./inventoryOverlay";
 import { focusFirst } from "./focus";
 import { createMainMenuScreen } from "./mainMenu";
@@ -125,7 +126,12 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         onEnded(endingId) {
           closeOverlay();
           const ending = endingId ? getEnding(endingId) : undefined;
-          if (ending) {
+          if (ending?.final) {
+            // Game ending: the end effects set game-complete, so this
+            // autosave is a finished save that reopens to the epilogue.
+            autosave(session);
+            showScreen(createEpilogueScreen({ session }));
+          } else if (ending) {
             autosave(session);
             openChapterEnd(ending);
           } else if (endingId) {
@@ -264,6 +270,12 @@ export function createGameScreen(options: GameScreenOptions): Screen {
 
   return {
     mount(mountRoot: HTMLElement): void {
+      // A finished playthrough reopens to the epilogue, not a dead hub.
+      if (session.state.flags["game-complete"] === true) {
+        showScreen(createEpilogueScreen({ session }));
+        return;
+      }
+
       // A pending encounter (start-combat effect, or a save made during a
       // battle) takes over before the map appears: re-enter the fight.
       const pending = session.state.pendingEncounterId;
