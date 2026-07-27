@@ -1,3 +1,4 @@
+import { audio } from "../audio";
 import {
   applyChoice,
   availableChoices,
@@ -103,6 +104,9 @@ export function createDialogueOverlay(
   function takeChoice(choiceId: string): void {
     const node = getNode(arc, nodeId);
     if (!node) return;
+    // A lone "Continue" is an advance; a real fork is a selection.
+    const presented = availableChoices(session.state, node);
+    audio.play(presented.length > 1 ? "choice-select" : "dialogue-advance");
     const outcome = applyChoice(session.state, node, choiceId);
     session.state = outcome.state;
     options.onStateChange();

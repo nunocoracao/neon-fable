@@ -1,3 +1,4 @@
+import { audio } from "../audio";
 import {
   CharacterCreationError,
   POINT_POOL,
@@ -191,6 +192,7 @@ export function createCharacterCreateScreen(): Screen {
       const character = createCharacter({ name, background, allocation });
       const state = createNewGame({ character });
       const session = createSession(state);
+      audio.play("ui-confirm");
       showScreen(
         createGameScreen({ session, dialogueNodeId: introArc.entryNodeId }),
       );

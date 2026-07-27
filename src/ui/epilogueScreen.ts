@@ -1,3 +1,4 @@
+import { audio } from "../audio";
 import { epilogueVignettes, getEnding } from "../data";
 import { selectVignettes } from "../narrative";
 import { focusFirst } from "./focus";
@@ -28,6 +29,7 @@ export function createEpilogueScreen(options: EpilogueScreenOptions): Screen {
     mount(root: HTMLElement): void {
       const { state } = options.session;
 
+      audio.setMusicContext("ending");
       container = document.createElement("div");
       container.className = "nf-screen";
 
