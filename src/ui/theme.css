@@ -113,3 +113,30 @@ body {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* --- Explore (iso scene) HUD --- */
+
+.nf-explore-hud {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  pointer-events: none;
+}
+
+.nf-explore-hud .nf-button {
+  pointer-events: auto;
+}
+
+.nf-explore-readout {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--nf-font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  color: var(--nf-ink-dim);
+  background: rgba(18, 18, 31, 0.85);
+  border: 1px solid var(--nf-border);
+}
