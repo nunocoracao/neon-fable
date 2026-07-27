@@ -91,6 +91,14 @@ const cinderPlaza: IsoMap = {
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "a1-start" },
     },
+    {
+      id: "tram-messenger",
+      x: 4,
+      y: 8,
+      label: "Restless messenger",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "a2-start" },
+    },
   ],
   spawns: [
     { id: "player-start", x: 6, y: 9 },
@@ -197,6 +205,94 @@ const greywaterSteps: IsoMap = {
       label: "Chainwell Stair",
       spriteId: "door",
       interaction: { kind: "dialogue", nodeId: "a1-ascend" },
+    },
+  ],
+  spawns: [{ id: "player-start", x: 7, y: 9 }],
+};
+
+/**
+ * Meridian Exchange — Ventworks. Auric's district utility floor topside:
+ * the cycler galleries that breathe for the Undercroft, coolant mains
+ * along the east wall, and the Cordon core rising at the center. Act 2's
+ * converging spine plays out here; reached via travel effects from the
+ * story branches.
+ */
+const ventworksLegend: Record<string, LegendEntry> = {
+  "#": { tile: "foundation", prop: { propId: "building", blocks: true } },
+  ".": { tile: "pavement" },
+  ",": { tile: "pavement-cracked" },
+  "=": { tile: "plaza-glow" },
+  "~": { tile: "canal" },
+  l: { tile: "pavement", prop: { propId: "streetlight", blocks: true } },
+  b: { tile: "pavement", prop: { propId: "barrier", blocks: true } },
+  v: { tile: "pavement", prop: { propId: "vent-stack", blocks: true } },
+  c: { tile: "pavement", prop: { propId: "crate", blocks: true } },
+};
+
+const ventworksRows = [
+  "##############",
+  "#....==..~~..#",
+  "#.l..==..~~..#",
+  "#....==..b...#",
+  "#..,......v..#",
+  "#.....l......#",
+  "#.c........,.#",
+  "#....,....l..#",
+  "#..v.........#",
+  "#.,........c.#",
+  "#............#",
+  "##############",
+];
+
+const ventworksGrid = buildMapGrid(ventworksLegend, ventworksRows);
+
+const exchangeVentworks: IsoMap = {
+  id: "exchange-ventworks",
+  name: "Meridian Exchange — Ventworks",
+  width: ventworksGrid.width,
+  height: ventworksGrid.height,
+  tiles: ventworksGrid.tiles,
+  props: ventworksGrid.props,
+  interactables: [
+    {
+      id: "cordon-core",
+      x: 5,
+      y: 2,
+      label: "Cordon Core",
+      spriteId: "door",
+      interaction: { kind: "dialogue", nodeId: "a2-core-door" },
+    },
+    {
+      id: "cycler-gallery",
+      x: 11,
+      y: 5,
+      label: "Cycler Gallery",
+      spriteId: "terminal",
+      interaction: { kind: "dialogue", nodeId: "a2-vent-gallery" },
+    },
+    {
+      id: "vent-crew",
+      x: 3,
+      y: 7,
+      label: "Vent-crew pen",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "a2-vent-crew" },
+    },
+    {
+      id: "coolant-vault",
+      x: 2,
+      y: 9,
+      label: "Coolant Vault",
+      spriteId: "door",
+      interaction: { kind: "dialogue", nodeId: "a2-vent-cache" },
+    },
+    {
+      id: "tram-gate",
+      x: 7,
+      y: 10,
+      label: "Tram Gate",
+      spriteId: "door",
+      interaction: { kind: "dialogue", nodeId: "a2-tram" },
     },
   ],
   spawns: [{ id: "player-start", x: 7, y: 9 }],
@@ -370,14 +466,51 @@ const relayCrownArena: IsoMap = {
   spawns: [{ id: "player-start", x: 3, y: 5 }],
 };
 
+/**
+ * Exchange cycler floor — the Cordon core ring and the coolant vault den
+ * beneath it. Shared by the vent-crawler fight and the three Act 2
+ * climax variants (9x7).
+ */
+const cyclerFloorLegend: Record<string, LegendEntry> = {
+  ".": { tile: "pavement" },
+  ",": { tile: "pavement-cracked" },
+  "=": { tile: "plaza-glow" },
+  r: { tile: "rust-floor" },
+};
+
+const cyclerFloorRows = [
+  ".........",
+  "..=...=..",
+  "....,....",
+  ".=.....=.",
+  "....r....",
+  "..=...=..",
+  ".........",
+];
+
+const cyclerFloorGrid = buildMapGrid(cyclerFloorLegend, cyclerFloorRows);
+
+const cyclerFloorArena: IsoMap = {
+  id: "cycler-floor-arena",
+  name: "Exchange Cycler Floor",
+  width: cyclerFloorGrid.width,
+  height: cyclerFloorGrid.height,
+  tiles: cyclerFloorGrid.tiles,
+  props: cyclerFloorGrid.props,
+  interactables: [],
+  spawns: [{ id: "player-start", x: 1, y: 3 }],
+};
+
 export const maps: readonly IsoMap[] = [
   cinderPlaza,
   greywaterSteps,
+  exchangeVentworks,
   rustyardArena,
   undercroftArena,
   vaultArena,
   pumpworksArena,
   relayCrownArena,
+  cyclerFloorArena,
 ];
 
 export const HUB_MAP_ID = cinderPlaza.id;

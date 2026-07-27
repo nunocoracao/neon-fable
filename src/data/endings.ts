@@ -62,6 +62,60 @@ export const endings: ChapterEnding[] = [
         "in the Meridian Sprawl — and the most alone.",
     ],
   },
+  {
+    id: "act2-charter",
+    title: "The Sprawl Convenes",
+    paragraphs: [
+      "The mandate spool unwinds into every district board and both " +
+        "emergency channels of the Meridian Charter at once: the Cordon, " +
+        "line by line, cycler shutdown signed in Halex's own key. You can't " +
+        "un-convene a Charter session, and by dawn nobody is trying.",
+      "Halex's proxy is still smoking on the cycler floor when the " +
+        "directorate votes to disown the director who ran it. The embargo " +
+        "lifts. The cyclers spin back up. And for the first time since the " +
+        "towers went up, the Undercroft has standing — a seat, a voice, a " +
+        "name on the Charter's rolls.",
+      "Warrants get quietly suspended when the fugitive becomes the " +
+        "witness. You walk out of the Exchange through the front gate, " +
+        "past scanners that have been told, in writing, to look elsewhere.",
+    ],
+  },
+  {
+    id: "act2-takeover",
+    title: "A New Name on the Door",
+    paragraphs: [
+      "You open the directorate uplink and hand Imre Voss the Cordon " +
+        "ring, and somewhere high in the Auric Spire a very quiet coup " +
+        "concludes in under an hour. Halex's mandate becomes Halex's " +
+        "confession; Halex's division becomes Voss's; the embargo lifts as " +
+        "an act of magnanimity, with cameras present.",
+      "\"Reclamation thanks its field partners,\" Voss says on every " +
+        "screen, and the salt-plant smile is a director's smile no longer — " +
+        "it belongs to the chair now. Your account settles before the " +
+        "broadcast ends.",
+      "The Steps get their air back and never learn whose hand was on the " +
+        "valve. You know. Voss knows you know. That arithmetic is your " +
+        "pension now, and its interest compounds in both directions.",
+    ],
+  },
+  {
+    id: "act2-severance",
+    title: "The Steps Go Dark",
+    paragraphs: [
+      "You throw the governors into reverse and the Undercroft cuts its " +
+        "own umbilical: Court cyclers spinning up on terrace power, siphon " +
+        "lines waking, the Exchange's meters on the deep levels all " +
+        "flatlining to zero at once. Auric can't strangle what it no " +
+        "longer feeds.",
+      "The Cordon dies as a rounding error. Halex is left holding an " +
+        "embargo against a district that has stopped answering the door — " +
+        "and a directorate that has stopped answering Halex.",
+      "Below Greywater, the lantern strings burn on current the Combine " +
+        "will never meter again. The Steps go dark on Auric's books and " +
+        "bright everywhere it counts, and the drowned city starts learning " +
+        "to breathe for itself.",
+    ],
+  },
 ];
 
 const endingsById = new Map(endings.map((ending) => [ending.id, ending]));

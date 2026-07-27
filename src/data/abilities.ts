@@ -60,6 +60,36 @@ export const abilities: Ability[] = [
     effect: { type: "damage", amount: 4 },
   },
   {
+    id: "ability-riot-net",
+    name: "Riot Net",
+    description:
+      "A weighted shock-mesh fired low and spinning. Being wrapped in one " +
+      "costs you a beat of the fight and most of your dignity.",
+    range: 4,
+    cooldown: 3,
+    effect: { type: "damage", amount: 2, stunTurns: 1 },
+  },
+  {
+    id: "ability-coolant-vent",
+    name: "Coolant Vent",
+    description:
+      "A gout of scalding cycler coolant dumped straight from the reservoir. " +
+      "Armor plate conducts it beautifully.",
+    range: 2,
+    cooldown: 2,
+    effect: { type: "damage", amount: 4, ignoresArmor: true },
+  },
+  {
+    id: "ability-mandate-pulse",
+    name: "Mandate Pulse",
+    description:
+      "A broadcast override spike tuned to civic hardware — and, at this " +
+      "range, to nervous systems. The Cordon speaks and the room stops.",
+    range: 5,
+    cooldown: 3,
+    effect: { type: "damage", amount: 4, stunTurns: 1 },
+  },
+  {
     id: "ability-combat-focus",
     name: "Combat Focus",
     description:
