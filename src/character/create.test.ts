@@ -32,6 +32,7 @@ describe("createCharacter", () => {
       neuralLoad: 0,
       equipment: { weapon: null, outfit: null, enhancements: {} },
       tags: ["street", "courier"],
+      advancement: { pointsSpent: 0, abilityIds: [] },
     });
   });
 

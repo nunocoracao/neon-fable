@@ -10,6 +10,7 @@ import {
   formatBonuses,
   formatTimestamp,
   percentLabel,
+  pointsLabel,
   itemEffectLabels,
   itemSummary,
   pointBuyErrorMessage,
@@ -242,6 +243,12 @@ describe("combat log formatting", () => {
   it("renders percentages from chances", () => {
     expect(percentLabel(0.649)).toBe("65%");
     expect(percentLabel(0.05)).toBe("5%");
+  });
+
+  it("pluralizes advancement points", () => {
+    expect(pointsLabel(1)).toBe("1 point");
+    expect(pointsLabel(0)).toBe("0 points");
+    expect(pointsLabel(3)).toBe("3 points");
   });
 
   it("describes attacks, hits, and misses", () => {

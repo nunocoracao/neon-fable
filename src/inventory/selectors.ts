@@ -43,12 +43,15 @@ export function effectiveStats(
   return stats;
 }
 
-/** Combat ability ids granted by equipped gear and installed enhancements. */
+/**
+ * Combat ability ids granted by equipped gear, installed enhancements,
+ * and advancement unlocks (character.advancement.abilityIds).
+ */
 export function grantedAbilityIds(
   character: CharacterState,
   resolve: ItemResolver = requireItem,
 ): string[] {
-  const ids: string[] = [];
+  const ids: string[] = [...character.advancement.abilityIds];
   for (const item of equippedItems(character, resolve)) {
     if (item.kind === "consumable" || item.kind === "misc") continue;
     for (const effect of item.effects) {

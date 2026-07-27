@@ -9,6 +9,18 @@ import {
 } from "./stats";
 
 /**
+ * Advancement spending record. Earned points are never stored — they are
+ * derived from chapter-completion flags (src/character/advancement.ts) —
+ * so only what was spent needs to persist.
+ */
+export interface AdvancementState {
+  /** Advancement points spent on stat raises and ability unlocks. */
+  pointsSpent: number;
+  /** Ability ids unlocked with points; folded into grantedAbilityIds. */
+  abilityIds: string[];
+}
+
+/**
  * The character portion of GameState. Plain serializable data; derived
  * attributes are stored for convenience but recomputed on stat changes.
  */
@@ -26,6 +38,8 @@ export interface CharacterState {
   equipment: EquipmentState;
   /** Narrative tags inherited from the background. */
   tags: string[];
+  /** Chapter-advancement spends (stat raises, unlocked abilities). */
+  advancement: AdvancementState;
 }
 
 export class CharacterCreationError extends Error {
@@ -72,5 +86,6 @@ export function createCharacter(input: CreateCharacterInput): CharacterState {
     neuralLoad: 0,
     equipment: emptyEquipment(),
     tags: [...input.background.tags],
+    advancement: { pointsSpent: 0, abilityIds: [] },
   };
 }

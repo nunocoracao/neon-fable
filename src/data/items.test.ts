@@ -11,10 +11,10 @@ describe("item content", () => {
 
   it("meets the minimum content bar per kind", () => {
     const byKind = (kind: string) => items.filter((i) => i.kind === kind);
-    expect(byKind("weapon").length).toBeGreaterThanOrEqual(3);
-    expect(byKind("outfit").length).toBeGreaterThanOrEqual(3);
+    expect(byKind("weapon").length).toBeGreaterThanOrEqual(6);
+    expect(byKind("outfit").length).toBeGreaterThanOrEqual(5);
     expect(byKind("consumable").length).toBeGreaterThanOrEqual(2);
-    expect(byKind("enhancement").length).toBeGreaterThanOrEqual(4);
+    expect(byKind("enhancement").length).toBeGreaterThanOrEqual(7);
   });
 
   it("covers every install slot across enhancements", () => {
@@ -32,6 +32,38 @@ describe("item content", () => {
         (effect) => effect.type === "stat-mod" && effect.amount < 0,
       );
       expect(hasDrawback, `${item.id} needs a negative stat mod`).toBe(true);
+    }
+  });
+
+  it("carries a second gear tier that outclasses the starting gear", () => {
+    const tier2 = {
+      weapons: ["wpn-rail-spitter", "wpn-torque-cleaver", "wpn-spindle-projector"],
+      outfits: ["out-cordon-plate", "out-ghostline-mantle"],
+      enhancements: [
+        "cyb-warden-optics",
+        "cyb-torsion-frame",
+        "cyb-cascade-governor",
+      ],
+    };
+    for (const id of tier2.weapons) {
+      const item = getItem(id);
+      expect(item?.kind, id).toBe("weapon");
+      if (item?.kind !== "weapon") continue;
+      // Stronger than every tier-1 weapon and stat-gated on top of price.
+      expect(item.damage).toBeGreaterThanOrEqual(7);
+      expect(item.requirement?.value ?? 0).toBeGreaterThanOrEqual(6);
+    }
+    for (const id of tier2.outfits) {
+      const item = getItem(id);
+      expect(item?.kind, id).toBe("outfit");
+      if (item?.kind !== "outfit") continue;
+      expect(item.armor).toBeGreaterThanOrEqual(3);
+    }
+    for (const id of tier2.enhancements) {
+      const item = getItem(id);
+      expect(item?.kind, id).toBe("enhancement");
+      if (item?.kind !== "enhancement") continue;
+      expect(item.neuralCost).toBeGreaterThanOrEqual(3);
     }
   });
 

@@ -147,6 +147,24 @@ describe("act2 arc shape", () => {
     }
   });
 
+  it("offers tier-2 gear through its shops and rewards, gated on cost or stats", () => {
+    const grants = new Map(
+      allChoices.flatMap(({ choice }) =>
+        (choice.effects ?? []).flatMap((e) =>
+          e.type === "add-item" ? [[e.itemId, choice] as const] : [],
+        ),
+      ),
+    );
+    // Patch's case sells the Torsion Frame at a steep credit price.
+    const frame = grants.get("cyb-torsion-frame");
+    expect(frame?.requirements).toEqual([{ type: "credits", value: 400 }]);
+    // The vent-crew vault yields the Spindle Projector behind a Tech gate.
+    const projector = grants.get("wpn-spindle-projector");
+    expect(projector?.requirements).toEqual([
+      { type: "stat", stat: "tech", value: 6 },
+    ]);
+  });
+
   it("reaches combat through at least five distinct encounters", () => {
     const encounterIds = allChoices.flatMap(({ choice }) =>
       (choice.effects ?? []).flatMap((e) =>

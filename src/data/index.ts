@@ -11,11 +11,18 @@ export {
 export { getItem, items, requireItem } from "./items";
 export {
   abilities,
+  advancementPool,
   getAbility,
   requireAbility,
   type Ability,
   type AbilityEffect,
+  type AdvancementPoolEntry,
 } from "./abilities";
+export {
+  STAT_RAISE_COST,
+  chapterGrants,
+  type ChapterGrant,
+} from "./advancement";
 export { enemies, getEnemy, requireEnemy, type Enemy } from "./enemies";
 export {
   encounters,

@@ -7,7 +7,9 @@ import {
   requireMap,
   type ChapterEnding,
 } from "../data";
+import { availablePoints } from "../character";
 import { createIsoScene, type IsoScene } from "../iso";
+import { createAdvancementOverlay } from "./advancementOverlay";
 import { COMBAT_RESUME_FLAG, createCombatScreen } from "./combatScreen";
 import { createDialogueOverlay } from "./dialogueOverlay";
 import { createInventoryOverlay } from "./inventoryOverlay";
@@ -30,7 +32,7 @@ export interface GameScreenOptions {
   dialogueNodeId?: string | null;
 }
 
-type OverlayKind = "dialogue" | "inventory" | "saves" | "menu";
+type OverlayKind = "dialogue" | "inventory" | "advance" | "saves" | "menu";
 
 export function createGameScreen(options: GameScreenOptions): Screen {
   const { session } = options;
@@ -42,6 +44,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   let toast: HTMLElement | null = null;
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let overlay: { kind: OverlayKind; handle: OverlayHandle } | null = null;
+  let advanceButton: HTMLButtonElement | null = null;
 
   // "main-menu" is the fresh-game sentinel, not a content error.
   if (session.state.location !== "main-menu" && !getMap(session.state.location)) {
@@ -65,6 +68,10 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       span.textContent = text;
       hudStatus.append(span);
     }
+    advanceButton?.classList.toggle(
+      "nf-button-attention",
+      availablePoints(session.state) > 0,
+    );
   }
 
   function showToast(text: string): void {
@@ -153,6 +160,9 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       ["Keep Exploring", closeOverlay],
       ["Main Menu", () => showScreen(createMainMenuScreen())],
     ];
+    if (availablePoints(session.state) > 0) {
+      entries.unshift(["Spend Advancement Points", openAdvancement]);
+    }
     for (const [label, action] of entries) {
       const button = document.createElement("button");
       button.className = "nf-button";
@@ -169,6 +179,17 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     openOverlay(
       "inventory",
       createInventoryOverlay({
+        session,
+        onStateChange: refreshHud,
+        onClose: closeOverlay,
+      }),
+    );
+  }
+
+  function openAdvancement(): void {
+    openOverlay(
+      "advance",
+      createAdvancementOverlay({
         session,
         onStateChange: refreshHud,
         onClose: closeOverlay,
@@ -234,6 +255,11 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       if (overlay?.kind === "inventory") closeOverlay();
       else openInventory();
     }
+    if (event.key === "p" || event.key === "P") {
+      if (overlay?.kind === "dialogue") return;
+      if (overlay?.kind === "advance") closeOverlay();
+      else openAdvancement();
+    }
   }
 
   return {
@@ -278,6 +304,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       actions.className = "nf-hud-actions";
       const hudButtons: Array<[string, () => void]> = [
         ["Inventory [I]", () => (overlay?.kind === "inventory" ? closeOverlay() : openInventory())],
+        ["Advance [P]", () => (overlay?.kind === "advance" ? closeOverlay() : openAdvancement())],
         ["Saves", openSaves],
         ["Menu [Esc]", () => (overlay ? closeOverlay() : openSystemMenu())],
       ];
@@ -286,6 +313,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         button.className = "nf-button nf-button-small";
         button.textContent = label;
         button.addEventListener("click", action);
+        if (label === "Advance [P]") advanceButton = button;
         actions.append(button);
       }
       hud.append(hudStatus, actions);
@@ -338,6 +366,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       toast?.remove();
       hud = null;
       hudStatus = null;
+      advanceButton = null;
       overlayLayer = null;
       toast = null;
       if (root) {
