@@ -17,6 +17,34 @@ export {
   type HasFlags,
 } from "./flags";
 export {
+  META_PROGRESS_KEY,
+  META_PROGRESS_VERSION,
+  clampMetaProgress,
+  deriveCodex,
+  emptyMetaProgress,
+  loadMetaProgress,
+  mergeMetaProgress,
+  migrateMetaProgress,
+  parseMetaProgress,
+  recordCompletion,
+  recordCompletionToStorage,
+  saveMetaProgress,
+  serializeMetaProgress,
+  type CodexEntry,
+  type CodexView,
+  type CompletionRecord,
+  type MetaProgress,
+  type MetaStorage,
+} from "./meta";
+export {
+  NG_PLUS_BONUS_POINTS,
+  NG_PLUS_CARRYOVER_FLAG,
+  NG_PLUS_FLAG,
+  applyNewGamePlus,
+  carryoverCandidates,
+  isNewGamePlus,
+} from "./ngplus";
+export {
   createRng,
   nextFloat,
   nextInt,

@@ -1,0 +1,241 @@
+import { describe, expect, it, vi } from "vitest";
+import { endings } from "../data/endings";
+import {
+  META_PROGRESS_KEY,
+  META_PROGRESS_VERSION,
+  clampMetaProgress,
+  deriveCodex,
+  emptyMetaProgress,
+  loadMetaProgress,
+  mergeMetaProgress,
+  migrateMetaProgress,
+  parseMetaProgress,
+  recordCompletion,
+  recordCompletionToStorage,
+  saveMetaProgress,
+  serializeMetaProgress,
+  type MetaProgress,
+} from "./meta";
+import { createMemoryStorage } from "./save";
+
+function sampleMeta(overrides: Partial<MetaProgress> = {}): MetaProgress {
+  return {
+    endingsSeen: ["ending-freehold"],
+    epiloguesSeen: ["city-freehold", "undercroft-severed"],
+    completions: 1,
+    ngPlusUnlocked: true,
+    legacyItemIds: ["wpn-arc-lash", "cyb-warden-optics"],
+    ...overrides,
+  };
+}
+
+describe("meta-progress serialization", () => {
+  it("round-trips through serialize and parse", () => {
+    const meta = sampleMeta();
+    expect(parseMetaProgress(serializeMetaProgress(meta))).toEqual(meta);
+  });
+
+  it("stamps the current version on serialization", () => {
+    const raw = JSON.parse(serializeMetaProgress(emptyMetaProgress()));
+    expect(raw.version).toBe(META_PROGRESS_VERSION);
+  });
+
+  it("parses null and malformed JSON to an empty record", () => {
+    expect(parseMetaProgress(null)).toEqual(emptyMetaProgress());
+    expect(parseMetaProgress("{nope")).toEqual(emptyMetaProgress());
+    expect(parseMetaProgress('"just a string"')).toEqual(emptyMetaProgress());
+  });
+
+  it("migrates unknown or future payloads field-tolerantly", () => {
+    const migrated = migrateMetaProgress({
+      version: 99,
+      endingsSeen: ["ending-ghost", 7, "ending-ghost", ""],
+      epiloguesSeen: "not-a-list",
+      completions: -3,
+      ngPlusUnlocked: "yes",
+      legacyItemIds: [null, "wpn-arc-lash"],
+    });
+    expect(migrated).toEqual({
+      endingsSeen: ["ending-ghost"],
+      epiloguesSeen: [],
+      completions: 0,
+      ngPlusUnlocked: false,
+      legacyItemIds: ["wpn-arc-lash"],
+    });
+  });
+
+  it("clamp derives the NG+ unlock from a completed run", () => {
+    const meta = clampMetaProgress({ completions: 2, ngPlusUnlocked: false });
+    expect(meta.ngPlusUnlocked).toBe(true);
+  });
+});
+
+describe("meta-progress persistence", () => {
+  it("saves and loads through an injectable storage", () => {
+    const storage = createMemoryStorage();
+    const meta = sampleMeta();
+    saveMetaProgress(meta, storage);
+    expect(loadMetaProgress(storage)).toEqual(meta);
+  });
+
+  it("uses a key separate from save slots and settings", () => {
+    expect(META_PROGRESS_KEY).toBe("neon-fable:meta");
+  });
+
+  it("loading never writes to storage", () => {
+    const storage = createMemoryStorage();
+    const setItem = vi.spyOn(storage, "setItem");
+    loadMetaProgress(storage);
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("survives null and throwing storage", () => {
+    expect(loadMetaProgress(null)).toEqual(emptyMetaProgress());
+    expect(() => saveMetaProgress(sampleMeta(), null)).not.toThrow();
+    const broken = {
+      getItem: () => {
+        throw new Error("privacy mode");
+      },
+      setItem: () => {
+        throw new Error("quota");
+      },
+    };
+    expect(loadMetaProgress(broken)).toEqual(emptyMetaProgress());
+    expect(() => saveMetaProgress(sampleMeta(), broken)).not.toThrow();
+  });
+});
+
+describe("recording completions", () => {
+  const completion = {
+    endingId: "ending-commons",
+    epilogueIds: ["city-commons", "flick-friend"],
+    legacyItemIds: ["wpn-stun-baton"],
+  };
+
+  it("adds the ending, counts the run, and unlocks NG+", () => {
+    const meta = recordCompletion(emptyMetaProgress(), completion);
+    expect(meta.endingsSeen).toEqual(["ending-commons"]);
+    expect(meta.epiloguesSeen).toEqual(["city-commons", "flick-friend"]);
+    expect(meta.completions).toBe(1);
+    expect(meta.ngPlusUnlocked).toBe(true);
+    expect(meta.legacyItemIds).toEqual(["wpn-stun-baton"]);
+  });
+
+  it("records a repeated ending once but still counts the run", () => {
+    const once = recordCompletion(emptyMetaProgress(), completion);
+    const twice = recordCompletion(once, {
+      ...completion,
+      epilogueIds: ["city-commons", "hex-shrine"],
+    });
+    expect(twice.endingsSeen).toEqual(["ending-commons"]);
+    expect(twice.epiloguesSeen).toEqual([
+      "city-commons",
+      "flick-friend",
+      "hex-shrine",
+    ]);
+    expect(twice.completions).toBe(2);
+  });
+
+  it("replaces the legacy candidates with the newest run's loadout", () => {
+    const first = recordCompletion(emptyMetaProgress(), completion);
+    const second = recordCompletion(first, {
+      ...completion,
+      legacyItemIds: ["out-spire-suit", "cyb-optic-suite"],
+    });
+    expect(second.legacyItemIds).toEqual(["out-spire-suit", "cyb-optic-suite"]);
+  });
+
+  it("recordCompletionToStorage is the explicit write path", () => {
+    const storage = createMemoryStorage();
+    const returned = recordCompletionToStorage(completion, storage);
+    expect(loadMetaProgress(storage)).toEqual(returned);
+    expect(returned.completions).toBe(1);
+    // A second completion merges on top of what is stored.
+    recordCompletionToStorage(
+      { ...completion, endingId: "ending-ghost" },
+      storage,
+    );
+    const stored = loadMetaProgress(storage);
+    expect(stored.endingsSeen).toEqual(["ending-commons", "ending-ghost"]);
+    expect(stored.completions).toBe(2);
+  });
+});
+
+describe("merging meta-progress", () => {
+  it("unions discoveries, keeps the higher count, prefers the newer legacy", () => {
+    const base = sampleMeta();
+    const next = sampleMeta({
+      endingsSeen: ["ending-freehold", "ending-regency"],
+      epiloguesSeen: ["voss-regent"],
+      completions: 3,
+      legacyItemIds: ["wpn-rail-spitter"],
+    });
+    const merged = mergeMetaProgress(base, next);
+    expect(merged.endingsSeen).toEqual(["ending-freehold", "ending-regency"]);
+    expect(merged.epiloguesSeen).toEqual([
+      "city-freehold",
+      "undercroft-severed",
+      "voss-regent",
+    ]);
+    expect(merged.completions).toBe(3);
+    expect(merged.legacyItemIds).toEqual(["wpn-rail-spitter"]);
+  });
+
+  it("keeps the base legacy when the newer record has none", () => {
+    const merged = mergeMetaProgress(
+      sampleMeta(),
+      sampleMeta({ legacyItemIds: [] }),
+    );
+    expect(merged.legacyItemIds).toEqual(["wpn-arc-lash", "cyb-warden-optics"]);
+  });
+});
+
+describe("codex derivation", () => {
+  it("locks everything with no progress and counts the finals", () => {
+    const codex = deriveCodex(endings, emptyMetaProgress());
+    const finals = endings.filter((e) => e.final === true);
+    expect(codex.total).toBe(finals.length);
+    expect(codex.total).toBeGreaterThanOrEqual(4);
+    expect(codex.found).toBe(0);
+    for (const entry of codex.entries) {
+      expect(entry.discovered).toBe(false);
+      expect(entry.title).toBeNull();
+      expect(entry.summary).toBeNull();
+      expect(entry.hint.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("excludes chapter endings from the codex", () => {
+    const codex = deriveCodex(endings, emptyMetaProgress());
+    const ids = codex.entries.map((entry) => entry.id);
+    expect(ids).not.toContain("act1-court");
+    expect(ids).not.toContain("act2-charter");
+  });
+
+  it("unlocks exactly the recorded endings", () => {
+    const meta = sampleMeta({ endingsSeen: ["ending-freehold"] });
+    const codex = deriveCodex(endings, meta);
+    expect(codex.found).toBe(1);
+    const found = codex.entries.find((entry) => entry.id === "ending-freehold");
+    expect(found?.discovered).toBe(true);
+    expect(found?.title).toBe("The Freehold Dark");
+    expect(found?.summary).toBeTruthy();
+    const locked = codex.entries.find((entry) => entry.id === "ending-ghost");
+    expect(locked?.discovered).toBe(false);
+    expect(locked?.title).toBeNull();
+  });
+
+  it("every final ending authors a hint and summary that leak no epilogue text", () => {
+    for (const ending of endings.filter((e) => e.final === true)) {
+      expect(ending.hint, ending.id).toBeTruthy();
+      expect(ending.summary, ending.id).toBeTruthy();
+      // The hint must tease, not retell: no sentence of it may appear in
+      // the ending's paragraphs, and it must not contain the title.
+      const body = ending.paragraphs.join(" ");
+      expect(body.includes(ending.hint!)).toBe(false);
+      expect(
+        ending.hint!.toLowerCase().includes(ending.title.toLowerCase()),
+      ).toBe(false);
+    }
+  });
+});
