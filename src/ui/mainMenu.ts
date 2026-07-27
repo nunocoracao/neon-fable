@@ -7,6 +7,7 @@ import {
   type GameState,
 } from "../state";
 import { createCharacterCreateScreen } from "./characterCreate";
+import { isDevMode } from "./dev";
 import { createExploreScreen } from "./exploreScreen";
 import { saveErrorMessage } from "./format";
 import { createGameScreen } from "./gameScreen";
@@ -79,21 +80,24 @@ export function createMainMenuScreen(): Screen {
         showScreen(createSettingsScreen()),
       );
 
-      // Temporary dev route into the iso scene without a character.
-      const explore = document.createElement("button");
-      explore.className = "nf-button";
-      explore.textContent = "Explore (dev)";
-      explore.addEventListener("click", () => {
-        showScreen(
-          createExploreScreen({
-            mapId: HUB_MAP_ID,
-            spawnId: "player-start",
-            onExit: () => showScreen(createMainMenuScreen()),
-          }),
-        );
-      });
+      menu.append(newGame, cont, load, settings);
 
-      menu.append(newGame, cont, load, settings, explore);
+      // Dev route into the iso scene without a character; ?dev only.
+      if (isDevMode()) {
+        const explore = document.createElement("button");
+        explore.className = "nf-button";
+        explore.textContent = "Explore (dev)";
+        explore.addEventListener("click", () => {
+          showScreen(
+            createExploreScreen({
+              mapId: HUB_MAP_ID,
+              spawnId: "player-start",
+              onExit: () => showScreen(createMainMenuScreen()),
+            }),
+          );
+        });
+        menu.append(explore);
+      }
       container.append(title, subtitle, menu, errorLine);
       root.append(container);
     },
