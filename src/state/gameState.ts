@@ -7,7 +7,7 @@ import type { FlagMap } from "./flags";
 import type { RngState } from "./rng";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 4;
+export const GAME_STATE_VERSION = 5;
 
 /** Credits a fresh character starts with. */
 export const STARTING_CREDITS = 25;
@@ -29,6 +29,11 @@ export interface GameState {
   inventory: InventoryState;
   /** Money on hand; never negative. Narrative effects grant and spend it. */
   credits: number;
+  /**
+   * Encounter the narrative asked to fight (start-combat effect). The UI
+   * layer launches combat for it; resolveCombat clears it.
+   */
+  pendingEncounterId: string | null;
   /** Deterministic RNG state; advance via the rng module, never Math.random. */
   rng: RngState;
 }
@@ -56,6 +61,7 @@ export function createNewGame(options: NewGameOptions = {}): GameState {
     location: "main-menu",
     inventory: loadout.inventory,
     credits: STARTING_CREDITS,
+    pendingEncounterId: null,
     rng: { seed: (options.seed ?? Date.now()) >>> 0 },
   };
 }

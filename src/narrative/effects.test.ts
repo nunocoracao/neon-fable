@@ -77,11 +77,18 @@ describe("applyEffect", () => {
     expect(state.credits).toBe(25);
   });
 
-  it("flow-control effects leave state untouched", () => {
+  it("start-combat marks the encounter as pending, immutably", () => {
     const state = makeState();
-    expect(
-      applyEffect(state, { type: "start-combat", encounterId: "enc-x" }),
-    ).toBe(state);
+    const next = applyEffect(state, {
+      type: "start-combat",
+      encounterId: "enc-auric-scout",
+    });
+    expect(next.pendingEncounterId).toBe("enc-auric-scout");
+    expect(state.pendingEncounterId).toBeNull();
+  });
+
+  it("goto and end leave state untouched", () => {
+    const state = makeState();
     expect(applyEffect(state, { type: "goto", nodeId: "elsewhere" })).toBe(
       state,
     );
