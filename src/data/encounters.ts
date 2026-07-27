@@ -164,6 +164,94 @@ export const encounters: Encounter[] = [
     },
     fleeable: false,
   },
+  {
+    id: "enc-exchange-gate",
+    name: "Exchange Gate Checkpoint",
+    grid: { width: 8, height: 6 },
+    arenaMapId: "vault-arena",
+    playerStart: { x: 1, y: 2 },
+    enemies: [
+      { enemyId: "nme-cordon-enforcer", position: { x: 6, y: 1 } },
+      { enemyId: "nme-cordon-enforcer", position: { x: 6, y: 4 } },
+    ],
+    rewards: {
+      credits: 45,
+      items: [{ itemId: "con-trauma-patch" }],
+    },
+  },
+  {
+    id: "enc-collectors",
+    name: "Collections Call",
+    grid: { width: 8, height: 6 },
+    arenaMapId: "undercroft-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [
+      { enemyId: "nme-auric-collector", position: { x: 6, y: 2 } },
+      { enemyId: "nme-static-drone", position: { x: 6, y: 4 } },
+    ],
+    rewards: {
+      credits: 150,
+      items: [{ itemId: "con-trauma-patch" }],
+    },
+    fleeable: false,
+  },
+  {
+    id: "enc-vent-crawler",
+    name: "The Coolant Vault Den",
+    grid: { width: 9, height: 7 },
+    arenaMapId: "cycler-floor-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [{ enemyId: "nme-vent-crawler", position: { x: 7, y: 3 } }],
+    rewards: {
+      credits: 40,
+      items: [{ itemId: "con-field-kit" }],
+    },
+  },
+  {
+    id: "enc-cordon-court",
+    name: "The Cordon Core — Sapper Breach",
+    grid: { width: 9, height: 7 },
+    arenaMapId: "cycler-floor-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [{ enemyId: "nme-halex-proxy", position: { x: 7, y: 3 } }],
+    rewards: {
+      credits: 100,
+      items: [{ itemId: "con-trauma-patch", quantity: 2 }],
+    },
+    fleeable: false,
+  },
+  {
+    id: "enc-cordon-voss",
+    name: "The Cordon Core — Eleven Seconds",
+    grid: { width: 9, height: 7 },
+    arenaMapId: "cycler-floor-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [
+      { enemyId: "nme-halex-proxy", position: { x: 7, y: 3 } },
+      { enemyId: "nme-static-drone", position: { x: 7, y: 1 } },
+    ],
+    rewards: {
+      credits: 100,
+      items: [{ itemId: "con-field-kit" }],
+    },
+    fleeable: false,
+  },
+  {
+    id: "enc-cordon-lone",
+    name: "The Cordon Core — Uninvited",
+    grid: { width: 9, height: 7 },
+    arenaMapId: "cycler-floor-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [
+      { enemyId: "nme-halex-proxy", position: { x: 7, y: 3 } },
+      { enemyId: "nme-static-drone", position: { x: 6, y: 5 } },
+    ],
+    rewards: {
+      credits: 120,
+      items: [{ itemId: "con-field-kit" }],
+    },
+    fleeable: false,
+  },
 ];
 
 const encountersById = new Map(encounters.map((e) => [e.id, e]));

@@ -76,6 +76,18 @@ export const items: Item[] = [
     armor: 1,
     effects: [{ type: "stat-mod", stat: "tech", amount: 1 }],
   },
+  {
+    id: "wpn-arc-lash",
+    kind: "weapon",
+    name: "Arc Lash",
+    description:
+      "A vent-crew tool repurposed with intent: a spool of live cable that " +
+      "cracks like a whip and bites like a fuse box.",
+    damage: 6,
+    rangeType: "ranged",
+    requirement: { stat: "tech", value: 5 },
+    effects: [],
+  },
   // --- Consumables ---
   {
     id: "con-trauma-patch",
@@ -94,6 +106,15 @@ export const items: Item[] = [
       "A single-use injector of gray-market reflex accelerant. The crash " +
       "afterward is somebody else's problem.",
     effect: { type: "combat-boost", stat: "reflexes", amount: 2, turns: 3 },
+  },
+  {
+    id: "con-field-kit",
+    kind: "consumable",
+    name: "Vent-Crew Field Kit",
+    description:
+      "A cycler crew's wall-box kit: burn gel, splint tape, and a stimulant " +
+      "lozenge older than the shift roster. All of it still works.",
+    effect: { type: "heal", amount: 12 },
   },
   // --- Misc / story items ---
   {
@@ -140,6 +161,16 @@ export const items: Item[] = [
       "A countersigned writ over Director Voss's mark. Security reads it " +
       "and decides, visibly, that you are somebody else's problem.",
     tags: ["auric", "favor"],
+  },
+  {
+    id: "msc-cordon-orders",
+    kind: "misc",
+    name: "Cordon Mandate Spool",
+    description:
+      "Halex's off-book mandate orders on a cold-storage spool: the Cordon, " +
+      "line by line, with the cycler shutdown signed in the director's own " +
+      "key. Evidence enough to convene the Sprawl.",
+    tags: ["evidence", "auric"],
   },
   // --- Cyber enhancements ---
   {
@@ -201,6 +232,22 @@ export const items: Item[] = [
       { type: "stat-mod", stat: "body", amount: 1 },
       { type: "stat-mod", stat: "cool", amount: -1 },
       { type: "unlock-dialogue", tag: "flood-diver" },
+    ],
+  },
+  {
+    id: "cyb-static-veil",
+    kind: "enhancement",
+    name: "Static Veil",
+    description:
+      "A subdermal projection film that smears your gait and face into " +
+      "camera static. Recognition systems slide off you — and so, slowly, " +
+      "does your own reflection.",
+    slot: "dermal",
+    neuralCost: 2,
+    effects: [
+      { type: "stat-mod", stat: "cool", amount: 1 },
+      { type: "stat-mod", stat: "tech", amount: -1 },
+      { type: "unlock-dialogue", tag: "static-veil" },
     ],
   },
   {

@@ -10,11 +10,13 @@ describe("map registry", () => {
     expect(maps.map((m) => m.id)).toEqual([
       "cinder-plaza",
       "greywater-steps",
+      "exchange-ventworks",
       "rustyard-arena",
       "undercroft-arena",
       "vault-arena",
       "pumpworks-arena",
       "relay-crown-arena",
+      "cycler-floor-arena",
     ]);
     expect(getMap(HUB_MAP_ID)?.name).toBe("Cinder Row Plaza");
     expect(getMap("nowhere")).toBeUndefined();
@@ -47,7 +49,7 @@ describe.each(maps.map((m) => [m.id, m] as const))("map %s", (_id, map) => {
   });
 });
 
-describe.each([["cinder-plaza"], ["greywater-steps"]])(
+describe.each([["cinder-plaza"], ["greywater-steps"], ["exchange-ventworks"]])(
   "explorable map %s",
   (mapId) => {
     const map = requireMap(mapId);

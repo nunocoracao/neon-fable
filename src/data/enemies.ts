@@ -111,6 +111,54 @@ export const enemies: Enemy[] = [
     armor: 3,
     abilityIds: ["ability-stun-strike"],
   },
+  {
+    id: "nme-cordon-enforcer",
+    name: "Cordon Enforcer",
+    description:
+      "Halex's new security tier: matte-black interdiction plate over an " +
+      "attitude of infinite patience. The Cordon does not argue. It waits.",
+    stats: { body: 6, reflexes: 5, tech: 4, cool: 5, intelligence: 4 },
+    maxHp: 15,
+    weapon: { name: "Cordon Riot Gun", damage: 4, rangeType: "ranged" },
+    armor: 2,
+    abilityIds: ["ability-riot-net"],
+  },
+  {
+    id: "nme-auric-collector",
+    name: "Auric Collections Agent",
+    description:
+      "Contract enforcement in a good coat. Serves writs, collects debts, " +
+      "and considers violence a late fee.",
+    stats: { body: 5, reflexes: 6, tech: 4, cool: 6, intelligence: 5 },
+    maxHp: 13,
+    weapon: { name: "Writ-Server Pistol", damage: 4, rangeType: "ranged" },
+    armor: 1,
+    abilityIds: [],
+  },
+  {
+    id: "nme-vent-crawler",
+    name: "Vent Crawler",
+    description:
+      "A duct-maintenance chassis that stopped taking orders years ago and " +
+      "started taking parts. The vent crews seal its den with prayer tape.",
+    stats: { body: 7, reflexes: 4, tech: 3, cool: 2, intelligence: 2 },
+    maxHp: 22,
+    weapon: { name: "Shear Mandibles", damage: 5, rangeType: "melee" },
+    armor: 2,
+    abilityIds: ["ability-coolant-vent"],
+  },
+  {
+    id: "nme-halex-proxy",
+    name: "Halex Mandate Proxy",
+    description:
+      "Director Halex's telepresence chassis: a polished civic idol with " +
+      "the director's voice and none of the director's risk.",
+    stats: { body: 7, reflexes: 5, tech: 6, cool: 7, intelligence: 6 },
+    maxHp: 24,
+    weapon: { name: "Mandate Lance", damage: 5, rangeType: "ranged" },
+    armor: 1,
+    abilityIds: ["ability-mandate-pulse"],
+  },
 ];
 
 const enemiesById = new Map(enemies.map((e) => [e.id, e]));
