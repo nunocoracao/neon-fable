@@ -742,3 +742,25 @@ body {
   color: var(--nf-glow-amber);
   padding: 0.15rem 0;
 }
+
+/* --- Chapter-end screen --- */
+
+.nf-chapter-end {
+  max-width: 34rem;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.nf-chapter-end-kicker {
+  font-family: var(--nf-font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--nf-glow-amber);
+  margin-bottom: 0.25rem;
+}
+
+.nf-chapter-end-text {
+  margin: 0.6rem 0;
+  line-height: 1.5;
+}

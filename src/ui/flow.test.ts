@@ -4,8 +4,10 @@ import { baseStats, createCharacter } from "../character";
 import { getBackground } from "../data";
 import { createNewGame, type GameState } from "../state";
 import { findFightSeed, replayStep } from "./combatTestSupport";
+import { createGameScreen } from "./gameScreen";
 import { initScreenRouter, showScreen } from "./screen";
 import { createMainMenuScreen } from "./mainMenu";
+import { createSession } from "./session";
 
 /**
  * Integration test of the DOM screens: drives the real UI (main menu ->
@@ -280,6 +282,35 @@ describe("inventory overlay", () => {
     expect(textOf(".nf-slot-value")).toBe("—");
     click("Equip");
     expect(textOf(".nf-slot-value")).toMatch(/Shard Knife|Courier Slicker/);
+  });
+});
+
+describe("act 1 chapter flow", () => {
+  /** Mounts the game screen on a mid-chapter state with dialogue open. */
+  function mountAt(nodeId: string, location: string): void {
+    const state: GameState = { ...testCharacterState(1), location };
+    showScreen(
+      createGameScreen({ session: createSession(state), dialogueNodeId: nodeId }),
+    );
+  }
+
+  it("travel choices move the player to the destination map", () => {
+    mountAt("a1-ascend", "greywater-steps");
+    expect(textOf(".nf-hud-status")).toMatch(/Greywater Steps/);
+    click("Climb to Cinder Row");
+    expect(document.querySelector(".nf-dialogue")).toBeNull();
+    expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
+  });
+
+  it("chapter endings open the chapter-end screen, not a toast", () => {
+    mountAt("a1-end-court", "greywater-steps");
+    click("Climb toward the bells");
+    expect(textOf(".nf-chapter-end")).toMatch(/Chapter complete/);
+    expect(textOf(".nf-chapter-end")).toMatch(/The Water Stands Still/);
+    // The chapter state was autosaved before showing the epilogue.
+    expect(localStorage.getItem("neon-fable:save:autosave")).not.toBeNull();
+    click("Keep Exploring");
+    expect(document.querySelector(".nf-chapter-end")).toBeNull();
   });
 });
 

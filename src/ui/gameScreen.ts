@@ -1,4 +1,12 @@
-import { HUB_MAP_ID, findArcByNode, getEncounter, getMap, requireMap } from "../data";
+import {
+  HUB_MAP_ID,
+  findArcByNode,
+  getEncounter,
+  getEnding,
+  getMap,
+  requireMap,
+  type ChapterEnding,
+} from "../data";
 import { createIsoScene, type IsoScene } from "../iso";
 import { COMBAT_RESUME_FLAG, createCombatScreen } from "./combatScreen";
 import { createDialogueOverlay } from "./dialogueOverlay";
@@ -7,7 +15,7 @@ import { createMainMenuScreen } from "./mainMenu";
 import type { OverlayHandle } from "./overlay";
 import { createSaveLoadPanel } from "./saveLoad";
 import { showScreen, type Screen } from "./screen";
-import { enterMap, type Session } from "./session";
+import { autosave, enterMap, type Session } from "./session";
 
 /**
  * The in-game screen: iso scene on the background canvas, a HUD bar,
@@ -93,17 +101,60 @@ export function createGameScreen(options: GameScreenOptions): Screen {
             createCombatScreen({ session, encounterId, resumeNodeId }),
           );
         },
+        onTravel(_mapId, nextNodeId) {
+          // The travel effect already set session.state.location; remount
+          // the game screen on the new map and continue any target node.
+          closeOverlay();
+          showScreen(createGameScreen({ session, dialogueNodeId: nextNodeId }));
+        },
         onEnded(endingId) {
           closeOverlay();
-          showToast(
-            endingId
-              ? `Story thread complete — ${endingId}`
-              : "Story thread complete",
-          );
+          const ending = endingId ? getEnding(endingId) : undefined;
+          if (ending) {
+            autosave(session);
+            openChapterEnd(ending);
+          } else if (endingId) {
+            showToast(`Story thread complete — ${endingId}`);
+          }
         },
         onComplete: closeOverlay,
       }),
     );
+  }
+
+  function openChapterEnd(ending: ChapterEnding): void {
+    const el = document.createElement("div");
+    el.className = "nf-overlay nf-overlay-center";
+    const panel = document.createElement("div");
+    panel.className = "nf-panel nf-chapter-end";
+    const kicker = document.createElement("div");
+    kicker.className = "nf-chapter-end-kicker";
+    kicker.textContent = "Chapter complete";
+    const title = document.createElement("h2");
+    title.textContent = ending.title;
+    panel.append(kicker, title);
+    for (const paragraph of ending.paragraphs) {
+      const p = document.createElement("p");
+      p.className = "nf-chapter-end-text";
+      p.textContent = paragraph;
+      panel.append(p);
+    }
+    const menu = document.createElement("div");
+    menu.className = "nf-menu";
+    const entries: Array<[string, () => void]> = [
+      ["Keep Exploring", closeOverlay],
+      ["Main Menu", () => showScreen(createMainMenuScreen())],
+    ];
+    for (const [label, action] of entries) {
+      const button = document.createElement("button");
+      button.className = "nf-button";
+      button.textContent = label;
+      button.addEventListener("click", action);
+      menu.append(button);
+    }
+    panel.append(menu);
+    el.append(panel);
+    openOverlay("menu", { el, destroy: () => el.remove() });
   }
 
   function openInventory(): void {
