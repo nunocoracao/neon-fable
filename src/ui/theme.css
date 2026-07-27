@@ -782,6 +782,29 @@ body {
   line-height: 1.5;
 }
 
+/* --- Epilogue screen --- */
+
+.nf-epilogue {
+  max-width: 38rem;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.nf-epilogue-vignettes {
+  margin-top: 1rem;
+  border-top: 1px solid var(--nf-line, rgba(255, 255, 255, 0.15));
+  padding-top: 0.5rem;
+}
+
+.nf-epilogue-vignette h3 {
+  font-family: var(--nf-font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--nf-glow-amber);
+  margin: 0.8rem 0 0.1rem;
+}
+
 /* --- Motion --- */
 
 @keyframes nf-fade-in {

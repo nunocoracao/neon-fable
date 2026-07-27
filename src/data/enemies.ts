@@ -159,6 +159,19 @@ export const enemies: Enemy[] = [
     armor: 1,
     abilityIds: ["ability-mandate-pulse"],
   },
+  {
+    id: "nme-locus-aspect",
+    name: "Locus Custodial Aspect",
+    description:
+      "A founders-era custodial chassis in civic white, woken to see the " +
+      "Succession through. It speaks in the Cordon's voice — the Cordon " +
+      "always spoke in its.",
+    stats: { body: 8, reflexes: 5, tech: 7, cool: 8, intelligence: 7 },
+    maxHp: 26,
+    weapon: { name: "Succession Writ", damage: 5, rangeType: "ranged" },
+    armor: 2,
+    abilityIds: ["ability-mandate-pulse"],
+  },
 ];
 
 const enemiesById = new Map(enemies.map((e) => [e.id, e]));

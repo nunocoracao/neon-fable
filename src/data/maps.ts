@@ -99,6 +99,14 @@ const cinderPlaza: IsoMap = {
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "a2-start" },
     },
+    {
+      id: "crown-watcher",
+      x: 2,
+      y: 6,
+      label: "Watcher under the dead screens",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "a3-start" },
+    },
   ],
   spawns: [
     { id: "player-start", x: 6, y: 9 },
@@ -296,6 +304,102 @@ const exchangeVentworks: IsoMap = {
     },
   ],
   spawns: [{ id: "player-start", x: 7, y: 9 }],
+};
+
+/**
+ * Auric Spire — Crown Concourse. The Combine's headquarters tower on the
+ * night of the Succession: registry gate at the north face, the crown
+ * lift doors behind it, the muster crowd and ledger terminals in the
+ * atrium. Act 3's converging spine plays out here; reached via travel
+ * effects from the finale's openings.
+ */
+const spireLegend: Record<string, LegendEntry> = {
+  "#": { tile: "foundation", prop: { propId: "building", blocks: true } },
+  ".": { tile: "pavement" },
+  ",": { tile: "pavement-cracked" },
+  "=": { tile: "plaza-glow" },
+  l: { tile: "pavement", prop: { propId: "streetlight", blocks: true } },
+  b: { tile: "pavement", prop: { propId: "barrier", blocks: true } },
+  v: { tile: "pavement", prop: { propId: "vent-stack", blocks: true } },
+  c: { tile: "pavement", prop: { propId: "crate", blocks: true } },
+  h: { tile: "pavement", prop: { propId: "holo-sign", blocks: true } },
+};
+
+const spireRows = [
+  "##############",
+  "#..==.....l..#",
+  "#..==........#",
+  "#.....b......#",
+  "#..l......h..#",
+  "#............#",
+  "#.,....v.....#",
+  "#............#",
+  "#..c......l..#",
+  "#.....,......#",
+  "#............#",
+  "##############",
+];
+
+const spireGrid = buildMapGrid(spireLegend, spireRows);
+
+const auricSpire: IsoMap = {
+  id: "auric-spire",
+  name: "Auric Spire — Crown Concourse",
+  width: spireGrid.width,
+  height: spireGrid.height,
+  tiles: spireGrid.tiles,
+  props: spireGrid.props,
+  interactables: [
+    {
+      id: "crown-lift",
+      x: 3,
+      y: 1,
+      label: "Crown Lift",
+      spriteId: "door",
+      interaction: { kind: "dialogue", nodeId: "a3-crown-door" },
+    },
+    {
+      id: "registry-gate",
+      x: 7,
+      y: 3,
+      label: "Registry Gate",
+      spriteId: "door",
+      interaction: { kind: "dialogue", nodeId: "a3-gate" },
+    },
+    {
+      id: "ledger-terminal",
+      x: 11,
+      y: 5,
+      label: "Ledger Terminal",
+      spriteId: "terminal",
+      interaction: { kind: "dialogue", nodeId: "a3-terminal" },
+    },
+    {
+      id: "auditor-booth",
+      x: 2,
+      y: 8,
+      label: "Auditor's Booth",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "a3-lin" },
+    },
+    {
+      id: "muster-crowd",
+      x: 9,
+      y: 9,
+      label: "The muster",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "a3-muster" },
+    },
+    {
+      id: "spire-tram",
+      x: 7,
+      y: 10,
+      label: "Tram Gate",
+      spriteId: "door",
+      interaction: { kind: "dialogue", nodeId: "a3-tram" },
+    },
+  ],
+  spawns: [{ id: "player-start", x: 6, y: 9 }],
 };
 
 /**
@@ -501,16 +605,51 @@ const cyclerFloorArena: IsoMap = {
   spawns: [{ id: "player-start", x: 1, y: 3 }],
 };
 
+/**
+ * Spire crown ring — the Locus's chamber at the tower's peak. Shared by
+ * the three finale climax variants (9x7). Glow strips trace the ring.
+ */
+const spireCrownLegend: Record<string, LegendEntry> = {
+  ".": { tile: "pavement" },
+  ",": { tile: "pavement-cracked" },
+  "=": { tile: "plaza-glow" },
+};
+
+const spireCrownRows = [
+  ".........",
+  "..=...=..",
+  ".........",
+  ".=..=..=.",
+  ".........",
+  "..=...=..",
+  ".........",
+];
+
+const spireCrownGrid = buildMapGrid(spireCrownLegend, spireCrownRows);
+
+const spireCrownArena: IsoMap = {
+  id: "spire-crown-arena",
+  name: "The Crown Ring",
+  width: spireCrownGrid.width,
+  height: spireCrownGrid.height,
+  tiles: spireCrownGrid.tiles,
+  props: spireCrownGrid.props,
+  interactables: [],
+  spawns: [{ id: "player-start", x: 1, y: 3 }],
+};
+
 export const maps: readonly IsoMap[] = [
   cinderPlaza,
   greywaterSteps,
   exchangeVentworks,
+  auricSpire,
   rustyardArena,
   undercroftArena,
   vaultArena,
   pumpworksArena,
   relayCrownArena,
   cyclerFloorArena,
+  spireCrownArena,
 ];
 
 export const HUB_MAP_ID = cinderPlaza.id;

@@ -252,6 +252,83 @@ export const encounters: Encounter[] = [
     },
     fleeable: false,
   },
+  {
+    id: "enc-spire-gate",
+    name: "Registry Gate Interdiction",
+    grid: { width: 8, height: 6 },
+    arenaMapId: "vault-arena",
+    playerStart: { x: 1, y: 2 },
+    enemies: [
+      { enemyId: "nme-cordon-enforcer", position: { x: 6, y: 1 } },
+      { enemyId: "nme-auric-warden", position: { x: 6, y: 4 } },
+      { enemyId: "nme-static-drone", position: { x: 7, y: 2 } },
+    ],
+    rewards: {
+      credits: 60,
+      items: [{ itemId: "con-trauma-patch" }],
+    },
+  },
+  {
+    id: "enc-spire-collectors",
+    name: "The Trust's Collectors",
+    grid: { width: 8, height: 6 },
+    arenaMapId: "vault-arena",
+    playerStart: { x: 1, y: 2 },
+    enemies: [
+      { enemyId: "nme-auric-collector", position: { x: 6, y: 1 } },
+      { enemyId: "nme-auric-collector", position: { x: 6, y: 4 } },
+    ],
+    rewards: {
+      credits: 180,
+      items: [{ itemId: "con-field-kit" }],
+    },
+    fleeable: false,
+  },
+  {
+    id: "enc-crown-court",
+    name: "The Crown Ring — Sappers' Breach",
+    grid: { width: 9, height: 7 },
+    arenaMapId: "spire-crown-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [{ enemyId: "nme-locus-aspect", position: { x: 7, y: 3 } }],
+    rewards: {
+      credits: 150,
+      items: [{ itemId: "con-field-kit" }],
+    },
+    fleeable: false,
+  },
+  {
+    id: "enc-crown-auric",
+    name: "The Crown Ring — Chair's Override",
+    grid: { width: 9, height: 7 },
+    arenaMapId: "spire-crown-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [
+      { enemyId: "nme-locus-aspect", position: { x: 7, y: 3 } },
+      { enemyId: "nme-static-drone", position: { x: 7, y: 1 } },
+    ],
+    rewards: {
+      credits: 150,
+      items: [{ itemId: "con-trauma-patch", quantity: 2 }],
+    },
+    fleeable: false,
+  },
+  {
+    id: "enc-crown-alone",
+    name: "The Crown Ring — Unfiled",
+    grid: { width: 9, height: 7 },
+    arenaMapId: "spire-crown-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [
+      { enemyId: "nme-locus-aspect", position: { x: 7, y: 3 } },
+      { enemyId: "nme-cordon-enforcer", position: { x: 6, y: 5 } },
+    ],
+    rewards: {
+      credits: 200,
+      items: [{ itemId: "con-field-kit" }],
+    },
+    fleeable: false,
+  },
 ];
 
 const encountersById = new Map(encounters.map((e) => [e.id, e]));

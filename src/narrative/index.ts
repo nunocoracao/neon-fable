@@ -38,3 +38,4 @@ export {
   type PresentedChoice,
 } from "./engine";
 export { validateArc, type ArcIssue, type ArcIssueCode } from "./validate";
+export { selectVignettes, type EpilogueVignette } from "./epilogue";
