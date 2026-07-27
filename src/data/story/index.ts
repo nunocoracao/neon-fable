@@ -8,4 +8,9 @@ export function getArc(id: string): StoryArc | undefined {
   return storyArcs.find((arc) => arc.id === id);
 }
 
+/** The arc containing a node id — how map interactions route into dialogue. */
+export function findArcByNode(nodeId: string): StoryArc | undefined {
+  return storyArcs.find((arc) => arc.nodes.some((node) => node.id === nodeId));
+}
+
 export { introArc };

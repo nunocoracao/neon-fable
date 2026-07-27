@@ -40,6 +40,7 @@ export {
   type EquipmentState,
   type Loadout,
 } from "./equipment";
+export { useConsumable } from "./consume";
 export {
   armorValue,
   dialogueUnlockTags,

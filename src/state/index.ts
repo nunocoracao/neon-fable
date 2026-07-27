@@ -30,6 +30,7 @@ export {
   deleteSave,
   listSaves,
   loadGame,
+  mostRecentSave,
   saveGame,
   type SaveErrorCode,
   type SaveMetadata,

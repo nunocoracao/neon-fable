@@ -8,6 +8,7 @@ import {
   deleteSave,
   listSaves,
   loadGame,
+  mostRecentSave,
   saveGame,
 } from "./save";
 
@@ -103,6 +104,18 @@ describe("save system", () => {
     } catch (error) {
       expect((error as SaveError).code).toBe("corrupt");
     }
+  });
+
+  it("mostRecentSave picks the newest save by savedAt", () => {
+    const storage = createMemoryStorage();
+    saveGame(makeState(), "slot1", storage, 100);
+    saveGame(makeState(), "autosave", storage, 300);
+    saveGame(makeState(), "slot2", storage, 200);
+    expect(mostRecentSave(listSaves(storage))?.slot).toBe("autosave");
+  });
+
+  it("mostRecentSave returns null when no saves exist", () => {
+    expect(mostRecentSave([])).toBeNull();
   });
 
   it("loading a future save version fails with a 'version-mismatch' error", () => {

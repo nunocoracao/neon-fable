@@ -1,11 +1,28 @@
 import { HUB_MAP_ID } from "../data";
+import {
+  SaveError,
+  listSaves,
+  loadGame,
+  mostRecentSave,
+  type GameState,
+} from "../state";
+import { createCharacterCreateScreen } from "./characterCreate";
 import { createExploreScreen } from "./exploreScreen";
+import { saveErrorMessage } from "./format";
+import { createGameScreen } from "./gameScreen";
+import { createSaveLoadPanel } from "./saveLoad";
 import type { Screen } from "./screen";
 import { showScreen } from "./screen";
+import { createSession } from "./session";
 
-/** Title screen shown on boot. "New Game" is wired up in a later task. */
+/** Title screen: New Game, Continue, Load Game, and a settings stub. */
 export function createMainMenuScreen(): Screen {
   let container: HTMLElement | null = null;
+
+  function startLoadedGame(state: GameState): void {
+    const session = createSession(state);
+    showScreen(createGameScreen({ session }));
+  }
 
   return {
     mount(root: HTMLElement): void {
@@ -23,12 +40,46 @@ export function createMainMenuScreen(): Screen {
       const menu = document.createElement("div");
       menu.className = "nf-menu";
 
+      const errorLine = document.createElement("p");
+      errorLine.className = "nf-message nf-error";
+
       const newGame = document.createElement("button");
       newGame.className = "nf-button";
       newGame.textContent = "New Game";
-      newGame.disabled = true;
+      newGame.addEventListener("click", () =>
+        showScreen(createCharacterCreateScreen()),
+      );
 
-      // Temporary dev route into the iso scene until New Game exists.
+      const recent = mostRecentSave(listSaves(window.localStorage));
+      const cont = document.createElement("button");
+      cont.className = "nf-button";
+      cont.textContent = "Continue";
+      cont.disabled = recent === null;
+      cont.addEventListener("click", () => {
+        if (!recent) return;
+        try {
+          startLoadedGame(loadGame(recent.slot, window.localStorage));
+        } catch (error) {
+          errorLine.textContent =
+            error instanceof SaveError
+              ? saveErrorMessage(error)
+              : "Could not load the most recent save.";
+        }
+      });
+
+      const load = document.createElement("button");
+      load.className = "nf-button";
+      load.textContent = "Load Game";
+      load.addEventListener("click", () => showScreen(createLoadScreen()));
+
+      const settings = document.createElement("button");
+      settings.className = "nf-button";
+      settings.textContent = "Settings";
+      settings.addEventListener("click", () =>
+        showScreen(createSettingsScreen()),
+      );
+
+      // Temporary dev route into the iso scene without a character.
       const explore = document.createElement("button");
       explore.className = "nf-button";
       explore.textContent = "Explore (dev)";
@@ -42,8 +93,69 @@ export function createMainMenuScreen(): Screen {
         );
       });
 
-      menu.append(newGame, explore);
-      container.append(title, subtitle, menu);
+      menu.append(newGame, cont, load, settings, explore);
+      container.append(title, subtitle, menu, errorLine);
+      root.append(container);
+    },
+
+    unmount(): void {
+      container?.remove();
+      container = null;
+    },
+  };
+}
+
+/** Full-screen wrapper around the save/load panel in load-only mode. */
+function createLoadScreen(): Screen {
+  let container: HTMLElement | null = null;
+
+  return {
+    mount(root: HTMLElement): void {
+      container = document.createElement("div");
+      container.className = "nf-screen";
+      const panel = createSaveLoadPanel({
+        mode: "menu",
+        storage: window.localStorage,
+        onLoaded(state) {
+          const session = createSession(state);
+          showScreen(createGameScreen({ session }));
+        },
+        onClose: () => showScreen(createMainMenuScreen()),
+      });
+      container.append(panel.el);
+      root.append(container);
+    },
+
+    unmount(): void {
+      container?.remove();
+      container = null;
+    },
+  };
+}
+
+/** Settings stub — real options arrive in a later task. */
+function createSettingsScreen(): Screen {
+  let container: HTMLElement | null = null;
+
+  return {
+    mount(root: HTMLElement): void {
+      container = document.createElement("div");
+      container.className = "nf-screen";
+
+      const panel = document.createElement("div");
+      panel.className = "nf-panel nf-settings";
+      const title = document.createElement("h2");
+      title.textContent = "Settings";
+      const note = document.createElement("p");
+      note.className = "nf-dim";
+      note.textContent =
+        "Audio, display, and key bindings arrive in a later build.";
+      const back = document.createElement("button");
+      back.className = "nf-button";
+      back.textContent = "Back";
+      back.addEventListener("click", () => showScreen(createMainMenuScreen()));
+      panel.append(title, note, back);
+      container.append(panel);
       root.append(container);
     },
 
