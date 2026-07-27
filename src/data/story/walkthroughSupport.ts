@@ -1,4 +1,5 @@
-import { baseStats, createCharacter } from "../../character";
+import { baseStats, createCharacter, raiseStat } from "../../character";
+import type { StatKey } from "../../character/stats";
 import {
   abilityOptions,
   activeCombatant,
@@ -190,6 +191,17 @@ export function equipStep(itemId: string): RouteStep {
   return {
     kind: "do",
     run: (state) => withLoadout(state, equip(state.player, state.inventory, itemId)),
+  };
+}
+
+/**
+ * Spends earned advancement points on a +1 stat raise between segments
+ * (mirrors the advancement overlay) — chapter completions fund it.
+ */
+export function advanceStep(stat: StatKey): RouteStep {
+  return {
+    kind: "do",
+    run: (state) => ({ ...state, player: raiseStat(state, stat) }),
   };
 }
 
