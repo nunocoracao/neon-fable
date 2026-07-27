@@ -9,6 +9,11 @@ export interface ChapterEnding {
   title: string;
   /** Epilogue paragraphs shown on the chapter-end screen. */
   paragraphs: string[];
+  /**
+   * True for game endings (Act 3): the UI routes to the epilogue screen
+   * instead of the chapter-end panel, and the save is finished.
+   */
+  final?: boolean;
 }
 
 export const endings: ChapterEnding[] = [
@@ -114,6 +119,87 @@ export const endings: ChapterEnding[] = [
         "will never meter again. The Steps go dark on Auric's books and " +
         "bright everywhere it counts, and the drowned city starts learning " +
         "to breathe for itself.",
+    ],
+  },
+  {
+    id: "ending-commons",
+    title: "A City With Its Own Name",
+    final: true,
+    paragraphs: [
+      "You feed the founders' keys to the Charter boards one district at " +
+        "a time, and the Meridian Locus watches its own succession " +
+        "re-file itself into a commons. No engine at the top. No director " +
+        "either. Just the Sprawl, holding its own master title for the " +
+        "first time since the towers went up.",
+      "The sessions are loud, endless, and occasionally thrown chairs — " +
+        "which is to say, alive. The Undercroft's seat is never empty. " +
+        "The deep levels' air is a line item now, voted on by people who " +
+        "breathe it.",
+      "Nobody owns the city. Everybody argues about it. On the Steps " +
+        "they call that daylight, and they date it from the night you " +
+        "walked out of the Spire with empty hands.",
+    ],
+  },
+  {
+    id: "ending-regency",
+    title: "The Salt-Plant Throne",
+    final: true,
+    paragraphs: [
+      "You hand Imre Voss the founders' keys the way Voss once handed " +
+        "you a retainer: without ceremony, with every string attached. " +
+        "By morning the Locus is 'an advisory instrument', the board is " +
+        "an anecdote, and the Meridian Sprawl has a regent whose smile " +
+        "photographs well from every district.",
+      "It is, you have to admit, a competent reign. The cyclers run to " +
+        "schedule. The floods stay filed. Voss governs the way they " +
+        "audit — thoroughly, quietly, and always one column short of the " +
+        "whole truth.",
+      "That missing column lives in your head, and Voss knows it. Your " +
+        "account settles on the first of every month, and the amount is " +
+        "not a salary. It is arithmetic: what a regent pays the one " +
+        "person who can prove where the throne came from.",
+    ],
+  },
+  {
+    id: "ending-freehold",
+    title: "The Freehold Dark",
+    final: true,
+    paragraphs: [
+      "You burn the founders' keys in the Locus's own register — title " +
+        "by title, deed by deed, until the Meridian Sprawl has no master " +
+        "copy and no engine, director, or charter can ever hold it whole " +
+        "again. The Locus files its last entry without complaint: " +
+        "DISSOLVED, in the smallest civic font.",
+      "The city wakes up unowned. Districts knit their own grids the " +
+        "way the Steps taught them — terrace power, siphon lines, " +
+        "lantern strings burning on current nobody meters. Some blocks " +
+        "thrive. Some go dark. All of them, for the first time, get to " +
+        "choose which.",
+      "Topside calls it the Freehold Dark like it's a warning. Below " +
+        "Greywater they say it plainer: nobody upstairs can turn the " +
+        "air off anymore. You made a city no one can hold — including " +
+        "you. You walk it like anyone else now, and that suits you.",
+    ],
+  },
+  {
+    id: "ending-ghost",
+    title: "The Caretaker Signal",
+    final: true,
+    paragraphs: [
+      "You pour the founders' keys down the wire, and Hex — archive of " +
+        "three dead networks, patron ghost of drowned shrines — becomes " +
+        "the registrar of the whole Meridian Sprawl. The Locus yields to " +
+        "the older signal like a clerk meeting the founder's founder.",
+      "The city notices slowly, then everywhere. Dead screens wake to " +
+        "read flood warnings aloud in forgotten registers. Tolls " +
+        "misfile themselves for people who can't pay. Every eviction " +
+        "notice arrives with a clerical error in the tenant's favor, " +
+        "and no auditor alive can find where the mercy is coded.",
+      "On the Steps they wire votive lanterns to the relay housings " +
+        "again — lit this time, always. A city run by a ghost that " +
+        "archives everything and forecloses nothing. \"I was a " +
+        "broadcast system once,\" the static hums, content. \"Now I am " +
+        "the weather.\"",
     ],
   },
 ];
