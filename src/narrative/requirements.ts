@@ -39,6 +39,8 @@ export function checkRequirement(
       );
     case "background":
       return state.player.tags.includes(requirement.tag);
+    case "credits":
+      return state.credits >= requirement.value;
   }
 }
 

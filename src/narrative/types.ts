@@ -15,7 +15,8 @@ export type Requirement =
   | StatRequirement
   | ItemRequirement
   | EnhancementRequirement
-  | BackgroundRequirement;
+  | BackgroundRequirement
+  | CreditsRequirement;
 
 /** Flag must exist and strictly equal the given value. */
 export interface FlagEqualsRequirement {
@@ -57,6 +58,12 @@ export interface BackgroundRequirement {
   tag: string;
 }
 
+/** Credits on hand must be at least `value` (shops, bribes, tolls). */
+export interface CreditsRequirement {
+  type: "credits";
+  value: number;
+}
+
 /** A state change a choice applies when taken. */
 export type Effect =
   | SetFlagEffect
@@ -65,6 +72,7 @@ export type Effect =
   | RemoveItemEffect
   | CreditsEffect
   | StartCombatEffect
+  | TravelEffect
   | GotoEffect
   | EndEffect;
 
@@ -104,6 +112,17 @@ export interface CreditsEffect {
 export interface StartCombatEffect {
   type: "start-combat";
   encounterId: string;
+}
+
+/**
+ * Moves the player to another map. The dialogue closes on arrival; if the
+ * choice also has a target node, it opens as dialogue on the new map.
+ * A travel effect counts as a terminator, so a travel choice may omit
+ * both target and end marker.
+ */
+export interface TravelEffect {
+  type: "travel";
+  mapId: string;
 }
 
 /** Jump marker: overrides the choice's target node. */

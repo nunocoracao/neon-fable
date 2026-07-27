@@ -54,6 +54,8 @@ export function applyEffect(
       return { ...state, credits: Math.max(0, state.credits + effect.amount) };
     case "start-combat":
       return { ...state, pendingEncounterId: effect.encounterId };
+    case "travel":
+      return { ...state, location: effect.mapId };
     case "goto":
     case "end":
       return state;

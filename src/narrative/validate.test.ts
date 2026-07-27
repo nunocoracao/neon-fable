@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { introArc } from "../data/story/intro";
+import { storyArcs } from "../data/story";
 import type { StoryArc } from "./types";
 import { validateArc } from "./validate";
 
@@ -29,9 +29,12 @@ describe("validateArc", () => {
     expect(validateArc(arcWith({}))).toEqual([]);
   });
 
-  it("passes the authored intro arc", () => {
-    expect(validateArc(introArc)).toEqual([]);
-  });
+  it.each(storyArcs.map((arc) => [arc.id, arc] as const))(
+    "passes the authored %s arc",
+    (_id, arc) => {
+      expect(validateArc(arc)).toEqual([]);
+    },
+  );
 
   it("flags choice targets that point at missing nodes", () => {
     const arc = arcWith({
@@ -117,6 +120,65 @@ describe("validateArc", () => {
     });
     expect(validateArc(arc)).toContainEqual(
       expect.objectContaining({ code: "dead-end-choice", choiceId: "go" }),
+    );
+  });
+
+  it("accepts a travel effect as a choice terminator and an edge", () => {
+    const arc = arcWith({
+      nodes: [
+        {
+          id: "a",
+          text: "",
+          choices: [
+            {
+              id: "go",
+              label: "",
+              effects: [{ type: "travel", mapId: "cinder-plaza" }],
+            },
+          ],
+        },
+      ],
+    });
+    expect(validateArc(arc)).toEqual([]);
+  });
+
+  it("flags unknown encounter and map ids in effects", () => {
+    const arc = arcWith({
+      nodes: [
+        {
+          id: "a",
+          text: "",
+          choices: [
+            {
+              id: "go",
+              label: "",
+              target: "b",
+              effects: [
+                { type: "start-combat", encounterId: "enc-not-real" },
+                { type: "travel", mapId: "map-not-real" },
+              ],
+            },
+          ],
+        },
+        {
+          id: "b",
+          text: "",
+          choices: [{ id: "stop", label: "", effects: [{ type: "end" }] }],
+        },
+      ],
+    });
+    const issues = validateArc(arc);
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: "unknown-encounter",
+        detail: expect.stringContaining("enc-not-real"),
+      }),
+    );
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: "unknown-map",
+        detail: expect.stringContaining("map-not-real"),
+      }),
     );
   });
 

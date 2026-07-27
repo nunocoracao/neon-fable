@@ -1,10 +1,13 @@
+import { getEncounter } from "../data/encounters";
 import { getItem } from "../data/items";
+import { getMap } from "../data/maps";
 import type { Choice, StoryArc, StoryNode } from "./types";
 
 /**
  * Story-content validation, run in tests over every authored arc: broken
- * links, unreachable nodes, dead-end choices, and dangling item ids are
- * authoring bugs that must fail CI, not surface mid-playthrough.
+ * links, unreachable nodes, dead-end choices, and dangling item, encounter,
+ * or map ids are authoring bugs that must fail CI, not surface
+ * mid-playthrough.
  */
 
 export type ArcIssueCode =
@@ -13,7 +16,9 @@ export type ArcIssueCode =
   | "broken-target"
   | "orphan-node"
   | "dead-end-choice"
-  | "unknown-item";
+  | "unknown-item"
+  | "unknown-encounter"
+  | "unknown-map";
 
 export interface ArcIssue {
   code: ArcIssueCode;
@@ -47,8 +52,11 @@ function choiceTargets(choice: Choice): string[] {
   return targets;
 }
 
-function hasEndMarker(choice: Choice): boolean {
-  return (choice.effects ?? []).some((e) => e.type === "end");
+/** End markers and travel effects both legally terminate a choice. */
+function hasTerminator(choice: Choice): boolean {
+  return (choice.effects ?? []).some(
+    (e) => e.type === "end" || e.type === "travel",
+  );
 }
 
 /**
@@ -81,7 +89,7 @@ export function validateArc(arc: StoryArc): ArcIssue[] {
   for (const node of arc.nodes) {
     for (const choice of node.choices) {
       const targets = choiceTargets(choice);
-      if (targets.length === 0 && !hasEndMarker(choice)) {
+      if (targets.length === 0 && !hasTerminator(choice)) {
         issues.push({
           code: "dead-end-choice",
           nodeId: node.id,
@@ -112,6 +120,28 @@ export function validateArc(arc: StoryArc): ArcIssue[] {
             detail:
               `Choice "${choice.id}" on node "${node.id}" references ` +
               `unknown item "${itemId}"`,
+          });
+        }
+      }
+      for (const effect of choice.effects ?? []) {
+        if (effect.type === "start-combat" && !getEncounter(effect.encounterId)) {
+          issues.push({
+            code: "unknown-encounter",
+            nodeId: node.id,
+            choiceId: choice.id,
+            detail:
+              `Choice "${choice.id}" on node "${node.id}" starts ` +
+              `unknown encounter "${effect.encounterId}"`,
+          });
+        }
+        if (effect.type === "travel" && !getMap(effect.mapId)) {
+          issues.push({
+            code: "unknown-map",
+            nodeId: node.id,
+            choiceId: choice.id,
+            detail:
+              `Choice "${choice.id}" on node "${node.id}" travels to ` +
+              `unknown map "${effect.mapId}"`,
           });
         }
       }

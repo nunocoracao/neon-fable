@@ -51,6 +51,19 @@ describe("checkRequirement", () => {
     });
   });
 
+  describe("credits", () => {
+    it("passes when the balance meets the threshold", () => {
+      const state = makeState();
+      state.credits = 100;
+      expect(
+        checkRequirement(state, { type: "credits", value: 100 }),
+      ).toBe(true);
+      expect(
+        checkRequirement(state, { type: "credits", value: 101 }),
+      ).toBe(false);
+    });
+  });
+
   describe("flag-at-least", () => {
     it("compares numeric flags against the threshold", () => {
       const state = makeState();

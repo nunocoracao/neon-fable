@@ -32,6 +32,16 @@ describe("applyEffect", () => {
     expect(next.flags.talked).toBe(1);
   });
 
+  it("travel records the destination map on location", () => {
+    const state = makeState();
+    const next = applyEffect(state, {
+      type: "travel",
+      mapId: "greywater-steps",
+    });
+    expect(next.location).toBe("greywater-steps");
+    expect(state.location).not.toBe("greywater-steps");
+  });
+
   it("add-item and remove-item update the inventory immutably", () => {
     const state = makeState();
     const added = applyEffect(state, {

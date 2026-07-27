@@ -94,6 +94,10 @@ describe("requirementLabel", () => {
     ).toBe("[Installed: Optic Suite]");
   });
 
+  it("formats credits requirements", () => {
+    expect(requirementLabel({ type: "credits", value: 150 })).toBe("[150 cr]");
+  });
+
   it("formats flag requirements", () => {
     expect(
       requirementLabel({ type: "flag-equals", key: "door-entry", value: "corp" }),
