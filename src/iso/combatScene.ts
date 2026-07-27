@@ -390,7 +390,12 @@ export function createCombatScene(
 
     floatText(tile: TilePoint, text: string, color = "#e8e6f0"): void {
       const { sx, sy } = worldToScreen(tile.x, tile.y);
-      floats.push({ text, color, sx, sy, bornAt: performance.now() });
+      const now = performance.now();
+      // Stack rapid numbers over the same column so none overlap.
+      const stacked = floats.filter(
+        (f) => f.sx === sx && now - f.bornAt < FLOAT_MS,
+      ).length;
+      floats.push({ text, color, sx, sy: sy - stacked * 14, bornAt: now });
     },
 
     destroy(): void {

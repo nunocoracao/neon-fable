@@ -7,7 +7,9 @@ import {
   type GameState,
 } from "../state";
 import { createCharacterCreateScreen } from "./characterCreate";
+import { isDevMode } from "./dev";
 import { createExploreScreen } from "./exploreScreen";
+import { focusFirst } from "./focus";
 import { saveErrorMessage } from "./format";
 import { createGameScreen } from "./gameScreen";
 import { createSaveLoadPanel } from "./saveLoad";
@@ -79,21 +81,25 @@ export function createMainMenuScreen(): Screen {
         showScreen(createSettingsScreen()),
       );
 
-      // Temporary dev route into the iso scene without a character.
-      const explore = document.createElement("button");
-      explore.className = "nf-button";
-      explore.textContent = "Explore (dev)";
-      explore.addEventListener("click", () => {
-        showScreen(
-          createExploreScreen({
-            mapId: HUB_MAP_ID,
-            spawnId: "player-start",
-            onExit: () => showScreen(createMainMenuScreen()),
-          }),
-        );
-      });
+      menu.append(newGame, cont, load, settings);
+      focusFirst(menu);
 
-      menu.append(newGame, cont, load, settings, explore);
+      // Dev route into the iso scene without a character; ?dev only.
+      if (isDevMode()) {
+        const explore = document.createElement("button");
+        explore.className = "nf-button";
+        explore.textContent = "Explore (dev)";
+        explore.addEventListener("click", () => {
+          showScreen(
+            createExploreScreen({
+              mapId: HUB_MAP_ID,
+              spawnId: "player-start",
+              onExit: () => showScreen(createMainMenuScreen()),
+            }),
+          );
+        });
+        menu.append(explore);
+      }
       container.append(title, subtitle, menu, errorLine);
       root.append(container);
     },
@@ -103,6 +109,11 @@ export function createMainMenuScreen(): Screen {
       container = null;
     },
   };
+}
+
+/** Escape returns to the main menu, matching every screen's Back button. */
+function escapeToMenu(event: KeyboardEvent): void {
+  if (event.key === "Escape") showScreen(createMainMenuScreen());
 }
 
 /** Full-screen wrapper around the save/load panel in load-only mode. */
@@ -124,9 +135,12 @@ function createLoadScreen(): Screen {
       });
       container.append(panel.el);
       root.append(container);
+      window.addEventListener("keydown", escapeToMenu);
+      focusFirst(panel.el);
     },
 
     unmount(): void {
+      window.removeEventListener("keydown", escapeToMenu);
       container?.remove();
       container = null;
     },
@@ -157,9 +171,12 @@ function createSettingsScreen(): Screen {
       panel.append(title, note, back);
       container.append(panel);
       root.append(container);
+      window.addEventListener("keydown", escapeToMenu);
+      focusFirst(panel);
     },
 
     unmount(): void {
+      window.removeEventListener("keydown", escapeToMenu);
       container?.remove();
       container = null;
     },

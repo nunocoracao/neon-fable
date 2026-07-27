@@ -54,6 +54,11 @@ export function renderScene(
   }
 
   // Highlights sit on the ground, under all objects.
+  // Soft marker under every interactable so points of interest read at
+  // a glance without hunting with the cursor.
+  for (const interactable of map.interactables) {
+    drawDiamond(ctx, interactable, "rgba(240, 180, 41, 0.12)", "rgba(240, 180, 41, 0.35)");
+  }
   for (const step of view.path) {
     drawDiamond(ctx, step, "rgba(46, 230, 214, 0.18)", null);
   }

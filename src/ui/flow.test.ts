@@ -193,6 +193,13 @@ describe("dialogue overlay", () => {
     expect(textOf(".nf-hud-status")).toMatch(/75 cr/);
   });
 
+  it("focuses the first choice and advances with number keys", () => {
+    createTestCharacter();
+    expect(document.activeElement?.classList.contains("nf-choice")).toBe(true);
+    pressKey("1"); // first presented choice: take the meet
+    expect(textOf(".nf-dialogue-text")).toMatch(/Wet Market/);
+  });
+
   it("hands off to combat and resumes dialogue after a fought victory", () => {
     // Fix the RNG seed (createNewGame seeds from Date.now) so the battle
     // plays out exactly as the pre-scripted simulation did.
@@ -311,6 +318,12 @@ describe("act 1 chapter flow", () => {
     expect(localStorage.getItem("neon-fable:save:autosave")).not.toBeNull();
     click("Keep Exploring");
     expect(document.querySelector(".nf-chapter-end")).toBeNull();
+  });
+
+  it("reaches a second, different chapter outcome (voss route)", () => {
+    mountAt("a1-end-voss", "greywater-steps");
+    click("Take the writ");
+    expect(textOf(".nf-chapter-end")).toMatch(/A Signature in Grey Ink/);
   });
 });
 

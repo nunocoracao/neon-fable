@@ -11,6 +11,7 @@ import { createIsoScene, type IsoScene } from "../iso";
 import { COMBAT_RESUME_FLAG, createCombatScreen } from "./combatScreen";
 import { createDialogueOverlay } from "./dialogueOverlay";
 import { createInventoryOverlay } from "./inventoryOverlay";
+import { focusFirst } from "./focus";
 import { createMainMenuScreen } from "./mainMenu";
 import type { OverlayHandle } from "./overlay";
 import { createSaveLoadPanel } from "./saveLoad";
@@ -42,6 +43,12 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let overlay: { kind: OverlayKind; handle: OverlayHandle } | null = null;
 
+  // "main-menu" is the fresh-game sentinel, not a content error.
+  if (session.state.location !== "main-menu" && !getMap(session.state.location)) {
+    console.error(
+      `Unknown map id "${session.state.location}" — falling back to the hub`,
+    );
+  }
   const mapId = getMap(session.state.location) ? session.state.location : HUB_MAP_ID;
   const map = requireMap(mapId);
 
@@ -80,6 +87,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     closeOverlay();
     overlay = { kind, handle };
     overlayLayer?.append(handle.el);
+    focusFirst(handle.el);
   }
 
   function openDialogue(nodeId: string): void {
@@ -233,16 +241,22 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       // A pending encounter (start-combat effect, or a save made during a
       // battle) takes over before the map appears: re-enter the fight.
       const pending = session.state.pendingEncounterId;
-      if (pending && getEncounter(pending)) {
-        const resume = session.state.flags[COMBAT_RESUME_FLAG];
-        showScreen(
-          createCombatScreen({
-            session,
-            encounterId: pending,
-            resumeNodeId: typeof resume === "string" ? resume : null,
-          }),
+      if (pending) {
+        if (getEncounter(pending)) {
+          const resume = session.state.flags[COMBAT_RESUME_FLAG];
+          showScreen(
+            createCombatScreen({
+              session,
+              encounterId: pending,
+              resumeNodeId: typeof resume === "string" ? resume : null,
+            }),
+          );
+          return;
+        }
+        console.error(
+          `Unknown pending encounter id "${pending}" — dropping the fight`,
         );
-        return;
+        session.state = { ...session.state, pendingEncounterId: null };
       }
 
       root = mountRoot;

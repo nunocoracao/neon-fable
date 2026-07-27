@@ -21,8 +21,9 @@ import {
 } from "../combat";
 import { getAbility, getEncounter, getItem, requireMap } from "../data";
 import { createCombatScene, type CombatScene } from "../iso";
-import type { TilePoint } from "../iso";
+import type { IsoMap, TilePoint } from "../iso";
 import { SaveError, loadGame, type GameState } from "../state";
+import { focusFirst } from "./focus";
 import {
   combatEventText,
   combatantDisplayNames,
@@ -100,6 +101,14 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
 
   function backToGame(dialogueNodeId: string | null): void {
     showScreen(createGameScreen({ session, dialogueNodeId }));
+  }
+
+  /** Clears a stored pending fight so the game screen doesn't relaunch it. */
+  function dropEncounter(): void {
+    session.state = withoutResumeFlag({
+      ...session.state,
+      pendingEncounterId: null,
+    });
   }
 
   function playerCanAct(): boolean {
@@ -628,6 +637,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       }
       panel.append(list);
       panel.append(panelButton("Continue", () => backToGame(resumeNodeId)));
+      focusFirst(panel);
       return;
     }
 
@@ -639,6 +649,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         "You break contact and melt back into Cinder Row. Word of it will " +
         "travel.";
       panel.append(note, panelButton("Return", () => backToGame(null)));
+      focusFirst(panel);
       return;
     }
 
@@ -686,6 +697,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       panelButton("Main Menu", () => showScreen(createMainMenuScreen())),
     );
     panel.append(note, message, menu);
+    focusFirst(panel);
   }
 
   // --- Screen lifecycle ------------------------------------------------
@@ -702,9 +714,26 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       const encounter = getEncounter(encounterId);
       if (!encounter) {
         console.error(`Unknown encounter id "${encounterId}"`);
+        dropEncounter();
         backToGame(null);
         return;
       }
+
+      // Build the fight before persisting anything, so bad content
+      // (missing enemies, missing arena map) degrades back to the map
+      // screen instead of autosaving a fight that can never start.
+      let arenaMap: IsoMap;
+      try {
+        combat = createCombat(session.state, encounterId);
+        arenaMap = requireMap(encounter.arenaMapId);
+      } catch (error) {
+        console.error(`Could not start encounter "${encounterId}":`, error);
+        combat = null;
+        dropEncounter();
+        backToGame(null);
+        return;
+      }
+      displayNames = combatantDisplayNames(combat.combatants);
 
       // Mark the encounter pending (with its resume point) and autosave,
       // so a reload mid-battle re-enters this fight from the game screen.
@@ -717,11 +746,6 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         },
       };
       autosave(session);
-
-      combat = createCombat(session.state, encounterId);
-      displayNames = combatantDisplayNames(combat.combatants);
-
-      const arenaMap = requireMap(encounter.arenaMapId);
       scene = createCombatScene(canvas, {
         map: arenaMap,
         onTileClick,

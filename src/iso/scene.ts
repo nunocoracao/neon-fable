@@ -73,6 +73,14 @@ export function createIsoScene(
   let lastPointer = { x: 0, y: 0 };
   let downPointer = { x: 0, y: 0 };
 
+  let cursor = "";
+  /** Writes the canvas cursor style only when it changes. */
+  function setCursor(value: string): void {
+    if (cursor === value) return;
+    cursor = value;
+    canvas.style.cursor = value;
+  }
+
   function resize(): void {
     const dpr = window.devicePixelRatio || 1;
     viewportW = canvas.clientWidth;
@@ -153,6 +161,7 @@ export function createIsoScene(
       ) {
         panning = true;
         hoverTile = null;
+        setCursor("grabbing");
       }
       if (panning) {
         camera = clampCamera(
@@ -166,6 +175,7 @@ export function createIsoScene(
       return;
     }
     hoverTile = pickTile(p.x, p.y);
+    setCursor(interactableAt(map, hoverTile.x, hoverTile.y) ? "pointer" : "");
   }
 
   function onPointerUp(event: PointerEvent): void {
@@ -177,10 +187,12 @@ export function createIsoScene(
       handleClick(p.x, p.y);
     }
     panning = false;
+    setCursor("");
   }
 
   function onPointerLeave(): void {
     hoverTile = null;
+    setCursor("");
   }
 
   function stepWalk(dt: number): void {
@@ -244,6 +256,7 @@ export function createIsoScene(
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointerleave", onPointerLeave);
+      setCursor("");
       ctx!.clearRect(0, 0, viewportW, viewportH);
     },
   };

@@ -1,4 +1,4 @@
-import { initScreenRouter, showScreen } from "./ui/screen";
+import { initScreenRouter, setFallbackScreen, showScreen } from "./ui/screen";
 import { createMainMenuScreen } from "./ui/mainMenu";
 
 const uiRoot = document.getElementById("ui-root");
@@ -7,4 +7,5 @@ if (!uiRoot) {
 }
 
 initScreenRouter(uiRoot);
+setFallbackScreen(createMainMenuScreen);
 showScreen(createMainMenuScreen());
