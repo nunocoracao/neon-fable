@@ -5,6 +5,16 @@ branching narrative where choices change the story, isometric graphics,
 turn-based combat, and an inventory system covering clothes, weapons,
 and cybernetic enhancements. Everything runs client-side — no backend.
 
+The story is a complete three-act arc set in the Meridian Sprawl:
+**The Undertow** (Act 1 — a drowned district and a corporate flood),
+**The Cordon** (Act 2 — an embargo that rations the Undercroft's air),
+and **The Succession** (Act 3 — the founders' continuity engine wakes
+to inherit the whole city). Choices accumulate across all three acts —
+allies, betrayals, and warrants recorded in Act 1 decide who stands
+with you in the finale — and the game ends on one of **four distinct
+endings**, each with a flag-driven epilogue of what became of every
+faction and ally in your playthrough.
+
 ## Getting started
 
 ```sh
@@ -44,6 +54,20 @@ entry that drops you on the hub map without a character).
   neural…) and cost neural load against your capacity; uninstalling one
   destroys it and deals trauma. Installed enhancements can unlock
   dialogue and grant combat abilities.
+- **Chapters & advancement** — each act starts from a hub NPC on the
+  plaza (Flick for Act 1, a messenger for Act 2, the watcher under the
+  dead screens for Act 3 — each appears once the previous act is done).
+  Completing a chapter grants advancement points; press `P` (or use the
+  chapter-end panel) to spend them on stat raises and new abilities.
+- **The finale & endings** — Act 3 reads everything you did: your Act 1
+  and Act 2 outcomes pick the opening, kept allies open doors and join
+  the final battle, betrayed parties come back armed, and an active (or
+  suspended) warrant changes how the Auric Spire's gates read you.
+  There are four endings, gated on your cumulative history — including
+  one fully non-combat resolution behind steep stat, enhancement, and
+  ally requirements. After the ending, an epilogue screen tells you
+  what became of each faction and ally; a finished save reopens to that
+  epilogue.
 
 ## Layout
 
@@ -147,12 +171,21 @@ checks that every choice target, item id, encounter id, travel map id,
 and flag reference resolves — a broken reference fails the suite, not
 the player.
 
-### Endings (`src/data/endings.ts`)
+### Endings & epilogues (`src/data/endings.ts`, `epilogues.ts`)
 
 An `end` effect whose `endingId` resolves in `endings` opens the
 chapter-end screen with that ending's epilogue paragraphs (the game
 autosaves first). End markers without an ending id just close the
-conversation.
+conversation. Endings marked `final: true` are game endings: the UI
+routes to the epilogue screen instead, and the autosaved state (its
+`game-complete` flag) reopens to the epilogue from then on.
+
+Epilogue vignettes live in `src/data/epilogues.ts`: each has a
+`subject` slot and optional `requires` gates, and `selectVignettes`
+(`src/narrative/epilogue.ts`) picks the first matching vignette per
+subject in authored order — put specific variants above their
+subject's fallback. Vignette-less subjects are omitted, which is how
+characters the player never met stay out of the epilogue.
 
 ### Conventions
 

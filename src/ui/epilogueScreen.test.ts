@@ -34,15 +34,32 @@ function textOf(selector: string): string {
   return document.querySelector(selector)?.textContent ?? "";
 }
 
+/** Canvas stub proxy, as in flow.test. */
+function anything(): unknown {
+  const fn = (): unknown => anything();
+  return new Proxy(fn, {
+    get: (_target, prop) =>
+      prop === Symbol.toPrimitive ? () => 0 : anything(),
+    set: () => true,
+    apply: () => anything(),
+  });
+}
+
 beforeEach(() => {
   document.body.innerHTML =
     '<canvas id="iso-canvas"></canvas><div id="ui-root"></div>';
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+    () => anything() as CanvasRenderingContext2D,
+  );
+  vi.stubGlobal("requestAnimationFrame", () => 0);
+  vi.stubGlobal("cancelAnimationFrame", () => {});
   localStorage.clear();
   initScreenRouter(document.getElementById("ui-root")!);
   setFallbackScreen(createMainMenuScreen);
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
@@ -94,5 +111,31 @@ describe("finished saves", () => {
     expect(document.querySelector(".nf-epilogue")).not.toBeNull();
     expect(document.querySelector(".nf-hud")).toBeNull();
     expect(textOf(".nf-epilogue")).toMatch(/The Freehold Dark/);
+  });
+});
+
+describe("final ending handoff", () => {
+  it("routes a final ending's dialogue straight to the epilogue and autosaves finished", () => {
+    const base = createNewGame({ playerName: "Vex", seed: 3 });
+    const session = createSession({
+      ...base,
+      location: "auric-spire",
+      flags: { "hex-exchange": true },
+    });
+    // Open the game screen with the last ending node as live dialogue.
+    showScreen(createGameScreen({ session, dialogueNodeId: "a3-end-ghost" }));
+    const seal = [...document.querySelectorAll("button")].find((b) =>
+      b.textContent?.includes("Listen until the song settles"),
+    );
+    expect(seal).toBeTruthy();
+    seal!.click();
+
+    expect(document.querySelector(".nf-epilogue")).not.toBeNull();
+    expect(textOf(".nf-epilogue")).toMatch(/The Caretaker Signal/);
+    // The autosave is a finished save: game-complete + the ending flag.
+    const raw = localStorage.getItem("neon-fable:save:autosave");
+    const saved = JSON.parse(raw!).state;
+    expect(saved.flags["game-complete"]).toBe(true);
+    expect(saved.flags["ending"]).toBe("ending-ghost");
   });
 });
