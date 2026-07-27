@@ -1,14 +1,20 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { baseStats, createCharacter } from "../character";
+import { getBackground } from "../data";
+import { createNewGame, type GameState } from "../state";
+import { findFightSeed, replayStep } from "./combatTestSupport";
 import { initScreenRouter, showScreen } from "./screen";
 import { createMainMenuScreen } from "./mainMenu";
 
 /**
  * Integration test of the DOM screens: drives the real UI (main menu ->
- * character creation -> intro dialogue -> combat stub -> inventory ->
+ * character creation -> intro dialogue -> combat -> inventory ->
  * save/load) through clicks and key events in happy-dom. The canvas 2D
  * context is stubbed — iso rendering itself is not under test, only that
- * the screens wire the pure systems together correctly.
+ * the screens wire the pure systems together correctly. The battle is
+ * replayed from a scripted engine simulation under a scanned RNG seed
+ * (Date.now is mocked to that seed), so the fight is deterministic.
  */
 
 /** A value whose every property/call yields another such value — enough to
@@ -73,15 +79,44 @@ function createTestCharacter(): void {
   click("Jack In");
 }
 
+/** The GameState createTestCharacter produces for a given RNG seed —
+ * used to script the intro-arc battle engine-side before replaying it
+ * through the UI. Nothing on the dialogue path to the fight draws RNG or
+ * changes combat inputs, so combat setup matches the live session's. */
+function testCharacterState(seed: number): GameState {
+  const background = getBackground("gutter-courier")!;
+  const allocation = baseStats();
+  allocation.body += 5;
+  allocation.tech += 5;
+  allocation.intelligence += 5;
+  const character = createCharacter({ name: "Vex", background, allocation });
+  return createNewGame({ character, seed });
+}
+
+/** A seed whose scripted enc-auric-scout fight ends in victory. */
+const AURIC_WIN = findFightSeed(
+  testCharacterState,
+  "enc-auric-scout",
+  (fight) => fight.status === "victory",
+);
+
 beforeEach(() => {
   document.body.innerHTML =
     '<canvas id="iso-canvas"></canvas><div id="ui-root"></div>';
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
     () => anything() as CanvasRenderingContext2D,
   );
+  vi.stubGlobal("requestAnimationFrame", () => 0);
+  vi.stubGlobal("cancelAnimationFrame", () => {});
   localStorage.clear();
   initScreenRouter(document.getElementById("ui-root")!);
   showScreen(createMainMenuScreen());
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("main menu", () => {
@@ -156,7 +191,12 @@ describe("dialogue overlay", () => {
     expect(textOf(".nf-hud-status")).toMatch(/75 cr/);
   });
 
-  it("hands off to combat and resumes dialogue after resolution", () => {
+  it("hands off to combat and resumes dialogue after a fought victory", () => {
+    // Fix the RNG seed (createNewGame seeds from Date.now) so the battle
+    // plays out exactly as the pre-scripted simulation did.
+    vi.spyOn(Date, "now").mockReturnValue(AURIC_WIN.seed);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
     createTestCharacter();
     click("Reply: you'll take the meet");
     click("Keep walking");
@@ -165,12 +205,23 @@ describe("dialogue overlay", () => {
     click("Pocket the advance");
     click("Take the job");
     click("Rush them before the sweep");
+    vi.runAllTimers(); // enemies with higher initiative open the fight
 
-    // start-combat effect -> combat stub screen for the encounter.
-    expect(textOf(".nf-combat-stub")).toMatch(/Auric Scout Team/);
-    click("Resolve: Victory");
+    // start-combat effect -> the playable arena for the encounter.
+    expect(textOf(".nf-combat-title")).toMatch(/Auric Scout Team/);
+    expect(document.querySelector(".nf-initiative")).toBeTruthy();
 
-    // Dialogue resumed at the post-combat node; rewards paid (75 + 40).
+    // Replay the scripted fight through the real controls; every step
+    // flushes the enemy-turn timers it triggers.
+    for (const step of AURIC_WIN.fight.steps) {
+      replayStep(step, { click, pressKey });
+      vi.runAllTimers();
+    }
+
+    // Victory overlay, then dialogue resumes at the post-combat node;
+    // rewards paid (75 + 40).
+    expect(textOf(".nf-combat-outcome")).toMatch(/Victory/);
+    click("Continue");
     expect(textOf(".nf-dialogue-text")).toMatch(/junction box/);
     expect(textOf(".nf-hud-status")).toMatch(/115 cr/);
 
@@ -204,18 +255,20 @@ describe("inventory overlay", () => {
   });
 
   it("routes actions through the pure functions and surfaces their errors", () => {
-    // Full combat route: the victory reward is a trauma patch to Use later.
-    createTestCharacter();
+    // High-Reflexes character so the Wet Market theft gate passes and a
+    // trauma patch lands in the pack at full health.
+    click("New Game");
+    setName("Vex");
+    bumpStat(0, 5); // body
+    bumpStat(1, 5); // reflexes -> passes the [Reflexes 8] gate
+    bumpStat(2, 5); // tech
+    click("Jack In");
     click("Reply: you'll take the meet");
-    click("Keep walking");
+    click("Palm a trauma patch");
     click("Remind him who ran his packages");
     click("Take the chair");
     click("Pocket the advance");
-    click("Take the job");
-    click("Rush them before the sweep");
-    click("Resolve: Victory");
-    click("Head back to the Filament");
-    click("Hand over the spike");
+    click("Walk away"); // end the thread so overlays are free
 
     pressKey("i");
     // Healing at full HP is rejected by useConsumable, not by the UI.

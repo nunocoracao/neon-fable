@@ -576,3 +576,169 @@ body {
   background: rgba(18, 18, 31, 0.85);
   border: 1px solid var(--nf-border);
 }
+
+/* --- Combat --- */
+
+.nf-combat-top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  pointer-events: none;
+}
+
+.nf-combat-title {
+  font-family: var(--nf-font-display);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  color: var(--nf-glow-magenta);
+  padding: 0.35rem 0.75rem;
+  background: rgba(18, 18, 31, 0.85);
+  border: 1px solid var(--nf-border);
+}
+
+.nf-initiative {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.nf-init-round {
+  font-family: var(--nf-font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--nf-glow-amber);
+  padding: 0.3rem 0.5rem;
+  background: rgba(18, 18, 31, 0.85);
+  border: 1px solid var(--nf-border);
+}
+
+.nf-init-chip {
+  font-family: var(--nf-font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.3rem 0.5rem;
+  color: var(--nf-ink-dim);
+  background: rgba(18, 18, 31, 0.85);
+  border: 1px solid var(--nf-border);
+}
+
+.nf-init-player {
+  color: var(--nf-glow-cyan);
+}
+
+.nf-init-active {
+  border-color: var(--nf-glow-cyan);
+  box-shadow: 0 0 8px rgba(46, 230, 214, 0.4);
+  color: var(--nf-ink);
+}
+
+.nf-init-dead {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+
+.nf-combat-log {
+  position: fixed;
+  top: 4rem;
+  right: 1rem;
+  width: min(19rem, 40vw);
+  max-height: 40vh;
+  overflow-y: auto;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--nf-ink-dim);
+  background: rgba(18, 18, 31, 0.85);
+  border: 1px solid var(--nf-border);
+  pointer-events: auto;
+}
+
+.nf-log-line + .nf-log-line {
+  margin-top: 0.15rem;
+}
+
+.nf-combat-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.75rem 1rem 1rem;
+  pointer-events: none;
+}
+
+.nf-combat-status {
+  display: flex;
+  gap: 1.25rem;
+  padding: 0.35rem 0.75rem;
+  font-family: var(--nf-font-display);
+  font-size: 0.8rem;
+  color: var(--nf-ink);
+  background: rgba(18, 18, 31, 0.85);
+  border: 1px solid var(--nf-border);
+}
+
+.nf-combat-hint {
+  margin: 0;
+  min-height: 1.1em;
+  font-size: 0.8rem;
+  color: var(--nf-glow-amber);
+}
+
+.nf-combat-selection {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  max-width: min(48rem, calc(100vw - 2rem));
+}
+
+.nf-combat-selection .nf-choice {
+  pointer-events: auto;
+}
+
+.nf-action-bar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.nf-action-bar .nf-button {
+  pointer-events: auto;
+}
+
+.nf-combat-outcome {
+  min-width: 20rem;
+  text-align: center;
+}
+
+.nf-combat-outcome .nf-menu {
+  margin-top: 1rem;
+}
+
+.nf-combat-outcome .nf-button {
+  margin-top: 0.75rem;
+}
+
+.nf-reward-list {
+  margin: 0.5rem 0;
+}
+
+.nf-reward-line {
+  font-family: var(--nf-font-display);
+  font-size: 0.9rem;
+  color: var(--nf-glow-amber);
+  padding: 0.15rem 0;
+}

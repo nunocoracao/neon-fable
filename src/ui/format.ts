@@ -13,6 +13,7 @@ import type {
   EnhancementSlot,
   Item,
 } from "../inventory/items";
+import type { CombatEvent } from "../combat/types";
 import type { Requirement } from "../narrative/types";
 import type { SaveError, SaveSlot } from "../state/save";
 
@@ -172,6 +173,107 @@ export function saveErrorMessage(error: SaveError): string {
       return "That save is corrupted and cannot be loaded.";
     case "version-mismatch":
       return "That save comes from an incompatible game version.";
+  }
+}
+
+/** A chance in [0, 1] as a whole percentage, e.g. "65%". */
+export function percentLabel(chance: number): string {
+  return `${Math.round(chance * 100)}%`;
+}
+
+/** Resolves a combatant id to its display name. */
+export type CombatantNameLookup = (combatantId: string) => string;
+
+/**
+ * Display names keyed by combatant id, numbering duplicates ("Rustyard
+ * Bruiser 1", "Rustyard Bruiser 2") so target lists and the log stay
+ * unambiguous.
+ */
+export function combatantDisplayNames(
+  combatants: ReadonlyArray<{ id: string; name: string }>,
+): Record<string, string> {
+  const totals = new Map<string, number>();
+  for (const { name } of combatants) {
+    totals.set(name, (totals.get(name) ?? 0) + 1);
+  }
+  const seen = new Map<string, number>();
+  const names: Record<string, string> = {};
+  for (const { id, name } of combatants) {
+    if ((totals.get(name) ?? 0) > 1) {
+      const index = (seen.get(name) ?? 0) + 1;
+      seen.set(name, index);
+      names[id] = `${name} ${index}`;
+    } else {
+      names[id] = name;
+    }
+  }
+  return names;
+}
+
+/**
+ * One combat-log line for an engine event, or null for events the log
+ * does not show (turn markers and moves are conveyed by the scene and
+ * initiative strip instead).
+ */
+export function combatEventText(
+  event: CombatEvent,
+  nameOf: CombatantNameLookup,
+  lookupItem: ItemLookup = getItem,
+  lookupAbility: AbilityLookup = getAbility,
+): string | null {
+  switch (event.type) {
+    case "combat-started":
+      return "Hostiles engaged.";
+    case "round-started":
+      return `— Round ${event.round} —`;
+    case "turn-started":
+    case "moved":
+      return null;
+    case "stun-skipped":
+      return `${nameOf(event.combatantId)} is stunned and loses the turn.`;
+    case "attacked":
+      return event.hit
+        ? `${nameOf(event.attackerId)} hits ${nameOf(event.targetId)} for ` +
+            `${event.damage} damage.`
+        : `${nameOf(event.attackerId)} misses ${nameOf(event.targetId)}.`;
+    case "ability-used": {
+      const ability =
+        lookupAbility(event.abilityId)?.name ?? event.abilityId;
+      if (event.combatantId === event.targetId) {
+        return `${nameOf(event.combatantId)} uses ${ability}.`;
+      }
+      const stun = event.stunTurns > 0 ? ", stunning them" : "";
+      return (
+        `${nameOf(event.combatantId)} hits ${nameOf(event.targetId)} with ` +
+        `${ability} for ${event.damage} damage${stun}.`
+      );
+    }
+    case "item-used": {
+      const item = lookupItem(event.itemId)?.name ?? event.itemId;
+      return `${nameOf(event.combatantId)} uses a ${item}.`;
+    }
+    case "healed":
+      return `${nameOf(event.combatantId)} recovers ${event.amount} HP.`;
+    case "boosted":
+      return (
+        `${nameOf(event.combatantId)} gains ${signedNumber(event.amount)} ` +
+        `${statLabel(event.stat)} for ${event.turns} turns.`
+      );
+    case "flee-attempted":
+      return event.success
+        ? `${nameOf(event.combatantId)} breaks away from the fight!`
+        : `${nameOf(event.combatantId)} tries to flee but finds no opening.`;
+    case "defeated":
+      return `${nameOf(event.combatantId)} goes down.`;
+    case "combat-ended":
+      switch (event.result) {
+        case "victory":
+          return "All hostiles are down.";
+        case "defeat":
+          return "You collapse. The fight is over.";
+        case "fled":
+          return "You are clear of the fight.";
+      }
   }
 }
 

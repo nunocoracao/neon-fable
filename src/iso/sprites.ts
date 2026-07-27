@@ -7,7 +7,7 @@
 import { TILE_H, TILE_W } from "./coords";
 import type { InteractableSpriteId, PropId, TileId } from "./tilemap";
 
-export type EntitySpriteId = "player";
+export type EntitySpriteId = "player" | "enemy";
 
 /**
  * A drawable image plus its anchor: the pixel inside the image that
@@ -378,6 +378,8 @@ function makeEntitySprite(id: EntitySpriteId): Sprite {
   switch (id) {
     case "player":
       return figure("#1f4f5c", PALETTE.cyan);
+    case "enemy":
+      return figure("#5c2431", PALETTE.magenta);
   }
 }
 

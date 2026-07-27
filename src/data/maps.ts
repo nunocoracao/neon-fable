@@ -91,43 +91,115 @@ const cinderPlaza: IsoMap = {
 };
 
 /**
- * Rustyard arena — a cleared scrap-yard floor used as a combat map.
- * Dimensions match the enc-rustyard-ambush encounter grid (7x7).
+ * Combat arenas. Every tile of an arena is open floor: the combat engine
+ * has no obstacle rules (movement is bounds + occupancy only), so arena
+ * maps must not place blocking props or unwalkable tiles inside the grid
+ * — otherwise the picture would disagree with what the engine allows.
+ * Dimensions must match the owning encounter's grid; positions are tile
+ * coordinates. Each arena keeps a "player-start" spawn mirroring the
+ * encounter's playerStart so generic map tooling has a valid anchor.
  */
-const arenaLegend: Record<string, LegendEntry> = {
+
+/**
+ * Rustyard arena — a cleared scrap-yard floor (enc-rustyard-ambush, 7x7).
+ */
+const rustyardLegend: Record<string, LegendEntry> = {
   ".": { tile: "rust-floor" },
-  c: { tile: "rust-floor", prop: { propId: "crate", blocks: true } },
-  b: { tile: "rust-floor", prop: { propId: "barrier", blocks: true } },
+  ",": { tile: "pavement-cracked" },
 };
 
-const arenaRows = [
+const rustyardRows = [
   ".......",
-  "..c....",
-  "....b..",
+  "..,....",
+  "....,..",
   ".......",
-  "..c....",
-  ".....c.",
+  "..,....",
+  ".....,.",
   ".......",
 ];
 
-const arenaGrid = buildMapGrid(arenaLegend, arenaRows);
+const rustyardGrid = buildMapGrid(rustyardLegend, rustyardRows);
 
 const rustyardArena: IsoMap = {
   id: "rustyard-arena",
   name: "Rustyard Arena",
-  width: arenaGrid.width,
-  height: arenaGrid.height,
-  tiles: arenaGrid.tiles,
-  props: arenaGrid.props,
+  width: rustyardGrid.width,
+  height: rustyardGrid.height,
+  tiles: rustyardGrid.tiles,
+  props: rustyardGrid.props,
   interactables: [],
-  spawns: [
-    { id: "player", x: 1, y: 5 },
-    { id: "enemy-1", x: 5, y: 1 },
-    { id: "enemy-2", x: 3, y: 1 },
-  ],
+  spawns: [{ id: "player-start", x: 3, y: 6 }],
 };
 
-export const maps: readonly IsoMap[] = [cinderPlaza, rustyardArena];
+/**
+ * Undercroft junction — flooded service level around the dead drop
+ * (enc-auric-scout, 8x6).
+ */
+const undercroftLegend: Record<string, LegendEntry> = {
+  ".": { tile: "pavement" },
+  ",": { tile: "pavement-cracked" },
+  r: { tile: "rust-floor" },
+};
+
+const undercroftRows = [
+  ",..rr...",
+  "........",
+  "..,...r.",
+  ".r......",
+  "....,...",
+  "...r..,.",
+];
+
+const undercroftGrid = buildMapGrid(undercroftLegend, undercroftRows);
+
+const undercroftArena: IsoMap = {
+  id: "undercroft-arena",
+  name: "Undercroft Junction Nine",
+  width: undercroftGrid.width,
+  height: undercroftGrid.height,
+  tiles: undercroftGrid.tiles,
+  props: undercroftGrid.props,
+  interactables: [],
+  spawns: [{ id: "player-start", x: 1, y: 3 }],
+};
+
+/**
+ * Vault antechamber — polished pre-Combine security floor
+ * (enc-vault-guardian, 8x6).
+ */
+const vaultLegend: Record<string, LegendEntry> = {
+  ".": { tile: "pavement" },
+  "=": { tile: "plaza-glow" },
+};
+
+const vaultRows = [
+  "........",
+  "..====..",
+  "..====..",
+  "..====..",
+  "..====..",
+  "........",
+];
+
+const vaultGrid = buildMapGrid(vaultLegend, vaultRows);
+
+const vaultArena: IsoMap = {
+  id: "vault-arena",
+  name: "Vault Antechamber",
+  width: vaultGrid.width,
+  height: vaultGrid.height,
+  tiles: vaultGrid.tiles,
+  props: vaultGrid.props,
+  interactables: [],
+  spawns: [{ id: "player-start", x: 1, y: 2 }],
+};
+
+export const maps: readonly IsoMap[] = [
+  cinderPlaza,
+  rustyardArena,
+  undercroftArena,
+  vaultArena,
+];
 
 export const HUB_MAP_ID = cinderPlaza.id;
 

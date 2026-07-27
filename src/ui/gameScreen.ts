@@ -1,6 +1,6 @@
-import { HUB_MAP_ID, findArcByNode, getMap, requireMap } from "../data";
+import { HUB_MAP_ID, findArcByNode, getEncounter, getMap, requireMap } from "../data";
 import { createIsoScene, type IsoScene } from "../iso";
-import { createCombatStubScreen } from "./combatStub";
+import { COMBAT_RESUME_FLAG, createCombatScreen } from "./combatScreen";
 import { createDialogueOverlay } from "./dialogueOverlay";
 import { createInventoryOverlay } from "./inventoryOverlay";
 import { createMainMenuScreen } from "./mainMenu";
@@ -90,7 +90,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         onCombat(encounterId, resumeNodeId) {
           closeOverlay();
           showScreen(
-            createCombatStubScreen({ session, encounterId, resumeNodeId }),
+            createCombatScreen({ session, encounterId, resumeNodeId }),
           );
         },
         onEnded(endingId) {
@@ -179,6 +179,21 @@ export function createGameScreen(options: GameScreenOptions): Screen {
 
   return {
     mount(mountRoot: HTMLElement): void {
+      // A pending encounter (start-combat effect, or a save made during a
+      // battle) takes over before the map appears: re-enter the fight.
+      const pending = session.state.pendingEncounterId;
+      if (pending && getEncounter(pending)) {
+        const resume = session.state.flags[COMBAT_RESUME_FLAG];
+        showScreen(
+          createCombatScreen({
+            session,
+            encounterId: pending,
+            resumeNodeId: typeof resume === "string" ? resume : null,
+          }),
+        );
+        return;
+      }
+
       root = mountRoot;
       root.style.pointerEvents = "none";
 
@@ -230,7 +245,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
             openDialogue(event.interaction.nodeId);
           } else {
             showScreen(
-              createCombatStubScreen({
+              createCombatScreen({
                 session,
                 encounterId: event.interaction.encounterId,
                 resumeNodeId: null,
