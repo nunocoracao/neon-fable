@@ -1,6 +1,7 @@
 import { audio } from "../audio";
 import {
   HUB_MAP_ID,
+  epilogueVignettes,
   findArcByNode,
   getEncounter,
   getEnding,
@@ -9,6 +10,8 @@ import {
   type ChapterEnding,
 } from "../data";
 import { availablePoints } from "../character";
+import { selectVignettes } from "../narrative";
+import { carryoverCandidates, recordCompletionToStorage } from "../state";
 import { createIsoScene, type IsoScene } from "../iso";
 import { createAdvancementOverlay } from "./advancementOverlay";
 import { COMBAT_RESUME_FLAG, createCombatScreen } from "./combatScreen";
@@ -42,6 +45,38 @@ type OverlayKind =
   | "saves"
   | "menu"
   | "settings";
+
+/** Flag marking that this playthrough's ending is already in meta-progress. */
+const META_RECORDED_FLAG = "meta-recorded";
+
+/**
+ * Writes a finished run into meta-progress (endings codex, NG+ unlock,
+ * legacy carry-over candidates). Guarded by a state flag so a
+ * completion is recorded exactly once, even if a finished save's final
+ * dialogue somehow replays; reopening a finished save never re-records
+ * because only the final-ending handoff calls this.
+ */
+function recordFinishedRun(session: Session): void {
+  const state = session.state;
+  if (state.flags[META_RECORDED_FLAG] === true) return;
+  const endingId = state.flags["ending"];
+  if (typeof endingId !== "string") {
+    console.error("Final ending reached with no ending flag — not recorded");
+    return;
+  }
+  recordCompletionToStorage(
+    {
+      endingId,
+      epilogueIds: selectVignettes(state, epilogueVignettes).map((v) => v.id),
+      legacyItemIds: carryoverCandidates(state.player),
+    },
+    session.storage,
+  );
+  session.state = {
+    ...state,
+    flags: { ...state.flags, [META_RECORDED_FLAG]: true },
+  };
+}
 
 export function createGameScreen(options: GameScreenOptions): Screen {
   const { session } = options;
@@ -135,8 +170,11 @@ export function createGameScreen(options: GameScreenOptions): Screen {
           closeOverlay();
           const ending = endingId ? getEnding(endingId) : undefined;
           if (ending?.final) {
-            // Game ending: the end effects set game-complete, so this
+            // Game ending: record the completion into meta-progress
+            // exactly once — the moment the epilogue is first shown —
+            // then autosave; the end effects set game-complete, so the
             // autosave is a finished save that reopens to the epilogue.
+            recordFinishedRun(session);
             autosave(session);
             showScreen(createEpilogueScreen({ session }));
           } else if (ending) {
