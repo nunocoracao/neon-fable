@@ -28,6 +28,11 @@ export interface Encounter {
   id: string;
   name: string;
   grid: { width: number; height: number };
+  /**
+   * Iso map (src/data/maps.ts) the battle is fought on. Its dimensions
+   * must match `grid` — combat positions are the map's tile coordinates.
+   */
+  arenaMapId: string;
   playerStart: EncounterPosition;
   enemies: EncounterSpawn[];
   rewards: EncounterRewards;
@@ -40,6 +45,7 @@ export const encounters: Encounter[] = [
     id: "enc-auric-scout",
     name: "Auric Scout Team",
     grid: { width: 8, height: 6 },
+    arenaMapId: "undercroft-arena",
     playerStart: { x: 1, y: 3 },
     enemies: [
       { enemyId: "nme-auric-agent", position: { x: 6, y: 2 } },
@@ -54,6 +60,7 @@ export const encounters: Encounter[] = [
     id: "enc-rustyard-ambush",
     name: "Rustyard Ambush",
     grid: { width: 7, height: 7 },
+    arenaMapId: "rustyard-arena",
     playerStart: { x: 3, y: 6 },
     enemies: [
       { enemyId: "nme-rustyard-bruiser", position: { x: 1, y: 1 } },
@@ -68,6 +75,7 @@ export const encounters: Encounter[] = [
     id: "enc-vault-guardian",
     name: "Vault Guardian",
     grid: { width: 8, height: 6 },
+    arenaMapId: "vault-arena",
     playerStart: { x: 1, y: 2 },
     enemies: [
       { enemyId: "nme-vault-sentinel", position: { x: 6, y: 3 } },
