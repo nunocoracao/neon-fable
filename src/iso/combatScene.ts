@@ -28,6 +28,7 @@ import {
   type WorldPoint,
 } from "./coords";
 import { compareDrawables, type Drawable } from "./depth";
+import { observeDevicePixelRatio } from "./dpr";
 import type { EntitySpriteId, SpriteProvider } from "./sprites";
 import type { IsoMap } from "./tilemap";
 
@@ -448,6 +449,7 @@ export function createCombatScene(
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerleave", onPointerLeave);
+  const unobserveDpr = observeDevicePixelRatio(resize);
   rafId = requestAnimationFrame(frame);
 
   return {
@@ -540,6 +542,7 @@ export function createCombatScene(
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerleave", onPointerLeave);
+      unobserveDpr();
       ctx!.clearRect(0, 0, viewportW, viewportH);
     },
   };

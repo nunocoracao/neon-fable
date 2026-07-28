@@ -6,7 +6,7 @@
  * every draw position snaps to whole device pixels so nothing shimmers.
  */
 import { pulse01, type Facing } from "./animation";
-import type { Camera } from "./camera";
+import { cameraTranslation, snapToPixelGrid, type Camera } from "./camera";
 import { TILE_H, TILE_W, worldToScreen, type TilePoint, type WorldPoint } from "./coords";
 import { compareDrawables, type Drawable } from "./depth";
 import { isWalkable, type IsoMap } from "./tilemap";
@@ -33,15 +33,16 @@ export interface RenderView {
   timeMs: number;
   /** Device pixel ratio, for whole-device-pixel position snapping. */
   dpr: number;
+  /**
+   * View zoom (a ZOOM_LEVELS entry). The ctx base transform is already
+   * scaled by dpr * zoom, so draws stay in world-screen units and only
+   * the snap grid and viewport extents change with it.
+   */
+  zoom: number;
 }
 
 interface SceneDrawable extends Drawable {
   sprite: Sprite;
-}
-
-/** Round a CSS-pixel offset onto the device pixel grid. */
-function snap(value: number, dpr: number): number {
-  return Math.round(value * dpr) / dpr;
 }
 
 export function renderScene(
@@ -49,22 +50,21 @@ export function renderScene(
   sprites: SpriteProvider,
   view: RenderView,
 ): void {
-  const { map, camera, viewportW, viewportH, timeMs, dpr } = view;
-  ctx.clearRect(0, 0, viewportW, viewportH);
+  const { map, camera, viewportW, viewportH, timeMs, dpr, zoom } = view;
+  const scale = dpr * zoom;
+  ctx.clearRect(0, 0, viewportW / zoom, viewportH / zoom);
   ctx.imageSmoothingEnabled = false;
 
   ctx.save();
-  ctx.translate(
-    snap(viewportW / 2 - camera.sx, dpr),
-    snap(viewportH / 2 - camera.sy, dpr),
-  );
+  const { tx, ty } = cameraTranslation(camera, viewportW, viewportH, zoom, dpr);
+  ctx.translate(tx, ty);
 
   // Ground pass: flat tiles never overlap, so simple row order suffices.
   for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < map.width; x++) {
       const tileId = map.tiles[y]?.[x];
       if (tileId === undefined) continue;
-      drawSprite(ctx, sprites.tile(tileId, x, y, timeMs), x, y, dpr);
+      drawSprite(ctx, sprites.tile(tileId, x, y, timeMs), x, y, scale);
     }
   }
 
@@ -122,7 +122,7 @@ export function renderScene(
   ];
   drawables.sort(compareDrawables);
   for (const d of drawables) {
-    drawSprite(ctx, d.sprite, d.x, d.y, dpr);
+    drawSprite(ctx, d.sprite, d.x, d.y, scale);
   }
 
   ctx.restore();
@@ -133,13 +133,13 @@ function drawSprite(
   sprite: Sprite,
   x: number,
   y: number,
-  dpr: number,
+  scale: number,
 ): void {
   const { sx, sy } = worldToScreen(x, y);
   ctx.drawImage(
     sprite.image,
-    snap(sx - sprite.anchorX, dpr),
-    snap(sy - sprite.anchorY, dpr),
+    snapToPixelGrid(sx - sprite.anchorX, scale),
+    snapToPixelGrid(sy - sprite.anchorY, scale),
   );
 }
 
