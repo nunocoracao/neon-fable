@@ -11,7 +11,7 @@ import {
 } from "../state";
 import { createCharacterCreateScreen } from "./characterCreate";
 import { createCodexScreen } from "./codexScreen";
-import { isDevMode } from "./dev";
+import { isDevMode, openArtGallery } from "./dev";
 import { createExploreScreen } from "./exploreScreen";
 import { focusFirst, installListNav } from "./focus";
 import { saveErrorMessage } from "./format";
@@ -141,6 +141,14 @@ export function createMainMenuScreen(): Screen {
           );
         });
         menu.append(explore);
+
+        const gallery = document.createElement("button");
+        gallery.className = "nf-button";
+        gallery.textContent = "Art Gallery (dev)";
+        gallery.addEventListener("click", () => {
+          void openArtGallery(() => showScreen(createMainMenuScreen()));
+        });
+        menu.append(gallery);
       }
       container.append(title, subtitle, menu, errorLine);
       root.append(container);
