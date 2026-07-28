@@ -12,6 +12,7 @@
  * until its own re-authoring pass.
  */
 import type { PropId } from "../tilemap";
+import type { GlowSource } from "./glow";
 import { remapped, type PixelGrid } from "./pixel";
 
 export interface PropArt {
@@ -27,6 +28,12 @@ export interface PropArt {
    * legacy grids go through the nearest-neighbor 2× shim instead.
    */
   native: boolean;
+  /**
+   * Emissive light this prop casts in the glow pass. Offsets are in v2
+   * (1x) art pixels relative to the anchor, even for legacy-shim grids.
+   * Flicker props go dark with their dropout frame.
+   */
+  glow?: readonly GlowSource[];
 }
 
 const rep = (n: number, row: string): string[] => Array<string>(n).fill(row);
@@ -807,6 +814,8 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     frameMs: 1400,
     flicker: false,
     native: false,
+    // Magenta wash off the mid-wall sign strips and lit windows.
+    glow: [{ color: "j", radius: 22, intensity: 0.24, offsetX: 0, offsetY: -24 }],
   },
   "vent-stack": {
     frames: ventStack,
@@ -815,6 +824,8 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     frameMs: 420,
     flicker: false,
     native: true,
+    // Amber seeping from the exhaust grille and wall slits.
+    glow: [{ color: "m", radius: 14, intensity: 0.2, offsetX: 0, offsetY: -12 }],
   },
   crate: {
     frames: [crate],
@@ -839,6 +850,11 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     frameMs: 1100,
     flicker: true,
     native: true,
+    // A halo at the lamp head plus the pooled light on the pavement.
+    glow: [
+      { color: "g", radius: 22, intensity: 0.42, offsetX: 0, offsetY: -80 },
+      { color: "g", radius: 18, intensity: 0.18, offsetX: 0, offsetY: 0 },
+    ],
   },
   hydrant: {
     frames: [hydrantOn, hydrantOff],
@@ -871,6 +887,8 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     frameMs: 460,
     flicker: true,
     native: true,
+    // Hologram-blue projection haze around the floating panel.
+    glow: [{ color: "t", radius: 20, intensity: 0.36, offsetX: 0, offsetY: -32 }],
   },
   "neon-sign": {
     frames: [neonSignLit, neonSignSoft, neonSignFlare, neonSignDead],
@@ -879,6 +897,8 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     frameMs: 640,
     flicker: true,
     native: true,
+    // Magenta bloom off the rune board, centered on the totem.
+    glow: [{ color: "j", radius: 26, intensity: 0.46, offsetX: 0, offsetY: -62 }],
   },
   "holo-billboard": {
     frames: [
@@ -892,6 +912,8 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     frameMs: 520,
     flicker: true,
     native: true,
+    // Wide district-ad wash high on the mast.
+    glow: [{ color: "t", radius: 32, intensity: 0.34, offsetX: 0, offsetY: -69 }],
   },
   "shop-sign": {
     frames: [shopSignLit, shopSignSoft, shopSignDead],
@@ -900,5 +922,7 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     frameMs: 900,
     flicker: true,
     native: true,
+    // Amber A-frame board at street level.
+    glow: [{ color: "m", radius: 15, intensity: 0.36, offsetX: 0, offsetY: -16 }],
   },
 };

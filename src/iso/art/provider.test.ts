@@ -16,7 +16,12 @@ import type { SpriteCacheStats } from "./spriteCache";
  */
 beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
-    () => ({ fillStyle: "", fillRect: () => {} }) as unknown as CanvasRenderingContext2D,
+    () =>
+      ({
+        fillStyle: "",
+        fillRect: () => {},
+        createRadialGradient: () => ({ addColorStop: () => {} }),
+      }) as unknown as CanvasRenderingContext2D,
   );
 });
 
@@ -93,6 +98,28 @@ describe("createPixelArtSprites cache", () => {
       entries: 1,
       bytes: 64 * ART_SCALE * 32 * ART_SCALE * 4,
     });
+  });
+
+  it("bakes each glow color+radius once and serves it from the cache", () => {
+    const sprites = createPixelArtSprites();
+    const first = sprites.glow("g", 22);
+    expect(sprites.glow("g", 22)).toBe(first);
+    expect(sprites.glow("j", 22)).not.toBe(first);
+    expect(sprites.glow("g", 18)).not.toBe(first);
+    expect(sprites.cacheStats()).toMatchObject({ entries: 3, misses: 3, hits: 1 });
+    // Glow canvases are square at ART_SCALE with a centered anchor.
+    const size = 22 * 2 * ART_SCALE;
+    expect(first.anchorX).toBe(size / 2);
+    expect(first.anchorY).toBe(size / 2);
+    expect((first.image as HTMLCanvasElement).width).toBe(size);
+    expect((first.image as HTMLCanvasElement).height).toBe(size);
+  });
+
+  it("refuses glow colors that are not hex palette entries", () => {
+    const sprites = createPixelArtSprites();
+    expect(() => sprites.glow("?", 10)).toThrow();
+    // "z" is the rgba() ground shadow, not a hex entry.
+    expect(() => sprites.glow("z", 10)).toThrow();
   });
 
   it("exposes live stats through the window dev hook", () => {

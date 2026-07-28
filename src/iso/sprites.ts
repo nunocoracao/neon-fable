@@ -39,4 +39,9 @@ export interface SpriteProvider {
   entity(id: EntitySpriteId, pose: EntityPose): Sprite;
   /** Solid-color silhouette of the same frame, for hit flashes. */
   entitySilhouette(id: EntitySpriteId, pose: EntityPose): Sprite;
+  /**
+   * Pre-baked radial glow in a palette color for the additive neon
+   * pass; radius is in 1x art pixels, anchored at the glow center.
+   */
+  glow(color: string, radius: number): Sprite;
 }

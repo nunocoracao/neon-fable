@@ -10,6 +10,7 @@ import {
   frameAt,
   hash2,
   lunge01,
+  propFrameAt,
   pulse01,
   shakeOffsetPx,
   tilePhaseMs,
@@ -48,6 +49,44 @@ describe("frameAt", () => {
     expect(frameAt(1234, 100, 1)).toBe(0);
     expect(frameAt(1234, 0, 4)).toBe(0);
     expect(frameAt(-50, 100, 4)).toBe(0);
+  });
+});
+
+describe("propFrameAt", () => {
+  /** A time inside a slot where the flicker at this seed is on/off. */
+  function slotTime(x: number, y: number, on: boolean): number {
+    for (let slot = 0; slot < 1000; slot++) {
+      const t = slot * 90 + 45;
+      if (flickerOn(t, hash2(x, y)) === on) return t;
+    }
+    throw new Error("no matching flicker slot found");
+  }
+
+  it("static props stay on frame 0", () => {
+    expect(propFrameAt(1, 0, false, 0, 0, 12345)).toBe(0);
+    expect(propFrameAt(3, 0, false, 0, 0, 12345)).toBe(0);
+  });
+
+  it("non-flicker loops cycle through every frame with a per-tile phase", () => {
+    const phase = (hash2(2, 5) % 7) * 97;
+    for (const t of [0, 150, 480, 999]) {
+      expect(propFrameAt(3, 420, false, 2, 5, t)).toBe(
+        frameAt(t + phase, 420, 3),
+      );
+    }
+  });
+
+  it("flicker props drop to the reserved last frame during dropouts", () => {
+    expect(propFrameAt(4, 640, true, 1, 1, slotTime(1, 1, false))).toBe(3);
+  });
+
+  it("flicker props loop over all but the dropout frame while lit", () => {
+    const t = slotTime(1, 1, true);
+    const frame = propFrameAt(4, 640, true, 1, 1, t);
+    expect(frame).toBeGreaterThanOrEqual(0);
+    expect(frame).toBeLessThan(3);
+    const phase = (hash2(1, 1) % 7) * 97;
+    expect(frame).toBe(frameAt(t + phase, 640, 3));
   });
 });
 

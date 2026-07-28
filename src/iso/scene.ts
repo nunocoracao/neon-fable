@@ -293,6 +293,7 @@ export function createIsoScene(
       timeMs: settings.get().reducedMotion ? 0 : time,
       dpr: window.devicePixelRatio || 1,
       zoom,
+      glowEnabled: settings.get().glow,
     };
     renderScene(ctx!, sprites, view);
     rafId = requestAnimationFrame(frame);

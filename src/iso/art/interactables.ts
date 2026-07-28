@@ -9,6 +9,7 @@
  * stable shape.
  */
 import type { InteractableSpriteId } from "../tilemap";
+import type { GlowSource } from "./glow";
 import { DIAMOND_WIDTHS, remapped, type PixelGrid } from "./pixel";
 
 export interface InteractableArt {
@@ -16,6 +17,11 @@ export interface InteractableArt {
   anchorX: number;
   anchorY: number;
   frameMs: number;
+  /**
+   * Emissive light this interactable casts in the glow pass; offsets
+   * are in 1x art pixels relative to the anchor.
+   */
+  glow?: readonly GlowSource[];
 }
 
 const rep = (n: number, row: string): string[] => Array<string>(n).fill(row);
@@ -208,12 +214,16 @@ export const INTERACTABLE_ART: Readonly<
     anchorX: 24,
     anchorY: 56,
     frameMs: 800,
+    // Cyan spill from the center seam and status lamp.
+    glow: [{ color: "g", radius: 14, intensity: 0.26, offsetX: 0, offsetY: -26 }],
   },
   terminal: {
     frames: [terminalFrame(1, true), terminalFrame(4, false), terminalFrame(7, true)],
     anchorX: 16,
     anchorY: 40,
     frameMs: 360,
+    // Screen light on whoever stands at the kiosk.
+    glow: [{ color: "g", radius: 12, intensity: 0.28, offsetX: 0, offsetY: -34 }],
   },
   stash: {
     // Three held beats, then the glint — brief enough to read as a wink.
@@ -227,5 +237,7 @@ export const INTERACTABLE_ART: Readonly<
     anchorX: 32,
     anchorY: 16,
     frameMs: 420,
+    // The light-strip ring pools faintly in its own tile.
+    glow: [{ color: "g", radius: 18, intensity: 0.2, offsetX: 0, offsetY: 0 }],
   },
 };
