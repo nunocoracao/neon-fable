@@ -66,9 +66,12 @@ export const HAIR_STYLE_OPTIONS: readonly StyleOption[] = [
   { id: "slicked", label: "Slicked Back", layer: "slicked" },
   { id: "bob", label: "Chin-Length Bob", layer: "bob" },
   { id: "spikes", label: "Short Spikes", layer: "spikes" },
-  // Authored in hair set 2 (the long tied-back tail); until then the
-  // id resolves to no registered grid and draws nothing.
-  { id: "ponytail", label: "Ponytail", layer: "ponytail" },
+  { id: "mohawk", label: "Mohawk", layer: "mohawk" },
+  { id: "locs", label: "Shoulder Locs", layer: "locs" },
+  // "ponytail" keeps its persisted id; authored as the long tied-back
+  // tail in hair set 2.
+  { id: "ponytail", label: "Tied-Back Tail", layer: "ponytail" },
+  { id: "glyph", label: "Dyed Glyph", layer: "glyph" },
 ];
 
 /** Hair colors remap the canonical raven channel ("K"). */
