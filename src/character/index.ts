@@ -21,6 +21,7 @@ export {
 } from "./stats";
 export {
   APPEARANCE_FIELDS,
+  composeCharacter,
   defaultAppearance,
   randomAppearance,
   resolveLayers,

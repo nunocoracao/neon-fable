@@ -4,7 +4,7 @@ import {
   type AppearanceCategory,
 } from "../data/appearance";
 import { eyeColorRemap, skinToneRemap } from "../iso/art/layers";
-import type { LayerSlot } from "../iso/art/layers";
+import type { ComposedCharacter, LayerSlot } from "../iso/art/layers";
 import { REMAP_CHANNELS } from "../iso/art/palette";
 import { ENHANCEMENT_SLOTS } from "../inventory/items";
 import type { EquipmentState } from "../inventory/equipment";
@@ -227,4 +227,20 @@ export function resolveLayers(
   }
 
   return layers;
+}
+
+/**
+ * The full render descriptor for a character: the resolved layer stack
+ * plus the body build the animation transforms key off. This is what
+ * the sprite provider consumes; equal appearance + equipment always
+ * produce descriptors with equal cache keys.
+ */
+export function composeCharacter(
+  appearance: Appearance,
+  equipment: EquipmentState,
+): ComposedCharacter {
+  return {
+    build: requireOption("build", appearance.build).build,
+    layers: resolveLayers(appearance, equipment),
+  };
 }
