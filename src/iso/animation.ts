@@ -75,6 +75,31 @@ export function flickerOn(timeMs: number, seed = 0, slotMs = 90): boolean {
 }
 
 /**
+ * Prop frame choice for a placement: flicker props briefly drop to their
+ * reserved last frame, otherwise slow loops advance with a per-placement
+ * phase offset so copies of a prop don't animate in sync. Shared by the
+ * sprite provider and the glow pass so a glow always agrees with the
+ * frame its prop is showing.
+ */
+export function propFrameAt(
+  frameCount: number,
+  frameMs: number,
+  flicker: boolean,
+  x: number,
+  y: number,
+  timeMs: number,
+): number {
+  if (flicker && !flickerOn(timeMs, hash2(x, y))) return frameCount - 1;
+  // Flicker props reserve their last frame for the dropout look.
+  const loop = flicker ? frameCount - 1 : frameCount;
+  if (loop > 1 && frameMs > 0) {
+    const phase = (hash2(x, y) % 7) * 97;
+    return frameAt(timeMs + phase, frameMs, loop);
+  }
+  return 0;
+}
+
+/**
  * Attack lunge envelope: 0→1→0 over the duration (peak at the midpoint),
  * 0 outside it. Multiply by a pixel distance toward the target.
  */

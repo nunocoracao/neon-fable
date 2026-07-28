@@ -7,9 +7,9 @@
  */
 import {
   bodyFrameAt,
-  flickerOn,
   frameAt,
   hash2,
+  propFrameAt,
   tilePhaseMs,
   variantIndex,
   type MotionState,
@@ -35,6 +35,7 @@ import {
   bodyViewForFacing,
 } from "./layers/body";
 import { BODY_ANIM } from "./layers/bodyAnim";
+import { bakeGlow } from "./glow";
 import {
   bakeSilhouette,
   bakeSprite,
@@ -188,17 +189,14 @@ export function createPixelArtSprites(): PixelArtSprites {
 
     prop(id: PropId, x: number, y: number, timeMs: number): Sprite {
       const art = PROP_ART[id];
-      let frame = 0;
-      if (art.flicker && !flickerOn(timeMs, hash2(x, y))) {
-        frame = art.frames.length - 1;
-      } else {
-        // Flicker props reserve their last frame for the dropout look.
-        const loop = art.flicker ? art.frames.length - 1 : art.frames.length;
-        if (loop > 1 && art.frameMs > 0) {
-          const phase = (hash2(x, y) % 7) * 97;
-          frame = frameAt(timeMs + phase, art.frameMs, loop);
-        }
-      }
+      const frame = propFrameAt(
+        art.frames.length,
+        art.frameMs,
+        art.flicker,
+        x,
+        y,
+        timeMs,
+      );
       return cached(`prop:${id}:${frame}`, () =>
         art.native
           ? bakeSprite(art.frames[frame] ?? [], art.anchorX, art.anchorY)
@@ -252,6 +250,10 @@ export function createPixelArtSprites(): PixelArtSprites {
           CHARACTER_ANCHOR_Y * SHIM_SCALE,
         ),
       );
+    },
+
+    glow(color: string, radius: number): Sprite {
+      return cached(`glow:${color}:${radius}`, () => bakeGlow(color, radius));
     },
 
     cacheStats(): SpriteCacheStats {

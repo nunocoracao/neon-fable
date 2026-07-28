@@ -151,7 +151,22 @@ function buildSettingsPanel(onClose: () => void): HTMLElement {
       (value) => String(settings.get().zoom) === value,
       (value) => settings.update({ zoom: clampZoom(Number(value)) }),
     ),
+    segmentedRow(
+      "Neon glow",
+      [
+        ["on", "On"],
+        ["off", "Off"],
+      ] as const,
+      (value) => (value === "on") === settings.get().glow,
+      (value) => settings.update({ glow: value === "on" }),
+    ),
   );
+  const glowNote = document.createElement("p");
+  glowNote.className = "nf-dim";
+  glowNote.textContent =
+    "Neon glow layers soft light from signage, screens, and streetlights " +
+    "over the streets. Turn it off for a flatter, faster picture.";
+  panel.append(glowNote);
 
   const motionHeading = document.createElement("h3");
   motionHeading.textContent = "Motion";

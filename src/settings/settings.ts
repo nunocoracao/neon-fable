@@ -23,18 +23,21 @@ export interface Settings {
   textSpeed: TextSpeed;
   reducedMotion: boolean;
   zoom: ZoomLevel;
+  /** The additive neon glow pass in the iso scene. */
+  glow: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   textSpeed: "normal",
   reducedMotion: false,
   zoom: 1,
+  glow: true,
 };
 
 export const SETTINGS_KEY = "neon-fable:settings";
 
 /** Bump when the Settings shape changes; migrateSettings routes on it. */
-export const SETTINGS_VERSION = 2;
+export const SETTINGS_VERSION = 3;
 
 /** Coerces any value onto the zoom-level ladder; off-ladder → default. */
 export function clampZoom(value: unknown): ZoomLevel {
@@ -76,14 +79,17 @@ export function clampSettings(value: unknown): Settings {
     textSpeed,
     reducedMotion: record.reducedMotion === true,
     zoom: clampZoom(record.zoom),
+    // Glow defaults on: older payloads without the field keep the pass.
+    glow: record.glow !== false,
   };
 }
 
 /**
  * Migrates a parsed payload from any stored version to the current
  * shape. Every version so far routes through the field-tolerant clamp —
- * v1 payloads simply lack zoom and get the default, and unknown or
- * future versions degrade to defaults per field instead of crashing.
+ * v1 payloads simply lack zoom, v2 payloads lack glow, and each gets
+ * its default; unknown or future versions degrade to defaults per
+ * field instead of crashing.
  */
 export function migrateSettings(parsed: unknown): Settings {
   return clampSettings(parsed);

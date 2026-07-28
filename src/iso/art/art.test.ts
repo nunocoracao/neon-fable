@@ -651,6 +651,56 @@ describe("interactable art (native hi-res)", () => {
   });
 });
 
+describe("glow registrations", () => {
+  const registered = [
+    ...Object.entries(PROP_ART).map(([id, art]) => ({ id: `prop ${id}`, art })),
+    ...Object.entries(INTERACTABLE_ART).map(([id, art]) => ({
+      id: `interactable ${id}`,
+      art,
+    })),
+    ...Object.entries(TILE_ART).map(([id, art]) => ({ id: `tile ${id}`, art })),
+  ] as ReadonlyArray<{
+    id: string;
+    art: { glow?: readonly import("./glow").GlowSource[] };
+  }>;
+
+  it("every glow source uses a hex palette color and sane geometry", () => {
+    for (const { id, art } of registered) {
+      for (const source of art.glow ?? []) {
+        const hex = PALETTE[source.color];
+        expect(hex, `${id} glow color "${source.color}"`).toBeDefined();
+        expect(hex?.startsWith("#"), `${id} glow color hex`).toBe(true);
+        expect(source.radius, `${id} glow radius`).toBeGreaterThan(0);
+        expect(source.radius, `${id} glow radius`).toBeLessThanOrEqual(48);
+        expect(Number.isInteger(source.radius), `${id} radius integer`).toBe(true);
+        expect(source.intensity, `${id} glow intensity`).toBeGreaterThan(0);
+        expect(source.intensity, `${id} glow intensity`).toBeLessThanOrEqual(1);
+        expect(Math.abs(source.offsetX), `${id} glow offsetX`).toBeLessThanOrEqual(96);
+        expect(Math.abs(source.offsetY), `${id} glow offsetY`).toBeLessThanOrEqual(96);
+      }
+    }
+  });
+
+  it("the street's signage and lighting all cast glow", () => {
+    for (const id of [
+      "streetlight",
+      "neon-sign",
+      "shop-sign",
+      "holo-sign",
+      "holo-billboard",
+    ] as const) {
+      expect(PROP_ART[id].glow?.length, id).toBeGreaterThan(0);
+    }
+  });
+
+  it("only water tiles opt into reflections", () => {
+    for (const [id, art] of Object.entries(TILE_ART)) {
+      const isWater = id === "canal" || id === "canal-deep";
+      expect(art.reflective === true, `tile ${id}`).toBe(isWater);
+    }
+  });
+});
+
 describe("character art", () => {
   const facings = ["n", "e", "s", "w"] as const;
 

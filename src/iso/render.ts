@@ -9,6 +9,7 @@ import { pulse01, type Facing } from "./animation";
 import { cameraTranslation, snapToPixelGrid, type Camera } from "./camera";
 import { TILE_H, TILE_W, worldToScreen, type TilePoint, type WorldPoint } from "./coords";
 import { compareDrawables, type Drawable } from "./depth";
+import { collectGlowPlacements } from "./glowPass";
 import { isWalkable, type IsoMap } from "./tilemap";
 import type { EntitySpriteId, Sprite, SpriteProvider } from "./sprites";
 
@@ -39,6 +40,8 @@ export interface RenderView {
    * the snap grid and viewport extents change with it.
    */
   zoom: number;
+  /** Draw the additive neon glow pass (the settings toggle). */
+  glowEnabled: boolean;
 }
 
 interface SceneDrawable extends Drawable {
@@ -123,6 +126,28 @@ export function renderScene(
   drawables.sort(compareDrawables);
   for (const d of drawables) {
     drawSprite(ctx, d.sprite, d.x, d.y, scale);
+  }
+
+  // Glow pass: emissive light from neon, screens, and their water
+  // reflections, composited additively over the whole scene so signage
+  // reads as casting light rather than just being bright.
+  if (view.glowEnabled) {
+    const glows = collectGlowPlacements(map, timeMs);
+    if (glows.length > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      for (const glow of glows) {
+        const sprite = sprites.glow(glow.color, glow.radius);
+        const { sx, sy } = worldToScreen(glow.x, glow.y);
+        ctx.globalAlpha = glow.alpha;
+        ctx.drawImage(
+          sprite.image,
+          snapToPixelGrid(sx + glow.offsetX - sprite.anchorX, scale),
+          snapToPixelGrid(sy + glow.offsetY - sprite.anchorY, scale),
+        );
+      }
+      ctx.restore();
+    }
   }
 
   ctx.restore();

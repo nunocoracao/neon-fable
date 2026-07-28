@@ -23,6 +23,7 @@ import {
   type TileId,
   type TrimEdge,
 } from "../tilemap";
+import type { GlowSource } from "./glow";
 import { DIAMOND_WIDTHS, diamond, type PixelGrid } from "./pixel";
 
 export interface TileArt {
@@ -30,6 +31,16 @@ export interface TileArt {
   variants: readonly PixelGrid[][];
   /** Per-frame duration for animated tiles (0 when static). */
   frameMs: number;
+  /**
+   * Emissive light every tile of this kind casts in the glow pass;
+   * offsets are in 1x art pixels relative to the diamond center.
+   */
+  glow?: readonly GlowSource[];
+  /**
+   * Wet surface: the tile receives a faint offset copy of nearby prop
+   * and interactable glows (a cheap reflection accent, not lighting).
+   */
+  reflective?: boolean;
 }
 
 /* --- Pavement (native 64×32): concrete sidewalk plates split by seam
@@ -910,13 +921,18 @@ export const TILE_ART: Readonly<Record<TileId, TileArt>> = {
     variants: [[crackedA], [crackedB], [crackedC]],
     frameMs: 0,
   },
-  "plaza-glow": { variants: plazaGlowVariants, frameMs: 900 },
+  "plaza-glow": {
+    variants: plazaGlowVariants,
+    frameMs: 900,
+    // The inset neon ring lifts the plaza floor a touch.
+    glow: [{ color: "g", radius: 20, intensity: 0.14, offsetX: 0, offsetY: 0 }],
+  },
   road: {
     variants: [[roadA], [roadB], [roadC], [roadD], [roadE]],
     frameMs: 0,
   },
-  canal: { variants: canalVariants, frameMs: 420 },
-  "canal-deep": { variants: canalDeepVariants, frameMs: 560 },
+  canal: { variants: canalVariants, frameMs: 420, reflective: true },
+  "canal-deep": { variants: canalDeepVariants, frameMs: 560, reflective: true },
   "quay-n": { variants: quayVariants("n"), frameMs: 0 },
   "quay-e": { variants: quayVariants("e"), frameMs: 0 },
   "quay-s": { variants: quayVariants("s"), frameMs: 0 },
