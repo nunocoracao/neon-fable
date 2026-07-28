@@ -163,8 +163,8 @@ describe("layer art registries", () => {
 
   it("returns null for unregistered slots and unknown art ids", () => {
     // Headwear/gear registries land in later tasks; their catalog ids
-    // resolve to nothing until then (same for set-2 hair styles).
-    expect(layerArtGrid("hair", "ponytail", "front")).toBeNull();
+    // resolve to nothing until then (same for unknown hair ids).
+    expect(layerArtGrid("hair", "mullet", "front")).toBeNull();
     expect(layerArtGrid("headwear", "visor", "front")).toBeNull();
     expect(layerArtGrid("weapon", "wpn-rail-spitter", "front")).toBeNull();
     expect(layerArtGrid("body", "giant", "front")).toBeNull();
@@ -287,7 +287,7 @@ describe("composedCharacterGrid", () => {
       ...CHARACTER,
       layers: [
         ...CHARACTER.layers,
-        { slot: "hair", art: "ponytail", remap: { K: "M" } },
+        { slot: "hair", art: "mullet", remap: { K: "M" } },
         { slot: "weapon", art: "wpn-rail-spitter", remap: {} },
       ],
     };
@@ -299,7 +299,7 @@ describe("composedCharacterGrid", () => {
   it("throws when no layer resolves to a drawable grid", () => {
     const empty: ComposedCharacter = {
       build: "lean",
-      layers: [{ slot: "hair", art: "ponytail", remap: {} }],
+      layers: [{ slot: "hair", art: "mullet", remap: {} }],
     };
     expect(() => composedCharacterGrid(empty, "e", "idle", 0)).toThrow(
       /no drawable layers/,

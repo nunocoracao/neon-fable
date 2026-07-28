@@ -52,6 +52,31 @@ export function remapped(
 }
 
 /**
+ * Shift rows top..bottom (inclusive) horizontally by dx pixels, leaving
+ * every other row untouched. Pixels shifted past either edge are lost —
+ * callers keep shifted art clear of the frame border. Secondary motion
+ * (e.g. long hair trailing on walk frames) derives from this one helper
+ * rather than redrawn frames.
+ */
+export function rowsShifted(
+  grid: PixelGrid,
+  top: number,
+  bottom: number,
+  dx: number,
+): string[] {
+  return grid.map((row, y) => {
+    if (y < top || y > bottom || dx === 0) return row;
+    const cells = Array<string>(row.length).fill(TRANSPARENT);
+    for (let x = 0; x < row.length; x++) {
+      const ch = row[x] ?? TRANSPARENT;
+      const nx = x + dx;
+      if (ch !== TRANSPARENT && nx >= 0 && nx < row.length) cells[nx] = ch;
+    }
+    return cells.join("");
+  });
+}
+
+/**
  * Bake a grid onto an offscreen canvas at ART_SCALE. The anchor is given
  * in 1x art pixels and scaled to match. Horizontal same-color runs
  * collapse into single fillRect calls.
