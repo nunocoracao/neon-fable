@@ -9,7 +9,14 @@ import {
 import { HAIR_COLORS, REMAP_CHANNELS } from "../palette";
 import { gridErrors, remapped, type PixelGrid } from "../pixel";
 import { BODY_FRAME, BODY_VIEW_IDS } from "./body";
-import { HAIR_LAYERS, HAIR_REGION, HAIR_STYLE_IDS } from "./hair";
+import {
+  HAIR_LAYERS,
+  HAIR_REGION,
+  HAIR_STYLE_IDS,
+  HAIR_TRAIL,
+  hairWalkGrid,
+  type HairStyleId,
+} from "./hair";
 
 const [HAIR_CHANNEL = "K"] = REMAP_CHANNELS.hair;
 const STATES: MotionState[] = ["idle", "walk"];
@@ -96,8 +103,110 @@ describe("hair layer grids", () => {
   });
 });
 
+describe("secondary motion (walk trail)", () => {
+  const TRAILED = Object.keys(HAIR_TRAIL) as HairStyleId[];
+
+  it("declares a trail for the long styles only, inside the head rows", () => {
+    expect(TRAILED.sort()).toEqual(["locs", "ponytail"]);
+    for (const style of TRAILED) {
+      const trail = HAIR_TRAIL[style];
+      expect(trail && trail.top).toBeGreaterThanOrEqual(HAIR_REGION.top);
+      expect(trail && trail.bottom).toBe(HAIR_REGION.bottom);
+    }
+  });
+
+  it("hairWalkGrid shifts exactly the trailing rows one pixel back, losing none", () => {
+    for (const style of HAIR_STYLE_IDS) {
+      for (const view of BODY_VIEW_IDS) {
+        const grid = HAIR_LAYERS[style][view];
+        const walked = hairWalkGrid(style, grid);
+        const trail = HAIR_TRAIL[style];
+        if (!trail) {
+          expect(walked, `${style} ${view}`).toEqual(grid);
+          continue;
+        }
+        grid.forEach((row, y) => {
+          const label = `${style} ${view} row ${y}`;
+          if (y < trail.top || y > trail.bottom) {
+            expect(walked[y], label).toBe(row);
+          } else {
+            // Column 0 is always empty (HAIR_REGION), so a plain
+            // left-shift with right-fill conserves every pixel.
+            expect(row[0], label).toBe(".");
+            expect(walked[y], label).toBe(`${row.slice(1)}.`);
+          }
+        });
+      }
+    }
+  });
+
+  it("trailing rows lag one pixel behind the head on every walk frame", () => {
+    const inTrail = (style: HairStyleId, y: number): boolean => {
+      const trail = HAIR_TRAIL[style];
+      return trail !== undefined && y >= trail.top && y <= trail.bottom;
+    };
+    for (const style of HAIR_STYLE_IDS) {
+      const character = hairCharacter(style, MARKER);
+      // Facing east (authored view): trail is -x. Facing south
+      // (mirrored): the trail flips with the frame to +x.
+      for (const [facing, dx] of [["e", -1], ["s", 1]] as const) {
+        const neutral = pixelCells(
+          composedCharacterGrid(character, facing, "idle", 0),
+          MARKER,
+        );
+        const contact = pixelCells(
+          composedCharacterGrid(character, facing, "walk", 0),
+          MARKER,
+        );
+        expect(contact, `${style} ${facing}`).toEqual(
+          neutral.map(([x, y]) => [inTrail(style, y) ? x + dx : x, y]),
+        );
+      }
+    }
+  });
+});
+
+describe("frame bounds", () => {
+  it("the mohawk crest rides every bob frame without clipping", () => {
+    const character = hairCharacter("mohawk", MARKER);
+    const authored = pixelCells(
+      HAIR_LAYERS.mohawk.front,
+      HAIR_CHANNEL,
+    ).length;
+    for (const state of STATES) {
+      for (let f = 0; f < BODY_TIMING[state].frameCount; f++) {
+        const grid = composedCharacterGrid(character, "e", state, f);
+        const cells = pixelCells(grid, MARKER);
+        // Nothing torn off the frame top by the lift/raise transforms.
+        expect(cells.length, `${state} ${f}`).toBe(authored);
+        for (const [, y] of cells) {
+          expect(y, `${state} ${f}`).toBeGreaterThanOrEqual(2);
+        }
+      }
+    }
+    // The walk high point lifts the crest to row 2 — still inside.
+    const raised = pixelCells(
+      composedCharacterGrid(character, "e", "walk", 2),
+      MARKER,
+    );
+    expect(Math.min(...raised.map(([, y]) => y))).toBe(2);
+  });
+
+  it("the shaved glyph leaves the face-part cells clear", () => {
+    const front = HAIR_LAYERS.glyph.front;
+    const facePixels: ReadonlyArray<readonly [number, number]> = [
+      // brows row 7 / eyes row 8 at cols 14–18, mouth row 12 at 15–17.
+      ...[7, 8].flatMap((y) => [14, 15, 16, 17, 18].map((x) => [x, y] as const)),
+      ...[15, 16, 17].map((x) => [x, 12] as const),
+    ];
+    for (const [x, y] of facePixels) {
+      expect(front[y]?.[x], `col ${x} row ${y}`).toBe(".");
+    }
+  });
+});
+
 describe("catalog and registry wiring", () => {
-  it("registers every set-1 style under its catalog layer id", () => {
+  it("registers every style under its catalog layer id", () => {
     for (const style of HAIR_STYLE_IDS) {
       const option = HAIR_STYLE_OPTIONS.find((o) => o.layer === style);
       expect(option, style).toBeDefined();

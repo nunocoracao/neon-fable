@@ -32,7 +32,7 @@ import {
 } from "./layers/body";
 import { bodyAnimFrames } from "./layers/bodyAnim";
 import { FACE_LAYERS } from "./layers/face";
-import { HAIR_LAYERS } from "./layers/hair";
+import { HAIR_LAYERS, hairWalkGrid } from "./layers/hair";
 
 /** Layer slots in base (toward-camera) z-order, bottom to top. */
 export const LAYER_SLOTS = [
@@ -244,7 +244,13 @@ export function composedCharacterGrid(
     .sort((a, b) => order.indexOf(a.slot) - order.indexOf(b.slot))
     .flatMap((layer) => {
       const grid = layerArtGrid(layer.slot, layer.art, view);
-      return grid ? [{ grid, remap: layer.remap }] : [];
+      if (!grid) return [];
+      // Long hair trails one pixel on walk frames (secondary motion).
+      const posed =
+        layer.slot === "hair" && state === "walk"
+          ? hairWalkGrid(layer.art, grid)
+          : grid;
+      return [{ grid: posed, remap: layer.remap }];
     });
   if (parts.length === 0) {
     throw new Error(

@@ -1,9 +1,10 @@
 /**
- * Hair style layers, set 1: short crop, slicked back, chin-length bob,
- * and short spikes, each authored front and back on the shared 32×48
- * layer frame (see the contract in ./body). South/west facings mirror
- * whole composed frames exactly like bodies, so only the two authored
- * views exist per style.
+ * Hair style layers. Set 1: short crop, slicked back, chin-length bob,
+ * and short spikes. Set 2: mohawk, shoulder locs, long tied-back tail,
+ * and a shaved head with a dyed glyph. Each style is authored front
+ * and back on the shared 32×48 layer frame (see the contract in
+ * ./body). South/west facings mirror whole composed frames exactly
+ * like bodies, so only the two authored views exist per style.
  *
  * Every opaque pixel is the canonical hair channel character ("K",
  * REMAP_CHANNELS.hair) — the six palette v2 hair colors arrive purely
@@ -20,10 +21,19 @@
  * frames. Keep every hair pixel inside HAIR_REGION — hair.test.ts
  * enforces it, plus pixel conservation across every animation frame.
  */
-import type { PixelGrid } from "../pixel";
+import { rowsShifted, type PixelGrid } from "../pixel";
 import { BODY_FRAME, type BodyViewId } from "./body";
 
-export const HAIR_STYLE_IDS = ["buzz", "slicked", "bob", "spikes"] as const;
+export const HAIR_STYLE_IDS = [
+  "buzz",
+  "slicked",
+  "bob",
+  "spikes",
+  "mohawk",
+  "locs",
+  "ponytail",
+  "glyph",
+] as const;
 export type HairStyleId = (typeof HAIR_STYLE_IDS)[number];
 
 /**
@@ -146,6 +156,105 @@ const spikesBack = hairGrid([
   [13, 12, K(8)],
 ]);
 
+/* --- Mohawk: shaved sides with a jagged crest fan on the top row over
+ * a solid ridge, narrowing to a point above the brow. The back shows
+ * the fan edge-on and the ridge running straight down to a nape tip.
+ * The crest tops out on row 3, so the raise/bob frames lift it to row
+ * 2 at most — it can never leave the 48-row frame. --- */
+
+const mohawkFront = hairGrid([
+  [3, 11, "KK.KKK.KK"],
+  [4, 11, K(9)],
+  [5, 13, K(5)],
+  [6, 14, K(2)],
+]);
+
+const mohawkBack = hairGrid([
+  [3, 12, "KK.KK.KK"],
+  [4, 12, K(8)],
+  ...span(5, 9, 14, K(4)),
+  ...span(10, 13, 15, K(2)),
+  [14, 16, K(1)],
+]);
+
+/* --- Shoulder locs: a full crown breaking into segmented strands that
+ * fall past the head to staggered tips at the chin row. Alternating
+ * KK / K.K rows give the strands their beaded texture; the hanging
+ * rows trail on walk frames (HAIR_TRAIL). --- */
+
+const locsFront = hairGrid([
+  [3, 12, K(8)],
+  [4, 11, K(10)],
+  [5, 10, K(12)],
+  [6, 9, K(14)],
+  [7, 9, "KK..........KK"],
+  [8, 9, "K.K........K.K"],
+  ...span(9, 10, 9, "KK..........KK"),
+  [11, 9, "K.K........K.K"],
+  ...span(12, 13, 9, "KK..........KK"),
+  [14, 9, ".K..........K."],
+]);
+
+const locsBack = hairGrid([
+  [3, 12, K(8)],
+  [4, 11, K(10)],
+  [5, 10, K(12)],
+  ...span(6, 7, 9, K(14)),
+  ...span(8, 13, 9, "KK.KK.KK.KK.KK"),
+  [14, 9, ".K..K..K..K..K"],
+]);
+
+/* --- Long tied-back tail ("ponytail" in the catalog): swept flat over
+ * the crown with temple points; the tail hangs behind the head — a
+ * two-column wisp past the trailing edge on the front view, the full
+ * gathered tail below a tie band on the back — and its hanging rows
+ * trail on walk frames (HAIR_TRAIL). --- */
+
+const ponytailFront = hairGrid([
+  [3, 12, K(8)],
+  [4, 11, K(10)],
+  [5, 10, "KKKK....KKKK"],
+  [6, 10, "KK........KK"],
+  ...span(7, 13, 9, K(2)),
+  [14, 10, K(1)],
+]);
+
+const ponytailBack = hairGrid([
+  [3, 12, K(8)],
+  [4, 11, K(10)],
+  ...span(5, 6, 10, K(12)),
+  [7, 11, K(10)],
+  [8, 12, K(8)],
+  [9, 14, K(4)],
+  ...span(10, 12, 14, K(4)),
+  ...span(13, 14, 15, K(2)),
+]);
+
+/* --- Shaved glyph: bare scalp (the body's own skin shows through the
+ * transparent pixels) with a dyed pattern drawn in the hair channel —
+ * a noded crown trace curling down the visible temple on the front, a
+ * concentric diamond sigil across the back of the skull. Kept clear of
+ * the face-part rows (brows 7, eyes 8 at cols 14–18; mouth 12). --- */
+
+const glyphFront = hairGrid([
+  [4, 12, K(7)],
+  [5, 12, "K.K.K.K"],
+  [6, 12, "K......KK"],
+  [7, 20, K(1)],
+  [8, 20, K(1)],
+  [9, 19, K(1)],
+]);
+
+const glyphBack = hairGrid([
+  [4, 14, K(4)],
+  [5, 13, "K....K"],
+  [6, 12, "K..KK..K"],
+  [7, 12, "K.K..K.K"],
+  [8, 12, "K..KK..K"],
+  [9, 13, "K....K"],
+  [10, 14, K(4)],
+]);
+
 /** The authored hair grids per style and view, all exactly 32×48. */
 export const HAIR_LAYERS: Readonly<
   Record<HairStyleId, Readonly<Record<BodyViewId, PixelGrid>>>
@@ -154,4 +263,34 @@ export const HAIR_LAYERS: Readonly<
   slicked: { front: slickedFront, back: slickedBack },
   bob: { front: bobFront, back: bobBack },
   spikes: { front: spikesFront, back: spikesBack },
+  mohawk: { front: mohawkFront, back: mohawkBack },
+  locs: { front: locsFront, back: locsBack },
+  ponytail: { front: ponytailFront, back: ponytailBack },
+  glyph: { front: glyphFront, back: glyphBack },
 };
+
+/**
+ * Secondary motion for long styles: on walk frames the hanging rows
+ * (inclusive) shift one pixel toward the character's trailing side —
+ * -x in the authored right-facing views; mirrored facings flip it with
+ * the frame. Rows above the range stay anchored to the skull, so the
+ * hair kinks at the range top instead of sliding wholesale. Purely a
+ * shared row shift (rowsShifted) — no redrawn frames.
+ */
+export const HAIR_TRAIL: Readonly<
+  Partial<Record<HairStyleId, { top: number; bottom: number }>>
+> = {
+  locs: { top: 9, bottom: 14 },
+  ponytail: { top: 10, bottom: 14 },
+};
+
+/**
+ * The grid a hair layer composes on walk frames: styles with trailing
+ * rows shift them one pixel back, everything else is untouched. Applied
+ * before channel remap and composition, so the trail rides the same
+ * bob transforms as the rest of the hair.
+ */
+export function hairWalkGrid(art: string, grid: PixelGrid): PixelGrid {
+  const trail = HAIR_TRAIL[art as HairStyleId];
+  return trail ? rowsShifted(grid, trail.top, trail.bottom, -1) : grid;
+}
