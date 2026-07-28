@@ -135,6 +135,15 @@ export function upscaled(grid: PixelGrid): string[] {
 }
 
 /**
+ * Bring a tile grid to the native v2 64×32 size: grids already
+ * re-authored at the hi-res resolution pass through untouched, legacy
+ * 32×16 grids get the nearest-neighbor shim until their set is redone.
+ */
+export function nativeScaled(grid: PixelGrid): PixelGrid {
+  return grid.length === DIAMOND_WIDTHS.length ? grid : upscaled(grid);
+}
+
+/**
  * Row widths of the 64×32 (1x) tile diamond, top to bottom. This is the
  * exact pixel-ownership mask of screenToTile sampled at each art
  * pixel's on-screen block center, so adjacent tiles tessellate with no

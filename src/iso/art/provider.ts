@@ -24,6 +24,7 @@ import { INTERACTABLE_ART } from "./interactables";
 import {
   bakeSilhouette,
   bakeSprite,
+  nativeScaled,
   remapped,
   upscaled,
   type PixelGrid,
@@ -36,10 +37,11 @@ const TILE_ANCHOR_X = 32;
 const TILE_ANCHOR_Y = 16;
 
 /**
- * Interim hi-res shim: all art sets are still authored at the legacy 1x
- * sizes, so every grid is nearest-neighbor doubled (and its authored
- * anchor doubled to match) at bake time. Removed per set as each is
- * re-authored natively at the v2 resolution.
+ * Interim hi-res shim: character/prop/interactable sets are still
+ * authored at the legacy 1x sizes, so those grids are nearest-neighbor
+ * doubled (and their authored anchors doubled to match) at bake time.
+ * Removed per set as each is re-authored natively at the v2 resolution;
+ * tile grids already route through nativeScaled instead.
  */
 const SHIM_SCALE = 2;
 
@@ -101,7 +103,11 @@ export function createPixelArtSprites(): SpriteProvider {
         frame = frameAt(timeMs + phase, art.frameMs, frames.length);
       }
       return cached(`tile:${id}:${variant}:${frame}`, () =>
-        bakeSprite(upscaled(frames[frame] ?? []), TILE_ANCHOR_X, TILE_ANCHOR_Y),
+        bakeSprite(
+          nativeScaled(frames[frame] ?? []),
+          TILE_ANCHOR_X,
+          TILE_ANCHOR_Y,
+        ),
       );
     },
 

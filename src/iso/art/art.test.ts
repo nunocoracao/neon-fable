@@ -14,6 +14,7 @@ import {
   LEGACY_DIAMOND_WIDTHS,
   gridErrors,
   mirrored,
+  nativeScaled,
   remapped,
   upscaled,
   type PixelGrid,
@@ -36,15 +37,42 @@ describe("palette", () => {
   });
 });
 
+/** Street-family ids re-authored natively at the v2 64×32 resolution. */
+const NATIVE_TILE_IDS = ["pavement", "pavement-cracked", "road"] as const;
+
 describe("tile art", () => {
-  it("every tile grid is a valid 32×16 palette-indexed diamond", () => {
+  it("every tile grid is a valid palette-indexed diamond at its resolution", () => {
     for (const [id, art] of Object.entries(TILE_ART)) {
+      const native = (NATIVE_TILE_IDS as readonly string[]).includes(id);
+      const height = native ? 32 : 16;
       art.variants.forEach((frames, v) => {
         expect(frames.length, `${id} variant ${v} has frames`).toBeGreaterThan(0);
         frames.forEach((grid, f) => {
           expectValid(grid, `${id} variant ${v} frame ${f}`);
-          expect(grid.length, `${id} v${v} f${f} height`).toBe(16);
-          expect(grid[0]?.length, `${id} v${v} f${f} width`).toBe(32);
+          expect(grid.length, `${id} v${v} f${f} height`).toBe(height);
+          expect(grid[0]?.length, `${id} v${v} f${f} width`).toBe(height * 2);
+        });
+      });
+    }
+  });
+
+  it("native street tiles fill the 64×32 diamond mask exactly", () => {
+    for (const id of NATIVE_TILE_IDS) {
+      TILE_ART[id].variants.forEach((frames, v) => {
+        frames.forEach((grid, f) => {
+          grid.forEach((row, r) => {
+            const w = DIAMOND_WIDTHS[r] ?? 0;
+            const pad = (64 - w) / 2;
+            expect(row.length, `${id} v${v} f${f} row ${r}`).toBe(64);
+            expect(
+              row.slice(0, pad) + row.slice(pad + w),
+              `${id} v${v} f${f} row ${r} exterior`,
+            ).toBe(TRANSPARENT.repeat(2 * pad));
+            expect(
+              row.slice(pad, pad + w).includes(TRANSPARENT),
+              `${id} v${v} f${f} row ${r} has holes`,
+            ).toBe(false);
+          });
         });
       });
     }
@@ -54,7 +82,7 @@ describe("tile art", () => {
     expect(TILE_ART.pavement.variants.length).toBeGreaterThanOrEqual(3);
     expect(TILE_ART["pavement-cracked"].variants.length).toBeGreaterThanOrEqual(3);
     expect(TILE_ART["rust-floor"].variants.length).toBeGreaterThanOrEqual(3);
-    expect(TILE_ART.road.variants.length).toBeGreaterThanOrEqual(2);
+    expect(TILE_ART.road.variants.length).toBeGreaterThanOrEqual(3);
   });
 
   it("water and glow tiles animate", () => {
@@ -152,13 +180,18 @@ describe("upscaled", () => {
     expect(upscaled([])).toEqual([]);
   });
 
-  it("keeps upscaled art valid and exactly doubles every registered tile", () => {
+  it("nativeScaled brings every registered tile to valid 64×32", () => {
     for (const [id, art] of Object.entries(TILE_ART)) {
       const grid = art.variants[0]?.[0] ?? [];
-      const doubled = upscaled(grid);
-      expect(gridErrors(doubled), id).toEqual([]);
-      expect(doubled.length, id).toBe(grid.length * 2);
-      expect(doubled[0]?.length, id).toBe((grid[0]?.length ?? 0) * 2);
+      const scaled = nativeScaled(grid);
+      expect(gridErrors([...scaled]), id).toEqual([]);
+      expect(scaled.length, id).toBe(32);
+      expect(scaled[0]?.length, id).toBe(64);
+      if (grid.length === 32) {
+        expect(scaled, `${id} native grid passes through`).toBe(grid);
+      } else {
+        expect(scaled, `${id} legacy grid doubles`).toEqual(upscaled(grid));
+      }
     }
   });
 });
