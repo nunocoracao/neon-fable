@@ -14,7 +14,9 @@ import { buildMapGrid, type IsoMap, type LegendEntry } from "../iso/tilemap";
  */
 const hubLegend: Record<string, LegendEntry> = {
   "#": { tile: "foundation", prop: { propId: "building", blocks: true } },
-  d: { tile: "foundation" },
+  // The Filament's doorway: worn barroom planks spilling out under the
+  // door, baseboard-shadowed where they meet the dark interior behind.
+  d: { tile: "bar-floor-n" },
   ".": { tile: "pavement" },
   ",": { tile: "pavement-cracked" },
   "=": { tile: "plaza-glow" },
@@ -140,6 +142,9 @@ const greywaterLegend: Record<string, LegendEntry> = {
   b: { tile: "pavement", prop: { propId: "barrier", blocks: true } },
   v: { tile: "pavement", prop: { propId: "vent-stack", blocks: true } },
   c: { tile: "pavement", prop: { propId: "crate", blocks: true } },
+  // Patch's Den doorway: a scrubbed clinical-tile threshold under the
+  // door, baseboard-shadowed toward the den behind it.
+  p: { tile: "clinic-floor-n" },
 };
 
 const greywaterRows = [
@@ -151,7 +156,7 @@ const greywaterRows = [
   "#.,...==.....#",
   "#.....==...v.#",
   "#.l.......c..#",
-  "#.....,......#",
+  "#.p...,......#",
   "#..........l.#",
   "#,...........#",
   "##############",
@@ -329,28 +334,33 @@ const exchangeVentworks: IsoMap = {
  */
 const spireLegend: Record<string, LegendEntry> = {
   "#": { tile: "foundation", prop: { propId: "building", blocks: true } },
-  ".": { tile: "pavement" },
-  ",": { tile: "pavement-cracked" },
+  // The concourse is an interior atrium: corporate carpet throughout,
+  // with baseboard-shadow trims along the north and west wall bases and
+  // under the tram gate in the south wall.
+  ".": { tile: "office-floor" },
+  n: { tile: "office-floor-n" },
+  w: { tile: "office-floor-w" },
+  s: { tile: "office-floor-s" },
   "=": { tile: "plaza-glow" },
-  l: { tile: "pavement", prop: { propId: "streetlight", blocks: true } },
-  b: { tile: "pavement", prop: { propId: "barrier", blocks: true } },
-  v: { tile: "pavement", prop: { propId: "vent-stack", blocks: true } },
-  c: { tile: "pavement", prop: { propId: "crate", blocks: true } },
-  h: { tile: "pavement", prop: { propId: "holo-sign", blocks: true } },
+  l: { tile: "office-floor", prop: { propId: "streetlight", blocks: true } },
+  b: { tile: "office-floor", prop: { propId: "barrier", blocks: true } },
+  v: { tile: "office-floor", prop: { propId: "vent-stack", blocks: true } },
+  c: { tile: "office-floor", prop: { propId: "crate", blocks: true } },
+  h: { tile: "office-floor", prop: { propId: "holo-sign", blocks: true } },
 };
 
 const spireRows = [
   "##############",
-  "#..==.....l..#",
-  "#..==........#",
-  "#.....b......#",
-  "#..l......h..#",
-  "#............#",
-  "#.,....v.....#",
-  "#............#",
-  "#..c......l..#",
-  "#.....,......#",
-  "#............#",
+  "#nn==nnnnnlnn#",
+  "#w.==........#",
+  "#w....b......#",
+  "#w.l......h..#",
+  "#w...........#",
+  "#w.....v.....#",
+  "#w...........#",
+  "#w.c......l..#",
+  "#w...........#",
+  "#w.....s.....#",
   "##############",
 ];
 
@@ -494,17 +504,21 @@ const undercroftArena: IsoMap = {
  * (enc-vault-guardian, 8x6).
  */
 const vaultLegend: Record<string, LegendEntry> = {
-  ".": { tile: "pavement" },
+  // Polished clinical tile with baseboard trims along the unseen north
+  // and west walls; the glow strips light the vault door.
+  ".": { tile: "clinic-floor" },
+  n: { tile: "clinic-floor-n" },
+  w: { tile: "clinic-floor-w" },
   "=": { tile: "plaza-glow" },
 };
 
 const vaultRows = [
-  "........",
-  "..====..",
-  "..====..",
-  "..====..",
-  "..====..",
-  "........",
+  "nnnnnnnn",
+  "w.====..",
+  "w.====..",
+  "w.====..",
+  "w.====..",
+  "w.......",
 ];
 
 const vaultGrid = buildMapGrid(vaultLegend, vaultRows);
@@ -624,19 +638,22 @@ const cyclerFloorArena: IsoMap = {
  * the three finale climax variants (9x7). Glow strips trace the ring.
  */
 const spireCrownLegend: Record<string, LegendEntry> = {
-  ".": { tile: "pavement" },
-  ",": { tile: "pavement-cracked" },
+  // The Locus's chamber: corporate carpet under the glow ring, with
+  // baseboard trims along the unseen north and west walls.
+  ".": { tile: "office-floor" },
+  n: { tile: "office-floor-n" },
+  w: { tile: "office-floor-w" },
   "=": { tile: "plaza-glow" },
 };
 
 const spireCrownRows = [
-  ".........",
-  "..=...=..",
-  ".........",
-  ".=..=..=.",
-  ".........",
-  "..=...=..",
-  ".........",
+  "nnnnnnnnn",
+  "w.=...=..",
+  "w........",
+  "w=..=..=.",
+  "w........",
+  "w.=...=..",
+  "w........",
 ];
 
 const spireCrownGrid = buildMapGrid(spireCrownLegend, spireCrownRows);

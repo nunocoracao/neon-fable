@@ -6,6 +6,27 @@
 import type { TilePoint } from "./coords";
 import type { MapInteraction } from "./events";
 
+/** Interior floor materials: barroom planks, clinical tile, corp carpet. */
+export type InteriorFloorId = "bar-floor" | "clinic-floor" | "office-floor";
+
+/** Diamond edge a floor trim's baseboard shadow runs along. */
+export type TrimEdge = "n" | "e" | "s" | "w";
+
+/**
+ * Interior floor with a baseboard-shadow trim along one diamond edge,
+ * placed where a floor meets a wall or doorway so rooms don't end in an
+ * abrupt color change.
+ */
+export type InteriorTrimId = `${InteriorFloorId}-${TrimEdge}`;
+
+export const INTERIOR_FLOOR_IDS: readonly InteriorFloorId[] = [
+  "bar-floor",
+  "clinic-floor",
+  "office-floor",
+];
+
+export const TRIM_EDGES: readonly TrimEdge[] = ["n", "e", "s", "w"];
+
 export type TileId =
   | "pavement"
   | "pavement-cracked"
@@ -18,14 +39,26 @@ export type TileId =
   | "quay-s"
   | "quay-w"
   | "foundation"
-  | "rust-floor";
+  | "rust-floor"
+  | InteriorFloorId
+  | InteriorTrimId;
 
 export interface TileDef {
   id: TileId;
   walkable: boolean;
 }
 
+/** Interior floors and all their trim variants are walkable room floor. */
+const interiorFloorDefs = Object.fromEntries(
+  INTERIOR_FLOOR_IDS.flatMap((floor) =>
+    [floor, ...TRIM_EDGES.map((edge) => `${floor}-${edge}` as const)].map(
+      (id) => [id, { id, walkable: true }],
+    ),
+  ),
+) as Record<InteriorFloorId | InteriorTrimId, TileDef>;
+
 export const TILE_DEFS: Record<TileId, TileDef> = {
+  ...interiorFloorDefs,
   pavement: { id: "pavement", walkable: true },
   "pavement-cracked": { id: "pavement-cracked", walkable: true },
   "plaza-glow": { id: "plaza-glow", walkable: true },
