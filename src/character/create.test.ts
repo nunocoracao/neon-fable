@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getBackground } from "../data/backgrounds";
+import { defaultAppearance, randomAppearance } from "./appearance";
+import { createRng } from "../state/rng";
 import {
   CharacterCreationError,
   createCharacter,
@@ -31,6 +33,7 @@ describe("createCharacter", () => {
       hp: character.derived.maxHp,
       neuralLoad: 0,
       equipment: { weapon: null, outfit: null, enhancements: {} },
+      appearance: defaultAppearance(),
       tags: ["street", "courier"],
       advancement: { pointsSpent: 0, abilityIds: [] },
     });
@@ -78,6 +81,26 @@ describe("createCharacter", () => {
         code: "overspent",
       });
     }
+  });
+
+  it("defaults to the stock appearance when none is given", () => {
+    const character = createCharacter({
+      name: "Vex",
+      background: courier,
+      allocation: defaultAllocation(),
+    });
+    expect(character.appearance).toEqual(defaultAppearance());
+  });
+
+  it("keeps a provided appearance verbatim", () => {
+    const { value: appearance } = randomAppearance(createRng(7));
+    const character = createCharacter({
+      name: "Vex",
+      background: courier,
+      allocation: defaultAllocation(),
+      appearance,
+    });
+    expect(character.appearance).toEqual(appearance);
   });
 
   it("survives a JSON round-trip unchanged", () => {

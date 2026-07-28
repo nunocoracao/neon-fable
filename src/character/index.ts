@@ -20,6 +20,17 @@ export {
   type Stats,
 } from "./stats";
 export {
+  APPEARANCE_FIELDS,
+  defaultAppearance,
+  randomAppearance,
+  resolveLayers,
+  validateAppearance,
+  type Appearance,
+  type AppearanceError,
+  type AppearanceField,
+  type ResolvedLayer,
+} from "./appearance";
+export {
   deriveAttributes,
   initiative,
   maxHp,

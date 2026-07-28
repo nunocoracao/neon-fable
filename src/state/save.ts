@@ -1,4 +1,9 @@
-import { GAME_STATE_VERSION, type GameState } from "./gameState";
+import {
+  GAME_STATE_VERSION,
+  OLDEST_MIGRATABLE_VERSION,
+  migrateGameState,
+  type GameState,
+} from "./gameState";
 
 /**
  * Save system: serializes GameState into named slots behind an injectable
@@ -94,12 +99,18 @@ export function loadGame(slot: SaveSlot, storage: SaveStorage): GameState {
     throw new SaveError("corrupt", slot, `Save in slot "${slot}" is malformed`);
   }
 
-  if (envelope.version !== GAME_STATE_VERSION) {
+  if (
+    envelope.version > GAME_STATE_VERSION ||
+    envelope.version < OLDEST_MIGRATABLE_VERSION
+  ) {
     throw new SaveError(
       "version-mismatch",
       slot,
       `Save in slot "${slot}" has version ${envelope.version}, expected ${GAME_STATE_VERSION}`,
     );
+  }
+  if (envelope.version < GAME_STATE_VERSION) {
+    return migrateGameState(envelope.state, envelope.version);
   }
 
   return envelope.state;

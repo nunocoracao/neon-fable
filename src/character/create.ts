@@ -1,5 +1,6 @@
 import type { Background } from "../data/backgrounds";
 import { emptyEquipment, type EquipmentState } from "../inventory/equipment";
+import { defaultAppearance, type Appearance } from "./appearance";
 import { deriveAttributes, type DerivedAttributes } from "./derived";
 import {
   applyBonuses,
@@ -36,6 +37,8 @@ export interface CharacterState {
   neuralLoad: number;
   /** Equipped weapon/outfit and installed enhancements, by item id. */
   equipment: EquipmentState;
+  /** Visual customization, as ids into the appearance catalogs. */
+  appearance: Appearance;
   /** Narrative tags inherited from the background. */
   tags: string[];
   /** Chapter-advancement spends (stat raises, unlocked abilities). */
@@ -61,6 +64,8 @@ export interface CreateCharacterInput {
   allocation: Stats;
   /** Point pool the allocation must spend; defaults to POINT_POOL (New Game+ passes more). */
   pointPool?: number;
+  /** Visual customization; defaults to the stock defaultAppearance. */
+  appearance?: Appearance;
 }
 
 /** A valid allocation that spends the whole pool evenly (all stats at 6). */
@@ -87,6 +92,7 @@ export function createCharacter(input: CreateCharacterInput): CharacterState {
     hp: derived.maxHp,
     neuralLoad: 0,
     equipment: emptyEquipment(),
+    appearance: input.appearance ?? defaultAppearance(),
     tags: [...input.background.tags],
     advancement: { pointsSpent: 0, abilityIds: [] },
   };
