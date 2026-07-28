@@ -25,14 +25,23 @@ import {
   bakeSilhouette,
   bakeSprite,
   remapped,
+  upscaled,
   type PixelGrid,
 } from "./pixel";
 import { PROP_ART } from "./props";
 import { TILE_ART } from "./tiles";
 
-/** Tile-diamond center in 1x art pixels. */
-const TILE_ANCHOR_X = 16;
-const TILE_ANCHOR_Y = 8;
+/** Tile-diamond center in 1x art pixels (v2 geometry: 64×32 tiles). */
+const TILE_ANCHOR_X = 32;
+const TILE_ANCHOR_Y = 16;
+
+/**
+ * Interim hi-res shim: all art sets are still authored at the legacy 1x
+ * sizes, so every grid is nearest-neighbor doubled (and its authored
+ * anchor doubled to match) at bake time. Removed per set as each is
+ * re-authored natively at the v2 resolution.
+ */
+const SHIM_SCALE = 2;
 
 export const IDLE_FRAME_MS = 480;
 export const WALK_FRAME_MS = 130;
@@ -73,9 +82,9 @@ export function createPixelArtSprites(): SpriteProvider {
     const { grid, key } = characterGrid(pose);
     return cached(`char:${role}:${key}`, () =>
       bakeSprite(
-        remapped(grid, ROLE_REMAPS[role]),
-        CHARACTER_ANCHOR_X,
-        CHARACTER_ANCHOR_Y,
+        upscaled(remapped(grid, ROLE_REMAPS[role])),
+        CHARACTER_ANCHOR_X * SHIM_SCALE,
+        CHARACTER_ANCHOR_Y * SHIM_SCALE,
       ),
     );
   }
@@ -92,7 +101,7 @@ export function createPixelArtSprites(): SpriteProvider {
         frame = frameAt(timeMs + phase, art.frameMs, frames.length);
       }
       return cached(`tile:${id}:${variant}:${frame}`, () =>
-        bakeSprite(frames[frame] ?? [], TILE_ANCHOR_X, TILE_ANCHOR_Y),
+        bakeSprite(upscaled(frames[frame] ?? []), TILE_ANCHOR_X, TILE_ANCHOR_Y),
       );
     },
 
@@ -110,7 +119,11 @@ export function createPixelArtSprites(): SpriteProvider {
         }
       }
       return cached(`prop:${id}:${frame}`, () =>
-        bakeSprite(art.frames[frame] ?? [], art.anchorX, art.anchorY),
+        bakeSprite(
+          upscaled(art.frames[frame] ?? []),
+          art.anchorX * SHIM_SCALE,
+          art.anchorY * SHIM_SCALE,
+        ),
       );
     },
 
@@ -132,7 +145,11 @@ export function createPixelArtSprites(): SpriteProvider {
       const phase = (hash2(x, y) % 5) * 120;
       const frame = frameAt(timeMs + phase, art.frameMs, art.frames.length);
       return cached(`interactable:${id}:${frame}`, () =>
-        bakeSprite(art.frames[frame] ?? [], art.anchorX, art.anchorY),
+        bakeSprite(
+          upscaled(art.frames[frame] ?? []),
+          art.anchorX * SHIM_SCALE,
+          art.anchorY * SHIM_SCALE,
+        ),
       );
     },
 
@@ -143,7 +160,12 @@ export function createPixelArtSprites(): SpriteProvider {
     entitySilhouette(id: EntitySpriteId, pose: EntityPose): Sprite {
       const { grid, key } = characterGrid(pose);
       return cached(`flash:${id}:${key}`, () =>
-        bakeSilhouette(grid, FLASH_COLOR, CHARACTER_ANCHOR_X, CHARACTER_ANCHOR_Y),
+        bakeSilhouette(
+          upscaled(grid),
+          FLASH_COLOR,
+          CHARACTER_ANCHOR_X * SHIM_SCALE,
+          CHARACTER_ANCHOR_Y * SHIM_SCALE,
+        ),
       );
     },
   };
