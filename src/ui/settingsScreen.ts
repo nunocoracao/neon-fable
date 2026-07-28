@@ -1,5 +1,11 @@
 import { audio, type VolumeChannel } from "../audio";
-import { settings, TEXT_SPEEDS, type TextSpeed } from "../settings";
+import {
+  clampZoom,
+  settings,
+  TEXT_SPEEDS,
+  ZOOM_LEVELS,
+  type TextSpeed,
+} from "../settings";
 import { focusFirst, installListNav } from "./focus";
 import type { OverlayHandle } from "./overlay";
 import type { Screen } from "./screen";
@@ -29,6 +35,7 @@ const CONTROLS: ReadonlyArray<[keys: string, what: string]> = [
   ["Arrows in combat", "Step across the grid while moving"],
   ["Tab in combat", "Cycle the action buttons"],
   ["Click / drag", "Move and interact · pan the camera"],
+  ["Wheel / + −", "Zoom the camera while exploring"],
 ];
 
 function settingRow(label: string, ...controls: HTMLElement[]): HTMLElement {
@@ -131,6 +138,18 @@ function buildSettingsPanel(onClose: () => void): HTMLElement {
       TEXT_SPEEDS.map((speed) => [speed, TEXT_SPEED_LABELS[speed]] as const),
       (speed) => settings.get().textSpeed === speed,
       (speed) => settings.update({ textSpeed: speed }),
+    ),
+  );
+
+  const displayHeading = document.createElement("h3");
+  displayHeading.textContent = "Display";
+  panel.append(
+    displayHeading,
+    segmentedRow(
+      "Camera zoom",
+      ZOOM_LEVELS.map((level) => [String(level), `${level}×`] as const),
+      (value) => String(settings.get().zoom) === value,
+      (value) => settings.update({ zoom: clampZoom(Number(value)) }),
     ),
   );
 
