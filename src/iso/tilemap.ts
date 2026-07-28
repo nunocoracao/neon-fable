@@ -95,7 +95,12 @@ export interface PropPlacement {
   blocks: boolean;
 }
 
-export type InteractableSpriteId = "npc" | "door" | "terminal";
+export type InteractableSpriteId =
+  | "npc"
+  | "door"
+  | "terminal"
+  | "stash"
+  | "exit";
 
 /**
  * An NPC/object the player can interact with from an adjacent tile.
