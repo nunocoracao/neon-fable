@@ -10,6 +10,7 @@ import {
   lunge01,
   pulse01,
   shakeOffsetPx,
+  tilePhaseMs,
   variantIndex,
   walkBobPx,
 } from "./animation";
@@ -87,6 +88,31 @@ describe("hash2 / variantIndex", () => {
   it("returns 0 for single-variant sets", () => {
     expect(variantIndex(4, 2, 1)).toBe(0);
     expect(variantIndex(4, 2, 0)).toBe(0);
+  });
+});
+
+describe("tilePhaseMs", () => {
+  it("is deterministic and steps in half-frame multiples", () => {
+    for (let x = 0; x < 6; x++) {
+      for (let y = 0; y < 6; y++) {
+        const phase = tilePhaseMs(x, y, 420);
+        expect(phase).toBe(tilePhaseMs(x, y, 420));
+        expect(phase % 210).toBe(0);
+        expect(phase).toBeGreaterThanOrEqual(0);
+        expect(phase).toBeLessThan(4 * 210);
+      }
+    }
+  });
+
+  it("puts neighboring tiles out of sync somewhere on every canal run", () => {
+    // The shipped canal columns are 2-3 tiles wide; a run of identical
+    // phases down a column would make the whole canal pulse as one.
+    const phases = new Set<number>();
+    for (let y = 1; y <= 3; y++) {
+      phases.add(tilePhaseMs(10, y, 420));
+      phases.add(tilePhaseMs(11, y, 420));
+    }
+    expect(phases.size).toBeGreaterThan(1);
   });
 });
 

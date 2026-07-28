@@ -12,6 +12,11 @@ export type TileId =
   | "plaza-glow"
   | "road"
   | "canal"
+  | "canal-deep"
+  | "quay-n"
+  | "quay-e"
+  | "quay-s"
+  | "quay-w"
   | "foundation"
   | "rust-floor";
 
@@ -26,6 +31,11 @@ export const TILE_DEFS: Record<TileId, TileDef> = {
   "plaza-glow": { id: "plaza-glow", walkable: true },
   road: { id: "road", walkable: true },
   canal: { id: "canal", walkable: false },
+  "canal-deep": { id: "canal-deep", walkable: false },
+  "quay-n": { id: "quay-n", walkable: true },
+  "quay-e": { id: "quay-e", walkable: true },
+  "quay-s": { id: "quay-s", walkable: true },
+  "quay-w": { id: "quay-w", walkable: true },
   foundation: { id: "foundation", walkable: false },
   "rust-floor": { id: "rust-floor", walkable: true },
 };
