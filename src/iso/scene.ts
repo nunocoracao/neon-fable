@@ -4,10 +4,16 @@
  * callback — this layer never imports narrative or combat code.
  */
 import { audio } from "../audio";
-import { settings } from "../settings";
+import { settings, stepZoom, type ZoomLevel } from "../settings";
 import { facingFromDelta, type Facing } from "./animation";
 import { createPixelArtSprites } from "./art/provider";
-import { clampCamera, mapPixelBounds, type Camera } from "./camera";
+import {
+  clampCamera,
+  mapPixelBounds,
+  viewportToWorld,
+  type Camera,
+} from "./camera";
+import { observeDevicePixelRatio } from "./dpr";
 import {
   sameTile,
   screenToTile,
@@ -70,6 +76,7 @@ export function createIsoScene(
 
   let viewportW = 0;
   let viewportH = 0;
+  let zoom: ZoomLevel = settings.get().zoom;
   let camera: Camera = worldToScreen(spawn.x, spawn.y);
   let hoverTile: TilePoint | null = null;
 
@@ -91,10 +98,22 @@ export function createIsoScene(
     const dpr = window.devicePixelRatio || 1;
     viewportW = canvas.clientWidth;
     viewportH = canvas.clientHeight;
+    // Backing store in device pixels; the base transform scales world
+    // units by dpr * zoom so draw code stays in world-screen units.
     canvas.width = Math.round(viewportW * dpr);
     canvas.height = Math.round(viewportH * dpr);
-    ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
-    camera = clampCamera(camera, bounds, viewportW, viewportH);
+    const scale = dpr * zoom;
+    ctx!.setTransform(scale, 0, 0, scale, 0, 0);
+    // At higher zoom the viewport spans fewer world units.
+    camera = clampCamera(camera, bounds, viewportW / zoom, viewportH / zoom);
+  }
+
+  /** Zooms about the screen center: the camera point stays put. */
+  function applyZoom(next: ZoomLevel): void {
+    if (next === zoom) return;
+    zoom = next;
+    resize();
+    settings.update({ zoom: next });
   }
 
   function canvasPoint(event: PointerEvent): { x: number; y: number } {
@@ -103,10 +122,8 @@ export function createIsoScene(
   }
 
   function pickTile(cssX: number, cssY: number): TilePoint {
-    return screenToTile(
-      cssX - viewportW / 2 + camera.sx,
-      cssY - viewportH / 2 + camera.sy,
-    );
+    const world = viewportToWorld(camera, viewportW, viewportH, zoom, cssX, cssY);
+    return screenToTile(world.sx, world.sy);
   }
 
   /** Tile to route new paths from: the one being entered, if mid-step. */
@@ -170,11 +187,15 @@ export function createIsoScene(
         setCursor("grabbing");
       }
       if (panning) {
+        // Pointer deltas are CSS pixels; the camera lives in world units.
         camera = clampCamera(
-          { sx: camera.sx - (p.x - lastPointer.x), sy: camera.sy - (p.y - lastPointer.y) },
+          {
+            sx: camera.sx - (p.x - lastPointer.x) / zoom,
+            sy: camera.sy - (p.y - lastPointer.y) / zoom,
+          },
           bounds,
-          viewportW,
-          viewportH,
+          viewportW / zoom,
+          viewportH / zoom,
         );
       }
       lastPointer = p;
@@ -199,6 +220,20 @@ export function createIsoScene(
   function onPointerLeave(): void {
     hoverTile = null;
     setCursor("");
+  }
+
+  function onWheel(event: WheelEvent): void {
+    if (event.deltaY === 0) return;
+    event.preventDefault();
+    applyZoom(stepZoom(zoom, event.deltaY < 0 ? 1 : -1));
+  }
+
+  function onKeyDown(event: KeyboardEvent): void {
+    if (event.key === "+" || event.key === "=") {
+      applyZoom(stepZoom(zoom, 1));
+    } else if (event.key === "-" || event.key === "_") {
+      applyZoom(stepZoom(zoom, -1));
+    }
   }
 
   function stepWalk(dt: number): void {
@@ -257,6 +292,7 @@ export function createIsoScene(
       // positions, not the clock) stays fully visible.
       timeMs: settings.get().reducedMotion ? 0 : time,
       dpr: window.devicePixelRatio || 1,
+      zoom,
     };
     renderScene(ctx!, sprites, view);
     rafId = requestAnimationFrame(frame);
@@ -264,20 +300,35 @@ export function createIsoScene(
 
   resize();
   window.addEventListener("resize", resize);
+  window.addEventListener("keydown", onKeyDown);
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointerleave", onPointerLeave);
+  // preventDefault needs a non-passive listener (wheel defaults passive).
+  canvas.addEventListener("wheel", onWheel, { passive: false });
+  const unobserveDpr = observeDevicePixelRatio(resize);
+  // The settings screen can change zoom too; follow it.
+  const unsubscribeSettings = settings.subscribe((next) => {
+    if (next.zoom !== zoom) {
+      zoom = next.zoom;
+      resize();
+    }
+  });
   rafId = requestAnimationFrame(frame);
 
   return {
     destroy(): void {
       cancelAnimationFrame(rafId);
       window.removeEventListener("resize", resize);
+      window.removeEventListener("keydown", onKeyDown);
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointerleave", onPointerLeave);
+      canvas.removeEventListener("wheel", onWheel);
+      unobserveDpr();
+      unsubscribeSettings();
       setCursor("");
       ctx!.clearRect(0, 0, viewportW, viewportH);
     },

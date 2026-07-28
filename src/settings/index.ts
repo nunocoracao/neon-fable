@@ -4,16 +4,20 @@ export {
   SETTINGS_VERSION,
   TEXT_SPEEDS,
   TEXT_SPEED_CHAR_MS,
+  ZOOM_LEVELS,
   clampSettings,
+  clampZoom,
   loadSettings,
   migrateSettings,
   parseSettings,
   revealDelayMs,
   saveSettings,
   serializeSettings,
+  stepZoom,
   type Settings,
   type SettingsStorage,
   type TextSpeed,
+  type ZoomLevel,
 } from "./settings";
 export { createSettingsStore, type SettingsStore } from "./store";
 

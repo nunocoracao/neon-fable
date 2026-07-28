@@ -10,20 +10,45 @@
 export const TEXT_SPEEDS = ["instant", "fast", "normal"] as const;
 export type TextSpeed = (typeof TEXT_SPEEDS)[number];
 
+/**
+ * View zoom levels for the iso scene. Every level times ART_SCALE (2,
+ * src/iso/art/pixel.ts) must be a whole number of CSS pixels per art
+ * pixel — 2, 3, and 4 here — so no zoom can slice an art pixel
+ * fractionally; camera.test.ts pins this against ART_SCALE.
+ */
+export const ZOOM_LEVELS = [1, 1.5, 2] as const;
+export type ZoomLevel = (typeof ZOOM_LEVELS)[number];
+
 export interface Settings {
   textSpeed: TextSpeed;
   reducedMotion: boolean;
+  zoom: ZoomLevel;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   textSpeed: "normal",
   reducedMotion: false,
+  zoom: 1,
 };
 
 export const SETTINGS_KEY = "neon-fable:settings";
 
 /** Bump when the Settings shape changes; migrateSettings routes on it. */
-export const SETTINGS_VERSION = 1;
+export const SETTINGS_VERSION = 2;
+
+/** Coerces any value onto the zoom-level ladder; off-ladder → default. */
+export function clampZoom(value: unknown): ZoomLevel {
+  return ZOOM_LEVELS.includes(value as ZoomLevel)
+    ? (value as ZoomLevel)
+    : DEFAULT_SETTINGS.zoom;
+}
+
+/** One step up (+1) or down (-1) the zoom ladder, clamped at the ends. */
+export function stepZoom(current: ZoomLevel, direction: 1 | -1): ZoomLevel {
+  const index = ZOOM_LEVELS.indexOf(current) + direction;
+  const clamped = Math.min(ZOOM_LEVELS.length - 1, Math.max(0, index));
+  return ZOOM_LEVELS[clamped] ?? DEFAULT_SETTINGS.zoom;
+}
 
 /** Per-character reveal delay for the dialogue typewriter, in ms. */
 export const TEXT_SPEED_CHAR_MS: Record<TextSpeed, number> = {
@@ -47,14 +72,18 @@ export function clampSettings(value: unknown): Settings {
   const textSpeed = TEXT_SPEEDS.includes(record.textSpeed as TextSpeed)
     ? (record.textSpeed as TextSpeed)
     : DEFAULT_SETTINGS.textSpeed;
-  return { textSpeed, reducedMotion: record.reducedMotion === true };
+  return {
+    textSpeed,
+    reducedMotion: record.reducedMotion === true,
+    zoom: clampZoom(record.zoom),
+  };
 }
 
 /**
  * Migrates a parsed payload from any stored version to the current
- * shape. There is only v1 so far, so every version routes through the
- * field-tolerant clamp — unknown or future versions degrade to
- * defaults per field instead of crashing.
+ * shape. Every version so far routes through the field-tolerant clamp —
+ * v1 payloads simply lack zoom and get the default, and unknown or
+ * future versions degrade to defaults per field instead of crashing.
  */
 export function migrateSettings(parsed: unknown): Settings {
   return clampSettings(parsed);

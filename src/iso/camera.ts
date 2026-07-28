@@ -3,7 +3,7 @@
  * screen point that appears at the center of the viewport; panning moves
  * it and clamping keeps the map on screen. Pure so it can be tested.
  */
-import { TILE_H, TILE_W, worldToScreen } from "./coords";
+import { TILE_H, TILE_W, worldToScreen, type ScreenPoint } from "./coords";
 import type { IsoMap } from "./tilemap";
 
 export interface Camera {
@@ -58,5 +58,74 @@ export function clampCamera(
   return {
     sx: clampAxis(camera.sx, bounds.minX - margin, bounds.maxX + margin, viewportW),
     sy: clampAxis(camera.sy, bounds.minY - margin, bounds.maxY + margin, viewportH),
+  };
+}
+
+// --- Zoomed view math --------------------------------------------------
+// The canvas transform is scale = dpr * zoom, so one world-screen unit
+// covers `scale` device pixels. Everything below is pure so picking and
+// snapping can be tested without a canvas.
+
+/**
+ * Round a world-screen value onto the grid of whole device pixels for a
+ * combined scale (dpr * zoom). Multiples of 1/scale land on exact device
+ * pixels, which is what kills shimmer during scrolls.
+ */
+export function snapToPixelGrid(value: number, scale: number): number {
+  return Math.round(value * scale) / scale;
+}
+
+export interface CameraTranslation {
+  tx: number;
+  ty: number;
+}
+
+/**
+ * The pre-scale canvas translation that puts the camera point at the
+ * viewport center, snapped to whole device pixels. viewportW/H are CSS
+ * pixels; the result is in world-screen units (the ctx is already
+ * scaled by dpr * zoom when it is applied).
+ */
+export function cameraTranslation(
+  camera: Camera,
+  viewportW: number,
+  viewportH: number,
+  zoom: number,
+  dpr: number,
+): CameraTranslation {
+  const scale = dpr * zoom;
+  return {
+    tx: snapToPixelGrid(viewportW / (2 * zoom) - camera.sx, scale),
+    ty: snapToPixelGrid(viewportH / (2 * zoom) - camera.sy, scale),
+  };
+}
+
+/** The world-screen point under a viewport (CSS pixel) point. */
+export function viewportToWorld(
+  camera: Camera,
+  viewportW: number,
+  viewportH: number,
+  zoom: number,
+  cssX: number,
+  cssY: number,
+): ScreenPoint {
+  return {
+    sx: (cssX - viewportW / 2) / zoom + camera.sx,
+    sy: (cssY - viewportH / 2) / zoom + camera.sy,
+  };
+}
+
+/** Where a world-screen point lands in viewport CSS pixels. */
+export function worldToViewport(
+  camera: Camera,
+  viewportW: number,
+  viewportH: number,
+  zoom: number,
+  sx: number,
+  sy: number,
+): { x: number; y: number } {
+  return {
+    x: (sx - camera.sx) * zoom + viewportW / 2,
+    y: (sy - camera.sy) * zoom + viewportH / 2,
   };
 }
