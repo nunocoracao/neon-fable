@@ -40,10 +40,10 @@ describe("clampSettings", () => {
   it("keeps valid fields and clamps invalid ones independently", () => {
     expect(
       clampSettings({ textSpeed: "fast", reducedMotion: "yes", zoom: 1.5 }),
-    ).toEqual({ textSpeed: "fast", reducedMotion: false, zoom: 1.5 });
+    ).toEqual({ textSpeed: "fast", reducedMotion: false, zoom: 1.5, glow: true });
     expect(
       clampSettings({ textSpeed: "warp", reducedMotion: true }),
-    ).toEqual({ textSpeed: "normal", reducedMotion: true, zoom: 1 });
+    ).toEqual({ textSpeed: "normal", reducedMotion: true, zoom: 1, glow: true });
   });
 
   it("ignores unknown fields", () => {
@@ -51,7 +51,15 @@ describe("clampSettings", () => {
       textSpeed: "instant",
       reducedMotion: false,
       zoom: 1,
+      glow: true,
     });
+  });
+
+  it("glow defaults on; only an explicit false disables it", () => {
+    expect(clampSettings({}).glow).toBe(true);
+    expect(clampSettings({ glow: false }).glow).toBe(false);
+    expect(clampSettings({ glow: "off" }).glow).toBe(true);
+    expect(clampSettings({ glow: 0 }).glow).toBe(true);
   });
 
   it("rejects zoom values off the level ladder", () => {
@@ -81,7 +89,12 @@ describe("stepZoom", () => {
 
 describe("parse / serialize / migrate", () => {
   it("round-trips through serialize and parse", () => {
-    const settings = { textSpeed: "fast", reducedMotion: true, zoom: 1.5 } as const;
+    const settings = {
+      textSpeed: "fast",
+      reducedMotion: true,
+      zoom: 1.5,
+      glow: false,
+    } as const;
     expect(parseSettings(serializeSettings(settings))).toEqual(settings);
   });
 
@@ -102,7 +115,7 @@ describe("parse / serialize / migrate", () => {
   it("migrates unknown or future versions field-tolerantly", () => {
     expect(
       migrateSettings({ version: 99, textSpeed: "instant", extra: true }),
-    ).toEqual({ textSpeed: "instant", reducedMotion: false, zoom: 1 });
+    ).toEqual({ textSpeed: "instant", reducedMotion: false, zoom: 1, glow: true });
     expect(migrateSettings({ version: "zero" })).toEqual(DEFAULT_SETTINGS);
   });
 
@@ -116,6 +129,22 @@ describe("parse / serialize / migrate", () => {
       textSpeed: "fast",
       reducedMotion: true,
       zoom: 1,
+      glow: true,
+    });
+  });
+
+  it("migrates v2 payloads (no glow yet) with the pass enabled", () => {
+    const v2 = JSON.stringify({
+      version: 2,
+      textSpeed: "fast",
+      reducedMotion: false,
+      zoom: 2,
+    });
+    expect(parseSettings(v2)).toEqual({
+      textSpeed: "fast",
+      reducedMotion: false,
+      zoom: 2,
+      glow: true,
     });
   });
 });
@@ -128,12 +157,16 @@ describe("load / save", () => {
 
   it("persists under the settings key, separate from save slots", () => {
     const storage = fakeStorage();
-    saveSettings({ textSpeed: "instant", reducedMotion: true, zoom: 2 }, storage);
+    saveSettings(
+      { textSpeed: "instant", reducedMotion: true, zoom: 2, glow: false },
+      storage,
+    );
     expect(Object.keys(storage.data)).toEqual([SETTINGS_KEY]);
     expect(loadSettings(storage)).toEqual({
       textSpeed: "instant",
       reducedMotion: true,
       zoom: 2,
+      glow: false,
     });
   });
 
@@ -171,12 +204,16 @@ describe("revealDelayMs", () => {
 describe("settings store", () => {
   it("loads persisted settings at creation", () => {
     const storage = fakeStorage();
-    saveSettings({ textSpeed: "fast", reducedMotion: true, zoom: 1.5 }, storage);
+    saveSettings(
+      { textSpeed: "fast", reducedMotion: true, zoom: 1.5, glow: true },
+      storage,
+    );
     const store = createSettingsStore(storage);
     expect(store.get()).toEqual({
       textSpeed: "fast",
       reducedMotion: true,
       zoom: 1.5,
+      glow: true,
     });
   });
 
@@ -191,6 +228,7 @@ describe("settings store", () => {
       textSpeed: "instant",
       reducedMotion: false,
       zoom: 1,
+      glow: true,
     });
     expect(loadSettings(storage).textSpeed).toBe("instant");
     expect(seen).toEqual(["instant"]);
@@ -207,5 +245,11 @@ describe("settings store", () => {
     const storage = fakeStorage();
     createSettingsStore(storage).update({ zoom: 2 });
     expect(createSettingsStore(storage).get().zoom).toBe(2);
+  });
+
+  it("persists the glow toggle across stores", () => {
+    const storage = fakeStorage();
+    createSettingsStore(storage).update({ glow: false });
+    expect(createSettingsStore(storage).get().glow).toBe(false);
   });
 });
