@@ -22,8 +22,15 @@ import {
 } from "./characters";
 import { INTERACTABLE_ART } from "./interactables";
 import {
+  BODY_FRAME,
+  BODY_GRIDS,
+  bodyPreviewBuild,
+  bodyViewForFacing,
+} from "./layers/body";
+import {
   bakeSilhouette,
   bakeSprite,
+  mirrored,
   nativeScaled,
   remapped,
   upscaled,
@@ -72,6 +79,12 @@ function characterGrid(pose: EntityPose): { grid: PixelGrid; key: string } {
 export function createPixelArtSprites(): SpriteProvider {
   const cache = new Map<string, Sprite>();
 
+  // Temporary dev-only preview of the v2 base bodies (?dev&previewBody=
+  // lean|heavy); removed when the layer composition engine replaces the
+  // legacy character set.
+  const previewBuild =
+    typeof window === "undefined" ? null : bodyPreviewBuild(window.location.search);
+
   const cached = (key: string, make: () => Sprite): Sprite => {
     let sprite = cache.get(key);
     if (!sprite) {
@@ -81,7 +94,22 @@ export function createPixelArtSprites(): SpriteProvider {
     return sprite;
   };
 
+  function previewBodyGrid(pose: EntityPose): { grid: PixelGrid; key: string } {
+    const { view, flip } = bodyViewForFacing(pose.facing);
+    const grid = BODY_GRIDS[previewBuild ?? "lean"][view];
+    return {
+      grid: flip ? mirrored(grid) : grid,
+      key: `${previewBuild}:${pose.facing}`,
+    };
+  }
+
   function character(role: CharacterRole, pose: EntityPose): Sprite {
+    if (previewBuild) {
+      const { grid, key } = previewBodyGrid(pose);
+      return cached(`char:v2:${key}`, () =>
+        bakeSprite(grid, BODY_FRAME.anchorX, BODY_FRAME.anchorY),
+      );
+    }
     const { grid, key } = characterGrid(pose);
     return cached(`char:${role}:${key}`, () =>
       bakeSprite(
@@ -162,6 +190,12 @@ export function createPixelArtSprites(): SpriteProvider {
     },
 
     entitySilhouette(id: EntitySpriteId, pose: EntityPose): Sprite {
+      if (previewBuild) {
+        const { grid, key } = previewBodyGrid(pose);
+        return cached(`flash:v2:${key}`, () =>
+          bakeSilhouette(grid, FLASH_COLOR, BODY_FRAME.anchorX, BODY_FRAME.anchorY),
+        );
+      }
       const { grid, key } = characterGrid(pose);
       return cached(`flash:${id}:${key}`, () =>
         bakeSilhouette(
