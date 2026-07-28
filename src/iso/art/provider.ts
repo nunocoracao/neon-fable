@@ -41,10 +41,15 @@ import {
   mirrored,
   nativeScaled,
   remapped,
+  spriteBytes,
   upscaled,
   type PixelGrid,
 } from "./pixel";
 import { PROP_ART } from "./props";
+import {
+  createSpriteCache,
+  type SpriteCacheStats,
+} from "./spriteCache";
 import { TILE_ART } from "./tiles";
 
 /** Tile-diamond center in 1x art pixels (v2 geometry: 64×32 tiles). */
@@ -65,6 +70,44 @@ export const IDLE_FRAME_MS = 480;
 export const WALK_FRAME_MS = 130;
 const FLASH_COLOR = "#ffffff";
 
+/**
+ * Byte budget for baked sprite canvases per provider. Steady-state
+ * usage is a few MB; 64 MiB (~2,700 baked 64×96-at-2x character
+ * frames) is generous headroom for the layered appearance system while
+ * bounding memory if appearance churn ever generates unbounded
+ * variants.
+ */
+export const SPRITE_CACHE_BUDGET_BYTES = 64 * 1024 * 1024;
+
+/**
+ * Dev hook: `window.__spriteCacheStats()` reports live bake-cache stats
+ * (entries, est. bytes, hits/misses/evictions) for every provider still
+ * alive — providers register weakly, so dropped scenes don't linger.
+ */
+const liveCaches = new Set<WeakRef<{ stats(): SpriteCacheStats }>>();
+
+function exposeCacheStats(cache: { stats(): SpriteCacheStats }): void {
+  if (typeof window === "undefined") return;
+  liveCaches.add(new WeakRef(cache));
+  const host = window as unknown as {
+    __spriteCacheStats?: () => SpriteCacheStats[];
+  };
+  host.__spriteCacheStats = () => {
+    const all: SpriteCacheStats[] = [];
+    for (const ref of liveCaches) {
+      const live = ref.deref();
+      if (live) all.push(live.stats());
+      else liveCaches.delete(ref);
+    }
+    return all;
+  };
+}
+
+/** SpriteProvider plus the bake-cache stats hook, for tests and dev. */
+export interface PixelArtSprites extends SpriteProvider {
+  cacheStats(): SpriteCacheStats;
+}
+
 /** Character frame for a pose; exported for tests. */
 export function characterFrameIndex(pose: EntityPose, frameCount: number): number {
   return frameAt(
@@ -84,8 +127,9 @@ function characterGrid(pose: EntityPose): { grid: PixelGrid; key: string } {
   };
 }
 
-export function createPixelArtSprites(): SpriteProvider {
-  const cache = new Map<string, Sprite>();
+export function createPixelArtSprites(): PixelArtSprites {
+  const cache = createSpriteCache<Sprite>(SPRITE_CACHE_BUDGET_BYTES, spriteBytes);
+  exposeCacheStats(cache);
 
   // Temporary dev-only preview of the v2 base bodies (?dev&previewBody=
   // lean|heavy); removed when the layer composition engine replaces the
@@ -93,14 +137,7 @@ export function createPixelArtSprites(): SpriteProvider {
   const previewBuild =
     typeof window === "undefined" ? null : bodyPreviewBuild(window.location.search);
 
-  const cached = (key: string, make: () => Sprite): Sprite => {
-    let sprite = cache.get(key);
-    if (!sprite) {
-      sprite = make();
-      cache.set(key, sprite);
-    }
-    return sprite;
-  };
+  const cached = (key: string, make: () => Sprite): Sprite => cache.get(key, make);
 
   function previewBodyGrid(pose: EntityPose): { grid: PixelGrid; key: string } {
     const { view, flip } = bodyViewForFacing(pose.facing);
@@ -215,6 +252,10 @@ export function createPixelArtSprites(): SpriteProvider {
           CHARACTER_ANCHOR_Y * SHIM_SCALE,
         ),
       );
+    },
+
+    cacheStats(): SpriteCacheStats {
+      return cache.stats();
     },
   };
 }

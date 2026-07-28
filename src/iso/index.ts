@@ -62,7 +62,8 @@ export {
   type Sprite,
   type SpriteProvider,
 } from "./sprites";
-export { createPixelArtSprites } from "./art/provider";
+export { createPixelArtSprites, type PixelArtSprites } from "./art/provider";
+export { type SpriteCacheStats } from "./art/spriteCache";
 export {
   facingFromDelta,
   frameAt,
