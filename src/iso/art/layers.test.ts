@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { BODY_TIMING, type Facing, type MotionState } from "../animation";
 import {
-  appearanceKey,
   composeGrids,
-  composedFrameGrid,
+  composedCharacterGrid,
+  composedCharacterKey,
   composedFrameKey,
   eyeColorRemap,
+  layerArtGrid,
   layerOrderFor,
   orderedLayerParts,
-  previewAppearance,
   skinToneRemap,
-  type ComposedAppearance,
+  type ComposedCharacter,
   type LayerPart,
   type LayerSlot,
 } from "./layers";
@@ -42,12 +42,21 @@ function countChar(grid: PixelGrid, ch: string): number {
   );
 }
 
-const APPEARANCE: ComposedAppearance = {
-  build: "lean",
-  skinTone: 0,
-  eyeColor: "g",
-  face: "stub",
-};
+/** A lean character with the default face parts and a given skin tone. */
+function character(tone = 0): ComposedCharacter {
+  const skin = skinToneRemap(tone);
+  return {
+    build: "lean",
+    layers: [
+      { slot: "body", art: "lean", remap: skin },
+      { slot: "face", art: "standard", remap: { ...skin, ...eyeColorRemap("g") } },
+      { slot: "face", art: "straight", remap: {} },
+      { slot: "face", art: "neutral", remap: skin },
+    ],
+  };
+}
+
+const CHARACTER = character();
 
 describe("composeGrids", () => {
   it("lets later layers override earlier ones where both are opaque", () => {
@@ -141,49 +150,76 @@ describe("channel remaps", () => {
   });
 });
 
-describe("appearance and frame keys", () => {
-  it("serializes every field so equal descriptors share a key", () => {
-    const reordered: ComposedAppearance = {
-      face: "stub",
-      eyeColor: "g",
-      skinTone: 0,
-      build: "lean",
-    };
-    expect(appearanceKey(reordered)).toBe(appearanceKey(APPEARANCE));
+describe("layer art registries", () => {
+  it("resolves registered body and face art per view", () => {
+    expect(layerArtGrid("body", "lean", "front")).not.toBeNull();
+    expect(layerArtGrid("body", "heavy", "back")).not.toBeNull();
+    expect(layerArtGrid("face", "standard", "front")).not.toBeNull();
+    expect(layerArtGrid("face", "straight", "front")).not.toBeNull();
+    expect(layerArtGrid("face", "neutral", "front")).not.toBeNull();
   });
 
-  it("changes when any field changes", () => {
-    const variants: ComposedAppearance[] = [
-      APPEARANCE,
-      { ...APPEARANCE, build: "heavy" },
-      { ...APPEARANCE, skinTone: 3 },
-      { ...APPEARANCE, eyeColor: "m" },
-      { ...APPEARANCE, face: null },
-    ];
-    expect(new Set(variants.map(appearanceKey)).size).toBe(variants.length);
+  it("returns null for unregistered slots and unknown art ids", () => {
+    // Hair/headwear/gear registries land in later tasks; their catalog
+    // ids resolve to nothing until then.
+    expect(layerArtGrid("hair", "buzz", "front")).toBeNull();
+    expect(layerArtGrid("headwear", "visor", "front")).toBeNull();
+    expect(layerArtGrid("weapon", "wpn-rail-spitter", "front")).toBeNull();
+    expect(layerArtGrid("body", "giant", "front")).toBeNull();
+    expect(layerArtGrid("face", "no-such-face", "front")).toBeNull();
+  });
+});
+
+describe("composed character keys", () => {
+  it("equal descriptors share a key no matter how they were built", () => {
+    expect(composedCharacterKey(character())).toBe(
+      composedCharacterKey(CHARACTER),
+    );
+  });
+
+  it("differs when the build, a layer, or a remap differs", () => {
+    const heavy: ComposedCharacter = { ...CHARACTER, build: "heavy" };
+    const bare: ComposedCharacter = {
+      build: "lean",
+      layers: CHARACTER.layers.slice(0, 1),
+    };
+    const withHair: ComposedCharacter = {
+      ...CHARACTER,
+      layers: [...CHARACTER.layers, { slot: "hair", art: "buzz", remap: {} }],
+    };
+    const keys = [
+      CHARACTER,
+      heavy,
+      bare,
+      withHair,
+      character(1),
+      character(2),
+      character(3),
+    ].map(composedCharacterKey);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 
   it("frame keys are stable and distinct per facing, state, and frame", () => {
-    expect(composedFrameKey(APPEARANCE, "e", "walk", 3)).toBe(
-      composedFrameKey(APPEARANCE, "e", "walk", 3),
+    expect(composedFrameKey(CHARACTER, "e", "walk", 3)).toBe(
+      composedFrameKey(CHARACTER, "e", "walk", 3),
     );
     const keys = [
-      composedFrameKey(APPEARANCE, "e", "walk", 3),
-      composedFrameKey(APPEARANCE, "s", "walk", 3),
-      composedFrameKey(APPEARANCE, "e", "idle", 3),
-      composedFrameKey(APPEARANCE, "e", "walk", 4),
-      composedFrameKey({ ...APPEARANCE, skinTone: 1 }, "e", "walk", 3),
+      composedFrameKey(CHARACTER, "e", "walk", 3),
+      composedFrameKey(CHARACTER, "s", "walk", 3),
+      composedFrameKey(CHARACTER, "e", "idle", 3),
+      composedFrameKey(CHARACTER, "e", "walk", 4),
+      composedFrameKey(character(1), "e", "walk", 3),
     ];
     expect(new Set(keys).size).toBe(keys.length);
   });
 });
 
-describe("composedFrameGrid", () => {
+describe("composedCharacterGrid", () => {
   it("returns valid 32×48 grids for every facing, state, and frame", () => {
     for (const facing of FACINGS) {
       for (const state of STATES) {
         for (let f = 0; f < BODY_TIMING[state].frameCount; f++) {
-          const grid = composedFrameGrid(APPEARANCE, facing, state, f);
+          const grid = composedCharacterGrid(CHARACTER, facing, state, f);
           expect(gridErrors(grid), `${facing} ${state} ${f}`).toEqual([]);
           expect(grid.length, `${facing} ${state} ${f}`).toBe(H);
           expect(grid[0]?.length, `${facing} ${state} ${f}`).toBe(W);
@@ -192,37 +228,48 @@ describe("composedFrameGrid", () => {
     }
   });
 
-  it("draws the stub face on front views only", () => {
-    expect(countChar(composedFrameGrid(APPEARANCE, "e", "idle", 0), "g")).toBe(4);
-    expect(countChar(composedFrameGrid(APPEARANCE, "n", "idle", 0), "g")).toBe(0);
+  it("draws the face parts on front views only", () => {
+    expect(countChar(composedCharacterGrid(CHARACTER, "e", "idle", 0), "g")).toBe(4);
+    expect(countChar(composedCharacterGrid(CHARACTER, "n", "idle", 0), "g")).toBe(0);
   });
 
   it("mirrors south/west from the authored views", () => {
-    expect(composedFrameGrid(APPEARANCE, "s", "walk", 2)).toEqual(
-      mirrored(composedFrameGrid(APPEARANCE, "e", "walk", 2)),
+    expect(composedCharacterGrid(CHARACTER, "s", "walk", 2)).toEqual(
+      mirrored(composedCharacterGrid(CHARACTER, "e", "walk", 2)),
     );
-    expect(composedFrameGrid(APPEARANCE, "w", "idle", 1)).toEqual(
-      mirrored(composedFrameGrid(APPEARANCE, "n", "idle", 1)),
+    expect(composedCharacterGrid(CHARACTER, "w", "idle", 1)).toEqual(
+      mirrored(composedCharacterGrid(CHARACTER, "n", "idle", 1)),
     );
   });
 
   it("keeps the face riding the head through every animation frame", () => {
     for (const state of STATES) {
       for (let f = 0; f < BODY_TIMING[state].frameCount; f++) {
-        const grid = composedFrameGrid(APPEARANCE, "e", state, f);
+        const grid = composedCharacterGrid(CHARACTER, "e", state, f);
         expect(countChar(grid, "g"), `${state} ${f} irises`).toBe(4);
         expect(countChar(grid, "K"), `${state} ${f} brows`).toBe(4);
       }
     }
   });
 
-  it("applies skin and eye remaps across all layers", () => {
-    const grid = composedFrameGrid(
-      { build: "lean", skinTone: 2, eyeColor: "m", face: "stub" },
-      "e",
-      "idle",
-      0,
+  it("produces a distinct grid for every skin tone", () => {
+    const grids = SKIN_RAMPS.map((_, tone) =>
+      composedCharacterGrid(character(tone), "e", "idle", 0).join("\n"),
     );
+    expect(new Set(grids).size).toBe(SKIN_RAMPS.length);
+  });
+
+  it("applies skin and eye remaps across all layers", () => {
+    const skin = skinToneRemap(2);
+    const warmBrown: ComposedCharacter = {
+      build: "lean",
+      layers: [
+        { slot: "body", art: "lean", remap: skin },
+        { slot: "face", art: "standard", remap: { ...skin, ...eyeColorRemap("m") } },
+        { slot: "face", art: "neutral", remap: skin },
+      ],
+    };
+    const grid = composedCharacterGrid(warmBrown, "e", "idle", 0);
     // Canonical channels are gone; the warm-brown ramp and amber irises
     // replace them (mouth "r" pixels recolor with the skin shade too).
     for (const ch of ["q", "r", "A", "g"]) {
@@ -233,33 +280,33 @@ describe("composedFrameGrid", () => {
     }
   });
 
-  it("throws on an out-of-range frame index", () => {
-    expect(() => composedFrameGrid(APPEARANCE, "e", "idle", 99)).toThrow(
-      /no idle frame 99/,
+  it("skips layers whose art has no registered grid", () => {
+    const withUnregistered: ComposedCharacter = {
+      ...CHARACTER,
+      layers: [
+        ...CHARACTER.layers,
+        { slot: "hair", art: "buzz", remap: { K: "M" } },
+        { slot: "weapon", art: "wpn-rail-spitter", remap: {} },
+      ],
+    };
+    expect(composedCharacterGrid(withUnregistered, "e", "idle", 0)).toEqual(
+      composedCharacterGrid(CHARACTER, "e", "idle", 0),
     );
   });
-});
 
-describe("previewAppearance", () => {
-  it("stays off without the dev gate and a known build", () => {
-    expect(previewAppearance("")).toBeNull();
-    expect(previewAppearance("?previewBody=lean")).toBeNull();
-    expect(previewAppearance("?dev")).toBeNull();
-    expect(previewAppearance("?dev&previewBody=giant")).toBeNull();
+  it("throws when no layer resolves to a drawable grid", () => {
+    const empty: ComposedCharacter = {
+      build: "lean",
+      layers: [{ slot: "hair", art: "buzz", remap: {} }],
+    };
+    expect(() => composedCharacterGrid(empty, "e", "idle", 0)).toThrow(
+      /no drawable layers/,
+    );
   });
 
-  it("builds a stub-face descriptor from the query", () => {
-    expect(previewAppearance("?dev&previewBody=heavy")).toEqual({
-      build: "heavy",
-      skinTone: 0,
-      eyeColor: "g",
-      face: "stub",
-    });
-  });
-
-  it("parses previewSkin and falls back to tone 0 on junk", () => {
-    expect(previewAppearance("?dev&previewBody=lean&previewSkin=2")?.skinTone).toBe(2);
-    expect(previewAppearance("?dev&previewBody=lean&previewSkin=9")?.skinTone).toBe(0);
-    expect(previewAppearance("?dev&previewBody=lean&previewSkin=x")?.skinTone).toBe(0);
+  it("throws on an out-of-range frame index", () => {
+    expect(() => composedCharacterGrid(CHARACTER, "e", "idle", 99)).toThrow(
+      /no idle frame 99/,
+    );
   });
 });

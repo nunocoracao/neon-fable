@@ -6,7 +6,6 @@ import {
   BODY_FRAME,
   BODY_GRIDS,
   BODY_VIEW_IDS,
-  bodyPreviewBuild,
   bodyViewForFacing,
 } from "./body";
 
@@ -170,16 +169,5 @@ describe("bodyViewForFacing", () => {
     expect(bodyViewForFacing("s")).toEqual({ view: "front", flip: true });
     expect(bodyViewForFacing("n")).toEqual({ view: "back", flip: false });
     expect(bodyViewForFacing("w")).toEqual({ view: "back", flip: true });
-  });
-});
-
-describe("bodyPreviewBuild", () => {
-  it("only activates with both the dev gate and a known build id", () => {
-    expect(bodyPreviewBuild("")).toBeNull();
-    expect(bodyPreviewBuild("?previewBody=lean")).toBeNull();
-    expect(bodyPreviewBuild("?dev")).toBeNull();
-    expect(bodyPreviewBuild("?dev&previewBody=bogus")).toBeNull();
-    expect(bodyPreviewBuild("?dev&previewBody=lean")).toBe("lean");
-    expect(bodyPreviewBuild("?dev&previewBody=heavy")).toBe("heavy");
   });
 });

@@ -31,9 +31,9 @@ import {
 import { INTERACTABLE_ART } from "./interactables";
 import { BODY_FRAME } from "./layers/body";
 import {
-  composedFrameGrid,
+  composedCharacterGrid,
   composedFrameKey,
-  previewAppearance,
+  type ComposedCharacter,
 } from "./layers";
 import { bakeGlow } from "./glow";
 import {
@@ -108,6 +108,32 @@ export interface PixelArtSprites extends SpriteProvider {
   cacheStats(): SpriteCacheStats;
 }
 
+export interface PixelArtSpriteOptions {
+  /**
+   * Live composed-character descriptor for the player sprite. Called on
+   * every lookup so appearance or equipment changes show on the next
+   * frame; callers should return the same object while nothing changed
+   * (bake-cache keys serialize the descriptor, so churn is only wasted
+   * string work, never wrong pixels).
+   */
+  player?: () => ComposedCharacter;
+}
+
+/**
+ * The stock look for session-less contexts (dev explore, scene tests):
+ * the default build with canonical porcelain channels and the default
+ * face parts. Real screens inject a live descriptor instead.
+ */
+const FALLBACK_PLAYER: ComposedCharacter = {
+  build: "lean",
+  layers: [
+    { slot: "body", art: "lean", remap: {} },
+    { slot: "face", art: "standard", remap: {} },
+    { slot: "face", art: "straight", remap: {} },
+    { slot: "face", art: "neutral", remap: {} },
+  ],
+};
+
 /** Character frame for a pose; exported for tests. */
 export function characterFrameIndex(pose: EntityPose, frameCount: number): number {
   return frameAt(
@@ -127,37 +153,36 @@ function characterGrid(pose: EntityPose): { grid: PixelGrid; key: string } {
   };
 }
 
-export function createPixelArtSprites(search?: string): PixelArtSprites {
+export function createPixelArtSprites(
+  options?: PixelArtSpriteOptions,
+): PixelArtSprites {
   const cache = createSpriteCache<Sprite>(SPRITE_CACHE_BUDGET_BYTES, spriteBytes);
   exposeCacheStats(cache);
 
-  // Dev-only composed-character preview (?dev&previewBody=lean|heavy,
-  // optional previewSkin=0-3): routes character sprites through the
-  // layer composition pipeline until character creation adopts it.
-  const preview = previewAppearance(
-    search ?? (typeof window === "undefined" ? "" : window.location.search),
-  );
-
   const cached = (key: string, make: () => Sprite): Sprite => cache.get(key, make);
+
+  const player = (): ComposedCharacter => options?.player?.() ?? FALLBACK_PLAYER;
 
   function composedPose(pose: EntityPose): { state: MotionState; frame: number } {
     const state: MotionState = pose.moving ? "walk" : "idle";
     return { state, frame: bodyFrameAt(state, pose.timeMs) };
   }
 
+  function playerSprite(pose: EntityPose): Sprite {
+    const descriptor = player();
+    const { state, frame } = composedPose(pose);
+    return cached(
+      `player:${composedFrameKey(descriptor, pose.facing, state, frame)}`,
+      () =>
+        bakeSprite(
+          composedCharacterGrid(descriptor, pose.facing, state, frame),
+          BODY_FRAME.anchorX,
+          BODY_FRAME.anchorY,
+        ),
+    );
+  }
+
   function character(role: CharacterRole, pose: EntityPose): Sprite {
-    if (preview) {
-      const { state, frame } = composedPose(pose);
-      return cached(
-        `char:v2:${composedFrameKey(preview, pose.facing, state, frame)}`,
-        () =>
-          bakeSprite(
-            composedFrameGrid(preview, pose.facing, state, frame),
-            BODY_FRAME.anchorX,
-            BODY_FRAME.anchorY,
-          ),
-      );
-    }
     const { grid, key } = characterGrid(pose);
     return cached(`char:${role}:${key}`, () =>
       bakeSprite(
@@ -231,17 +256,18 @@ export function createPixelArtSprites(search?: string): PixelArtSprites {
     },
 
     entity(id: EntitySpriteId, pose: EntityPose): Sprite {
-      return character(id, pose);
+      return id === "player" ? playerSprite(pose) : character(id, pose);
     },
 
     entitySilhouette(id: EntitySpriteId, pose: EntityPose): Sprite {
-      if (preview) {
+      if (id === "player") {
+        const descriptor = player();
         const { state, frame } = composedPose(pose);
         return cached(
-          `flash:v2:${composedFrameKey(preview, pose.facing, state, frame)}`,
+          `flash:player:${composedFrameKey(descriptor, pose.facing, state, frame)}`,
           () =>
             bakeSilhouette(
-              composedFrameGrid(preview, pose.facing, state, frame),
+              composedCharacterGrid(descriptor, pose.facing, state, frame),
               FLASH_COLOR,
               BODY_FRAME.anchorX,
               BODY_FRAME.anchorY,
