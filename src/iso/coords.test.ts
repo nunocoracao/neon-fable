@@ -8,6 +8,14 @@ import {
   worldToScreen,
 } from "./coords";
 
+describe("tile geometry", () => {
+  it("uses v2 hi-res 128×64 screen tiles in 2:1 ratio", () => {
+    expect(TILE_W).toBe(128);
+    expect(TILE_H).toBe(64);
+    expect(TILE_W).toBe(TILE_H * 2);
+  });
+});
+
 describe("worldToScreen", () => {
   it("places the origin tile at screen (0, 0)", () => {
     expect(worldToScreen(0, 0)).toEqual({ sx: 0, sy: 0 });

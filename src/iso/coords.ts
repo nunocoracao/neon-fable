@@ -5,10 +5,10 @@
  * are pure so they can be unit-tested without a canvas.
  */
 
-/** Width in pixels of one tile diamond. */
-export const TILE_W = 64;
+/** Width in pixels of one tile diamond (v2 hi-res: 64×32 art at 2x). */
+export const TILE_W = 128;
 /** Height in pixels of one tile diamond (2:1 ratio). */
-export const TILE_H = 32;
+export const TILE_H = 64;
 
 /** A position in tile coordinates. Fractional values are between tiles. */
 export interface WorldPoint {
