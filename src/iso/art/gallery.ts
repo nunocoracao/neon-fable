@@ -123,8 +123,11 @@ function bodyEntries(): GalleryEntry[] {
 /**
  * Appearance-layer combinations rendered through the real composition
  * pipeline (compose on the neutral pose, animate, mirror), exactly what
- * the player bake produces. Iterates every registered hair style ×
- * catalog hair color × facing on the lean body; catalog styles whose
+ * the player bake produces. Two sweeps over every registered hair
+ * style: style × catalog hair color × facing idling on the lean body,
+ * then style × build × facing walking in the canonical color — so both
+ * builds and the walk-only secondary motion (hair trail) are visible
+ * without the full color × build × state product. Catalog styles whose
  * art has not landed yet are skipped and join automatically once their
  * registry entry exists.
  */
@@ -134,31 +137,57 @@ function appearanceEntries(): GalleryEntry[] {
     (style) =>
       style.layer !== null && layerArtGrid("hair", style.layer, "front"),
   );
-  const { frameMs, frameCount } = BODY_TIMING.idle;
-  return styles.flatMap((style) =>
+  const character = (
+    build: (typeof BODY_BUILD_IDS)[number],
+    layer: string | null,
+    color: string,
+  ): ComposedCharacter => ({
+    build,
+    layers: [
+      { slot: "body", art: build, remap: {} },
+      { slot: "hair", art: layer ?? "", remap: { [hairChannel]: color } },
+    ],
+  });
+  const entry = (
+    id: string,
+    who: ComposedCharacter,
+    facing: Facing,
+    state: MotionState,
+  ): GalleryEntry => {
+    const { frameMs, frameCount } = BODY_TIMING[state];
+    return {
+      id,
+      frames: Array.from({ length: frameCount }, (_, frame) =>
+        composedCharacterGrid(who, facing, state, frame),
+      ),
+      frameMs,
+    };
+  };
+  const colorSweep = styles.flatMap((style) =>
     HAIR_COLOR_OPTIONS.flatMap((color) =>
-      FACINGS.map((facing) => {
-        const character: ComposedCharacter = {
-          build: "lean",
-          layers: [
-            { slot: "body", art: "lean", remap: {} },
-            {
-              slot: "hair",
-              art: style.layer ?? "",
-              remap: { [hairChannel]: color.color },
-            },
-          ],
-        };
-        return {
-          id: `hair ${style.id} ${color.id} ${facing}`,
-          frames: Array.from({ length: frameCount }, (_, frame) =>
-            composedCharacterGrid(character, facing, "idle", frame),
-          ),
-          frameMs,
-        };
-      }),
+      FACINGS.map((facing) =>
+        entry(
+          `hair ${style.id} ${color.id} ${facing}`,
+          character("lean", style.layer, color.color),
+          facing,
+          "idle",
+        ),
+      ),
     ),
   );
+  const buildSweep = styles.flatMap((style) =>
+    BODY_BUILD_IDS.flatMap((build) =>
+      FACINGS.map((facing) =>
+        entry(
+          `hair ${style.id} ${build} walk ${facing}`,
+          character(build, style.layer, "K"),
+          facing,
+          "walk",
+        ),
+      ),
+    ),
+  );
+  return [...colorSweep, ...buildSweep];
 }
 
 /**

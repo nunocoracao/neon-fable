@@ -98,10 +98,11 @@ describe("gallery sections", () => {
     }
   });
 
-  it("covers every registered hair style × hair color × facing", () => {
+  it("covers every registered hair style × hair color × facing, plus a walk sweep per build", () => {
     const appearance = section("appearance");
     expect(appearance.entries.length).toBe(
-      HAIR_STYLE_IDS.length * HAIR_COLOR_OPTIONS.length * 4,
+      HAIR_STYLE_IDS.length * HAIR_COLOR_OPTIONS.length * 4 +
+        HAIR_STYLE_IDS.length * BODY_BUILD_IDS.length * 4,
     );
     for (const style of HAIR_STYLE_IDS) {
       for (const color of HAIR_COLOR_OPTIONS) {
@@ -114,12 +115,26 @@ describe("gallery sections", () => {
           ).toBe(true);
         }
       }
+      for (const build of BODY_BUILD_IDS) {
+        for (const facing of ["n", "e", "s", "w"]) {
+          expect(
+            appearance.entries.some(
+              (e) => e.id === `hair ${style} ${build} walk ${facing}`,
+            ),
+            `hair ${style} ${build} walk ${facing} present`,
+          ).toBe(true);
+        }
+      }
     }
     // Each color actually recolors: same style+facing, distinct frames.
     const frame = (id: string): string =>
       appearance.entries.find((e) => e.id === id)?.frames[0]?.join("\n") ?? "";
     const looks = HAIR_COLOR_OPTIONS.map((c) => frame(`hair bob ${c.id} e`));
     expect(new Set(looks).size).toBe(HAIR_COLOR_OPTIONS.length);
+    // The walk sweep really differs per build.
+    expect(frame("hair locs lean walk e")).not.toBe(
+      frame("hair locs heavy walk e"),
+    );
   });
 });
 
