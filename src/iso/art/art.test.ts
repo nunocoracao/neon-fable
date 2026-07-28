@@ -509,9 +509,27 @@ describe("signage (native hi-res)", () => {
   });
 });
 
-describe("interactable art", () => {
-  it("door and terminal frames are valid, same-sized pulse loops", () => {
-    for (const [id, art] of Object.entries(INTERACTABLE_ART)) {
+const INTERACTABLE_IDS = ["door", "terminal", "stash", "exit"] as const;
+
+/**
+ * The hit-flash/outline silhouette of a grid: every pixel bakeSilhouette
+ * would paint (everything but transparency and the z ground shadow).
+ */
+function silhouette(grid: PixelGrid): string {
+  return grid
+    .map((row) =>
+      [...row].map((ch) => (ch === TRANSPARENT || ch === "z" ? "." : "x")).join(""),
+    )
+    .join("\n");
+}
+
+describe("interactable art (native hi-res)", () => {
+  it("registers every drawn sprite id as valid same-sized frames in the v2 envelope", () => {
+    expect(Object.keys(INTERACTABLE_ART).sort()).toEqual(
+      [...INTERACTABLE_IDS].sort(),
+    );
+    for (const id of INTERACTABLE_IDS) {
+      const art = INTERACTABLE_ART[id];
       expect(art.frames.length, id).toBeGreaterThanOrEqual(2);
       expect(art.frameMs, id).toBeGreaterThan(0);
       const first = art.frames[0];
@@ -520,7 +538,116 @@ describe("interactable art", () => {
         expect(grid.length, `${id} frame ${f} height`).toBe(first?.length);
         expect(grid[0]?.length, `${id} frame ${f} width`).toBe(first?.[0]?.length);
       });
+      expect(first?.[0]?.length, `${id} width`).toBeLessThanOrEqual(64);
+      expect(first?.length, `${id} height`).toBeLessThanOrEqual(96);
     }
+  });
+
+  it("anchors ground contact inside the grid and the tile's lower half", () => {
+    for (const id of INTERACTABLE_IDS) {
+      const art = INTERACTABLE_ART[id];
+      const grid = art.frames[0] ?? [];
+      expect(art.anchorX, id).toBeLessThan(grid[0]?.length ?? 0);
+      expect(art.anchorY, id).toBeLessThan(grid.length);
+      expect(
+        grid.length - 1 - art.anchorY,
+        `${id} rows below anchor`,
+      ).toBeLessThanOrEqual(16);
+    }
+  });
+
+  it("holds one silhouette across all frames so outlines and hit flashes stay stable", () => {
+    for (const id of INTERACTABLE_IDS) {
+      const frames = INTERACTABLE_ART[id].frames;
+      const shape = silhouette(frames[0] ?? []);
+      frames.forEach((grid, f) => {
+        expect(silhouette(grid), `${id} frame ${f}`).toBe(shape);
+      });
+    }
+  });
+
+  it("keeps silhouettes clean: no isolated 1px specks", () => {
+    for (const id of INTERACTABLE_IDS) {
+      const grid = INTERACTABLE_ART[id].frames[0] ?? [];
+      const opaque = (x: number, y: number): boolean => {
+        const ch = grid[y]?.[x];
+        return ch !== undefined && ch !== TRANSPARENT && ch !== "z";
+      };
+      grid.forEach((row, y) => {
+        for (let x = 0; x < row.length; x++) {
+          if (!opaque(x, y)) continue;
+          let neighbors = 0;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if ((dx !== 0 || dy !== 0) && opaque(x + dx, y + dy)) neighbors++;
+            }
+          }
+          expect(neighbors, `${id} pixel (${x}, ${y}) isolated`).toBeGreaterThan(0);
+        }
+      });
+    }
+  });
+
+  it("standing sprites ground with a soft z shadow; the exit lies flat in its tile", () => {
+    for (const id of ["door", "terminal", "stash"] as const) {
+      expect(INTERACTABLE_ART[id].frames[0]?.join("").includes("z"), id).toBe(
+        true,
+      );
+    }
+    const exit = INTERACTABLE_ART.exit;
+    const grid = exit.frames[0] ?? [];
+    expect(grid.length).toBe(32);
+    expect(grid[0]?.length).toBe(64);
+    expect(grid.join("").includes("z")).toBe(false);
+    expect(exit.anchorX).toBe(32);
+    expect(exit.anchorY).toBe(16);
+    // Ground art must stay inside its own diamond so tiles keep
+    // tessellating cleanly around it.
+    grid.forEach((row, r) => {
+      for (let x = 0; x < row.length; x++) {
+        if (row[x] !== TRANSPARENT) {
+          expect(maskOwns(x, r), `exit pixel (${x}, ${r}) outside its tile`).toBe(
+            true,
+          );
+        }
+      }
+    });
+  });
+
+  it("door status lamp and seam pulse bright to dim", () => {
+    const [bright, dim] = INTERACTABLE_ART.door.frames;
+    expect(bright?.join("")).toContain("h");
+    expect(dim?.join("")).not.toContain("h");
+    expect(dim).toEqual(remapped(bright ?? [], { h: "g", g: "i" }));
+  });
+
+  it("terminal scanline sweeps down the screen across three frames", () => {
+    const frames = INTERACTABLE_ART.terminal.frames;
+    expect(frames.length).toBe(3);
+    const scanRows = frames.map((grid) =>
+      grid.findIndex((row) => row.includes("h")),
+    );
+    expect(scanRows[0]).toBeGreaterThanOrEqual(0);
+    expect(scanRows[1]).toBeGreaterThan(scanRows[0] ?? 0);
+    expect(scanRows[2]).toBeGreaterThan(scanRows[1] ?? 0);
+  });
+
+  it("stash holds closed, then fires a brief latch glint", () => {
+    const frames = INTERACTABLE_ART.stash.frames;
+    const base = frames[0]?.join("\n") ?? "";
+    frames.slice(0, -1).forEach((grid, f) => {
+      expect(grid.join("\n"), `frame ${f} holds closed`).toBe(base);
+    });
+    const glint = frames[frames.length - 1]?.join("\n") ?? "";
+    expect(glint).not.toBe(base);
+    expect(base).not.toContain("9");
+    expect(glint).toContain("9");
+  });
+
+  it("exit strip lights march through three distinct frames", () => {
+    const frames = INTERACTABLE_ART.exit.frames;
+    expect(frames.length).toBe(3);
+    expect(new Set(frames.map((g) => g.join("\n"))).size).toBe(3);
   });
 });
 
