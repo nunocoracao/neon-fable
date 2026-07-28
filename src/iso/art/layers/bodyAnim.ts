@@ -219,12 +219,25 @@ function idleFrames(base: PixelGrid): PixelGrid[] {
   return [base, rise, headLifted(rise), rise];
 }
 
+/**
+ * Derive the full animation set from any base grid that honors the
+ * 32×48 frame contract — the bare body or a layer-composed character.
+ * The composition engine composes layers on the neutral pose and then
+ * animates the result here, so faces, hair, and gear ride the body's
+ * breathe/stride transforms without per-layer animation.
+ */
+export function bodyAnimFrames(
+  base: PixelGrid,
+  build: BodyBuildId,
+): Readonly<Record<MotionState, readonly PixelGrid[]>> {
+  return { idle: idleFrames(base), walk: walkFrames(base, build) };
+}
+
 function animSet(
   build: BodyBuildId,
   view: BodyViewId,
 ): Readonly<Record<MotionState, readonly PixelGrid[]>> {
-  const base = BODY_GRIDS[build][view];
-  return { idle: idleFrames(base), walk: walkFrames(base, build) };
+  return bodyAnimFrames(BODY_GRIDS[build][view], build);
 }
 
 /**
