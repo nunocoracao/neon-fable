@@ -23,10 +23,10 @@ function expectValid(grid: PixelGrid, label: string): void {
 }
 
 describe("palette", () => {
-  it("stays a disciplined 16-32 color set", () => {
+  it("stays a disciplined curated set (v2: ~56 entries; details in palette.test)", () => {
     const colors = Object.values(PALETTE);
     expect(colors.length).toBeGreaterThanOrEqual(16);
-    expect(colors.length).toBeLessThanOrEqual(32);
+    expect(colors.length).toBeLessThanOrEqual(64);
     expect(new Set(colors).size).toBe(colors.length);
     expect(PALETTE[TRANSPARENT]).toBeUndefined();
   });
