@@ -3,13 +3,16 @@ import {
   DEFAULT_SETTINGS,
   SETTINGS_KEY,
   SETTINGS_VERSION,
+  ZOOM_LEVELS,
   clampSettings,
+  clampZoom,
   loadSettings,
   migrateSettings,
   parseSettings,
   revealDelayMs,
   saveSettings,
   serializeSettings,
+  stepZoom,
   type SettingsStorage,
 } from "./settings";
 import { createSettingsStore } from "./store";
@@ -36,24 +39,49 @@ describe("clampSettings", () => {
 
   it("keeps valid fields and clamps invalid ones independently", () => {
     expect(
-      clampSettings({ textSpeed: "fast", reducedMotion: "yes" }),
-    ).toEqual({ textSpeed: "fast", reducedMotion: false });
+      clampSettings({ textSpeed: "fast", reducedMotion: "yes", zoom: 1.5 }),
+    ).toEqual({ textSpeed: "fast", reducedMotion: false, zoom: 1.5 });
     expect(
       clampSettings({ textSpeed: "warp", reducedMotion: true }),
-    ).toEqual({ textSpeed: "normal", reducedMotion: true });
+    ).toEqual({ textSpeed: "normal", reducedMotion: true, zoom: 1 });
   });
 
   it("ignores unknown fields", () => {
     expect(clampSettings({ textSpeed: "instant", volume: 3 })).toEqual({
       textSpeed: "instant",
       reducedMotion: false,
+      zoom: 1,
     });
+  });
+
+  it("rejects zoom values off the level ladder", () => {
+    for (const bad of [0, 0.75, 3, "1.5", true, null]) {
+      expect(clampSettings({ zoom: bad }).zoom).toBe(1);
+      expect(clampZoom(bad)).toBe(1);
+    }
+    for (const level of ZOOM_LEVELS) {
+      expect(clampZoom(level)).toBe(level);
+    }
+  });
+});
+
+describe("stepZoom", () => {
+  it("walks the level ladder one step at a time", () => {
+    expect(stepZoom(1, 1)).toBe(1.5);
+    expect(stepZoom(1.5, 1)).toBe(2);
+    expect(stepZoom(2, -1)).toBe(1.5);
+    expect(stepZoom(1.5, -1)).toBe(1);
+  });
+
+  it("clamps at both ends", () => {
+    expect(stepZoom(2, 1)).toBe(2);
+    expect(stepZoom(1, -1)).toBe(1);
   });
 });
 
 describe("parse / serialize / migrate", () => {
   it("round-trips through serialize and parse", () => {
-    const settings = { textSpeed: "fast", reducedMotion: true } as const;
+    const settings = { textSpeed: "fast", reducedMotion: true, zoom: 1.5 } as const;
     expect(parseSettings(serializeSettings(settings))).toEqual(settings);
   });
 
@@ -74,8 +102,21 @@ describe("parse / serialize / migrate", () => {
   it("migrates unknown or future versions field-tolerantly", () => {
     expect(
       migrateSettings({ version: 99, textSpeed: "instant", extra: true }),
-    ).toEqual({ textSpeed: "instant", reducedMotion: false });
+    ).toEqual({ textSpeed: "instant", reducedMotion: false, zoom: 1 });
     expect(migrateSettings({ version: "zero" })).toEqual(DEFAULT_SETTINGS);
+  });
+
+  it("migrates v1 payloads (no zoom yet) to the default zoom", () => {
+    const v1 = JSON.stringify({
+      version: 1,
+      textSpeed: "fast",
+      reducedMotion: true,
+    });
+    expect(parseSettings(v1)).toEqual({
+      textSpeed: "fast",
+      reducedMotion: true,
+      zoom: 1,
+    });
   });
 });
 
@@ -87,11 +128,12 @@ describe("load / save", () => {
 
   it("persists under the settings key, separate from save slots", () => {
     const storage = fakeStorage();
-    saveSettings({ textSpeed: "instant", reducedMotion: true }, storage);
+    saveSettings({ textSpeed: "instant", reducedMotion: true, zoom: 2 }, storage);
     expect(Object.keys(storage.data)).toEqual([SETTINGS_KEY]);
     expect(loadSettings(storage)).toEqual({
       textSpeed: "instant",
       reducedMotion: true,
+      zoom: 2,
     });
   });
 
@@ -129,9 +171,13 @@ describe("revealDelayMs", () => {
 describe("settings store", () => {
   it("loads persisted settings at creation", () => {
     const storage = fakeStorage();
-    saveSettings({ textSpeed: "fast", reducedMotion: true }, storage);
+    saveSettings({ textSpeed: "fast", reducedMotion: true, zoom: 1.5 }, storage);
     const store = createSettingsStore(storage);
-    expect(store.get()).toEqual({ textSpeed: "fast", reducedMotion: true });
+    expect(store.get()).toEqual({
+      textSpeed: "fast",
+      reducedMotion: true,
+      zoom: 1.5,
+    });
   });
 
   it("updates merge, clamp, persist, and notify subscribers", () => {
@@ -141,7 +187,11 @@ describe("settings store", () => {
     const unsubscribe = store.subscribe((s) => seen.push(s.textSpeed));
 
     store.update({ textSpeed: "instant" });
-    expect(store.get()).toEqual({ textSpeed: "instant", reducedMotion: false });
+    expect(store.get()).toEqual({
+      textSpeed: "instant",
+      reducedMotion: false,
+      zoom: 1,
+    });
     expect(loadSettings(storage).textSpeed).toBe("instant");
     expect(seen).toEqual(["instant"]);
 
@@ -151,5 +201,11 @@ describe("settings store", () => {
     expect(store.get().reducedMotion).toBe(true);
     // The earlier field survives a partial update.
     expect(store.get().textSpeed).toBe("instant");
+  });
+
+  it("persists the chosen zoom level across stores", () => {
+    const storage = fakeStorage();
+    createSettingsStore(storage).update({ zoom: 2 });
+    expect(createSettingsStore(storage).get().zoom).toBe(2);
   });
 });
