@@ -32,6 +32,7 @@ import {
 } from "./layers/body";
 import { bodyAnimFrames } from "./layers/bodyAnim";
 import { FACE_LAYERS } from "./layers/face";
+import { HAIR_LAYERS } from "./layers/hair";
 
 /** Layer slots in base (toward-camera) z-order, bottom to top. */
 export const LAYER_SLOTS = [
@@ -180,6 +181,7 @@ type SlotRegistry = Readonly<
 const SLOT_REGISTRIES: Readonly<Partial<Record<LayerSlot, SlotRegistry>>> = {
   body: BODY_GRIDS as SlotRegistry,
   face: FACE_LAYERS as SlotRegistry,
+  hair: HAIR_LAYERS as SlotRegistry,
 };
 
 /** The grid a layer draws for a view, or null while its art is unregistered. */
