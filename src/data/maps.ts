@@ -30,6 +30,10 @@ const hubLegend: Record<string, LegendEntry> = {
   b: { tile: "pavement", prop: { propId: "barrier", blocks: true } },
   v: { tile: "pavement", prop: { propId: "vent-stack", blocks: true } },
   h: { tile: "pavement", prop: { propId: "holo-sign", blocks: true } },
+  y: { tile: "pavement-cracked", prop: { propId: "hydrant", blocks: true } },
+  t: { tile: "pavement", prop: { propId: "trash-heap", blocks: true } },
+  // Ground clutter, not an obstacle — pedestrians step over the cables.
+  u: { tile: "pavement", prop: { propId: "cable-bundle", blocks: false } },
 };
 
 const hubRows = [
@@ -38,11 +42,11 @@ const hubRows = [
   "#.l......e~~w#",
   "#...====.e~~w#",
   "#...====..BB.#",
-  "#...====..,..#",
+  "#...====..,.u#",
   "#.,.====....l#",
-  "#...........,#",
-  "#.l....v.....#",
-  "#,...........#",
+  "#y..........,#",
+  "#.l....v..u..#",
+  "#,.........t.#",
   "#rrrrrrrrrrrr#",
   "##############",
 ];

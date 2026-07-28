@@ -37,11 +37,12 @@ const TILE_ANCHOR_X = 32;
 const TILE_ANCHOR_Y = 16;
 
 /**
- * Interim hi-res shim: character/prop/interactable sets are still
- * authored at the legacy 1x sizes, so those grids are nearest-neighbor
- * doubled (and their authored anchors doubled to match) at bake time.
- * Removed per set as each is re-authored natively at the v2 resolution;
- * tile grids already route through nativeScaled instead.
+ * Interim hi-res shim: character/interactable sets (and the props not
+ * yet marked native) are still authored at the legacy 1x sizes, so
+ * those grids are nearest-neighbor doubled (and their authored anchors
+ * doubled to match) at bake time. Removed per set as each is
+ * re-authored natively at the v2 resolution; tile grids already route
+ * through nativeScaled, and native props bake as-is.
  */
 const SHIM_SCALE = 2;
 
@@ -124,11 +125,13 @@ export function createPixelArtSprites(): SpriteProvider {
         }
       }
       return cached(`prop:${id}:${frame}`, () =>
-        bakeSprite(
-          upscaled(art.frames[frame] ?? []),
-          art.anchorX * SHIM_SCALE,
-          art.anchorY * SHIM_SCALE,
-        ),
+        art.native
+          ? bakeSprite(art.frames[frame] ?? [], art.anchorX, art.anchorY)
+          : bakeSprite(
+              upscaled(art.frames[frame] ?? []),
+              art.anchorX * SHIM_SCALE,
+              art.anchorY * SHIM_SCALE,
+            ),
       );
     },
 

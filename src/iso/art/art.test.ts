@@ -333,6 +333,87 @@ describe("prop art", () => {
   });
 });
 
+const STREET_FURNITURE = [
+  "streetlight",
+  "vent-stack",
+  "crate",
+  "barrier",
+  "hydrant",
+  "trash-heap",
+  "cable-bundle",
+] as const;
+
+describe("street furniture (native hi-res)", () => {
+  it("is marked native and fits the v2 prop envelope", () => {
+    for (const id of STREET_FURNITURE) {
+      const art = PROP_ART[id];
+      expect(art.native, id).toBe(true);
+      const grid = art.frames[0] ?? [];
+      expect(grid[0]?.length, `${id} width`).toBeLessThanOrEqual(64);
+      expect(grid.length, `${id} height`).toBeLessThanOrEqual(96);
+    }
+    // The building and holo-sign still ride the legacy shim until their
+    // own re-authoring passes.
+    expect(PROP_ART.building.native).toBe(false);
+    expect(PROP_ART["holo-sign"].native).toBe(false);
+  });
+
+  it("anchors ground contact inside the tile's own lower half", () => {
+    // At most a half tile (16 rows) may hang below the anchor, so a
+    // prop never paints past its tile's bottom vertex: entities on the
+    // tile in front sort later and always cover it cleanly.
+    for (const id of STREET_FURNITURE) {
+      const art = PROP_ART[id];
+      const height = art.frames[0]?.length ?? 0;
+      expect(art.anchorY, id).toBeLessThan(height);
+      expect(height - 1 - art.anchorY, `${id} rows below anchor`).toBeLessThanOrEqual(16);
+    }
+  });
+
+  it("grounds every piece with a soft z shadow", () => {
+    for (const id of STREET_FURNITURE) {
+      const grid = PROP_ART[id].frames[0] ?? [];
+      expect(grid.join("").includes("z"), id).toBe(true);
+    }
+  });
+
+  it("emissive props cast their own light", () => {
+    // The streetlight pools cyan light on the pavement around its base
+    // while lit, and drops the pool in the flicker-dropout frame.
+    const art = PROP_ART.streetlight;
+    const litPool = (art.frames[0] ?? []).slice(art.anchorY + 1).join("");
+    expect(litPool.includes("g")).toBe(true);
+    expect(litPool.includes("i")).toBe(true);
+    const deadPool = (art.frames[art.frames.length - 1] ?? [])
+      .slice(art.anchorY + 1)
+      .join("");
+    expect(deadPool.includes("g")).toBe(false);
+    expect(deadPool.includes("i")).toBe(false);
+    // The vent stack glows amber through its grille and wall slits.
+    const vent = (PROP_ART["vent-stack"].frames[0] ?? []).join("");
+    expect(vent.includes("m")).toBe(true);
+    expect(vent.includes("o")).toBe(true);
+  });
+
+  it("idle loops animate through distinct frames at a real cadence", () => {
+    const looping = ["vent-stack", "barrier", "hydrant", "cable-bundle"] as const;
+    for (const id of looping) {
+      const art = PROP_ART[id];
+      expect(art.frameMs, id).toBeGreaterThan(0);
+      const unique = new Set(art.frames.map((grid) => grid.join("\n")));
+      expect(unique.size, id).toBe(art.frames.length);
+    }
+    // The steam wisps actually drift: the 7/8 steam pixels occupy a
+    // different layout in every vent frame.
+    const steam = PROP_ART["vent-stack"].frames.map((grid) =>
+      grid
+        .map((row) => [...row].map((ch) => ("78".includes(ch) ? "x" : ".")).join(""))
+        .join("\n"),
+    );
+    expect(new Set(steam).size).toBe(PROP_ART["vent-stack"].frames.length);
+  });
+});
+
 describe("interactable art", () => {
   it("door and terminal frames are valid, same-sized pulse loops", () => {
     for (const [id, art] of Object.entries(INTERACTABLE_ART)) {
