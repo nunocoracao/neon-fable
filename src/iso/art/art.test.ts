@@ -324,7 +324,13 @@ describe("prop art", () => {
   });
 
   it("neon props have a distinct dropout frame to flicker to", () => {
-    for (const id of ["streetlight", "holo-sign"] as const) {
+    for (const id of [
+      "streetlight",
+      "holo-sign",
+      "neon-sign",
+      "holo-billboard",
+      "shop-sign",
+    ] as const) {
       const art = PROP_ART[id];
       expect(art.flicker).toBe(true);
       expect(art.frames.length).toBeGreaterThanOrEqual(2);
@@ -352,10 +358,9 @@ describe("street furniture (native hi-res)", () => {
       expect(grid[0]?.length, `${id} width`).toBeLessThanOrEqual(64);
       expect(grid.length, `${id} height`).toBeLessThanOrEqual(96);
     }
-    // The building and holo-sign still ride the legacy shim until their
-    // own re-authoring passes.
+    // The building still rides the legacy shim until its own
+    // re-authoring pass.
     expect(PROP_ART.building.native).toBe(false);
-    expect(PROP_ART["holo-sign"].native).toBe(false);
   });
 
   it("anchors ground contact inside the tile's own lower half", () => {
@@ -411,6 +416,96 @@ describe("street furniture (native hi-res)", () => {
         .join("\n"),
     );
     expect(new Set(steam).size).toBe(PROP_ART["vent-stack"].frames.length);
+  });
+});
+
+const SIGNAGE = ["neon-sign", "holo-sign", "holo-billboard", "shop-sign"] as const;
+const HOLO_SIGNAGE = ["holo-sign", "holo-billboard"] as const;
+
+/** True if any core-char pixel touches (8-neighborhood) a halo char. */
+function hasHaloRing(grid: PixelGrid, cores: string, halos: string): boolean {
+  for (let y = 0; y < grid.length; y++) {
+    const row = grid[y] ?? "";
+    for (let x = 0; x < row.length; x++) {
+      const ch = row[x];
+      if (ch === undefined || !cores.includes(ch)) continue;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const n = grid[y + dy]?.[x + dx];
+          if (n !== undefined && halos.includes(n)) return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+describe("signage (native hi-res)", () => {
+  it("is native, fits the prop envelope, and grounds with a soft shadow", () => {
+    for (const id of SIGNAGE) {
+      const art = PROP_ART[id];
+      expect(art.native, id).toBe(true);
+      const grid = art.frames[0] ?? [];
+      expect(grid[0]?.length, `${id} width`).toBeLessThanOrEqual(64);
+      expect(grid.length, `${id} height`).toBeLessThanOrEqual(96);
+      expect(grid.join("").includes("z"), `${id} shadow`).toBe(true);
+      expect(art.anchorY, id).toBeLessThan(grid.length);
+      expect(grid.length - 1 - art.anchorY, `${id} rows below anchor`).toBeLessThanOrEqual(16);
+    }
+  });
+
+  it("loops 2-3 distinct shimmer frames before the flicker dropout", () => {
+    for (const id of SIGNAGE) {
+      const art = PROP_ART[id];
+      expect(art.flicker, id).toBe(true);
+      expect(art.frameMs, id).toBeGreaterThan(0);
+      const loop = art.frames.length - 1;
+      expect(loop, `${id} loop frames`).toBeGreaterThanOrEqual(2);
+      expect(loop, `${id} loop frames`).toBeLessThanOrEqual(3);
+      const unique = new Set(art.frames.map((grid) => grid.join("\n")));
+      expect(unique.size, `${id} distinct frames`).toBe(art.frames.length);
+    }
+  });
+
+  it("neon glyphs run a bright core inside a dim halo ring, dead on dropout", () => {
+    const neon = [
+      { id: "neon-sign", cores: "jk", halo: "l", lit: /[jkgh]/ },
+      { id: "shop-sign", cores: "mn", halo: "o", lit: /[mn]/ },
+    ] as const;
+    for (const { id, cores, halo, lit } of neon) {
+      const art = PROP_ART[id];
+      expect(hasHaloRing(art.frames[0] ?? [], cores, halo), `${id} halo`).toBe(
+        true,
+      );
+      const dead = (art.frames[art.frames.length - 1] ?? []).join("");
+      expect(lit.test(dead), `${id} dropout still lit`).toBe(false);
+    }
+  });
+
+  it("holograms read translucent through dithering and glitch a slipped slice", () => {
+    for (const id of HOLO_SIGNAGE) {
+      const art = PROP_ART[id];
+      const base = art.frames[0] ?? [];
+      const joined = base.join("\n");
+      // The projection body is the hologram-blue ramp, checker-dithered
+      // so the scene shows through between pixels.
+      expect(/[stu]/.test(joined), `${id} holo ramp`).toBe(true);
+      expect(/t\.t/.test(joined), `${id} dither`).toBe(true);
+      // Scanline shimmer moves between the loop frames.
+      expect(art.frames[1]?.join("\n"), `${id} shimmer`).not.toEqual(joined);
+      // The glitch frame slips a slice exactly one pixel right.
+      const glitch = art.frames[art.frames.length - 2] ?? [];
+      const slipped = base
+        .map((row, y) => [row, glitch[y] ?? ""] as const)
+        .filter(([a, b]) => a !== b);
+      expect(slipped.length, `${id} glitch slice`).toBeGreaterThanOrEqual(2);
+      for (const [a, b] of slipped) {
+        expect(b, `${id} glitch shifts right`).toBe("." + a.slice(0, -1));
+      }
+      // Dropout kills the whole projection, not just the glyph.
+      const dead = (art.frames[art.frames.length - 1] ?? []).join("");
+      expect(/[stu]/.test(dead), `${id} dead projection`).toBe(false);
+    }
   });
 });
 

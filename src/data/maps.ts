@@ -30,6 +30,9 @@ const hubLegend: Record<string, LegendEntry> = {
   b: { tile: "pavement", prop: { propId: "barrier", blocks: true } },
   v: { tile: "pavement", prop: { propId: "vent-stack", blocks: true } },
   h: { tile: "pavement", prop: { propId: "holo-sign", blocks: true } },
+  N: { tile: "pavement", prop: { propId: "neon-sign", blocks: true } },
+  H: { tile: "pavement", prop: { propId: "holo-billboard", blocks: true } },
+  s: { tile: "pavement", prop: { propId: "shop-sign", blocks: true } },
   y: { tile: "pavement-cracked", prop: { propId: "hydrant", blocks: true } },
   t: { tile: "pavement", prop: { propId: "trash-heap", blocks: true } },
   // Ground clutter, not an obstacle — pedestrians step over the cables.
@@ -38,14 +41,14 @@ const hubLegend: Record<string, LegendEntry> = {
 
 const hubRows = [
   "###d##########",
-  "#....,...eDDw#",
+  "#....N.H.eDDw#",
   "#.l......e~~w#",
   "#...====.e~~w#",
   "#...====..BB.#",
   "#...====..,.u#",
-  "#.,.====....l#",
+  "#.,.====..s.l#",
   "#y..........,#",
-  "#.l....v..u..#",
+  "#.l....v..u.h#",
   "#,.........t.#",
   "#rrrrrrrrrrrr#",
   "##############",
@@ -146,6 +149,8 @@ const greywaterLegend: Record<string, LegendEntry> = {
   b: { tile: "pavement", prop: { propId: "barrier", blocks: true } },
   v: { tile: "pavement", prop: { propId: "vent-stack", blocks: true } },
   c: { tile: "pavement", prop: { propId: "crate", blocks: true } },
+  // Patch's Den hangs a small glyph board out on the walk.
+  s: { tile: "pavement", prop: { propId: "shop-sign", blocks: true } },
   // Patch's Den doorway: a scrubbed clinical-tile threshold under the
   // door, baseboard-shadowed toward the den behind it.
   p: { tile: "clinic-floor-n" },
@@ -159,7 +164,7 @@ const greywaterRows = [
   "#............#",
   "#.,...==.....#",
   "#.....==...v.#",
-  "#.l.......c..#",
+  "#sl.......c..#",
   "#.p...,......#",
   "#..........l.#",
   "#,...........#",
@@ -258,15 +263,19 @@ const ventworksLegend: Record<string, LegendEntry> = {
   b: { tile: "pavement", prop: { propId: "barrier", blocks: true } },
   v: { tile: "pavement", prop: { propId: "vent-stack", blocks: true } },
   c: { tile: "pavement", prop: { propId: "crate", blocks: true } },
+  // Auric's district advertising: a corp holo ad and a canal-side
+  // billboard mast.
+  h: { tile: "pavement", prop: { propId: "holo-sign", blocks: true } },
+  H: { tile: "pavement", prop: { propId: "holo-billboard", blocks: true } },
 };
 
 const ventworksRows = [
   "##############",
-  "#....==.eDDw.#",
+  "#....==.eDDwH#",
   "#.l..==.e~~w.#",
   "#....==..Bn..#",
   "#..,......v..#",
-  "#.....l......#",
+  "#h....l......#",
   "#.c........,.#",
   "#....,....l..#",
   "#..v.........#",
