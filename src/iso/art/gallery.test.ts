@@ -5,9 +5,11 @@ import {
   matchesQuery,
   type GallerySection,
 } from "./gallery";
+import { HAIR_COLOR_OPTIONS } from "../../data/appearance";
 import { CHARACTER_FRAMES, ROLE_REMAPS } from "./characters";
 import { INTERACTABLE_ART } from "./interactables";
 import { BODY_BUILD_IDS } from "./layers/body";
+import { HAIR_STYLE_IDS } from "./layers/hair";
 import { gridErrors } from "./pixel";
 import { PROP_ART } from "./props";
 import { TILE_ART } from "./tiles";
@@ -29,7 +31,14 @@ function section(id: string): GallerySection {
 describe("gallery sections", () => {
   it("groups art into uniquely-identified sections", () => {
     const ids = sections.map((s) => s.id);
-    expect(ids).toEqual(["tiles", "props", "interactables", "characters", "bodies"]);
+    expect(ids).toEqual([
+      "tiles",
+      "props",
+      "interactables",
+      "characters",
+      "bodies",
+      "appearance",
+    ]);
     for (const s of sections) {
       const entryIds = s.entries.map((e) => e.id);
       expect(new Set(entryIds).size, `${s.id} entry ids unique`).toBe(
@@ -87,6 +96,30 @@ describe("gallery sections", () => {
         `${build} mirrored walk present`,
       ).toBe(true);
     }
+  });
+
+  it("covers every registered hair style × hair color × facing", () => {
+    const appearance = section("appearance");
+    expect(appearance.entries.length).toBe(
+      HAIR_STYLE_IDS.length * HAIR_COLOR_OPTIONS.length * 4,
+    );
+    for (const style of HAIR_STYLE_IDS) {
+      for (const color of HAIR_COLOR_OPTIONS) {
+        for (const facing of ["n", "e", "s", "w"]) {
+          expect(
+            appearance.entries.some(
+              (e) => e.id === `hair ${style} ${color.id} ${facing}`,
+            ),
+            `hair ${style} ${color.id} ${facing} present`,
+          ).toBe(true);
+        }
+      }
+    }
+    // Each color actually recolors: same style+facing, distinct frames.
+    const frame = (id: string): string =>
+      appearance.entries.find((e) => e.id === id)?.frames[0]?.join("\n") ?? "";
+    const looks = HAIR_COLOR_OPTIONS.map((c) => frame(`hair bob ${c.id} e`));
+    expect(new Set(looks).size).toBe(HAIR_COLOR_OPTIONS.length);
   });
 });
 
