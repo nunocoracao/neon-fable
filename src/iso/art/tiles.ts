@@ -1,15 +1,17 @@
 /**
  * Ground tile pixel art, authored as diamond interior rows (see
- * diamond()). The street family (pavement, pavement-cracked, road) is
- * native v2 64×32; the remaining sets are legacy 32×16 grids that still
+ * diamond()). The street family (pavement, pavement-cracked, road) and
+ * the water family (canal, canal-deep, quay edges) are native v2 64×32;
+ * the remaining sets are legacy 32×16 grids that still
  * render through the nearest-neighbor shim until re-authored. Walkable
  * tiles get 3+ texture variants picked deterministically from tile
  * coordinates, and water/glow tiles animate through short frame loops.
  * Light falls from the upper left: upper edges are lit, lower edges
  * shaded.
  */
+import { hash2 } from "../animation";
 import type { TileId } from "../tilemap";
-import { diamond, type PixelGrid } from "./pixel";
+import { DIAMOND_WIDTHS, diamond, type PixelGrid } from "./pixel";
 
 export interface TileArt {
   /** variants[v] is a frame loop; static tiles have a single frame. */
@@ -453,64 +455,207 @@ const roadE = diamond([
   "112211",
   "11",
 ]);
-/* --- Canal: glowing water, 3-frame ripple loop. --- */
+/* --- Water family (native 64×32): open canal water and the deep
+   channel. Frames are synthesized deterministically from hash2-seeded
+   placement data: static diagonal swells in the dark ramp step, ripple
+   crests that drift and fade through a 4-frame spawn/travel/peak/decay
+   cycle, and sparse neon cyan/magenta flecks — canal-side signage
+   reflecting off the water — that blink through the same cycle. Frame
+   timing stays data-driven via frameMs on the TILE_ART entry. --- */
 
-const canalFrame0 = diamond([
-  "fe",
-  "feeeee",
-  "feeffeeeee",
-  "feeeeeeddeeeee",
-  "feeeegfeeeeeeeeeee",
-  "feeeeeeeeeeffeeeeddeee",
-  "feeddeeeeeeeeeeeeeeeeffeee",
-  "feeeeeeeeffeeeeeeeeeeeeeeeeeee",
-  "deeeeeeeeeeeeeeeegfeeeeeeeeeed",
-  "deeeeffeeeeeeeeeeeeeeeeeed",
-  "deeeeeeeeeeddeeeeeeeed",
-  "deeeeeeeeeeeeffeed",
-  "deeffeeeeeeeed",
-  "deeeeeeeed",
-  "deeeed",
-  "dd",
-]);
+export const WATER_FRAME_COUNT = 4;
 
-const canalFrame1 = diamond([
-  "fe",
-  "fefeee",
-  "feeeeffeee",
-  "feeddeeeeeeeee",
-  "feeeeeegfeeeeeeeee",
-  "feeeeeeeeeeeeffddeeeee",
-  "feeeeddeeeeeeeeeeeeffeeeee",
-  "feeeeeeeeeeffeeeeeeeeeeeegfeee",
-  "deeeeeegfeeeeeeeeeeeeeeeeeeeed",
-  "deeeeeeeeeeeeeeffeeeeeeeed",
-  "deeddeeeeeeeeeeeeffeed",
-  "deeeeeeffeeeeeeeed",
-  "deeeeeeeeddeed",
-  "deeffeeeed",
-  "deeeed",
-  "dd",
-]);
+/** Palette roles for one water look; every color is a palette char. */
+interface WaterLook {
+  /** Placement seed; different seeds give different variants. */
+  seed: number;
+  /** Resting surface color. */
+  base: string;
+  /** Darker undulation bands and the shaded lower edges. */
+  swell: string;
+  /** Ripple crest highlight and the lit upper-left edge. */
+  crest: string;
+  /** Brightest single pixel at a crest's peak frame. */
+  sparkle: string;
+  /** Neon reflection flecks: dim ember -> lit -> flash step. */
+  flecks: readonly { dim: string; bright: string; flash: string }[];
+  crestCount: number;
+  fleckCount: number;
+}
 
-const canalFrame2 = diamond([
-  "fe",
-  "feeeee",
-  "feffeeeeee",
-  "feeeeffeeeeeee",
-  "feeddeeeeeeeegfeee",
-  "feeeeeeeegfeeeeeeeeeee",
-  "feeeeeeeeeeeeeeeeffeeeeeee",
-  "feeeeddeeeeeeeeeeeeeeeeeeeeeee",
-  "deeffeeeeeeeeeeeeeeeeeegfeeeed",
-  "deeeeeeeeeeffeeeeeeeeeeeed",
-  "deeeeeeeeeeeeeeddeeeed",
-  "deeffeeeeeeeeeeeed",
-  "deeeeeeeeeeffd",
-  "deeeeeeeed",
-  "deeffd",
-  "dd",
-]);
+const CYAN_FLECK = { dim: "i", bright: "g", flash: "h" } as const;
+const MAGENTA_FLECK = { dim: "l", bright: "j", flash: "k" } as const;
+
+const OPEN_WATER: Omit<WaterLook, "seed"> = {
+  base: "e",
+  swell: "d",
+  crest: "f",
+  sparkle: "h",
+  flecks: [CYAN_FLECK, MAGENTA_FLECK],
+  crestCount: 12,
+  fleckCount: 5,
+};
+
+const DEEP_WATER: Omit<WaterLook, "seed"> = {
+  base: "d",
+  swell: "0",
+  crest: "e",
+  sparkle: "f",
+  flecks: [
+    { dim: "i", bright: "i", flash: "g" },
+    { dim: "l", bright: "l", flash: "j" },
+  ],
+  crestCount: 7,
+  fleckCount: 3,
+};
+
+/** One 64×32 water frame; pure in (look, frame), safe to bake-cache. */
+function waterFrame(look: WaterLook, frame: number): string[] {
+  // Base surface with static diagonal swell bands in absolute columns,
+  // so the bands sweep across the diamond instead of hugging its edges.
+  // Per-row wobble bends the bands and edge dithering breaks them up,
+  // keeping them from reading as hard mechanical stripes.
+  const interior: string[][] = DIAMOND_WIDTHS.map((width, r) => {
+    const pad = (64 - width) / 2;
+    const wobble = (hash2(r, look.seed * 13 + 5) % 7) - 3;
+    const row: string[] = [];
+    for (let c = 0; c < width; c++) {
+      const x = pad + c;
+      const band = (x + r * 2 + wobble + look.seed * 3 + 270) % 27;
+      const inBand =
+        band < 4 && hash2(x, r * 5 + look.seed) % 4 < (band === 0 || band === 3 ? 2 : 3);
+      row.push(inBand ? look.swell : look.base);
+    }
+    return row;
+  });
+
+  /** Paint one pixel at absolute column x if it lands inside the diamond. */
+  const put = (x: number, r: number, ch: string): void => {
+    const width = DIAMOND_WIDTHS[r];
+    if (width === undefined) return;
+    const pad = (64 - width) / 2;
+    if (x < pad || x >= pad + width) return;
+    const row = interior[r];
+    if (row) row[x - pad] = ch;
+  };
+
+  // Ripple crests: each one loops spawn -> travel -> peak -> decay,
+  // drifting 2px per frame so the surface reads as slowly moving.
+  for (let k = 0; k < look.crestCount; k++) {
+    const h = hash2(look.seed, k + 1);
+    const r0 = 2 + (h % 28);
+    const width = DIAMOND_WIDTHS[r0] ?? 2;
+    const x0 = (64 - width) / 2 + ((h >>> 8) % width);
+    const age = (frame + (h >>> 16)) % WATER_FRAME_COUNT;
+    const length = [3, 6, 8, 4][age] ?? 3;
+    const x = x0 + age * 2;
+    for (let i = 0; i < length; i++) put(x + i, r0, look.crest);
+    if (age === 2) put(x + (length >> 1), r0, look.sparkle);
+  }
+
+  // Neon signage flecks: dark beat -> lit -> flash with a short
+  // vertical smear (the reflection stretching) -> dim ember.
+  for (let k = 0; k < look.fleckCount; k++) {
+    const h = hash2(look.seed * 31 + 7, k + 1);
+    const fleck = look.flecks[k % look.flecks.length];
+    if (!fleck) continue;
+    const r0 = 3 + (h % 26);
+    const width = DIAMOND_WIDTHS[r0] ?? 2;
+    const x0 = (64 - width) / 2 + 1 + ((h >>> 7) % Math.max(1, width - 2));
+    const age = (frame + (h >>> 15)) % WATER_FRAME_COUNT;
+    if (age === 0) continue;
+    if (age === 2) {
+      put(x0, r0, fleck.flash);
+      put(x0, r0 + 1, fleck.bright);
+    } else {
+      put(x0, r0, age === 1 ? fleck.bright : fleck.dim);
+    }
+  }
+
+  // Edge light: lit upper-left rim, shaded lower rim (top-left source).
+  interior.forEach((row, r) => {
+    if (row.length === 0) return;
+    if (r < 16) {
+      row[0] = look.crest;
+    } else {
+      row[0] = look.swell;
+      row[row.length - 1] = look.swell;
+    }
+  });
+
+  return diamond(interior.map((row) => row.join("")));
+}
+
+/** Full frame loop for one water variant. */
+function waterFrames(look: Omit<WaterLook, "seed">, seed: number): string[][] {
+  return Array.from({ length: WATER_FRAME_COUNT }, (_, frame) =>
+    waterFrame({ ...look, seed }, frame),
+  );
+}
+
+const canalVariants = [1, 2, 3].map((seed) => waterFrames(OPEN_WATER, seed));
+const canalDeepVariants = [4, 5, 6].map((seed) => waterFrames(DEEP_WATER, seed));
+
+/* --- Quay edges: pavement tiles whose water-facing diamond edge grows
+   a concrete lip with wet-dark staining, so shorelines read as a built
+   boundary instead of two unrelated tiles butted together. Upper edges
+   (n/w) show only the lit cap rim; lower edges (e/s) also show the
+   shaded stone face dropping to a dark waterline. Inside the lip, a
+   hash-dithered stain band feathers into the dry pavement. --- */
+
+type QuayEdge = "n" | "e" | "s" | "w";
+
+/** Lip color profile per edge, outermost pixel first. */
+const QUAY_LIPS: Readonly<Record<QuayEdge, readonly string[]>> = {
+  n: ["S", "R", "Q"],
+  w: ["S", "S", "R"],
+  e: ["1", "Q", "Q", "S"],
+  s: ["1", "Q", "Q", "S"],
+};
+
+const QUAY_EDGE_SEEDS: Readonly<Record<QuayEdge, number>> = {
+  n: 11,
+  e: 23,
+  s: 37,
+  w: 53,
+};
+
+/** How far the wet stain dithers inland past the lip, in pixels. */
+const QUAY_STAIN_DEPTH = 3;
+
+/**
+ * Overlay a quay lip on a native pavement grid along one diamond edge.
+ * Pure: same base and edge always yield the same grid.
+ */
+export function quayGrid(base: PixelGrid, edge: QuayEdge): string[] {
+  const upperEdge = edge === "n" || edge === "w";
+  const leftSide = edge === "w" || edge === "s";
+  const lip = QUAY_LIPS[edge];
+  return base.map((row, r) => {
+    if ((r < 16) !== upperEdge) return String(row);
+    const width = DIAMOND_WIDTHS[r] ?? 0;
+    const pad = (64 - width) / 2;
+    const cells = [...row];
+    const depth = Math.min(width, lip.length + QUAY_STAIN_DEPTH);
+    for (let i = 0; i < depth; i++) {
+      const x = leftSide ? pad + i : pad + width - 1 - i;
+      const ch = lip[i];
+      if (ch !== undefined) {
+        cells[x] = ch;
+      } else {
+        // Wet staining: mostly damp concrete, some darker pooling, and
+        // untouched pixels so the band feathers out irregularly.
+        const v = hash2(x, r * 8 + QUAY_EDGE_SEEDS[edge]) % 10;
+        if (v < 5) cells[x] = "Q";
+        else if (v < 8) cells[x] = "3";
+      }
+    }
+    return cells.join("");
+  });
+}
+
+const quayVariants = (edge: QuayEdge): PixelGrid[][] =>
+  [pavementA, pavementB, pavementC].map((base) => [quayGrid(base, edge)]);
 
 /* --- Foundation: near-black structural fill. --- */
 
@@ -625,10 +770,12 @@ export const TILE_ART: Readonly<Record<TileId, TileArt>> = {
     variants: [[roadA], [roadB], [roadC], [roadD], [roadE]],
     frameMs: 0,
   },
-  canal: {
-    variants: [[canalFrame0, canalFrame1, canalFrame2]],
-    frameMs: 420,
-  },
+  canal: { variants: canalVariants, frameMs: 420 },
+  "canal-deep": { variants: canalDeepVariants, frameMs: 560 },
+  "quay-n": { variants: quayVariants("n"), frameMs: 0 },
+  "quay-e": { variants: quayVariants("e"), frameMs: 0 },
+  "quay-s": { variants: quayVariants("s"), frameMs: 0 },
+  "quay-w": { variants: quayVariants("w"), frameMs: 0 },
   foundation: { variants: [[foundationA], [foundationB]], frameMs: 0 },
   "rust-floor": { variants: [[rustA], [rustB], [rustC]], frameMs: 0 },
 };

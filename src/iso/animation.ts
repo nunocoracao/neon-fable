@@ -56,6 +56,15 @@ export function variantIndex(x: number, y: number, count: number): number {
 }
 
 /**
+ * Deterministic per-tile phase offset for tile frame loops (water, glow)
+ * so neighboring tiles don't pulse in sync: one of four half-frame steps
+ * picked from the tile coordinate.
+ */
+export function tilePhaseMs(x: number, y: number, frameMs: number): number {
+  return (hash2(x, y) % 4) * (frameMs / 2);
+}
+
+/**
  * Neon flicker: mostly on, with brief deterministic dropouts. Each seed
  * gets its own pattern; the same (time, seed) always agrees.
  */

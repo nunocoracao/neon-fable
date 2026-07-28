@@ -5,7 +5,7 @@
  * caches every baked frame. All timing decisions go through the pure
  * helpers in ../animation, so frame choice is testable without a canvas.
  */
-import { flickerOn, frameAt, hash2, variantIndex } from "../animation";
+import { flickerOn, frameAt, hash2, tilePhaseMs, variantIndex } from "../animation";
 import type {
   EntityPose,
   EntitySpriteId,
@@ -99,8 +99,7 @@ export function createPixelArtSprites(): SpriteProvider {
       let frame = 0;
       if (frames.length > 1 && art.frameMs > 0) {
         // Per-tile phase offset so water/glow tiles don't pulse in sync.
-        const phase = (hash2(x, y) % 4) * (art.frameMs / 2);
-        frame = frameAt(timeMs + phase, art.frameMs, frames.length);
+        frame = frameAt(timeMs + tilePhaseMs(x, y, art.frameMs), art.frameMs, frames.length);
       }
       return cached(`tile:${id}:${variant}:${frame}`, () =>
         bakeSprite(

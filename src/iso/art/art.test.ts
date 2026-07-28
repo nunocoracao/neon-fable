@@ -37,8 +37,18 @@ describe("palette", () => {
   });
 });
 
-/** Street-family ids re-authored natively at the v2 64×32 resolution. */
-const NATIVE_TILE_IDS = ["pavement", "pavement-cracked", "road"] as const;
+/** Tile ids re-authored natively at the v2 64×32 resolution. */
+const NATIVE_TILE_IDS = [
+  "pavement",
+  "pavement-cracked",
+  "road",
+  "canal",
+  "canal-deep",
+  "quay-n",
+  "quay-e",
+  "quay-s",
+  "quay-w",
+] as const;
 
 describe("tile art", () => {
   it("every tile grid is a valid palette-indexed diamond at its resolution", () => {
@@ -56,7 +66,7 @@ describe("tile art", () => {
     }
   });
 
-  it("native street tiles fill the 64×32 diamond mask exactly", () => {
+  it("native tiles fill the 64×32 diamond mask exactly", () => {
     for (const id of NATIVE_TILE_IDS) {
       TILE_ART[id].variants.forEach((frames, v) => {
         frames.forEach((grid, f) => {
@@ -86,9 +96,69 @@ describe("tile art", () => {
   });
 
   it("water and glow tiles animate", () => {
-    expect(TILE_ART.canal.variants[0]?.length).toBeGreaterThanOrEqual(3);
-    expect(TILE_ART.canal.frameMs).toBeGreaterThan(0);
+    for (const id of ["canal", "canal-deep"] as const) {
+      const art = TILE_ART[id];
+      expect(art.frameMs, `${id} frameMs`).toBeGreaterThan(0);
+      expect(art.variants.length, `${id} variants`).toBeGreaterThanOrEqual(3);
+      art.variants.forEach((frames, v) => {
+        expect(frames.length, `${id} variant ${v} frames`).toBe(4);
+        // Every frame must actually change pixels — a repeated frame
+        // would read as a stutter in the ripple loop.
+        const unique = new Set(frames.map((grid) => grid.join("\n")));
+        expect(unique.size, `${id} variant ${v} distinct frames`).toBe(4);
+      });
+    }
     expect(TILE_ART["plaza-glow"].variants[0]?.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("open water carries neon reflection flecks; deep water stays darker", () => {
+    const neon = /[ghjk]/;
+    const openFrames = TILE_ART.canal.variants.flat();
+    expect(openFrames.some((grid) => neon.test(grid.join("")))).toBe(true);
+    // Deep water's resting surface is the dark ramp step, not the
+    // open-water base.
+    for (const frames of TILE_ART["canal-deep"].variants) {
+      for (const grid of frames) {
+        const counts = { d: 0, e: 0 };
+        for (const row of grid) {
+          for (const ch of row) {
+            if (ch === "d") counts.d++;
+            if (ch === "e") counts.e++;
+          }
+        }
+        expect(counts.d).toBeGreaterThan(counts.e);
+      }
+    }
+  });
+
+  it("quay tiles are pavement with a lip only along their water edge", () => {
+    const edges = [
+      { id: "quay-n", upper: true },
+      { id: "quay-e", upper: false },
+      { id: "quay-s", upper: false },
+      { id: "quay-w", upper: true },
+    ] as const;
+    for (const { id, upper } of edges) {
+      const art = TILE_ART[id];
+      expect(art.frameMs, `${id} static`).toBe(0);
+      expect(art.variants.length, `${id} variants`).toBe(
+        TILE_ART.pavement.variants.length,
+      );
+      art.variants.forEach((frames, v) => {
+        const quay = frames[0] ?? [];
+        const base = TILE_ART.pavement.variants[v]?.[0] ?? [];
+        const touched = upper ? quay.slice(0, 16) : quay.slice(16);
+        const untouched = upper ? quay.slice(16) : quay.slice(0, 16);
+        const baseTouched = upper ? base.slice(0, 16) : base.slice(16);
+        const baseUntouched = upper ? base.slice(16) : base.slice(0, 16);
+        expect(untouched, `${id} v${v} dry half`).toEqual(baseUntouched);
+        expect(touched, `${id} v${v} water half`).not.toEqual(baseTouched);
+        // The lip cap and wet stain both appear on the water half.
+        const strip = touched.join("");
+        expect(strip.includes("S"), `${id} v${v} lip cap`).toBe(true);
+        expect(strip.includes("Q"), `${id} v${v} wet stain`).toBe(true);
+      });
+    }
   });
 
   it("diamond widths follow the 64×32 v2 mask formula", () => {
