@@ -113,7 +113,21 @@ export function dissolvedAt(progress: number, bx: number, by: number): boolean {
   return (hash2(bx, by) % 997) / 997 < progress;
 }
 
-/** Vertical bob in pixels for a walk-cycle frame (down on passing frames). */
-export function walkBobPx(frame: number): number {
-  return frame % 2 === 1 ? 1 : 0;
+/**
+ * Frame timing for the hi-res layered bodies: a six-frame stride
+ * (contact, recoil, passing per half) and a four-frame breathing loop
+ * at a slow cadence. The vertical bob is baked into the frames
+ * themselves, so this replaces the legacy 2-frame bob approach.
+ */
+export const BODY_TIMING: Readonly<
+  Record<MotionState, { frameMs: number; frameCount: number }>
+> = {
+  idle: { frameMs: 450, frameCount: 4 },
+  walk: { frameMs: 110, frameCount: 6 },
+};
+
+/** Looping hi-res body frame index for a motion state. */
+export function bodyFrameAt(state: MotionState, timeMs: number): number {
+  const { frameMs, frameCount } = BODY_TIMING[state];
+  return frameAt(timeMs, frameMs, frameCount);
 }

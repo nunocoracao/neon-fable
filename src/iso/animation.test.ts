@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  BODY_TIMING,
+  bodyFrameAt,
   clamp01,
   dissolve01,
   dissolvedAt,
@@ -12,7 +14,6 @@ import {
   shakeOffsetPx,
   tilePhaseMs,
   variantIndex,
-  walkBobPx,
 } from "./animation";
 
 describe("facingFromDelta", () => {
@@ -179,13 +180,40 @@ describe("dissolve01 / dissolvedAt", () => {
   });
 });
 
-describe("clamp01 / walkBobPx", () => {
-  it("clamps and bobs on passing frames", () => {
+describe("clamp01", () => {
+  it("clamps into [0, 1]", () => {
     expect(clamp01(-1)).toBe(0);
+    expect(clamp01(0.25)).toBe(0.25);
     expect(clamp01(2)).toBe(1);
-    expect(walkBobPx(0)).toBe(0);
-    expect(walkBobPx(1)).toBe(1);
-    expect(walkBobPx(2)).toBe(0);
-    expect(walkBobPx(3)).toBe(1);
+  });
+});
+
+describe("bodyFrameAt / BODY_TIMING", () => {
+  it("gives the hi-res sets six walk and four idle frames", () => {
+    expect(BODY_TIMING.walk.frameCount).toBe(6);
+    expect(BODY_TIMING.idle.frameCount).toBe(4);
+  });
+
+  it("breathes at a slower cadence than it strides", () => {
+    expect(BODY_TIMING.idle.frameMs).toBeGreaterThan(BODY_TIMING.walk.frameMs * 2);
+  });
+
+  it("advances through every walk frame in order and loops seamlessly", () => {
+    const { frameMs, frameCount } = BODY_TIMING.walk;
+    const seen = Array.from({ length: frameCount }, (_, i) =>
+      bodyFrameAt("walk", i * frameMs),
+    );
+    expect(seen).toEqual([0, 1, 2, 3, 4, 5]);
+    const cycle = frameMs * frameCount;
+    expect(bodyFrameAt("walk", cycle)).toBe(0);
+    expect(bodyFrameAt("walk", cycle + 42)).toBe(bodyFrameAt("walk", 42));
+  });
+
+  it("loops the idle breath over its four frames", () => {
+    const { frameMs, frameCount } = BODY_TIMING.idle;
+    const seen = Array.from({ length: frameCount + 1 }, (_, i) =>
+      bodyFrameAt("idle", i * frameMs),
+    );
+    expect(seen).toEqual([0, 1, 2, 3, 0]);
   });
 });
