@@ -29,17 +29,16 @@ import {
   type CharacterRole,
 } from "./characters";
 import { INTERACTABLE_ART } from "./interactables";
+import { BODY_FRAME } from "./layers/body";
 import {
-  BODY_FRAME,
-  bodyPreviewBuild,
-  bodyViewForFacing,
-} from "./layers/body";
-import { BODY_ANIM } from "./layers/bodyAnim";
+  composedFrameGrid,
+  composedFrameKey,
+  previewAppearance,
+} from "./layers";
 import { bakeGlow } from "./glow";
 import {
   bakeSilhouette,
   bakeSprite,
-  mirrored,
   nativeScaled,
   remapped,
   spriteBytes,
@@ -128,34 +127,35 @@ function characterGrid(pose: EntityPose): { grid: PixelGrid; key: string } {
   };
 }
 
-export function createPixelArtSprites(): PixelArtSprites {
+export function createPixelArtSprites(search?: string): PixelArtSprites {
   const cache = createSpriteCache<Sprite>(SPRITE_CACHE_BUDGET_BYTES, spriteBytes);
   exposeCacheStats(cache);
 
-  // Temporary dev-only preview of the v2 base bodies (?dev&previewBody=
-  // lean|heavy); removed when the layer composition engine replaces the
-  // legacy character set.
-  const previewBuild =
-    typeof window === "undefined" ? null : bodyPreviewBuild(window.location.search);
+  // Dev-only composed-character preview (?dev&previewBody=lean|heavy,
+  // optional previewSkin=0-3): routes character sprites through the
+  // layer composition pipeline until character creation adopts it.
+  const preview = previewAppearance(
+    search ?? (typeof window === "undefined" ? "" : window.location.search),
+  );
 
   const cached = (key: string, make: () => Sprite): Sprite => cache.get(key, make);
 
-  function previewBodyGrid(pose: EntityPose): { grid: PixelGrid; key: string } {
-    const { view, flip } = bodyViewForFacing(pose.facing);
+  function composedPose(pose: EntityPose): { state: MotionState; frame: number } {
     const state: MotionState = pose.moving ? "walk" : "idle";
-    const frame = bodyFrameAt(state, pose.timeMs);
-    const grid = BODY_ANIM[previewBuild ?? "lean"][view][state][frame] ?? [];
-    return {
-      grid: flip ? mirrored(grid) : grid,
-      key: `${previewBuild}:${pose.facing}:${state}:${frame}`,
-    };
+    return { state, frame: bodyFrameAt(state, pose.timeMs) };
   }
 
   function character(role: CharacterRole, pose: EntityPose): Sprite {
-    if (previewBuild) {
-      const { grid, key } = previewBodyGrid(pose);
-      return cached(`char:v2:${key}`, () =>
-        bakeSprite(grid, BODY_FRAME.anchorX, BODY_FRAME.anchorY),
+    if (preview) {
+      const { state, frame } = composedPose(pose);
+      return cached(
+        `char:v2:${composedFrameKey(preview, pose.facing, state, frame)}`,
+        () =>
+          bakeSprite(
+            composedFrameGrid(preview, pose.facing, state, frame),
+            BODY_FRAME.anchorX,
+            BODY_FRAME.anchorY,
+          ),
       );
     }
     const { grid, key } = characterGrid(pose);
@@ -235,10 +235,17 @@ export function createPixelArtSprites(): PixelArtSprites {
     },
 
     entitySilhouette(id: EntitySpriteId, pose: EntityPose): Sprite {
-      if (previewBuild) {
-        const { grid, key } = previewBodyGrid(pose);
-        return cached(`flash:v2:${key}`, () =>
-          bakeSilhouette(grid, FLASH_COLOR, BODY_FRAME.anchorX, BODY_FRAME.anchorY),
+      if (preview) {
+        const { state, frame } = composedPose(pose);
+        return cached(
+          `flash:v2:${composedFrameKey(preview, pose.facing, state, frame)}`,
+          () =>
+            bakeSilhouette(
+              composedFrameGrid(preview, pose.facing, state, frame),
+              FLASH_COLOR,
+              BODY_FRAME.anchorX,
+              BODY_FRAME.anchorY,
+            ),
         );
       }
       const { grid, key } = characterGrid(pose);
