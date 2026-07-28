@@ -91,6 +91,18 @@ export function bakeSilhouette(
   return { image: canvas, anchorX: anchorX * ART_SCALE, anchorY: anchorY * ART_SCALE };
 }
 
+/**
+ * Approximate memory a baked sprite's backing canvas holds, as RGBA
+ * bytes (width × height × 4). Non-canvas image sources (which the pixel
+ * provider never produces) count as 0.
+ */
+export function spriteBytes(sprite: Sprite): number {
+  const { width, height } = sprite.image as { width?: unknown; height?: unknown };
+  return typeof width === "number" && typeof height === "number"
+    ? width * height * 4
+    : 0;
+}
+
 function paintGrid(
   ctx: CanvasRenderingContext2D,
   grid: PixelGrid,
