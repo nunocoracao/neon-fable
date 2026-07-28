@@ -5,7 +5,15 @@
  * caches every baked frame. All timing decisions go through the pure
  * helpers in ../animation, so frame choice is testable without a canvas.
  */
-import { flickerOn, frameAt, hash2, tilePhaseMs, variantIndex } from "../animation";
+import {
+  bodyFrameAt,
+  flickerOn,
+  frameAt,
+  hash2,
+  tilePhaseMs,
+  variantIndex,
+  type MotionState,
+} from "../animation";
 import type {
   EntityPose,
   EntitySpriteId,
@@ -23,10 +31,10 @@ import {
 import { INTERACTABLE_ART } from "./interactables";
 import {
   BODY_FRAME,
-  BODY_GRIDS,
   bodyPreviewBuild,
   bodyViewForFacing,
 } from "./layers/body";
+import { BODY_ANIM } from "./layers/bodyAnim";
 import {
   bakeSilhouette,
   bakeSprite,
@@ -96,10 +104,12 @@ export function createPixelArtSprites(): SpriteProvider {
 
   function previewBodyGrid(pose: EntityPose): { grid: PixelGrid; key: string } {
     const { view, flip } = bodyViewForFacing(pose.facing);
-    const grid = BODY_GRIDS[previewBuild ?? "lean"][view];
+    const state: MotionState = pose.moving ? "walk" : "idle";
+    const frame = bodyFrameAt(state, pose.timeMs);
+    const grid = BODY_ANIM[previewBuild ?? "lean"][view][state][frame] ?? [];
     return {
       grid: flip ? mirrored(grid) : grid,
-      key: `${previewBuild}:${pose.facing}`,
+      key: `${previewBuild}:${pose.facing}:${state}:${frame}`,
     };
   }
 
