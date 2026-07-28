@@ -1,4 +1,4 @@
-import { createCharacter, defaultAllocation } from "../character";
+import { createCharacter, defaultAllocation, defaultAppearance } from "../character";
 import type { CharacterState } from "../character";
 import { DEFAULT_BACKGROUND_ID, getBackground } from "../data/backgrounds";
 import { applyStartingGear, emptyInventory } from "../inventory";
@@ -7,7 +7,14 @@ import type { FlagMap } from "./flags";
 import type { RngState } from "./rng";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 6;
+export const GAME_STATE_VERSION = 7;
+
+/**
+ * Oldest save version migrateGameState can bring forward. Saves from
+ * before this version predate the migration system and fail to load
+ * with a version-mismatch error, exactly as they always have.
+ */
+export const OLDEST_MIGRATABLE_VERSION = 6;
 
 /** Credits a fresh character starts with. */
 export const STARTING_CREDITS = 25;
@@ -36,6 +43,30 @@ export interface GameState {
   pendingEncounterId: string | null;
   /** Deterministic RNG state; advance via the rng module, never Math.random. */
   rng: RngState;
+}
+
+/**
+ * Migrates a save's GameState from an older supported version to the
+ * current shape, stepwise. Pure: returns a new state. Callers gate on
+ * OLDEST_MIGRATABLE_VERSION before calling.
+ *
+ * - v6 -> v7: characters gained a layered appearance; old saves get
+ *   defaultAppearance. (NG+ carry-over will later copy the finished
+ *   character's appearance forward — that lands with the appearance
+ *   persistence task, not here.)
+ */
+export function migrateGameState(
+  state: GameState,
+  fromVersion: number,
+): GameState {
+  let migrated = state;
+  if (fromVersion < 7) {
+    migrated = {
+      ...migrated,
+      player: { ...migrated.player, appearance: defaultAppearance() },
+    };
+  }
+  return { ...migrated, version: GAME_STATE_VERSION };
 }
 
 export interface NewGameOptions {

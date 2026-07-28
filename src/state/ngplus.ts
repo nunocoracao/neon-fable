@@ -28,6 +28,10 @@ export function isNewGamePlus(state: GameState): boolean {
 /**
  * The item ids a finishing character can pass forward: equipped weapon
  * and outfit plus every installed enhancement.
+ *
+ * Note: the appearance-persistence task will extend carry-over to also
+ * copy the finished character's Appearance into the new run; nothing
+ * here handles appearance yet, by design.
  */
 export function carryoverCandidates(character: CharacterState): string[] {
   const { weapon, outfit, enhancements } = character.equipment;

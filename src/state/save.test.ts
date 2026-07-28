@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { defaultAppearance } from "../character";
 import { createNewGame, GAME_STATE_VERSION } from "./gameState";
 import { setFlag } from "./flags";
 import {
@@ -11,6 +12,42 @@ import {
   mostRecentSave,
   saveGame,
 } from "./save";
+
+/**
+ * A verbatim mid-run v6 save state, exactly as the game wrote it before
+ * the appearance migration (no `player.appearance`). Frozen as data on
+ * purpose — never regenerate it from current code.
+ */
+const V6_SAVE_STATE = {
+  version: 6,
+  player: {
+    name: "Sable",
+    backgroundId: "grid-diver",
+    stats: { body: 6, reflexes: 6, tech: 9, cool: 6, intelligence: 7 },
+    derived: {
+      maxHp: 31,
+      initiative: 6,
+      neuralCapacity: 9,
+      meleeDamageBonus: 1,
+      rangedDamageBonus: 1,
+    },
+    hp: 29,
+    neuralLoad: 3,
+    equipment: {
+      weapon: "wpn-stun-baton",
+      outfit: "out-diver-harness",
+      enhancements: { neural: "cyb-lattice-coprocessor" },
+    },
+    tags: ["net", "diver"],
+    advancement: { pointsSpent: 1, abilityIds: ["ability-overclock-burst"] },
+  },
+  flags: { metFixer: true, "act1:complete": true },
+  location: "hub:market",
+  inventory: { stacks: [{ itemId: "con-trauma-patch", quantity: 2 }] },
+  credits: 180,
+  pendingEncounterId: null,
+  rng: { seed: 987654 },
+};
 
 function makeState() {
   const state = createNewGame({ playerName: "Vex", seed: 42 });
@@ -116,6 +153,53 @@ describe("save system", () => {
 
   it("mostRecentSave returns null when no saves exist", () => {
     expect(mostRecentSave([])).toBeNull();
+  });
+
+  it("migrates a v6 (pre-appearance) save to the current version", () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      "neon-fable:save:slot1",
+      JSON.stringify({ version: 6, savedAt: 777, state: V6_SAVE_STATE }),
+    );
+
+    const loaded = loadGame("slot1", storage);
+    expect(loaded.version).toBe(GAME_STATE_VERSION);
+    expect(loaded.player.appearance).toEqual(defaultAppearance());
+    // Everything else survives untouched.
+    expect(loaded.player.name).toBe("Sable");
+    expect(loaded.player.hp).toBe(29);
+    expect(loaded.player.equipment.enhancements.neural).toBe(
+      "cyb-lattice-coprocessor",
+    );
+    expect(loaded.flags["metFixer"]).toBe(true);
+    expect(loaded.credits).toBe(180);
+    expect(loaded.rng).toEqual({ seed: 987654 });
+  });
+
+  it("a migrated v6 save round-trips through save and load", () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      "neon-fable:save:slot1",
+      JSON.stringify({ version: 6, savedAt: 777, state: V6_SAVE_STATE }),
+    );
+    const migrated = loadGame("slot1", storage);
+    saveGame(migrated, "slot2", storage, 888);
+    expect(loadGame("slot2", storage)).toEqual(migrated);
+  });
+
+  it("saves older than the migration floor fail with 'version-mismatch'", () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      "neon-fable:save:slot1",
+      JSON.stringify({ version: 5, savedAt: 1, state: V6_SAVE_STATE }),
+    );
+    try {
+      loadGame("slot1", storage);
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      expect(error).toBeInstanceOf(SaveError);
+      expect((error as SaveError).code).toBe("version-mismatch");
+    }
   });
 
   it("loading a future save version fails with a 'version-mismatch' error", () => {

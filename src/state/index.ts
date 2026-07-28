@@ -1,7 +1,9 @@
 export {
   GAME_STATE_VERSION,
+  OLDEST_MIGRATABLE_VERSION,
   STARTING_CREDITS,
   createNewGame,
+  migrateGameState,
   type GameState,
   type InventoryState,
   type NewGameOptions,
