@@ -120,29 +120,63 @@ function paintGrid(
 }
 
 /**
- * Row widths of the 32×16 (1x) tile diamond, top to bottom. This is the
- * exact pixel-ownership mask of screenToTile, so adjacent tiles
- * tessellate with no gaps and no overlap.
+ * Nearest-neighbor 2× upscale of a grid: every pixel becomes a 2×2
+ * block. Interim shim while art sets are re-authored at v2 native
+ * resolution — legacy 1x grids double to the new working size and
+ * render pixel-identical at the doubled geometry.
  */
-export const DIAMOND_WIDTHS: readonly number[] = [
+export function upscaled(grid: PixelGrid): string[] {
+  const rows: string[] = [];
+  for (const row of grid) {
+    const doubled = [...row].map((ch) => ch + ch).join("");
+    rows.push(doubled, doubled);
+  }
+  return rows;
+}
+
+/**
+ * Row widths of the 64×32 (1x) tile diamond, top to bottom. This is the
+ * exact pixel-ownership mask of screenToTile sampled at each art
+ * pixel's on-screen block center, so adjacent tiles tessellate with no
+ * gaps and no overlap. Row r owns 4*min(r, 31-r) + 2 pixels.
+ */
+export const DIAMOND_WIDTHS: readonly number[] = Array.from(
+  { length: 32 },
+  (_, r) => 4 * Math.min(r, 31 - r) + 2,
+);
+
+/**
+ * Row widths of the legacy 32×16 diamond, kept so tile art authored
+ * before the hi-res migration still expands until it is re-authored
+ * natively at 64×32.
+ */
+export const LEGACY_DIAMOND_WIDTHS: readonly number[] = [
   2, 6, 10, 14, 18, 22, 26, 30, 30, 26, 22, 18, 14, 10, 6, 2,
 ];
 
 /**
- * Expand diamond-interior rows (row i exactly DIAMOND_WIDTHS[i] chars)
- * into full 32-wide rows padded with transparency. Throws on bad shapes
- * so mis-authored tiles fail at module load.
+ * Expand diamond-interior rows (row i exactly as wide as the diamond
+ * mask row) into full-width rows padded with transparency. Accepts both
+ * the native 32-row (64-wide) v2 shape and the legacy 16-row (32-wide)
+ * shape. Throws on bad shapes so mis-authored tiles fail at module load.
  */
 export function diamond(interior: PixelGrid): string[] {
-  if (interior.length !== DIAMOND_WIDTHS.length) {
-    throw new Error(`diamond needs ${DIAMOND_WIDTHS.length} rows, got ${interior.length}`);
+  const widths =
+    interior.length === LEGACY_DIAMOND_WIDTHS.length
+      ? LEGACY_DIAMOND_WIDTHS
+      : DIAMOND_WIDTHS;
+  if (interior.length !== widths.length) {
+    throw new Error(
+      `diamond needs ${DIAMOND_WIDTHS.length} rows (or ${LEGACY_DIAMOND_WIDTHS.length} legacy), got ${interior.length}`,
+    );
   }
+  const full = widths.length * 2;
   return interior.map((row, i) => {
-    const want = DIAMOND_WIDTHS[i] ?? 0;
+    const want = widths[i] ?? 0;
     if (row.length !== want) {
       throw new Error(`diamond row ${i} has width ${row.length}, expected ${want}`);
     }
-    const pad = (32 - want) / 2;
+    const pad = (full - want) / 2;
     return TRANSPARENT.repeat(pad) + row + TRANSPARENT.repeat(pad);
   });
 }

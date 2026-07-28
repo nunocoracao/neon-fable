@@ -77,16 +77,16 @@ export interface CombatScene {
 /** Tiles per second entities walk between logical positions. */
 const WALK_SPEED = 6;
 const LUNGE_MS = 220;
-const LUNGE_DISTANCE_PX = 12;
+const LUNGE_DISTANCE_PX = 24;
 /** Flash starts slightly after the event so it lands at the lunge apex. */
 const FLASH_DELAY_MS = 90;
 const FLASH_MS = 300;
-const SHAKE_PX = 3;
+const SHAKE_PX = 6;
 const DISSOLVE_MS = 550;
 /** Side of the square pixel blocks removed during a defeat dissolve. */
-const DISSOLVE_BLOCK_PX = 4;
+const DISSOLVE_BLOCK_PX = 8;
 const FLOAT_MS = 900;
-const FLOAT_RISE_PX = 28;
+const FLOAT_RISE_PX = 56;
 
 interface EntityView extends CombatSceneEntity {
   /** Where the sprite is drawn right now (trails position while walking). */
@@ -332,10 +332,10 @@ export function createCombatScene(
 
   function drawHpBar(entity: EntityView): void {
     const { sx, sy } = worldToScreen(entity.visual.x, entity.visual.y);
-    const width = 32;
-    const height = 6;
+    const width = 64;
+    const height = 8;
     const x = Math.round(sx - width / 2);
-    const y = Math.round(sy - 52);
+    const y = Math.round(sy - 104);
     const ratio = Math.max(0, Math.min(1, entity.hp / entity.maxHp));
     ctx!.fillStyle = "#05060c";
     ctx!.fillRect(x - 1, y - 1, width + 2, height + 2);
@@ -419,9 +419,9 @@ export function createCombatScene(
         continue;
       }
       const t = age / FLOAT_MS;
-      const textY = Math.round(float.sy - 44 - t * FLOAT_RISE_PX);
+      const textY = Math.round(float.sy - 88 - t * FLOAT_RISE_PX);
       ctx!.globalAlpha = 1 - t * t;
-      ctx!.font = "bold 14px 'Courier New', monospace";
+      ctx!.font = "bold 18px 'Courier New', monospace";
       ctx!.textAlign = "center";
       ctx!.fillStyle = "#05060c";
       ctx!.fillText(float.text, float.sx + 1, textY + 1);
@@ -531,7 +531,7 @@ export function createCombatScene(
       const stacked = floats.filter(
         (f) => f.sx === sx && now - f.bornAt < FLOAT_MS,
       ).length;
-      floats.push({ text, color, sx, sy: sy - stacked * 14, bornAt: now });
+      floats.push({ text, color, sx, sy: sy - stacked * 20, bornAt: now });
     },
 
     destroy(): void {

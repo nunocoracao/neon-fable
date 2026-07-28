@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { frameAt } from "../animation";
+import { TILE_H, TILE_W, screenToTile, worldToScreen } from "../coords";
 import {
   CHARACTER_FRAMES,
   ROLE_REMAPS,
@@ -8,10 +9,13 @@ import {
 import { INTERACTABLE_ART } from "./interactables";
 import { PALETTE, TRANSPARENT } from "./palette";
 import {
+  ART_SCALE,
   DIAMOND_WIDTHS,
+  LEGACY_DIAMOND_WIDTHS,
   gridErrors,
   mirrored,
   remapped,
+  upscaled,
   type PixelGrid,
 } from "./pixel";
 import { PROP_ART } from "./props";
@@ -59,14 +63,103 @@ describe("tile art", () => {
     expect(TILE_ART["plaza-glow"].variants[0]?.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("diamond widths tessellate the plane exactly", () => {
-    expect(DIAMOND_WIDTHS.length).toBe(16);
+  it("diamond widths follow the 64×32 v2 mask formula", () => {
+    expect(DIAMOND_WIDTHS.length).toBe(32);
     expect([...DIAMOND_WIDTHS].reverse()).toEqual([...DIAMOND_WIDTHS]);
-    // The mask must match pixel ownership under screenToTile (rounding
-    // world coordinates at pixel centers): row r owns 4*min(r, 15-r)+2.
     DIAMOND_WIDTHS.forEach((width, r) => {
-      expect(width).toBe(4 * Math.min(r, 15 - r) + 2);
+      expect(width).toBe(4 * Math.min(r, 31 - r) + 2);
     });
+    expect(LEGACY_DIAMOND_WIDTHS.length).toBe(16);
+  });
+});
+
+/** Art columns of tile bbox row r the diamond mask claims, per DIAMOND_WIDTHS. */
+function maskOwns(c: number, r: number): boolean {
+  const width = DIAMOND_WIDTHS[r] ?? 0;
+  const pad = (DIAMOND_WIDTHS.length * 2 - width) / 2;
+  return c >= pad && c < pad + width;
+}
+
+describe("diamond mask vs screenToTile", () => {
+  const artW = DIAMOND_WIDTHS.length * 2; // 64
+  const artH = DIAMOND_WIDTHS.length; // 32
+
+  /** Screen-space center of art pixel (c, r) of the tile at (sx, sy). */
+  function pixelCenter(
+    tileSx: number,
+    tileSy: number,
+    c: number,
+    r: number,
+  ): { sx: number; sy: number } {
+    return {
+      sx: tileSx - TILE_W / 2 + (c + 0.5) * ART_SCALE,
+      sy: tileSy - TILE_H / 2 + (r + 0.5) * ART_SCALE,
+    };
+  }
+
+  it("owns exactly the bbox pixels screenToTile assigns to the tile", () => {
+    // Walk every 1x art pixel of tile (0, 0)'s bounding box and sample
+    // screenToTile at the center of that pixel's on-screen block.
+    for (let r = 0; r < artH; r++) {
+      for (let c = 0; c < artW; c++) {
+        const { sx, sy } = pixelCenter(0, 0, c, r);
+        const tile = screenToTile(sx, sy);
+        const owned = tile.x === 0 && tile.y === 0;
+        expect(owned, `pixel (${c}, ${r})`).toBe(maskOwns(c, r));
+      }
+    }
+  });
+
+  it("adjacent tiles tessellate with no gaps and no overlap", () => {
+    // Stamp the mask of a 3×3 block of tiles onto the shared art-pixel
+    // lattice; no pixel may be claimed twice, and every pixel of the
+    // center tile's bbox must be claimed by the tile screenToTile says
+    // owns it.
+    const claims = new Map<string, string>();
+    for (let ty = -1; ty <= 1; ty++) {
+      for (let tx = -1; tx <= 1; tx++) {
+        const center = worldToScreen(tx, ty);
+        for (let r = 0; r < artH; r++) {
+          for (let c = 0; c < artW; c++) {
+            if (!maskOwns(c, r)) continue;
+            const { sx, sy } = pixelCenter(center.sx, center.sy, c, r);
+            const key = `${sx},${sy}`;
+            expect(claims.get(key), `pixel ${key} claimed twice`).toBeUndefined();
+            claims.set(key, `${tx},${ty}`);
+          }
+        }
+      }
+    }
+    for (let r = 0; r < artH; r++) {
+      for (let c = 0; c < artW; c++) {
+        const { sx, sy } = pixelCenter(0, 0, c, r);
+        const owner = screenToTile(sx, sy);
+        expect(claims.get(`${sx},${sy}`), `pixel (${c}, ${r})`).toBe(
+          `${owner.x},${owner.y}`,
+        );
+      }
+    }
+  });
+});
+
+describe("upscaled", () => {
+  it("doubles both dimensions with nearest-neighbor 2×2 blocks", () => {
+    const grid = ["ab", ".c"];
+    expect(upscaled(grid)).toEqual(["aabb", "aabb", "..cc", "..cc"]);
+  });
+
+  it("returns an empty grid unchanged", () => {
+    expect(upscaled([])).toEqual([]);
+  });
+
+  it("keeps upscaled art valid and exactly doubles every registered tile", () => {
+    for (const [id, art] of Object.entries(TILE_ART)) {
+      const grid = art.variants[0]?.[0] ?? [];
+      const doubled = upscaled(grid);
+      expect(gridErrors(doubled), id).toEqual([]);
+      expect(doubled.length, id).toBe(grid.length * 2);
+      expect(doubled[0]?.length, id).toBe((grid[0]?.length ?? 0) * 2);
+    }
   });
 });
 
