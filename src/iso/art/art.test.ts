@@ -6,6 +6,7 @@ import {
   ROLE_REMAPS,
   type CharacterRole,
 } from "./characters";
+import { INTERIOR_FLOOR_IDS, TRIM_EDGES } from "../tilemap";
 import { INTERACTABLE_ART } from "./interactables";
 import { PALETTE, TRANSPARENT } from "./palette";
 import {
@@ -37,37 +38,22 @@ describe("palette", () => {
   });
 });
 
-/** Tile ids re-authored natively at the v2 64×32 resolution. */
-const NATIVE_TILE_IDS = [
-  "pavement",
-  "pavement-cracked",
-  "road",
-  "canal",
-  "canal-deep",
-  "quay-n",
-  "quay-e",
-  "quay-s",
-  "quay-w",
-] as const;
-
 describe("tile art", () => {
-  it("every tile grid is a valid palette-indexed diamond at its resolution", () => {
+  it("every tile grid is a valid palette-indexed native 64×32 diamond", () => {
     for (const [id, art] of Object.entries(TILE_ART)) {
-      const native = (NATIVE_TILE_IDS as readonly string[]).includes(id);
-      const height = native ? 32 : 16;
       art.variants.forEach((frames, v) => {
         expect(frames.length, `${id} variant ${v} has frames`).toBeGreaterThan(0);
         frames.forEach((grid, f) => {
           expectValid(grid, `${id} variant ${v} frame ${f}`);
-          expect(grid.length, `${id} v${v} f${f} height`).toBe(height);
-          expect(grid[0]?.length, `${id} v${v} f${f} width`).toBe(height * 2);
+          expect(grid.length, `${id} v${v} f${f} height`).toBe(32);
+          expect(grid[0]?.length, `${id} v${v} f${f} width`).toBe(64);
         });
       });
     }
   });
 
-  it("native tiles fill the 64×32 diamond mask exactly", () => {
-    for (const id of NATIVE_TILE_IDS) {
+  it("tiles fill the 64×32 diamond mask exactly", () => {
+    for (const id of Object.keys(TILE_ART) as (keyof typeof TILE_ART)[]) {
       TILE_ART[id].variants.forEach((frames, v) => {
         frames.forEach((grid, f) => {
           grid.forEach((row, r) => {
@@ -93,6 +79,9 @@ describe("tile art", () => {
     expect(TILE_ART["pavement-cracked"].variants.length).toBeGreaterThanOrEqual(3);
     expect(TILE_ART["rust-floor"].variants.length).toBeGreaterThanOrEqual(3);
     expect(TILE_ART.road.variants.length).toBeGreaterThanOrEqual(3);
+    for (const id of INTERIOR_FLOOR_IDS) {
+      expect(TILE_ART[id].variants.length, id).toBeGreaterThanOrEqual(3);
+    }
   });
 
   it("water and glow tiles animate", () => {
@@ -158,6 +147,59 @@ describe("tile art", () => {
         expect(strip.includes("S"), `${id} v${v} lip cap`).toBe(true);
         expect(strip.includes("Q"), `${id} v${v} wet stain`).toBe(true);
       });
+    }
+  });
+
+  it("plaza glow pulses between a bright and a dimmed ring frame", () => {
+    for (const [v, frames] of TILE_ART["plaza-glow"].variants.entries()) {
+      expect(frames.length, `variant ${v} frames`).toBeGreaterThanOrEqual(2);
+      const [bright, dim] = frames;
+      expect(bright?.join("\n")).not.toEqual(dim?.join("\n"));
+      expect(bright?.join("").includes("h"), `variant ${v} lit cap`).toBe(true);
+      expect(dim?.join("").includes("i"), `variant ${v} dim ring`).toBe(true);
+    }
+  });
+
+  it("interior floor materials are distinct per interior type", () => {
+    const dominant = (id: (typeof INTERIOR_FLOOR_IDS)[number]): string => {
+      const counts = new Map<string, number>();
+      for (const row of TILE_ART[id].variants[0]?.[0] ?? []) {
+        for (const ch of row) {
+          if (ch !== TRANSPARENT) counts.set(ch, (counts.get(ch) ?? 0) + 1);
+        }
+      }
+      return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+    };
+    // Bar reads as warm wood, clinic as pale tile, office as dark fabric.
+    expect(dominant("bar-floor")).toBe("b");
+    expect(["7", "8"]).toContain(dominant("clinic-floor"));
+    expect(dominant("office-floor")).toBe("W");
+  });
+
+  it("floor trims darken only their wall edge with a baseboard shadow", () => {
+    for (const floor of INTERIOR_FLOOR_IDS) {
+      for (const edge of TRIM_EDGES) {
+        const id = `${floor}-${edge}` as const;
+        const art = TILE_ART[id];
+        const upper = edge === "n" || edge === "w";
+        expect(art.frameMs, `${id} static`).toBe(0);
+        expect(art.variants.length, `${id} variants`).toBe(
+          TILE_ART[floor].variants.length,
+        );
+        art.variants.forEach((frames, v) => {
+          const trimmed = frames[0] ?? [];
+          const base = TILE_ART[floor].variants[v]?.[0] ?? [];
+          const touched = upper ? trimmed.slice(0, 16) : trimmed.slice(16);
+          const untouched = upper ? trimmed.slice(16) : trimmed.slice(0, 16);
+          const baseTouched = upper ? base.slice(0, 16) : base.slice(16);
+          const baseUntouched = upper ? base.slice(16) : base.slice(0, 16);
+          expect(untouched, `${id} v${v} open half`).toEqual(baseUntouched);
+          expect(touched, `${id} v${v} wall half`).not.toEqual(baseTouched);
+          expect(touched.join("").includes("1"), `${id} v${v} ink line`).toBe(
+            true,
+          );
+        });
+      }
     }
   });
 
