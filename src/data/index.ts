@@ -3,6 +3,26 @@
  * data-defined here — never hard-coded in engine code.
  */
 export {
+  BUILD_OPTIONS,
+  BROWS_OPTIONS,
+  EYE_COLOR_OPTIONS,
+  EYES_OPTIONS,
+  FACE_DETAIL_OPTIONS,
+  HAIR_COLOR_OPTIONS,
+  HAIR_STYLE_OPTIONS,
+  HEADWEAR_OPTIONS,
+  MOUTH_OPTIONS,
+  SKIN_TONE_OPTIONS,
+  appearanceCatalogs,
+  getAppearanceOption,
+  type AppearanceCategory,
+  type AppearanceOption,
+  type BuildOption,
+  type ColorOption,
+  type SkinToneOption,
+  type StyleOption,
+} from "./appearance";
+export {
   DEFAULT_BACKGROUND_ID,
   backgrounds,
   getBackground,
