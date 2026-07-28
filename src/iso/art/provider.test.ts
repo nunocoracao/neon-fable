@@ -122,6 +122,53 @@ describe("createPixelArtSprites cache", () => {
     expect(() => sprites.glow("z", 10)).toThrow();
   });
 
+  it("bakes composed characters once per frame key under the dev preview flag", () => {
+    const sprites = createPixelArtSprites("?dev&previewBody=lean");
+    const pose = { facing: "e" as const, moving: false, timeMs: 0 };
+    const first = sprites.entity("player", pose);
+    expect(sprites.entity("player", pose)).toBe(first);
+    // The preview descriptor drives the bake, not the role.
+    expect(sprites.entity("enemy", pose)).toBe(first);
+    expect(sprites.cacheStats()).toMatchObject({ entries: 1, misses: 1, hits: 2 });
+    // Composed frames bake at the 32×48 layer frame with its anchor.
+    expect((first.image as HTMLCanvasElement).width).toBe(32 * ART_SCALE);
+    expect((first.image as HTMLCanvasElement).height).toBe(48 * ART_SCALE);
+    expect(first.anchorX).toBe(16 * ART_SCALE);
+    expect(first.anchorY).toBe(44 * ART_SCALE);
+  });
+
+  it("bakes composed silhouettes under their own keys", () => {
+    const sprites = createPixelArtSprites("?dev&previewBody=heavy&previewSkin=2");
+    const pose = { facing: "w" as const, moving: true, timeMs: 500 };
+    const sprite = sprites.entity("player", pose);
+    const flash = sprites.entitySilhouette("player", pose);
+    expect(flash).not.toBe(sprite);
+    expect(sprites.entitySilhouette("player", pose)).toBe(flash);
+    expect(sprites.cacheStats()).toMatchObject({ entries: 2, misses: 2, hits: 1 });
+  });
+
+  it("reaches zero-bake steady state on the composed preview path", () => {
+    const sprites = createPixelArtSprites("?dev&previewBody=lean");
+    const drive = (from: number, to: number): void => {
+      for (let t = from; t <= to; t += 16.7) {
+        for (const facing of FACINGS) {
+          for (const moving of [false, true]) {
+            const pose = { facing, moving, timeMs: t };
+            sprites.entity("player", pose);
+            sprites.entitySilhouette("player", pose);
+          }
+        }
+      }
+    };
+    drive(0, 4_000);
+    const warm = sprites.cacheStats();
+    // 4 facings × (4 idle + 6 walk) frames, sprites and silhouettes.
+    expect(warm.misses).toBe(2 * 4 * 10);
+    drive(4_000, 8_000);
+    expect(sprites.cacheStats().misses).toBe(warm.misses);
+    expect(sprites.cacheStats().evictions).toBe(0);
+  });
+
   it("exposes live stats through the window dev hook", () => {
     const sprites = createPixelArtSprites();
     sprites.entity("player", { facing: "s", moving: false, timeMs: 0 });
