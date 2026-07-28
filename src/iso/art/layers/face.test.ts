@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { REMAP_CHANNELS } from "../palette";
 import { gridErrors } from "../pixel";
 import { BODY_FRAME } from "./body";
-import { FACE_LAYERS } from "./face";
+import { FACE_LAYERS, FACE_PART_IDS } from "./face";
 
 const ALLOWED = new Set<string>([
   ...REMAP_CHANNELS.skin,
@@ -11,6 +11,11 @@ const ALLOWED = new Set<string>([
 ]);
 
 describe("face layers", () => {
+  it("registers a grid for every declared face part id", () => {
+    const declared = Object.values(FACE_PART_IDS).flat();
+    expect(Object.keys(FACE_LAYERS).sort()).toEqual([...declared].sort());
+  });
+
   it("every face grid is a valid 32×48 palette grid", () => {
     for (const [id, views] of Object.entries(FACE_LAYERS)) {
       for (const [view, grid] of Object.entries(views)) {
@@ -34,20 +39,29 @@ describe("face layers", () => {
     }
   });
 
-  it("keeps face pixels inside the front head interior and eyes present", () => {
+  it("keeps face pixels inside the front head interior", () => {
     for (const [id, views] of Object.entries(FACE_LAYERS)) {
       const { head } = BODY_FRAME;
-      let irises = 0;
+      let drawn = 0;
       views.front.forEach((row, y) => {
         [...row].forEach((ch, x) => {
           if (ch === ".") return;
+          drawn++;
           expect(y, `${id} row ${y}`).toBeGreaterThan(head.top);
           expect(y, `${id} row ${y}`).toBeLessThan(head.bottom);
           expect(x, `${id} col ${x}`).toBeGreaterThan(head.left);
           expect(x, `${id} col ${x}`).toBeLessThan(head.right);
-          if (ch === "g") irises++;
         });
       });
+      expect(drawn, `${id} draws something`).toBeGreaterThan(0);
+    }
+  });
+
+  it("eyes parts carry irises in the eye channel", () => {
+    for (const id of FACE_PART_IDS.eyes) {
+      const irises = FACE_LAYERS[id].front
+        .flatMap((row) => [...row])
+        .filter((ch) => ch === "g").length;
       expect(irises, `${id} irises`).toBeGreaterThan(0);
     }
   });

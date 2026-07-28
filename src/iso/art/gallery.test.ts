@@ -139,8 +139,8 @@ describe("gallery entries", () => {
     const chars = section("characters");
     const frame = (id: string): string =>
       chars.entries.find((e) => e.id === id)?.frames[0]?.join("\n") ?? "";
-    expect(frame("enemy e idle")).not.toBe(frame("player e idle"));
-    expect(frame("npc e idle")).not.toBe(frame("player e idle"));
+    expect(frame("enemy e idle")).not.toBe("");
+    expect(frame("npc e idle")).not.toBe(frame("enemy e idle"));
   });
 });
 

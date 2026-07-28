@@ -26,12 +26,12 @@ import { mirrored, remapped, type PixelGrid } from "./pixel";
 import {
   BODY_FRAME,
   BODY_GRIDS,
-  bodyPreviewBuild,
   bodyViewForFacing,
   type BodyBuildId,
+  type BodyViewId,
 } from "./layers/body";
 import { bodyAnimFrames } from "./layers/bodyAnim";
-import { FACE_LAYERS, type FaceLayerId } from "./layers/face";
+import { FACE_LAYERS } from "./layers/face";
 
 /** Layer slots in base (toward-camera) z-order, bottom to top. */
 export const LAYER_SLOTS = [
@@ -140,90 +140,120 @@ export function eyeColorRemap(color: string): Readonly<Record<string, string>> {
 }
 
 /**
- * The appearance descriptor a composed character resolves from. Kept
- * minimal for the pipeline proof (body build, skin tone, eye color,
- * stub face); the hair/outfit/headwear catalogs extend it in the
- * appearance tasks. Extend, never reshape — keys derive from it.
+ * One resolved layer of a composed character: which art to draw in
+ * which slot, with the channel remap its appearance choices apply.
+ * Produced by the character model's resolveLayers; the same slot may
+ * appear more than once (one entry per face part).
  */
-export interface ComposedAppearance {
-  readonly build: BodyBuildId;
-  /** Index into SKIN_RAMPS. */
-  readonly skinTone: number;
-  /** Palette character for the iris channel. */
-  readonly eyeColor: string;
-  readonly face: FaceLayerId | null;
+export interface ComposedLayer {
+  readonly slot: LayerSlot;
+  /**
+   * Art id within the slot's registry. Ids with no registered grid
+   * (catalogs whose art hasn't landed, gear item ids) draw nothing —
+   * they light up automatically once their registry entry exists.
+   */
+  readonly art: string;
+  readonly remap: Readonly<Record<string, string>>;
 }
 
 /**
- * Canonical serialization of a descriptor: every field, in fixed
- * order, so equal descriptors always share a cache key no matter how
- * the object was built.
+ * The full descriptor a composed character renders from: the body
+ * build (which also picks the animation hand/stride metrics) plus the
+ * resolved layers in base bottom-to-top z-order.
  */
-export function appearanceKey(appearance: ComposedAppearance): string {
-  return [
-    appearance.build,
-    `skin${appearance.skinTone}`,
-    `eye${appearance.eyeColor}`,
-    `face:${appearance.face ?? "none"}`,
-  ].join("|");
+export interface ComposedCharacter {
+  readonly build: BodyBuildId;
+  readonly layers: readonly ComposedLayer[];
+}
+
+type SlotRegistry = Readonly<
+  Record<string, Readonly<Record<BodyViewId, PixelGrid>>>
+>;
+
+/**
+ * Per-slot art registries. A slot absent here has no authored grids
+ * yet; its layers are skipped at compose time. Later art tasks (hair,
+ * headwear, gear overlays) plug their registries in here and every
+ * catalog id that references them starts rendering with no other
+ * wiring.
+ */
+const SLOT_REGISTRIES: Readonly<Partial<Record<LayerSlot, SlotRegistry>>> = {
+  body: BODY_GRIDS as SlotRegistry,
+  face: FACE_LAYERS as SlotRegistry,
+};
+
+/** The grid a layer draws for a view, or null while its art is unregistered. */
+export function layerArtGrid(
+  slot: LayerSlot,
+  art: string,
+  view: BodyViewId,
+): PixelGrid | null {
+  return SLOT_REGISTRIES[slot]?.[art]?.[view] ?? null;
+}
+
+function remapKey(remap: Readonly<Record<string, string>>): string {
+  const entries = Object.entries(remap)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([from, to]) => `${from}>${to}`);
+  return entries.length === 0 ? "" : `#${entries.join(",")}`;
+}
+
+/**
+ * Canonical serialization of a descriptor: the build plus every
+ * layer's slot, art, and remap in order, so equal descriptors always
+ * share a cache key no matter how the objects were built — and any
+ * appearance difference yields a different key.
+ */
+export function composedCharacterKey(character: ComposedCharacter): string {
+  const layers = character.layers.map(
+    (layer) => `${layer.slot}=${layer.art}${remapKey(layer.remap)}`,
+  );
+  return [character.build as string, ...layers].join("|");
 }
 
 /** Bake-cache key for one composed frame: full descriptor + pose. */
 export function composedFrameKey(
-  appearance: ComposedAppearance,
+  character: ComposedCharacter,
   facing: Facing,
   state: MotionState,
   frame: number,
 ): string {
-  return `${appearanceKey(appearance)}:${facing}:${state}:${frame}`;
+  return `${composedCharacterKey(character)}:${facing}:${state}:${frame}`;
 }
 
 /**
  * Resolve a descriptor to its composed animation frame: pick the
- * authored view for the facing, compose the layer stack on the neutral
- * pose (skin/eye remaps applied per layer), animate the composed body,
- * and mirror for south/west. Pure and deterministic — the provider
- * only calls this on a bake-cache miss.
+ * authored view for the facing, order the layers for that facing
+ * (stable, so face parts keep their relative order), look each layer's
+ * art up in its slot registry (unregistered art is skipped), compose
+ * on the neutral pose, animate the composed body, and mirror for
+ * south/west. Pure and deterministic — the provider only calls this on
+ * a bake-cache miss.
  */
-export function composedFrameGrid(
-  appearance: ComposedAppearance,
+export function composedCharacterGrid(
+  character: ComposedCharacter,
   facing: Facing,
   state: MotionState,
   frame: number,
 ): PixelGrid {
   const { view, flip } = bodyViewForFacing(facing);
-  const skin = skinToneRemap(appearance.skinTone);
-  const parts: Partial<Record<LayerSlot, LayerPart>> = {
-    body: { grid: BODY_GRIDS[appearance.build][view], remap: skin },
-  };
-  if (appearance.face) {
-    parts.face = {
-      grid: FACE_LAYERS[appearance.face][view],
-      remap: { ...skin, ...eyeColorRemap(appearance.eyeColor) },
-    };
+  const order = layerOrderFor(facing);
+  const parts: LayerPart[] = [...character.layers]
+    .sort((a, b) => order.indexOf(a.slot) - order.indexOf(b.slot))
+    .flatMap((layer) => {
+      const grid = layerArtGrid(layer.slot, layer.art, view);
+      return grid ? [{ grid, remap: layer.remap }] : [];
+    });
+  if (parts.length === 0) {
+    throw new Error(
+      `composed character has no drawable layers (build ${character.build})`,
+    );
   }
-  const composed = composeGrids(orderedLayerParts(parts, facing));
-  const frames = bodyAnimFrames(composed, appearance.build)[state];
+  const composed = composeGrids(parts);
+  const frames = bodyAnimFrames(composed, character.build)[state];
   const grid = frames[frame];
   if (!grid) {
     throw new Error(`no ${state} frame ${frame} (have ${frames.length})`);
   }
   return flip ? mirrored(grid) : grid;
-}
-
-/**
- * Dev-only preview descriptor: `?dev&previewBody=lean|heavy` routes
- * the character sprites through the composition pipeline, with an
- * optional `previewSkin=0-3` tone. Pure over the query string.
- */
-export function previewAppearance(search: string): ComposedAppearance | null {
-  const build = bodyPreviewBuild(search);
-  if (!build) return null;
-  const skin = Number(new URLSearchParams(search).get("previewSkin") ?? "0");
-  return {
-    build,
-    skinTone: SKIN_RAMPS[skin] !== undefined ? skin : 0,
-    eyeColor: "g",
-    face: "stub",
-  };
 }

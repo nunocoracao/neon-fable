@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   APPEARANCE_FIELDS,
+  composeCharacter,
   defaultAppearance,
   randomAppearance,
   resolveLayers,
   validateAppearance,
   type Appearance,
 } from "./appearance";
+import { BUILD_OPTIONS, SKIN_TONE_OPTIONS } from "../data/appearance";
 import { emptyEquipment } from "../inventory/equipment";
+import {
+  composedCharacterGrid,
+  composedCharacterKey,
+} from "../iso/art/layers";
 import { createRng } from "../state/rng";
 
 describe("validateAppearance", () => {
@@ -152,5 +158,68 @@ describe("resolveLayers", () => {
         emptyEquipment(),
       ),
     ).toThrow(/eyes="laser"/);
+  });
+});
+
+describe("composeCharacter", () => {
+  it("maps every build option onto its authored body grid set", () => {
+    for (const option of BUILD_OPTIONS) {
+      const composed = composeCharacter(
+        { ...defaultAppearance(), build: option.id },
+        emptyEquipment(),
+      );
+      expect(composed.build, option.id).toBe(option.build);
+      expect(composed.layers[0], option.id).toMatchObject({
+        slot: "body",
+        art: option.build,
+      });
+    }
+  });
+
+  it("carries the resolved layer stack", () => {
+    const appearance = defaultAppearance();
+    const equipment = emptyEquipment();
+    expect(composeCharacter(appearance, equipment).layers).toEqual(
+      resolveLayers(appearance, equipment),
+    );
+  });
+
+  it("descriptor cache keys differ exactly when the appearance differs", () => {
+    const key = (appearance: Appearance): string =>
+      composedCharacterKey(composeCharacter(appearance, emptyEquipment()));
+    expect(key(defaultAppearance())).toBe(key(defaultAppearance()));
+    const variants = [
+      defaultAppearance(),
+      { ...defaultAppearance(), skinTone: "golden-tan" },
+      { ...defaultAppearance(), skinTone: "warm-brown" },
+      { ...defaultAppearance(), skinTone: "deep-umber" },
+      { ...defaultAppearance(), build: "heavy" },
+      { ...defaultAppearance(), eyeColor: "amber" },
+      { ...defaultAppearance(), hairStyle: "none" },
+      { ...defaultAppearance(), mouth: "smirk" },
+    ];
+    expect(new Set(variants.map(key)).size).toBe(variants.length);
+  });
+
+  it("renders through the layer engine: distinct grids per tone and build", () => {
+    const grid = (appearance: Appearance): string =>
+      composedCharacterGrid(
+        composeCharacter(appearance, emptyEquipment()),
+        "e",
+        "idle",
+        0,
+      ).join("\n");
+    const looks = [
+      ...SKIN_TONE_OPTIONS.map((tone) => ({
+        ...defaultAppearance(),
+        skinTone: tone.id,
+      })),
+      ...BUILD_OPTIONS.map((build) => ({
+        ...defaultAppearance(),
+        build: build.id,
+      })),
+    ];
+    // 4 tones on the lean build + heavy; "lean" appears in both sets.
+    expect(new Set(looks.map(grid)).size).toBe(looks.length - 1);
   });
 });

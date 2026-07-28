@@ -9,7 +9,12 @@ import {
   type CharacterRole,
 } from "./characters";
 import { INTERACTABLE_ART } from "./interactables";
-import { BODY_FRAME } from "./layers/body";
+import {
+  composedCharacterGrid,
+  skinToneRemap,
+  type ComposedCharacter,
+} from "./layers";
+import { BODY_BUILD_IDS, BODY_FRAME } from "./layers/body";
 import { BODY_ANIM } from "./layers/bodyAnim";
 import {
   bakeSilhouette,
@@ -111,6 +116,39 @@ function bakeEverything(): number {
           bakeSprite(frame, BODY_FRAME.anchorX, BODY_FRAME.anchorY);
           bakeSprite(mirrored(frame), BODY_FRAME.anchorX, BODY_FRAME.anchorY);
           baked += 2;
+        }
+      }
+    }
+  }
+
+  // The composed player path: full compose + animate + bake per frame,
+  // exactly what the provider pays on a player cache miss — both builds
+  // at two skin tones, every facing, state, and frame.
+  const composedCharacters: ComposedCharacter[] = BODY_BUILD_IDS.flatMap(
+    (build) =>
+      [0, 2].map((tone): ComposedCharacter => {
+        const skin = skinToneRemap(tone);
+        return {
+          build,
+          layers: [
+            { slot: "body", art: build, remap: skin },
+            { slot: "face", art: "standard", remap: skin },
+            { slot: "face", art: "straight", remap: {} },
+            { slot: "face", art: "neutral", remap: skin },
+          ],
+        };
+      }),
+  );
+  for (const character of composedCharacters) {
+    for (const facing of facings) {
+      for (const state of states) {
+        for (let i = 0; i < BODY_TIMING[state].frameCount; i++) {
+          bakeSprite(
+            composedCharacterGrid(character, facing, state, i),
+            BODY_FRAME.anchorX,
+            BODY_FRAME.anchorY,
+          );
+          baked++;
         }
       }
     }

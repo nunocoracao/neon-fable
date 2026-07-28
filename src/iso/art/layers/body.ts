@@ -217,19 +217,3 @@ export function bodyViewForFacing(facing: Facing): {
     flip: facing === "s" || facing === "w",
   };
 }
-
-/**
- * Temporary dev-only preview flag: with `?dev&previewBody=lean` (or
- * heavy) in the URL, the sprite provider renders the new base body in
- * place of the legacy character set so the hi-res bodies can be walked
- * around in-game before the composition engine lands. Pure over the
- * query string so it stays testable outside a browser.
- */
-export function bodyPreviewBuild(search: string): BodyBuildId | null {
-  const params = new URLSearchParams(search);
-  if (!params.has("dev")) return null;
-  const value = params.get("previewBody");
-  return (BODY_BUILD_IDS as readonly string[]).includes(value ?? "")
-    ? (value as BodyBuildId)
-    : null;
-}

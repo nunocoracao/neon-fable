@@ -6,6 +6,7 @@ import type { Facing } from "../animation";
 import { INTERACTABLE_ART } from "./interactables";
 import { ART_SCALE } from "./pixel";
 import { PROP_ART } from "./props";
+import { skinToneRemap, type ComposedCharacter } from "./layers";
 import { createPixelArtSprites, type PixelArtSprites } from "./provider";
 import { TILE_ART } from "./tiles";
 import type { SpriteCacheStats } from "./spriteCache";
@@ -122,14 +123,14 @@ describe("createPixelArtSprites cache", () => {
     expect(() => sprites.glow("z", 10)).toThrow();
   });
 
-  it("bakes composed characters once per frame key under the dev preview flag", () => {
-    const sprites = createPixelArtSprites("?dev&previewBody=lean");
+  it("bakes the composed player once per frame key, separate from enemies", () => {
+    const sprites = createPixelArtSprites();
     const pose = { facing: "e" as const, moving: false, timeMs: 0 };
     const first = sprites.entity("player", pose);
     expect(sprites.entity("player", pose)).toBe(first);
-    // The preview descriptor drives the bake, not the role.
-    expect(sprites.entity("enemy", pose)).toBe(first);
-    expect(sprites.cacheStats()).toMatchObject({ entries: 1, misses: 1, hits: 2 });
+    // Enemies still render from the legacy role set, under their own key.
+    expect(sprites.entity("enemy", pose)).not.toBe(first);
+    expect(sprites.cacheStats()).toMatchObject({ entries: 2, misses: 2, hits: 1 });
     // Composed frames bake at the 32×48 layer frame with its anchor.
     expect((first.image as HTMLCanvasElement).width).toBe(32 * ART_SCALE);
     expect((first.image as HTMLCanvasElement).height).toBe(48 * ART_SCALE);
@@ -137,8 +138,26 @@ describe("createPixelArtSprites cache", () => {
     expect(first.anchorY).toBe(44 * ART_SCALE);
   });
 
+  it("rebakes when the injected player descriptor changes", () => {
+    let current: ComposedCharacter = {
+      build: "lean",
+      layers: [{ slot: "body", art: "lean", remap: skinToneRemap(0) }],
+    };
+    const sprites = createPixelArtSprites({ player: () => current });
+    const pose = { facing: "s" as const, moving: false, timeMs: 0 };
+    const porcelain = sprites.entity("player", pose);
+    expect(sprites.entity("player", pose)).toBe(porcelain);
+    current = {
+      build: "heavy",
+      layers: [{ slot: "body", art: "heavy", remap: skinToneRemap(3) }],
+    };
+    const umber = sprites.entity("player", pose);
+    expect(umber).not.toBe(porcelain);
+    expect(sprites.cacheStats()).toMatchObject({ entries: 2, misses: 2, hits: 1 });
+  });
+
   it("bakes composed silhouettes under their own keys", () => {
-    const sprites = createPixelArtSprites("?dev&previewBody=heavy&previewSkin=2");
+    const sprites = createPixelArtSprites();
     const pose = { facing: "w" as const, moving: true, timeMs: 500 };
     const sprite = sprites.entity("player", pose);
     const flash = sprites.entitySilhouette("player", pose);
@@ -147,8 +166,8 @@ describe("createPixelArtSprites cache", () => {
     expect(sprites.cacheStats()).toMatchObject({ entries: 2, misses: 2, hits: 1 });
   });
 
-  it("reaches zero-bake steady state on the composed preview path", () => {
-    const sprites = createPixelArtSprites("?dev&previewBody=lean");
+  it("reaches zero-bake steady state on the composed player path", () => {
+    const sprites = createPixelArtSprites();
     const drive = (from: number, to: number): void => {
       for (let t = from; t <= to; t += 16.7) {
         for (const facing of FACINGS) {

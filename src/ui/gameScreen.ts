@@ -12,7 +12,8 @@ import {
 import { availablePoints } from "../character";
 import { selectVignettes } from "../narrative";
 import { carryoverCandidates, recordCompletionToStorage } from "../state";
-import { createIsoScene, type IsoScene } from "../iso";
+import { createIsoScene, createPixelArtSprites, type IsoScene } from "../iso";
+import { playerSpriteSource } from "./playerSprite";
 import { createAdvancementOverlay } from "./advancementOverlay";
 import { COMBAT_RESUME_FLAG, createCombatScreen } from "./combatScreen";
 import { createDialogueOverlay } from "./dialogueOverlay";
@@ -405,6 +406,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       scene = createIsoScene(canvas, {
         map,
         spawnId: "player-start",
+        sprites: createPixelArtSprites({ player: playerSpriteSource(session) }),
         onInteract(event): void {
           if (overlay) return;
           audio.play("interact");

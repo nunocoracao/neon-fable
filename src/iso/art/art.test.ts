@@ -735,12 +735,13 @@ describe("character art", () => {
         expect(PALETTE[to], `${role} remap target ${to}`).toBeDefined();
       }
     }
-    const roles: CharacterRole[] = ["player", "enemy", "npc"];
+    const roles: CharacterRole[] = ["enemy", "npc"];
     const base = CHARACTER_FRAMES.e.idle[0] ?? [];
     const recolored = roles.map((role) =>
       remapped(base, ROLE_REMAPS[role]).join("\n"),
     );
-    expect(new Set(recolored).size).toBe(roles.length);
+    // Each role recolors the shared base distinctly.
+    expect(new Set([base.join("\n"), ...recolored]).size).toBe(roles.length + 1);
   });
 
   it("walk frames advance faster than idle frames", () => {

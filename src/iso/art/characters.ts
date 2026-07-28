@@ -1,10 +1,12 @@
 /**
- * Character pixel art: one authored 16×24 humanoid (front and back
- * three-quarter views, idle + stride poses). The four iso facings come
- * from horizontal mirroring (e↔s share the front view, n↔w the back),
- * walk cycles from leg-row swaps and a 1px bob, and the player / enemy /
- * NPC roles from palette remaps of the same grids — so the whole cast
- * stays a single reviewable set of drawings.
+ * Legacy character pixel art: one authored 16×24 humanoid (front and
+ * back three-quarter views, idle + stride poses). The four iso facings
+ * come from horizontal mirroring (e↔s share the front view, n↔w the
+ * back), walk cycles from leg-row swaps and a 1px bob, and the enemy /
+ * NPC roles from palette remaps of the same grids. The player no
+ * longer renders from this set — it composes from the hi-res layer
+ * pipeline (./layers) — and enemies/NPCs migrate there in their own
+ * appearance tasks.
  *
  * Jacket uses "i" (dim) with a "g"/"h" neon seam; role remaps recolor
  * those. Anchor is the shadow center: (8, 22) in 1x pixels.
@@ -12,7 +14,7 @@
 import type { Facing, MotionState } from "../animation";
 import { mirrored, type PixelGrid } from "./pixel";
 
-export type CharacterRole = "player" | "enemy" | "npc";
+export type CharacterRole = "enemy" | "npc";
 
 export const CHARACTER_ANCHOR_X = 8;
 export const CHARACTER_ANCHOR_Y = 22;
@@ -130,7 +132,6 @@ export const CHARACTER_FRAMES: Readonly<
 export const ROLE_REMAPS: Readonly<
   Record<CharacterRole, Readonly<Record<string, string>>>
 > = {
-  player: {},
   enemy: { i: "l", g: "j", h: "k", "9": "k" },
   npc: { i: "4", g: "m", h: "n", "9": "n" },
 };
