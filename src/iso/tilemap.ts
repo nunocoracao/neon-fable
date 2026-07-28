@@ -79,7 +79,10 @@ export type PropId =
   | "crate"
   | "barrier"
   | "holo-sign"
-  | "vent-stack";
+  | "vent-stack"
+  | "hydrant"
+  | "trash-heap"
+  | "cable-bundle";
 
 /** A static decoration on a tile. Blocking props make the tile unwalkable. */
 export interface PropPlacement {
