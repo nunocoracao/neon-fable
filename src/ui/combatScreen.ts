@@ -22,7 +22,12 @@ import {
 } from "../combat";
 import { audio, hitSoundForDamage } from "../audio";
 import { getAbility, getEncounter, getItem, requireMap } from "../data";
-import { createCombatScene, type CombatScene } from "../iso";
+import {
+  createCombatScene,
+  createPixelArtSprites,
+  type CombatScene,
+} from "../iso";
+import { playerSpriteSource } from "./playerSprite";
 import type { IsoMap, TilePoint } from "../iso";
 import { SaveError, loadGame, type GameState } from "../state";
 import { focusFirst, installListNav } from "./focus";
@@ -784,6 +789,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       audio.setMusicContext("combat");
       scene = createCombatScene(canvas, {
         map: arenaMap,
+        sprites: createPixelArtSprites({ player: playerSpriteSource(session) }),
         onTileClick,
         onTileHover,
       });
