@@ -15,13 +15,23 @@ import {
   type MotionState,
 } from "../animation";
 import {
+  HAIR_COLOR_OPTIONS,
+  HAIR_STYLE_OPTIONS,
+} from "../../data/appearance";
+import {
   CHARACTER_FRAMES,
   ROLE_REMAPS,
   type CharacterRole,
 } from "./characters";
 import { INTERACTABLE_ART } from "./interactables";
+import {
+  composedCharacterGrid,
+  layerArtGrid,
+  type ComposedCharacter,
+} from "./layers";
 import { BODY_BUILD_IDS, bodyViewForFacing } from "./layers/body";
 import { BODY_ANIM } from "./layers/bodyAnim";
+import { REMAP_CHANNELS } from "./palette";
 import {
   mirrored,
   nativeScaled,
@@ -111,6 +121,47 @@ function bodyEntries(): GalleryEntry[] {
 }
 
 /**
+ * Appearance-layer combinations rendered through the real composition
+ * pipeline (compose on the neutral pose, animate, mirror), exactly what
+ * the player bake produces. Iterates every registered hair style ×
+ * catalog hair color × facing on the lean body; catalog styles whose
+ * art has not landed yet are skipped and join automatically once their
+ * registry entry exists.
+ */
+function appearanceEntries(): GalleryEntry[] {
+  const [hairChannel = "K"] = REMAP_CHANNELS.hair;
+  const styles = HAIR_STYLE_OPTIONS.filter(
+    (style) =>
+      style.layer !== null && layerArtGrid("hair", style.layer, "front"),
+  );
+  const { frameMs, frameCount } = BODY_TIMING.idle;
+  return styles.flatMap((style) =>
+    HAIR_COLOR_OPTIONS.flatMap((color) =>
+      FACINGS.map((facing) => {
+        const character: ComposedCharacter = {
+          build: "lean",
+          layers: [
+            { slot: "body", art: "lean", remap: {} },
+            {
+              slot: "hair",
+              art: style.layer ?? "",
+              remap: { [hairChannel]: color.color },
+            },
+          ],
+        };
+        return {
+          id: `hair ${style.id} ${color.id} ${facing}`,
+          frames: Array.from({ length: frameCount }, (_, frame) =>
+            composedCharacterGrid(character, facing, "idle", frame),
+          ),
+          frameMs,
+        };
+      }),
+    ),
+  );
+}
+
+/**
  * Section builders in display order. Append here to add a section —
  * e.g. a later appearance-layer task registers its combination builder
  * and the gallery picks it up with no UI changes.
@@ -125,6 +176,7 @@ const SECTION_BUILDERS: ReadonlyArray<{
   { id: "interactables", title: "Interactables", build: interactableEntries },
   { id: "characters", title: "Characters (legacy)", build: legacyCharacterEntries },
   { id: "bodies", title: "Bodies (hi-res)", build: bodyEntries },
+  { id: "appearance", title: "Appearance layers", build: appearanceEntries },
 ];
 
 /** Every registered art piece, grouped into display sections. */

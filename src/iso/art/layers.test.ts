@@ -151,18 +151,20 @@ describe("channel remaps", () => {
 });
 
 describe("layer art registries", () => {
-  it("resolves registered body and face art per view", () => {
+  it("resolves registered body, face, and hair art per view", () => {
     expect(layerArtGrid("body", "lean", "front")).not.toBeNull();
     expect(layerArtGrid("body", "heavy", "back")).not.toBeNull();
     expect(layerArtGrid("face", "standard", "front")).not.toBeNull();
     expect(layerArtGrid("face", "straight", "front")).not.toBeNull();
     expect(layerArtGrid("face", "neutral", "front")).not.toBeNull();
+    expect(layerArtGrid("hair", "buzz", "front")).not.toBeNull();
+    expect(layerArtGrid("hair", "bob", "back")).not.toBeNull();
   });
 
   it("returns null for unregistered slots and unknown art ids", () => {
-    // Hair/headwear/gear registries land in later tasks; their catalog
-    // ids resolve to nothing until then.
-    expect(layerArtGrid("hair", "buzz", "front")).toBeNull();
+    // Headwear/gear registries land in later tasks; their catalog ids
+    // resolve to nothing until then (same for set-2 hair styles).
+    expect(layerArtGrid("hair", "ponytail", "front")).toBeNull();
     expect(layerArtGrid("headwear", "visor", "front")).toBeNull();
     expect(layerArtGrid("weapon", "wpn-rail-spitter", "front")).toBeNull();
     expect(layerArtGrid("body", "giant", "front")).toBeNull();
@@ -285,7 +287,7 @@ describe("composedCharacterGrid", () => {
       ...CHARACTER,
       layers: [
         ...CHARACTER.layers,
-        { slot: "hair", art: "buzz", remap: { K: "M" } },
+        { slot: "hair", art: "ponytail", remap: { K: "M" } },
         { slot: "weapon", art: "wpn-rail-spitter", remap: {} },
       ],
     };
@@ -297,7 +299,7 @@ describe("composedCharacterGrid", () => {
   it("throws when no layer resolves to a drawable grid", () => {
     const empty: ComposedCharacter = {
       build: "lean",
-      layers: [{ slot: "hair", art: "buzz", remap: {} }],
+      layers: [{ slot: "hair", art: "ponytail", remap: {} }],
     };
     expect(() => composedCharacterGrid(empty, "e", "idle", 0)).toThrow(
       /no drawable layers/,

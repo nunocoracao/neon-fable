@@ -60,9 +60,14 @@ export const BUILD_OPTIONS: readonly BuildOption[] = [
 
 export const HAIR_STYLE_OPTIONS: readonly StyleOption[] = [
   { id: "none", label: "Shaved", layer: null },
-  { id: "buzz", label: "Buzz Cut", layer: "buzz" },
-  { id: "spikes", label: "Spikes", layer: "spikes" },
-  { id: "bob", label: "Bob", layer: "bob" },
+  // "buzz" keeps its persisted id from the schema task; the authored
+  // style reads as a short crop.
+  { id: "buzz", label: "Short Crop", layer: "buzz" },
+  { id: "slicked", label: "Slicked Back", layer: "slicked" },
+  { id: "bob", label: "Chin-Length Bob", layer: "bob" },
+  { id: "spikes", label: "Short Spikes", layer: "spikes" },
+  // Authored in hair set 2 (the long tied-back tail); until then the
+  // id resolves to no registered grid and draws nothing.
   { id: "ponytail", label: "Ponytail", layer: "ponytail" },
 ];
 
