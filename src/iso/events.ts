@@ -4,6 +4,8 @@
  * it only forwards these payloads through a callback for the app shell
  * to route.
  */
+import type { FocusReason } from "./affordance";
+import type { InteractableSpriteId } from "./tilemap";
 
 export type MapInteraction =
   | { kind: "dialogue"; nodeId: string }
@@ -18,19 +20,25 @@ export interface IsoInteractionEvent {
 export type IsoInteractionHandler = (event: IsoInteractionEvent) => void;
 
 /**
- * A way out the player is pointing at or standing beside. The scene
- * reports the destination's map id, not its name — resolving content
- * ids stays with the app shell.
+ * The one interactable the scene is offering: the thing the cursor is
+ * on, or the nearest thing within reach. The scene reports ids and the
+ * label the map authored, never resolved content — turning a
+ * destination map id into a name stays with the app shell.
  */
-export interface IsoExitHint {
+export interface IsoFocusHint {
   interactableId: string;
-  /** The exit's own label, e.g. "Chainwell Stair". */
+  /** The interactable's own label, e.g. "Chainwell Stair". */
   label: string;
-  /** Destination map id. */
-  mapId: string;
+  spriteId: InteractableSpriteId;
+  /** What triggering it would start, for the prompt's verb. */
+  interaction: MapInteraction;
   /** Whether the cursor is on it or the player is stood next to it. */
-  reason: "hover" | "nearby";
+  reason: FocusReason;
+  /** Whether the player can trigger it from where they stand. */
+  inRange: boolean;
+  /** Destination map id, on interactables that lead off the map. */
+  exitMapId?: string;
 }
 
-/** Called with the exit in focus, or null when none is. */
-export type IsoExitHintHandler = (hint: IsoExitHint | null) => void;
+/** Called with the interactable in focus, or null when none is. */
+export type IsoFocusHintHandler = (hint: IsoFocusHint | null) => void;
