@@ -25,6 +25,9 @@ export {
   type ExpressionOverlays,
   type ExpressiveFaceStyleOption,
   type FaceStyleOption,
+  type HairInteraction,
+  type HairStyleOption,
+  type HeadwearOption,
   type SkinToneOption,
   type StyleOption,
 } from "./appearance";

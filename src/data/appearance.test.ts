@@ -19,6 +19,11 @@ import {
 } from "./appearance";
 import { BODY_BUILD_IDS } from "../iso/art/layers/body";
 import { FACE_LAYERS, FACE_PART_IDS } from "../iso/art/layers/face";
+import {
+  HEADWEAR_IDS,
+  HEADWEAR_LAYERS,
+  type HeadwearId,
+} from "../iso/art/layers/headwear";
 import { HAIR_COLORS, PALETTE, SKIN_RAMPS } from "../iso/art/palette";
 import { gridErrors } from "../iso/art/pixel";
 
@@ -135,6 +140,53 @@ describe("appearance catalogs", () => {
         expect(option.shimmer, option.id).toBeUndefined();
       }
     }
+  });
+
+  it("offers five headwear options with data-driven hair and eye rules", () => {
+    expect(HEADWEAR_OPTIONS).toHaveLength(5);
+    const none = HEADWEAR_OPTIONS.find((o) => o.id === "none");
+    expect(none?.layer).toBeNull();
+    expect(none?.hairRule).toBe("shows");
+    expect(none?.coversEyes).toBe(false);
+    expect(none?.portrait).toBeNull();
+    // Drawn options carry registered sprite art plus a valid portrait.
+    const drawn = HEADWEAR_OPTIONS.filter((o) => o.layer !== null);
+    expect(drawn.map((o) => o.layer).sort()).toEqual([...HEADWEAR_IDS].sort());
+    for (const option of drawn) {
+      expect(
+        HEADWEAR_LAYERS[option.layer as HeadwearId],
+        `${option.id} sprite layer`,
+      ).toBeDefined();
+      expect(option.portrait, `${option.id} portrait`).not.toBeNull();
+      expect(gridErrors(option.portrait ?? []), `${option.id} portrait`).toEqual(
+        [],
+      );
+    }
+    // Every hair-interaction rule is exercised by the catalog, and
+    // only the lens options cover the eyes.
+    expect(new Set(HEADWEAR_OPTIONS.map((o) => o.hairRule))).toEqual(
+      new Set(["shows", "crushes", "hides"]),
+    );
+    expect(
+      HEADWEAR_OPTIONS.filter((o) => o.coversEyes)
+        .map((o) => o.id)
+        .sort(),
+    ).toEqual(["rebreather", "visor"]);
+  });
+
+  it("hair styles declare their crushed under-cap variant", () => {
+    for (const option of HAIR_STYLE_OPTIONS) {
+      if (option.layer === null) {
+        expect(option.crushed, option.id).toBeNull();
+      } else {
+        expect(option.crushed, option.id).not.toBeNull();
+      }
+    }
+    // The variants are shared per style group, not authored per style.
+    const refs = HAIR_STYLE_OPTIONS.map((o) => o.crushed).filter(
+      (c): c is string => c !== null,
+    );
+    expect(new Set(refs).size).toBeLessThan(refs.length);
   });
 
   it("getAppearanceOption finds by id and misses unknowns", () => {
