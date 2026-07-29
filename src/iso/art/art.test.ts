@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { frameAt } from "../animation";
 import { TILE_H, TILE_W, screenToTile, worldToScreen } from "../coords";
-import {
-  CHARACTER_FRAMES,
-  ROLE_REMAPS,
-  type CharacterRole,
-} from "./characters";
 import { INTERIOR_FLOOR_IDS, TRIM_EDGES } from "../tilemap";
 import { INTERACTABLE_ART } from "./interactables";
 import { PALETTE, TRANSPARENT } from "./palette";
@@ -14,7 +8,6 @@ import {
   DIAMOND_WIDTHS,
   LEGACY_DIAMOND_WIDTHS,
   gridErrors,
-  mirrored,
   nativeScaled,
   remapped,
   upscaled,
@@ -22,7 +15,6 @@ import {
 } from "./pixel";
 import { PROP_ART } from "./props";
 import { TILE_ART } from "./tiles";
-import { IDLE_FRAME_MS, WALK_FRAME_MS, characterFrameIndex } from "./provider";
 
 function expectValid(grid: PixelGrid, label: string): void {
   expect(gridErrors(grid), label).toEqual([]);
@@ -701,55 +693,3 @@ describe("glow registrations", () => {
   });
 });
 
-describe("character art", () => {
-  const facings = ["n", "e", "s", "w"] as const;
-
-  it("every facing has 2+ idle and 4+ walk frames, all 16×24", () => {
-    for (const facing of facings) {
-      const states = CHARACTER_FRAMES[facing];
-      expect(states.idle.length, `${facing} idle`).toBeGreaterThanOrEqual(2);
-      expect(states.walk.length, `${facing} walk`).toBeGreaterThanOrEqual(4);
-      for (const [state, frames] of Object.entries(states)) {
-        frames.forEach((grid, f) => {
-          expectValid(grid, `${facing} ${state} frame ${f}`);
-          expect(grid.length, `${facing} ${state} f${f} height`).toBe(24);
-          expect(grid[0]?.length, `${facing} ${state} f${f} width`).toBe(16);
-        });
-      }
-    }
-  });
-
-  it("opposite facings mirror each other", () => {
-    expect(CHARACTER_FRAMES.s.idle[0]).toEqual(
-      mirrored(CHARACTER_FRAMES.e.idle[0] ?? []),
-    );
-    expect(CHARACTER_FRAMES.w.walk[0]).toEqual(
-      mirrored(CHARACTER_FRAMES.n.walk[0] ?? []),
-    );
-  });
-
-  it("role remaps only target palette characters", () => {
-    for (const [role, remap] of Object.entries(ROLE_REMAPS)) {
-      for (const [from, to] of Object.entries(remap)) {
-        expect(PALETTE[from], `${role} remap source ${from}`).toBeDefined();
-        expect(PALETTE[to], `${role} remap target ${to}`).toBeDefined();
-      }
-    }
-    const roles: CharacterRole[] = ["enemy", "npc"];
-    const base = CHARACTER_FRAMES.e.idle[0] ?? [];
-    const recolored = roles.map((role) =>
-      remapped(base, ROLE_REMAPS[role]).join("\n"),
-    );
-    // Each role recolors the shared base distinctly.
-    expect(new Set([base.join("\n"), ...recolored]).size).toBe(roles.length + 1);
-  });
-
-  it("walk frames advance faster than idle frames", () => {
-    expect(WALK_FRAME_MS).toBeLessThan(IDLE_FRAME_MS);
-    const pose = { facing: "e" as const, moving: true, timeMs: WALK_FRAME_MS };
-    expect(characterFrameIndex(pose, 4)).toBe(1);
-    expect(
-      characterFrameIndex({ ...pose, moving: false }, 2),
-    ).toBe(frameAt(WALK_FRAME_MS, IDLE_FRAME_MS, 2));
-  });
-});

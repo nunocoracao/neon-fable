@@ -21,13 +21,6 @@ import type {
   SpriteProvider,
 } from "../sprites";
 import type { InteractableSpriteId, PropId, TileId } from "../tilemap";
-import {
-  CHARACTER_ANCHOR_X,
-  CHARACTER_ANCHOR_Y,
-  CHARACTER_FRAMES,
-  ROLE_REMAPS,
-  type CharacterRole,
-} from "./characters";
 import { INTERACTABLE_ART } from "./interactables";
 import { BODY_FRAME } from "./layers/body";
 import {
@@ -40,10 +33,8 @@ import {
   bakeSilhouette,
   bakeSprite,
   nativeScaled,
-  remapped,
   spriteBytes,
   upscaled,
-  type PixelGrid,
 } from "./pixel";
 import { PROP_ART } from "./props";
 import {
@@ -57,17 +48,16 @@ const TILE_ANCHOR_X = 32;
 const TILE_ANCHOR_Y = 16;
 
 /**
- * Interim hi-res shim: the character set (and the props not yet marked
- * native) are still authored at the legacy 1x sizes, so those grids are
- * nearest-neighbor doubled (and their authored anchors doubled to
- * match) at bake time. Removed per set as each is re-authored natively
- * at the v2 resolution; tile grids already route through nativeScaled,
- * and native props and all interactables bake as-is.
+ * Interim hi-res shim: the props not yet marked native are still
+ * authored at the legacy 1x sizes, so those grids are nearest-neighbor
+ * doubled (and their authored anchors doubled to match) at bake time.
+ * Removed per prop as each is re-authored natively at the v2
+ * resolution; tile grids already route through nativeScaled, native
+ * props and all interactables bake as-is, and every character —
+ * player, NPC, enemy — composes from the hi-res layer pipeline.
  */
 const SHIM_SCALE = 2;
 
-export const IDLE_FRAME_MS = 480;
-export const WALK_FRAME_MS = 130;
 const FLASH_COLOR = "#ffffff";
 
 /**
@@ -117,14 +107,27 @@ export interface PixelArtSpriteOptions {
    * string work, never wrong pixels).
    */
   player?: () => ComposedCharacter;
+  /**
+   * Composed descriptor per non-player entity sprite id (enemy
+   * archetype ids in combat). Undefined ids fall back to the stock
+   * look; callers should memoize per id.
+   */
+  entity?: (id: string) => ComposedCharacter | undefined;
+  /**
+   * Composed descriptor for the NPC interactable at a map position
+   * (authored named looks or stable seeded ambient variety). Callers
+   * should memoize per position.
+   */
+  npc?: (x: number, y: number) => ComposedCharacter | undefined;
 }
 
 /**
- * The stock look for session-less contexts (dev explore, scene tests):
- * the default build with canonical porcelain channels and the default
- * face parts. Real screens inject a live descriptor instead.
+ * The stock look for session-less contexts (dev explore, scene tests)
+ * and unresolvable entity ids: the default build with canonical
+ * porcelain channels and the default face parts. Real screens inject
+ * live descriptors instead.
  */
-const FALLBACK_PLAYER: ComposedCharacter = {
+const FALLBACK_CHARACTER: ComposedCharacter = {
   build: "lean",
   layers: [
     { slot: "body", art: "lean", remap: {} },
@@ -134,25 +137,6 @@ const FALLBACK_PLAYER: ComposedCharacter = {
   ],
 };
 
-/** Character frame for a pose; exported for tests. */
-export function characterFrameIndex(pose: EntityPose, frameCount: number): number {
-  return frameAt(
-    pose.timeMs,
-    pose.moving ? WALK_FRAME_MS : IDLE_FRAME_MS,
-    frameCount,
-  );
-}
-
-function characterGrid(pose: EntityPose): { grid: PixelGrid; key: string } {
-  const state = pose.moving ? "walk" : "idle";
-  const frames = CHARACTER_FRAMES[pose.facing][state];
-  const frame = characterFrameIndex(pose, frames.length);
-  return {
-    grid: frames[frame] ?? [],
-    key: `${pose.facing}:${state}:${frame}`,
-  };
-}
-
 export function createPixelArtSprites(
   options?: PixelArtSpriteOptions,
 ): PixelArtSprites {
@@ -161,35 +145,31 @@ export function createPixelArtSprites(
 
   const cached = (key: string, make: () => Sprite): Sprite => cache.get(key, make);
 
-  const player = (): ComposedCharacter => options?.player?.() ?? FALLBACK_PLAYER;
+  const player = (): ComposedCharacter =>
+    options?.player?.() ?? FALLBACK_CHARACTER;
+
+  const descriptorFor = (id: string): ComposedCharacter =>
+    id === "player"
+      ? player()
+      : options?.entity?.(id) ?? FALLBACK_CHARACTER;
 
   function composedPose(pose: EntityPose): { state: MotionState; frame: number } {
     const state: MotionState = pose.moving ? "walk" : "idle";
     return { state, frame: bodyFrameAt(state, pose.timeMs) };
   }
 
-  function playerSprite(pose: EntityPose): Sprite {
-    const descriptor = player();
+  // Bake keys serialize the descriptor itself, so entities that look
+  // alike (three of the same enemy archetype) share one baked canvas.
+  function composedSprite(descriptor: ComposedCharacter, pose: EntityPose): Sprite {
     const { state, frame } = composedPose(pose);
     return cached(
-      `player:${composedFrameKey(descriptor, pose.facing, state, frame)}`,
+      `entity:${composedFrameKey(descriptor, pose.facing, state, frame)}`,
       () =>
         bakeSprite(
           composedCharacterGrid(descriptor, pose.facing, state, frame),
           BODY_FRAME.anchorX,
           BODY_FRAME.anchorY,
         ),
-    );
-  }
-
-  function character(role: CharacterRole, pose: EntityPose): Sprite {
-    const { grid, key } = characterGrid(pose);
-    return cached(`char:${role}:${key}`, () =>
-      bakeSprite(
-        upscaled(remapped(grid, ROLE_REMAPS[role])),
-        CHARACTER_ANCHOR_X * SHIM_SCALE,
-        CHARACTER_ANCHOR_Y * SHIM_SCALE,
-      ),
     );
   }
 
@@ -240,8 +220,9 @@ export function createPixelArtSprites(
       timeMs: number,
     ): Sprite {
       if (id === "npc") {
+        // Idle facing the camera; the position hash de-syncs breathing.
         const phase = hash2(x, y) % 1000;
-        return character("npc", {
+        return composedSprite(options?.npc?.(x, y) ?? FALLBACK_CHARACTER, {
           facing: "s",
           moving: false,
           timeMs: timeMs + phase,
@@ -256,32 +237,21 @@ export function createPixelArtSprites(
     },
 
     entity(id: EntitySpriteId, pose: EntityPose): Sprite {
-      return id === "player" ? playerSprite(pose) : character(id, pose);
+      return composedSprite(descriptorFor(id), pose);
     },
 
     entitySilhouette(id: EntitySpriteId, pose: EntityPose): Sprite {
-      if (id === "player") {
-        const descriptor = player();
-        const { state, frame } = composedPose(pose);
-        return cached(
-          `flash:player:${composedFrameKey(descriptor, pose.facing, state, frame)}`,
-          () =>
-            bakeSilhouette(
-              composedCharacterGrid(descriptor, pose.facing, state, frame),
-              FLASH_COLOR,
-              BODY_FRAME.anchorX,
-              BODY_FRAME.anchorY,
-            ),
-        );
-      }
-      const { grid, key } = characterGrid(pose);
-      return cached(`flash:${id}:${key}`, () =>
-        bakeSilhouette(
-          upscaled(grid),
-          FLASH_COLOR,
-          CHARACTER_ANCHOR_X * SHIM_SCALE,
-          CHARACTER_ANCHOR_Y * SHIM_SCALE,
-        ),
+      const descriptor = descriptorFor(id);
+      const { state, frame } = composedPose(pose);
+      return cached(
+        `flash:${composedFrameKey(descriptor, pose.facing, state, frame)}`,
+        () =>
+          bakeSilhouette(
+            composedCharacterGrid(descriptor, pose.facing, state, frame),
+            FLASH_COLOR,
+            BODY_FRAME.anchorX,
+            BODY_FRAME.anchorY,
+          ),
       );
     },
 

@@ -123,19 +123,47 @@ describe("createPixelArtSprites cache", () => {
     expect(() => sprites.glow("z", 10)).toThrow();
   });
 
-  it("bakes the composed player once per frame key, separate from enemies", () => {
-    const sprites = createPixelArtSprites();
+  it("bakes per composed descriptor: resolved entities get their own key, unresolved share the fallback", () => {
+    const rogue: ComposedCharacter = {
+      build: "heavy",
+      layers: [{ slot: "body", art: "heavy", remap: skinToneRemap(2) }],
+    };
+    const sprites = createPixelArtSprites({
+      entity: (id) => (id === "rogue" ? rogue : undefined),
+    });
     const pose = { facing: "e" as const, moving: false, timeMs: 0 };
     const first = sprites.entity("player", pose);
     expect(sprites.entity("player", pose)).toBe(first);
-    // Enemies still render from the legacy role set, under their own key.
-    expect(sprites.entity("enemy", pose)).not.toBe(first);
-    expect(sprites.cacheStats()).toMatchObject({ entries: 2, misses: 2, hits: 1 });
+    // A resolved descriptor bakes under its own key...
+    expect(sprites.entity("rogue", pose)).not.toBe(first);
+    // ...while unresolvable ids degrade to the stock look, sharing the
+    // fallback player's bake (keys serialize the descriptor).
+    expect(sprites.entity("mystery", pose)).toBe(first);
+    expect(sprites.cacheStats()).toMatchObject({ entries: 2, misses: 2, hits: 2 });
     // Composed frames bake at the 32×48 layer frame with its anchor.
     expect((first.image as HTMLCanvasElement).width).toBe(32 * ART_SCALE);
     expect((first.image as HTMLCanvasElement).height).toBe(48 * ART_SCALE);
     expect(first.anchorX).toBe(16 * ART_SCALE);
     expect(first.anchorY).toBe(44 * ART_SCALE);
+  });
+
+  it("composes NPC interactables through the injected npc source", () => {
+    const vendor: ComposedCharacter = {
+      build: "lean",
+      layers: [{ slot: "body", art: "lean", remap: skinToneRemap(1) }],
+    };
+    const sprites = createPixelArtSprites({
+      npc: (x, y) => (x === 2 && y === 3 ? vendor : undefined),
+    });
+    // Composed at the 32×48 layer frame — the legacy 16×24 set is gone.
+    const npcSprite = sprites.interactable("npc", 2, 3, 0);
+    expect((npcSprite.image as HTMLCanvasElement).width).toBe(32 * ART_SCALE);
+    expect((npcSprite.image as HTMLCanvasElement).height).toBe(48 * ART_SCALE);
+    expect(npcSprite.anchorY).toBe(44 * ART_SCALE);
+    // Positions without an NPC fall back to the stock look, cached.
+    const fallback = sprites.interactable("npc", 9, 9, 0);
+    expect(fallback).not.toBe(npcSprite);
+    expect(sprites.interactable("npc", 9, 9, 0)).toBe(fallback);
   });
 
   it("rebakes when the injected player descriptor changes", () => {
