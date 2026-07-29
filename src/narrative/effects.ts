@@ -56,6 +56,7 @@ export function applyEffect(
       return { ...state, pendingEncounterId: effect.encounterId };
     case "travel":
       return { ...state, location: effect.mapId };
+    case "open-stylist":
     case "goto":
     case "end":
       return state;

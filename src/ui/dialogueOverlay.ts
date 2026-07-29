@@ -27,6 +27,8 @@ export interface DialogueOverlayOptions {
   onCombat(encounterId: string, resumeNodeId: string | null): void;
   /** A travel effect fired; continue dialogue at nextNodeId on the new map. */
   onTravel(mapId: string, nextNodeId: string | null): void;
+  /** An open-stylist effect fired; resume dialogue at resumeNodeId after. */
+  onStylist(resumeNodeId: string | null): void;
   /** An end marker fired. */
   onEnded(endingId: string | undefined): void;
   /** The node chain ran out without an end marker. */
@@ -142,6 +144,10 @@ export function createDialogueOverlay(
     }
     if (outcome.travelTo) {
       options.onTravel(outcome.travelTo, outcome.nextNodeId);
+      return;
+    }
+    if (outcome.stylist) {
+      options.onStylist(outcome.nextNodeId);
       return;
     }
     if (outcome.ended) {

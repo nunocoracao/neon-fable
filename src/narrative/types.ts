@@ -73,6 +73,7 @@ export type Effect =
   | CreditsEffect
   | StartCombatEffect
   | TravelEffect
+  | OpenStylistEffect
   | GotoEffect
   | EndEffect;
 
@@ -123,6 +124,16 @@ export interface StartCombatEffect {
 export interface TravelEffect {
   type: "travel";
   mapId: string;
+}
+
+/**
+ * Opens the stylist's re-style screen. The dialogue closes while the
+ * player edits their look; the choice's target node reopens as dialogue
+ * when the screen closes (confirm or cancel alike). Payment and the
+ * cosmetic-only rules live in the restyle logic, not here.
+ */
+export interface OpenStylistEffect {
+  type: "open-stylist";
 }
 
 /** Jump marker: overrides the choice's target node. */

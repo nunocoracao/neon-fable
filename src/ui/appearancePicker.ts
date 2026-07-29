@@ -26,7 +26,7 @@ import {
   APPEARANCE_TABS,
   appearanceCatalogs,
   swatchChips,
-  type AppearanceTabId,
+  type AppearanceTabConfig,
   type SwatchCategoryConfig,
   type ThumbCategoryConfig,
 } from "../data";
@@ -82,9 +82,15 @@ export function characterMiniCanvas(appearance: Appearance): HTMLCanvasElement {
 export interface AppearancePickerOptions {
   /** Live working appearance the thumbs render against. */
   appearance: () => Appearance;
+  /**
+   * Tab config to render. Defaults to the creation wizard's full
+   * APPEARANCE_TABS; the stylist passes the cosmetic-only subset. The
+   * panel is generated entirely from this config plus the catalogs.
+   */
+  tabs?: readonly AppearanceTabConfig[];
   /** Tab to open on; lets the screen keep the tab across re-renders. */
-  initialTab?: AppearanceTabId;
-  onTabChange?: (tab: AppearanceTabId) => void;
+  initialTab?: string;
+  onTabChange?: (tab: string) => void;
   /** A thumb was clicked; the caller owns applying it to the draft. */
   onPick: (category: AppearanceField, id: string) => void;
 }
@@ -98,7 +104,11 @@ export interface AppearancePicker {
 export function createAppearancePicker(
   options: AppearancePickerOptions,
 ): AppearancePicker {
-  let active: AppearanceTabId = options.initialTab ?? APPEARANCE_TABS[0].id;
+  const tabs = options.tabs ?? APPEARANCE_TABS;
+  if (tabs.length === 0) throw new Error("appearance picker needs tabs");
+  const fallbackTab = tabs[0]!;
+  let active: string =
+    tabs.find((tab) => tab.id === options.initialTab)?.id ?? fallbackTab.id;
 
   const el = document.createElement("div");
   el.className = "nf-appearance-picker";
@@ -118,7 +128,7 @@ export function createAppearancePicker(
 
   el.append(tabsRow, caption, body);
 
-  function setTab(tab: AppearanceTabId): void {
+  function setTab(tab: string): void {
     if (tab !== active) {
       active = tab;
       options.onTabChange?.(tab);
@@ -138,7 +148,7 @@ export function createAppearancePicker(
     // active one so keyboard tab switching doesn't dump focus on <body>.
     const hadFocus = tabsRow.contains(document.activeElement);
     tabsRow.replaceChildren(
-      ...APPEARANCE_TABS.map((tab) => {
+      ...tabs.map((tab) => {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "nf-button nf-button-small nf-appearance-tab";
@@ -267,7 +277,7 @@ export function createAppearancePicker(
   }
 
   function renderBody(): void {
-    const tab = APPEARANCE_TABS.find((t) => t.id === active) ?? APPEARANCE_TABS[0];
+    const tab = tabs.find((t) => t.id === active) ?? fallbackTab;
     body.setAttribute("aria-label", tab.label);
     const look = options.appearance();
     // Rebuilding replaces a focused thumb; put focus back on its

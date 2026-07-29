@@ -43,7 +43,6 @@ import {
   getAppearanceOption,
   getItem,
   introArc,
-  type AppearanceTabId,
 } from "../data";
 import { emptyEquipment, type EquipmentState } from "../inventory/equipment";
 import { createRng, type RngState } from "../state/rng";
@@ -159,7 +158,7 @@ export function createCharacterCreateScreen(
   /** Errors from a rejected final confirm; cleared on any edit. */
   let submitErrors: string[] = [];
   /** Active appearance-picker tab, preserved across step re-renders. */
-  let appearanceTab: AppearanceTabId = APPEARANCE_TABS[0].id;
+  let appearanceTab: string = APPEARANCE_TABS[0].id;
   /** Live preview view state, preserved across step re-renders. */
   let previewState: PreviewState = DEFAULT_PREVIEW_STATE;
   /** The mounted preview panel while the appearance step is showing. */

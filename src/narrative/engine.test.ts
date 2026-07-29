@@ -195,4 +195,24 @@ describe("applyChoice", () => {
     expect(outcome.nextNodeId).toBe("arrival");
     expect(outcome.state.location).toBe("greywater-steps");
   });
+
+  it("open-stylist surfaces the flag alongside the resume node, touching no state", () => {
+    const state = makeState();
+    const node: StoryNode = {
+      id: "n",
+      text: "",
+      choices: [
+        {
+          id: "c",
+          label: "",
+          target: "after-chair",
+          effects: [{ type: "open-stylist" }],
+        },
+      ],
+    };
+    const outcome = applyChoice(state, node, "c");
+    expect(outcome.stylist).toBe(true);
+    expect(outcome.nextNodeId).toBe("after-chair");
+    expect(outcome.state).toEqual(state);
+  });
 });

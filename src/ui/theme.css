@@ -821,6 +821,18 @@ body::after {
   }
 }
 
+/* --- Chrome Chapel (stylist) --- */
+
+.nf-stylist {
+  width: min(58rem, calc(100vw - 3rem));
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+}
+
+.nf-stylist-status {
+  min-height: 1.2em;
+}
+
 /* --- Inventory --- */
 
 .nf-inventory {

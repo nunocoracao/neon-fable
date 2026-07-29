@@ -28,6 +28,7 @@ import { focusFirst, installListNav } from "./focus";
 import { createMainMenuScreen } from "./mainMenu";
 import type { OverlayHandle } from "./overlay";
 import { createSaveLoadPanel } from "./saveLoad";
+import { createStylistOverlay } from "./stylistOverlay";
 import { showScreen, type Screen } from "./screen";
 import { autosave, enterMap, type Session } from "./session";
 import { createSettingsOverlay } from "./settingsScreen";
@@ -50,7 +51,8 @@ type OverlayKind =
   | "advance"
   | "saves"
   | "menu"
-  | "settings";
+  | "settings"
+  | "stylist";
 
 /** Flag marking that this playthrough's ending is already in meta-progress. */
 const META_RECORDED_FLAG = "meta-recorded";
@@ -172,6 +174,21 @@ export function createGameScreen(options: GameScreenOptions): Screen {
           // the game screen on the new map and continue any target node.
           closeOverlay();
           showScreen(createGameScreen({ session, dialogueNodeId: nextNodeId }));
+        },
+        onStylist(resumeNodeId) {
+          // The re-style screen replaces the dialogue; closing it
+          // (confirm or cancel) resumes at the choice's target node.
+          openOverlay(
+            "stylist",
+            createStylistOverlay({
+              session,
+              onStateChange: refreshHud,
+              onClose() {
+                closeOverlay();
+                if (resumeNodeId) openDialogue(resumeNodeId);
+              },
+            }),
+          );
         },
         onEnded(endingId) {
           closeOverlay();

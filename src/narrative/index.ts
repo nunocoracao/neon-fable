@@ -16,6 +16,7 @@ export type {
   GotoEffect,
   IncrementFlagEffect,
   ItemRequirement,
+  OpenStylistEffect,
   RemoveItemEffect,
   Requirement,
   SetFlagEffect,
