@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { InventoryError } from "../inventory/items";
 import { layerArtGrid } from "../iso/art/layers";
 import { BODY_BUILD_IDS, BODY_VIEW_IDS } from "../iso/art/layers/body";
+import { cyberArtId } from "../iso/art/layers/cyberware";
 import { outfitArtId } from "../iso/art/layers/outfits";
 import { weaponArtId } from "../iso/art/layers/weapons";
 import { MATERIAL_RAMPS } from "../iso/art/palette";
@@ -129,6 +130,37 @@ describe("item content", () => {
         ).toBeDefined();
       }
     }
+  });
+
+  it("gives every enhancement a cyber layer that resolves for both builds and views", () => {
+    const enhancements = items.filter((i) => i.kind === "enhancement");
+    for (const item of enhancements) {
+      if (item.kind !== "enhancement") continue;
+      const ref = item.cyberLayer;
+      // Schema-wise the layer is optional (absent items show no mark);
+      // every shipped enhancement carries a visible overlay.
+      expect(ref, `${item.id} needs a cyberLayer`).toBeDefined();
+      if (!ref) continue;
+      for (const build of BODY_BUILD_IDS) {
+        for (const view of BODY_VIEW_IDS) {
+          expect(
+            layerArtGrid("cyberware", cyberArtId(ref.id, build), view),
+            `${item.id} -> ${ref.id} ${build} ${view}`,
+          ).not.toBeNull();
+        }
+      }
+      if (ref.accent !== undefined) {
+        expect(
+          MATERIAL_RAMPS[ref.accent],
+          `${item.id} accent ${ref.accent}`,
+        ).toBeDefined();
+      }
+    }
+    // Every install reads distinct: no two share family + recolor.
+    const looks = enhancements.map((i) =>
+      i.kind === "enhancement" ? JSON.stringify(i.cyberLayer) : "",
+    );
+    expect(new Set(looks).size).toBe(enhancements.length);
   });
 
   it("resolves every background starting-gear id to a real item", () => {

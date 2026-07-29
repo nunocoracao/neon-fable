@@ -1,4 +1,5 @@
 import type { StatKey } from "../character/stats";
+import type { CyberLayerId } from "../iso/art/layers/cyberware";
 import type { OutfitLayerId } from "../iso/art/layers/outfits";
 import type { WeaponClassId } from "../iso/art/layers/weapons";
 import type { MaterialName } from "../iso/art/palette";
@@ -88,11 +89,28 @@ export interface ConsumableItem extends ItemBase {
   effect: ConsumableEffect;
 }
 
+/**
+ * How an installed enhancement renders on the character sprite: which
+ * authored cyberware overlay family it shows, and an optional
+ * material-ramp recolor for the neon-glow accent channel. Pure typed
+ * data — resolveLayers turns it into a layer-engine reference, so art
+ * code never switches on item ids. Enhancements without one (and empty
+ * install slots) draw nothing.
+ */
+export interface CyberLayerRef {
+  /** Cyberware overlay family in the cyberware art registry. */
+  id: CyberLayerId;
+  /** Recolor the neon-glow accent channel onto this material ramp. */
+  accent?: MaterialName;
+}
+
 export interface EnhancementItem extends ItemBase {
   kind: "enhancement";
   slot: EnhancementSlot;
   /** Neural load consumed while installed; total is capped by derived.neuralCapacity. */
   neuralCost: number;
+  /** Sprite overlay shown while installed; absent means no visible mark. */
+  cyberLayer?: CyberLayerRef;
   effects: ItemEffect[];
 }
 

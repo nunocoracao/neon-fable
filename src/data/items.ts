@@ -175,6 +175,8 @@ export const items: Item[] = [
       "can tell they're being solved.",
     slot: "eyes",
     neuralCost: 3,
+    // The reticle that never blinks off: amber-flaring optics.
+    cyberLayer: { id: "optics", accent: "hazardAmber" },
     effects: [
       { type: "stat-mod", stat: "reflexes", amount: 2 },
       { type: "stat-mod", stat: "cool", amount: -1 },
@@ -190,6 +192,8 @@ export const items: Item[] = [
       "You stop borrowing strength from your body and start billing it.",
     slot: "arms",
     neuralCost: 4,
+    // Precision truss chrome with cyan servo lights.
+    cyberLayer: { id: "chrome-arm", accent: "neonCyan" },
     effects: [
       { type: "stat-mod", stat: "body", amount: 2 },
       { type: "stat-mod", stat: "reflexes", amount: 1 },
@@ -207,6 +211,8 @@ export const items: Item[] = [
       "under overhead.",
     slot: "neural",
     neuralCost: 4,
+    // Freight-scheduler lattice: the temple port runs amber.
+    cyberLayer: { id: "neural-jack", accent: "hazardAmber" },
     effects: [
       { type: "stat-mod", stat: "intelligence", amount: 2 },
       { type: "stat-mod", stat: "tech", amount: 1 },
@@ -308,6 +314,8 @@ export const items: Item[] = [
       "shutter-click focus, and it makes them nervous.",
     slot: "eyes",
     neuralCost: 2,
+    // Shutter-click focus: cyan-pulsing replacement eyes.
+    cyberLayer: { id: "optics", accent: "neonCyan" },
     effects: [
       { type: "stat-mod", stat: "reflexes", amount: 1 },
       { type: "stat-mod", stat: "cool", amount: -1 },
@@ -323,6 +331,8 @@ export const items: Item[] = [
       "but the fine motor calibration never feels quite right.",
     slot: "arms",
     neuralCost: 3,
+    // Cargo-rated muscle chrome with hazard-amber servo lights.
+    cyberLayer: { id: "chrome-arm", accent: "hazardAmber" },
     effects: [
       { type: "stat-mod", stat: "body", amount: 2 },
       { type: "stat-mod", stat: "tech", amount: -1 },
@@ -338,6 +348,8 @@ export const items: Item[] = [
       "think faster and blink less, and small talk starts to feel like lag.",
     slot: "neural",
     neuralCost: 3,
+    // Cold-logic lattice: the temple port runs cyan.
+    cyberLayer: { id: "neural-jack", accent: "neonCyan" },
     effects: [
       { type: "stat-mod", stat: "intelligence", amount: 2 },
       { type: "stat-mod", stat: "cool", amount: -1 },
@@ -354,6 +366,8 @@ export const items: Item[] = [
       "them.",
     slot: "dermal",
     neuralCost: 2,
+    // Chrome-rimmed filtration slits down the ribs.
+    cyberLayer: { id: "gill-slits" },
     effects: [
       { type: "stat-mod", stat: "body", amount: 1 },
       { type: "stat-mod", stat: "cool", amount: -1 },
@@ -370,6 +384,8 @@ export const items: Item[] = [
       "does your own reflection.",
     slot: "dermal",
     neuralCost: 2,
+    // Projection film smearing hologram-blue static down the face.
+    cyberLayer: { id: "veil-film", accent: "hologramBlue" },
     effects: [
       { type: "stat-mod", stat: "cool", amount: 1 },
       { type: "stat-mod", stat: "tech", amount: -1 },
@@ -385,6 +401,8 @@ export const items: Item[] = [
       "at the price of skin that no longer moves like skin.",
     slot: "dermal",
     neuralCost: 2,
+    // Ballistic mesh seams tracing the torso plating.
+    cyberLayer: { id: "dermal-plate" },
     effects: [
       { type: "stat-mod", stat: "body", amount: 1 },
       { type: "stat-mod", stat: "reflexes", amount: -1 },
