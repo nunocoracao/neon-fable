@@ -91,13 +91,18 @@ export function orderedLayerParts(
 /**
  * Compose layer parts (already in draw order) into one grid: remaps
  * apply per layer first, transparent pixels fall through, later layers
- * override. Throws unless every grid is exactly the 32×48 layer frame.
+ * override. Throws unless every grid is exactly the frame — the 32×48
+ * character layer frame by default; the portrait system passes its own
+ * 48×48 frame.
  */
-export function composeGrids(parts: readonly LayerPart[]): string[] {
+export function composeGrids(
+  parts: readonly LayerPart[],
+  frame: { readonly width: number; readonly height: number } = BODY_FRAME,
+): string[] {
   if (parts.length === 0) {
     throw new Error("composeGrids needs at least one layer");
   }
-  const { width, height } = BODY_FRAME;
+  const { width, height } = frame;
   const out: string[][] = Array.from({ length: height }, () =>
     Array<string>(width).fill(TRANSPARENT),
   );
@@ -263,7 +268,12 @@ export function layerArtGrid(
   return SLOT_REGISTRIES[slot]?.[art]?.[view] ?? null;
 }
 
-function remapKey(remap: Readonly<Record<string, string>>): string {
+/**
+ * Canonical serialization of a channel remap (sorted, so equal remaps
+ * always serialize identically). Shared by the composed-character and
+ * portrait cache keys.
+ */
+export function remapKey(remap: Readonly<Record<string, string>>): string {
   const entries = Object.entries(remap)
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([from, to]) => `${from}>${to}`);
