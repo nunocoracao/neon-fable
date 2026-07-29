@@ -4,6 +4,7 @@ import { baseStats, createCharacter } from "../character";
 import { getBackground } from "../data";
 import { DEFAULT_SETTINGS, SETTINGS_KEY, settings } from "../settings";
 import { createNewGame, type GameState } from "../state";
+import { createCharacterCreateScreen } from "./characterCreate";
 import { findFightSeed, replayStep } from "./combatTestSupport";
 import { createGameScreen } from "./gameScreen";
 import { initScreenRouter, showScreen } from "./screen";
@@ -72,13 +73,19 @@ function bumpStat(row: number, times: number): void {
 }
 
 /** New game -> named character with body/tech/intelligence maxed out and
- * reflexes/cool left at minimum, so stat gates fail visibly later. */
+ * reflexes/cool left at minimum, so stat gates fail visibly later.
+ * Walks the whole wizard: identity -> background (default) -> stats ->
+ * appearance (stock look) -> review -> Jack In. */
 function createTestCharacter(): void {
   click("New Game");
   setName("Vex");
+  click("Next"); // background
+  click("Next"); // stats
   bumpStat(0, 5); // body
   bumpStat(2, 5); // tech
   bumpStat(4, 5); // intelligence
+  click("Next"); // appearance
+  click("Next"); // review
   click("Jack In");
 }
 
@@ -231,24 +238,105 @@ describe("settings", () => {
   });
 });
 
-describe("character creation", () => {
-  it("surfaces name and point-buy errors inline on confirm", () => {
+describe("character creation wizard", () => {
+  it("gates Next on per-step validity with an inline hint", () => {
     click("New Game");
-    click("Jack In");
-    const errors = [...document.querySelectorAll(".nf-error")]
-      .map((el) => el.textContent)
-      .join(" | ");
-    expect(errors).toMatch(/name/i);
-    expect(errors).toMatch(/remaining/i);
+    // Identity: no name yet.
+    expect(buttonByText("Next")?.disabled).toBe(true);
+    expect(textOf(".nf-wizard-hint")).toMatch(/name/i);
+    setName("Vex");
+    expect(buttonByText("Next")?.disabled).toBe(false);
+    click("Next"); // background comes prefilled -> already valid
+    click("Next");
+    // Stats: pool unspent.
+    expect(buttonByText("Next")?.disabled).toBe(true);
+    expect(textOf(".nf-wizard-hint")).toMatch(/remaining points/i);
   });
 
   it("tracks remaining points and previews derived attributes", () => {
     click("New Game");
+    setName("Vex");
+    click("Next");
+    click("Next");
     expect(textOf(".nf-remaining")).toMatch(/15/);
     bumpStat(0, 5);
     expect(textOf(".nf-remaining")).toMatch(/10/);
     // body 8 + courier bonus 1 = 9 -> maxHp 12 + 27 = 39.
     expect(textOf(".nf-derived")).toMatch(/Max HP: 39/);
+  });
+
+  it("preserves every choice across navigation in both directions", () => {
+    click("New Game");
+    setName("Vex");
+    click("Next");
+    // Pick the second background instead of the default.
+    (
+      document.querySelectorAll(".nf-bg-card")[1] as HTMLButtonElement
+    ).click();
+    click("Next");
+    bumpStat(0, 3);
+    click("Back");
+    expect(
+      document
+        .querySelectorAll(".nf-bg-card")[1]
+        ?.classList.contains("nf-selected"),
+    ).toBe(true);
+    click("Back");
+    const input = document.getElementById("nf-name-input") as HTMLInputElement;
+    expect(input.value).toBe("Vex");
+    click("Next");
+    click("Next");
+    expect(
+      document
+        .querySelectorAll(".nf-stat-row")[0]
+        ?.querySelector(".nf-stat-value")?.textContent,
+    ).toBe("6");
+  });
+
+  it("review summarizes the draft, edit links and hotkeys jump between steps", () => {
+    click("New Game");
+    setName("Vex");
+    click("Next");
+    click("Next");
+    bumpStat(0, 5);
+    bumpStat(2, 5);
+    bumpStat(4, 5);
+    click("Next");
+    // Appearance placeholder: portrait preview plus stock/random controls.
+    expect(
+      document.querySelector(".nf-appearance-preview canvas.nf-portrait"),
+    ).toBeTruthy();
+    expect(buttonByText("Randomize Look")).toBeTruthy();
+    click("Next");
+    expect(textOf(".nf-wizard-body")).toMatch(/Vex/);
+    expect(textOf(".nf-wizard-body")).toMatch(/Max HP: 39/);
+    // The stats section's edit link jumps back to the stats step.
+    document
+      .querySelectorAll<HTMLButtonElement>(".nf-review-edit")[2]
+      ?.click();
+    expect(textOf(".nf-remaining")).toMatch(/Points remaining: 0/);
+    // Number-row hotkey jumps straight back to review.
+    pressKey("5");
+    expect(buttonByText("Jack In")).toBeTruthy();
+  });
+
+  it("escape leaves a clean draft silently and confirms a dirty one", () => {
+    click("New Game");
+    pressKey("Escape");
+    expect(buttonByText("New Game")).toBeTruthy();
+
+    click("New Game");
+    setName("Vex");
+    pressKey("Escape");
+    expect(textOf(".nf-wizard-confirm")).toMatch(/Abandon/);
+    click("Keep Editing");
+    expect(document.querySelector(".nf-wizard-confirm")).toBeNull();
+    expect(
+      (document.getElementById("nf-name-input") as HTMLInputElement).value,
+    ).toBe("Vex");
+    pressKey("Escape");
+    click("Discard Draft");
+    expect(buttonByText("New Game")).toBeTruthy();
   });
 
   it("creates the character and opens the intro dialogue over the hub", () => {
@@ -257,6 +345,32 @@ describe("character creation", () => {
     expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
     // Map transition autosave fired.
     expect(localStorage.getItem("neon-fable:save:autosave")).not.toBeNull();
+  });
+
+  it("walks New Game+ with a bigger pool and a legacy pick", () => {
+    showScreen(
+      createCharacterCreateScreen({
+        ngPlus: { bonusPoints: 3, legacyItemIds: ["wpn-shard-knife"] },
+      }),
+    );
+    setName("Vex");
+    click("Next");
+    // Legacy carry-over rides the background step.
+    expect(textOf(".nf-wizard-body")).toMatch(/Legacy carry-over/);
+    expect(textOf(".nf-wizard-body")).toMatch(/Travel light/);
+    click("Next");
+    expect(textOf(".nf-wizard-body")).toMatch(/15 \+ 3 legacy points/);
+    bumpStat(0, 5);
+    bumpStat(2, 5);
+    bumpStat(4, 5);
+    // 15 spent, 3 legacy points still open.
+    expect(buttonByText("Next")?.disabled).toBe(true);
+    bumpStat(1, 3);
+    click("Next");
+    click("Next");
+    expect(textOf(".nf-wizard-body")).toMatch(/Shard Knife/);
+    click("Jack In");
+    expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
   });
 });
 
@@ -368,9 +482,13 @@ describe("inventory overlay", () => {
     // trauma patch lands in the pack at full health.
     click("New Game");
     setName("Vex");
+    click("Next");
+    click("Next");
     bumpStat(0, 5); // body
     bumpStat(1, 5); // reflexes -> passes the [Reflexes 8] gate
     bumpStat(2, 5); // tech
+    click("Next");
+    click("Next");
     click("Jack In");
     click("Reply: you'll take the meet");
     click("Palm a trauma patch");
