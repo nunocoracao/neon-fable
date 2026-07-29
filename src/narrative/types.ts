@@ -1,4 +1,5 @@
 import type { StatKey } from "../character/stats";
+import type { ExpressionId } from "../data/appearance";
 import type { FlagValue } from "../state/flags";
 
 /**
@@ -162,10 +163,21 @@ export interface Choice {
   ifUnavailable?: UnavailablePresentation;
 }
 
+/**
+ * Reserved speaker value marking a line as spoken by the player
+ * character. The UI substitutes the character's name and portrait; every
+ * other non-empty speaker is an NPC display name (resolved against the
+ * cast catalog in src/data/cast.ts), and an absent speaker is narration.
+ * Existing content never used this value, so old arcs keep their meaning.
+ */
+export const PLAYER_SPEAKER = "player";
+
 export interface StoryNode {
   id: string;
-  /** Who is talking; omit for narration. */
+  /** Who is talking: an NPC name or PLAYER_SPEAKER; omit for narration. */
   speaker?: string;
+  /** Portrait expression the speaker plays on this line; default neutral. */
+  expression?: ExpressionId;
   text: string;
   /** Optional map/location tag (e.g. "cinder-row:filament-bar"). */
   location?: string;
