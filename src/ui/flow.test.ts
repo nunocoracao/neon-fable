@@ -259,6 +259,77 @@ describe("character creation wizard", () => {
     expect(textOf(".nf-wizard-hint")).toMatch(/remaining points/i);
   });
 
+  it("marks the current step with aria-current and announces changes politely", () => {
+    click("New Game");
+    const currentChips = () =>
+      [...document.querySelectorAll('[aria-current="step"]')].map(
+        (chip) => chip.textContent,
+      );
+    expect(currentChips()).toEqual(["1Identity"]);
+    const live = document.querySelector('[role="status"]')!;
+    expect(live.getAttribute("aria-live")).toBe("polite");
+    setName("Vex");
+    click("Next");
+    expect(currentChips()).toEqual(["2Background"]);
+    expect(live.textContent).toBe("Step 2 of 5: Background");
+    // Selections announce through the same region.
+    (
+      document.querySelectorAll(".nf-bg-card")[1] as HTMLButtonElement
+    ).click();
+    expect(live.textContent).toMatch(/^Background: /);
+  });
+
+  it("keeps keyboard focus on the picked card across the re-render", () => {
+    click("New Game");
+    setName("Vex");
+    click("Next");
+    // Background list: labelled radiogroup, selection is the tab stop.
+    const list = document.querySelector(".nf-bg-list");
+    expect(list?.getAttribute("role")).toBe("radiogroup");
+    const cards = () =>
+      [...document.querySelectorAll<HTMLButtonElement>(".nf-bg-card")];
+    expect(cards()[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(cards().map((c) => c.tabIndex)).toEqual([0, -1, -1]);
+    cards()[1]!.focus();
+    cards()[1]!.click();
+    const active = document.activeElement as HTMLButtonElement;
+    expect(active.classList.contains("nf-bg-card")).toBe(true);
+    expect(active.getAttribute("aria-checked")).toBe("true");
+    expect(cards().indexOf(active)).toBe(1);
+    // Same on the stats step: the clicked +/− keeps focus.
+    click("Next");
+    const plus = document
+      .querySelectorAll(".nf-stat-row")[0]!
+      .querySelectorAll("button")[1]!;
+    plus.focus();
+    plus.click();
+    expect(
+      (document.activeElement as HTMLElement).dataset.focusKey,
+    ).toBe("stat:body:plus");
+  });
+
+  it("announces appearance picks by category and option label", () => {
+    click("New Game");
+    setName("Vex");
+    click("Next");
+    click("Next");
+    bumpStat(0, 5);
+    bumpStat(2, 5);
+    bumpStat(4, 5);
+    click("Next"); // appearance
+    const live = document.querySelector('[role="status"]')!;
+    // The hair grid lives on the Hair tab of the picker.
+    buttonByText("Hair")?.click();
+    document
+      .querySelector<HTMLButtonElement>(
+        'button.nf-thumb[data-category="hairStyle"][data-id="mohawk"]',
+      )!
+      .click();
+    expect(live.textContent).toBe("Hair: Mohawk");
+    click("Surprise Me");
+    expect(live.textContent).toBe("Randomized look applied");
+  });
+
   it("tracks remaining points and previews derived attributes", () => {
     click("New Game");
     setName("Vex");
