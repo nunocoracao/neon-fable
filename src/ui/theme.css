@@ -550,6 +550,66 @@ body::after {
   color: var(--nf-ink-dim);
 }
 
+/* Appearance picker: tab strip, per-category thumbnail grids, and the
+   hover/focus caption bar. Thumbs are real bakes — portraits display at
+   half their 2x backing size (crisp 1x), minis at full size. */
+
+.nf-appearance-columns {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+}
+
+.nf-appearance-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+}
+
+.nf-thumb-caption {
+  min-height: 1.1rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  color: var(--nf-glow-cyan);
+}
+
+.nf-thumb-section {
+  margin-bottom: 0.75rem;
+}
+
+.nf-thumb-grid {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.nf-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  background: var(--nf-bg-deep);
+  border: 2px solid var(--nf-border);
+  cursor: pointer;
+}
+
+.nf-thumb.nf-selected {
+  border-color: var(--nf-glow-magenta);
+  box-shadow: 2px 2px 0 rgba(110, 33, 72, 0.8);
+}
+
+.nf-thumb canvas.nf-portrait {
+  width: 48px;
+  height: 48px;
+  border: none;
+  background: transparent;
+}
+
+.nf-thumb-mini {
+  width: 64px;
+  height: 96px;
+  image-rendering: pixelated;
+  display: block;
+}
+
 .nf-review-section {
   border-top: 1px solid var(--nf-border);
   padding: 0.4rem 0 0.6rem;
@@ -1180,6 +1240,7 @@ body::after {
 .nf-button:focus-visible,
 .nf-choice:focus-visible,
 .nf-bg-card:focus-visible,
+.nf-thumb:focus-visible,
 .nf-input:focus-visible,
 .nf-setting-row input[type="range"]:focus-visible {
   outline: 2px solid var(--nf-glow-cyan);
