@@ -35,9 +35,13 @@ export {
   APPEARANCE_TABS,
   SWATCH_CATEGORIES,
   moveInGrid,
+  swatchChips,
   type AppearanceTabConfig,
   type AppearanceTabId,
   type PickerCategoryConfig,
+  type SwatchCategoryConfig,
+  type SwatchChip,
+  type ThumbCategoryConfig,
   type ThumbKind,
 } from "./appearanceTabs";
 export {

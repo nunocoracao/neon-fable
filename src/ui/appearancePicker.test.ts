@@ -1,7 +1,12 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultAppearance, type Appearance, type AppearanceField } from "../character";
-import { APPEARANCE_TABS, appearanceCatalogs } from "../data";
+import {
+  APPEARANCE_TABS,
+  SWATCH_CATEGORIES,
+  appearanceCatalogs,
+  swatchChips,
+} from "../data";
 import { createAppearancePicker, type AppearancePicker } from "./appearancePicker";
 
 /**
@@ -32,6 +37,20 @@ function thumbs(category?: string): HTMLButtonElement[] {
     ? `button.nf-thumb[data-category="${category}"]`
     : "button.nf-thumb";
   return [...document.querySelectorAll<HTMLButtonElement>(selector)];
+}
+
+function swatches(category?: string): HTMLButtonElement[] {
+  const selector = category
+    ? `button.nf-swatch[data-category="${category}"]`
+    : "button.nf-swatch";
+  return [...document.querySelectorAll<HTMLButtonElement>(selector)];
+}
+
+/** A hex color normalized the way happy-dom stores inline backgrounds. */
+function cssColor(color: string): string {
+  const probe = document.createElement("i");
+  probe.style.background = color;
+  return probe.style.background;
 }
 
 function tabButton(label: string): HTMLButtonElement {
@@ -74,10 +93,11 @@ describe("appearance picker", () => {
     expect(tabButton("Body").classList.contains("nf-selected")).toBe(true);
   });
 
-  it("shows one baked thumb per catalog entry for every category of every tab", () => {
+  it("shows one baked thumb per catalog entry for every thumb category of every tab", () => {
     for (const tab of APPEARANCE_TABS) {
       tabButton(tab.label).click();
       for (const config of tab.categories) {
+        if (config.kind !== "thumbs") continue;
         const buttons = thumbs(config.category);
         expect(buttons.map((b) => b.dataset.id)).toEqual(
           appearanceCatalogs[config.category].map((option) => option.id),
@@ -165,13 +185,76 @@ describe("appearance picker", () => {
     expect(tabButton("Body").classList.contains("nf-selected")).toBe(true);
   });
 
-  it("hovering or focusing a thumb shows its label in the caption", () => {
+  it("hovering or focusing a thumb or chip shows its label in the caption", () => {
     const caption = document.querySelector(".nf-thumb-caption");
     expect(caption?.textContent).toBe("");
     const heavy = thumbs("build").find((b) => b.dataset.id === "heavy");
     heavy?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
     expect(caption?.textContent).toBe("Heavy");
-    thumbs("skinTone")[0]?.focus();
+    swatches("skinTone")[0]?.focus();
     expect(caption?.textContent).toBe("Porcelain");
+  });
+
+  it("renders each color category as a swatch row of palette chips in its tab", () => {
+    const rows: Array<[string, (typeof SWATCH_CATEGORIES)[number]]> = [
+      ["Body", "skinTone"],
+      ["Hair", "hairColor"],
+      ["Face", "eyeColor"],
+    ];
+    expect(rows.map(([, category]) => category).sort()).toEqual(
+      [...SWATCH_CATEGORIES].sort(),
+    );
+    for (const [tabLabel, category] of rows) {
+      tabButton(tabLabel).click();
+      const chips = swatchChips(category);
+      const buttons = swatches(category);
+      expect(buttons.map((b) => b.dataset.id)).toEqual(
+        chips.map((chip) => chip.id),
+      );
+      for (const [i, button] of buttons.entries()) {
+        expect(button.style.background).toBe(cssColor(chips[i]!.color));
+        expect(button.title).toBe(chips[i]!.label);
+        expect(button.querySelector("canvas")).toBeNull();
+      }
+    }
+  });
+
+  it("marks the working appearance's chip selected in every swatch row", () => {
+    const selected = swatches("skinTone").find((b) =>
+      b.classList.contains("nf-selected"),
+    );
+    expect(selected?.dataset.id).toBe(look.skinTone);
+    expect(selected?.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("clicking a chip round-trips the pick into the appearance record", () => {
+    tabButton("Hair").click();
+    const chestnut = swatches("hairColor").find(
+      (b) => b.dataset.id === "chestnut",
+    );
+    chestnut?.click();
+    expect(picks).toEqual([["hairColor", "chestnut"]]);
+    expect(look.hairColor).toBe("chestnut");
+    const selected = swatches("hairColor").filter((b) =>
+      b.classList.contains("nf-selected"),
+    );
+    expect(selected.map((b) => b.dataset.id)).toEqual(["chestnut"]);
+  });
+
+  it("arrow keys walk a swatch row without leaving it", () => {
+    tabButton("Face").click();
+    const chips = swatches("eyeColor");
+    chips[0]?.focus();
+    chips[0]?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+    );
+    expect(document.activeElement).toBe(chips[1]);
+    chips[1]?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }),
+    );
+    chips[0]?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }),
+    );
+    expect(document.activeElement).toBe(chips[0]);
   });
 });

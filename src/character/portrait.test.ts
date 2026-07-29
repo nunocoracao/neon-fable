@@ -281,6 +281,7 @@ describe("portraitKey", () => {
       portraitKey({ ...base(), skinTone: "warm-brown" }, bare()),
       portraitKey({ ...base(), build: "heavy" }, bare()),
       portraitKey({ ...base(), hairColor: "silver" }, bare()),
+      portraitKey({ ...base(), eyeColor: "crimson" }, bare()),
       portraitKey({ ...base(), headwear: "cap" }, bare()),
       portraitKey(base(), { ...bare(), outfit: "out-cordon-plate" }),
       portraitKey(base(), {

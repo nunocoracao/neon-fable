@@ -303,6 +303,26 @@ describe("equipped outfit resolution", () => {
     expect(layers.some((l) => l.slot === "outfit")).toBe(false);
   });
 
+  it("color picks change the descriptor key (swatch thumbs re-bake)", () => {
+    // The picker's mini/portrait caches key on the composed descriptor,
+    // so a new skin, hair, or eye color must yield a new key — that is
+    // what invalidates every visible thumbnail on a swatch pick.
+    const key = (patch: Partial<Appearance>): string =>
+      composedCharacterKey(
+        composeCharacter(
+          { ...defaultAppearance(), ...patch },
+          emptyEquipment(),
+        ),
+      );
+    const keys = [
+      key({}),
+      key({ skinTone: "deep-umber" }),
+      key({ hairColor: "silver" }),
+      key({ eyeColor: "crimson" }),
+    ];
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
   it("every wearable item and the bare look have distinct descriptor keys", () => {
     const outfits = items.filter((i) => i.kind === "outfit").map((i) => i.id);
     expect(outfits.length).toBeGreaterThanOrEqual(5);

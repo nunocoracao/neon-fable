@@ -610,6 +610,28 @@ body::after {
   display: block;
 }
 
+/* Swatch rows: flat palette chips for the color categories (skin tone,
+   hair color, eye color); the chip's background is the ramp mid-tone. */
+
+.nf-swatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.nf-swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid var(--nf-border);
+  cursor: pointer;
+}
+
+.nf-swatch.nf-selected {
+  border-color: var(--nf-glow-magenta);
+  box-shadow: 2px 2px 0 rgba(110, 33, 72, 0.8);
+}
+
 /* Live preview panel: pedestal stage, control row, and portrait inset.
    The canvas backing store stays at the 2x bake size; the zoom ladder
    scales it by whole multiples via CSS width/height, so art pixels
@@ -1325,6 +1347,7 @@ body::after {
 .nf-choice:focus-visible,
 .nf-bg-card:focus-visible,
 .nf-thumb:focus-visible,
+.nf-swatch:focus-visible,
 .nf-input:focus-visible,
 .nf-setting-row input[type="range"]:focus-visible {
   outline: 2px solid var(--nf-glow-cyan);
