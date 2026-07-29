@@ -14,12 +14,15 @@ import {
   HAIR_STYLE_OPTIONS,
   SKIN_TONE_OPTIONS,
 } from "../data/appearance";
-import { items } from "../data/items";
+import { getItem, items } from "../data/items";
 import { emptyEquipment } from "../inventory/equipment";
 import {
   composedCharacterGrid,
   composedCharacterKey,
+  layerArtGrid,
 } from "../iso/art/layers";
+import { cyberArtId, cyberPulseFrames } from "../iso/art/layers/cyberware";
+import { gridErrors } from "../iso/art/pixel";
 import { createRng } from "../state/rng";
 
 describe("validateAppearance", () => {
@@ -128,7 +131,10 @@ describe("resolveLayers", () => {
     const layers = resolveLayers(defaultAppearance(), {
       weapon: "wpn-shard-knife",
       outfit: null,
-      enhancements: { neural: "enh-neural-jack", arms: "enh-chrome-arm" },
+      enhancements: {
+        neural: "cyb-lattice-coprocessor",
+        arms: "cyb-myomer-arms",
+      },
     });
     // The shard knife's blade class, keyed to the lean default build.
     expect(layers.find((l) => l.slot === "weapon")).toEqual({
@@ -136,9 +142,9 @@ describe("resolveLayers", () => {
       art: "blade@lean",
       remap: {},
     });
-    // Cyberware stays stubbed with item ids, in fixed slot order.
+    // Installed cyberware resolves per build too, in fixed slot order.
     expect(layers.filter((l) => l.slot === "cyberware").map((l) => l.art)).toEqual(
-      ["enh-chrome-arm", "enh-neural-jack"],
+      ["chrome-arm@lean", "neural-jack@lean"],
     );
 
     // The heavy build keys the same class to its own grid set, and an
@@ -400,6 +406,205 @@ describe("headwear hair-interaction rules", () => {
     );
     expect(layers.some((l) => l.art === "standard")).toBe(false);
     expect(layers.find((l) => l.slot === "headwear")?.art).toBe("rebreather");
+  });
+});
+
+describe("installed cyberware resolution", () => {
+  const installed = (
+    enhancements: Partial<Record<"eyes" | "arms" | "neural" | "dermal", string>>,
+    appearance = defaultAppearance(),
+  ) => resolveLayers(appearance, { ...emptyEquipment(), enhancements });
+
+  const enhancementItems = items.filter((i) => i.kind === "enhancement");
+
+  it("every installable enhancement shows a registered overlay layer", () => {
+    for (const item of enhancementItems) {
+      if (item.kind !== "enhancement") continue;
+      const layers = installed({ [item.slot]: item.id });
+      const cyber = layers.filter((l) => l.slot === "cyberware");
+      expect(cyber, item.id).toHaveLength(1);
+      const art = cyber[0]?.art ?? "";
+      expect(art, item.id).toBe(cyberArtId(item.cyberLayer?.id ?? "", "lean"));
+      for (const view of ["front", "back"] as const) {
+        expect(layerArtGrid("cyberware", art, view), `${item.id} ${view}`)
+          .not.toBeNull();
+      }
+      // Installing visibly changes the composed sprite.
+      const grid = composedCharacterGrid(
+        composeCharacter(defaultAppearance(), {
+          ...emptyEquipment(),
+          enhancements: { [item.slot]: item.id },
+        }),
+        "e",
+        "idle",
+        0,
+      ).join("\n");
+      const bare = composedCharacterGrid(
+        composeCharacter(defaultAppearance(), emptyEquipment()),
+        "e",
+        "idle",
+        0,
+      ).join("\n");
+      expect(grid, item.id).not.toBe(bare);
+    }
+  });
+
+  it("keys the overlay to the character's build", () => {
+    const heavy = resolveLayers(
+      { ...defaultAppearance(), build: "heavy" },
+      { ...emptyEquipment(), enhancements: { arms: "cyb-myomer-arms" } },
+    );
+    expect(heavy.find((l) => l.slot === "cyberware")?.art).toBe(
+      "chrome-arm@heavy",
+    );
+  });
+
+  it("applies the item's accent recolor to the glow channel", () => {
+    const amber = installed({ arms: "cyb-myomer-arms" }).find(
+      (l) => l.slot === "cyberware",
+    );
+    expect(amber?.remap).toEqual({ l: "Y", j: "Z", k: "n" });
+    const plain = installed({ dermal: "cyb-dermal-weave" }).find(
+      (l) => l.slot === "cyberware",
+    );
+    expect(plain?.remap).toEqual({});
+  });
+
+  it("multi-install composition is deterministic, ordered, and validates", () => {
+    const full = {
+      eyes: "cyb-optic-suite",
+      arms: "cyb-torsion-frame",
+      neural: "cyb-cascade-governor",
+      dermal: "cyb-dermal-weave",
+    };
+    const layers = installed(full);
+    expect(layers).toEqual(installed(full));
+    // Fixed install-slot order, whatever the record's key order was.
+    expect(layers.filter((l) => l.slot === "cyberware").map((l) => l.art)).toEqual([
+      "optics@lean",
+      "chrome-arm@lean",
+      "neural-jack@lean",
+      "dermal-plate@lean",
+    ]);
+    expect(
+      installed({
+        dermal: "cyb-dermal-weave",
+        arms: "cyb-torsion-frame",
+        neural: "cyb-cascade-governor",
+        eyes: "cyb-optic-suite",
+      }),
+    ).toEqual(layers);
+    // The full chrome loadout composes into valid frames on every facing.
+    const character = composeCharacter(defaultAppearance(), {
+      ...emptyEquipment(),
+      enhancements: full,
+    });
+    for (const facing of ["n", "e", "s", "w"] as const) {
+      const grid = composedCharacterGrid(character, facing, "idle", 0);
+      expect(gridErrors(grid), facing).toEqual([]);
+    }
+  });
+
+  it("every install combination has a distinct descriptor key", () => {
+    const combos: Array<Partial<Record<"eyes" | "arms" | "neural" | "dermal", string>>> = [
+      {},
+      ...enhancementItems.flatMap((item) =>
+        item.kind === "enhancement" ? [{ [item.slot]: item.id }] : [],
+      ),
+      { eyes: "cyb-optic-suite", arms: "cyb-myomer-arms" },
+    ];
+    const keys = combos.map((enhancements) =>
+      composedCharacterKey(
+        composeCharacter(defaultAppearance(), {
+          ...emptyEquipment(),
+          enhancements,
+        }),
+      ),
+    );
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("wires the 2-frame pulse onto glowing families only, and it renders", () => {
+    const optics = installed({ eyes: "cyb-optic-suite" }).find(
+      (l) => l.slot === "cyberware",
+    );
+    expect(optics?.shimmer).toEqual(cyberPulseFrames("neonCyan"));
+    expect(optics?.shimmer).toHaveLength(2);
+    const veil = installed({ dermal: "cyb-static-veil" }).find(
+      (l) => l.slot === "cyberware",
+    );
+    expect(veil?.shimmer).toEqual(cyberPulseFrames("hologramBlue"));
+    for (const id of ["cyb-myomer-arms", "cyb-lattice-coprocessor"]) {
+      const item = getItem(id);
+      if (item?.kind !== "enhancement") continue;
+      const layer = installed({ [item.slot]: id }).find(
+        (l) => l.slot === "cyberware",
+      );
+      expect(layer?.shimmer, id).toBeUndefined();
+    }
+    // The pulse reaches the composed frames: the cyan flare ("h") only
+    // exists on the flare phase; the dim phase sinks the glow to "i".
+    const character = composeCharacter(defaultAppearance(), {
+      ...emptyEquipment(),
+      enhancements: { eyes: "cyb-optic-suite" },
+    });
+    const count = (frame: number, ch: string): number =>
+      composedCharacterGrid(character, "e", "idle", frame)
+        .join("")
+        .split(ch).length - 1;
+    expect(count(0, "h")).toBe(0);
+    expect(count(0, "i")).toBeGreaterThan(0);
+    expect(count(1, "h")).toBeGreaterThan(0);
+  });
+
+  it("eye-covering headwear hides the optic glow on the sprite only", () => {
+    for (const headwear of ["visor", "rebreather"]) {
+      const layers = installed(
+        { eyes: "cyb-warden-optics", arms: "cyb-myomer-arms" },
+        { ...defaultAppearance(), headwear },
+      );
+      expect(
+        layers.some((l) => l.art === "optics@lean"),
+        headwear,
+      ).toBe(false);
+      // Other installs stay visible under the same helmet.
+      expect(
+        layers.some((l) => l.art === "chrome-arm@lean"),
+        headwear,
+      ).toBe(true);
+    }
+    for (const headwear of ["none", "cap", "hood"]) {
+      expect(
+        installed(
+          { eyes: "cyb-warden-optics" },
+          { ...defaultAppearance(), headwear },
+        ).some((l) => l.art === "optics@lean"),
+        headwear,
+      ).toBe(true);
+    }
+  });
+
+  it("degrades to no visible mark for unknown ids and layerless fixtures", () => {
+    expect(
+      installed({ arms: "cyb-vaporware" }).some((l) => l.slot === "cyberware"),
+    ).toBe(false);
+    const layers = resolveLayers(
+      defaultAppearance(),
+      { ...emptyEquipment(), enhancements: { dermal: "cyb-fixture" } },
+      (id) =>
+        id === "cyb-fixture"
+          ? {
+              id,
+              kind: "enhancement",
+              name: "Fixture Graft",
+              description: "test-only",
+              slot: "dermal",
+              neuralCost: 1,
+              effects: [],
+            }
+          : undefined,
+    );
+    expect(layers.some((l) => l.slot === "cyberware")).toBe(false);
   });
 });
 

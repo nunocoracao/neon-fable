@@ -4,12 +4,18 @@ import {
   type AppearanceCategory,
 } from "../data/appearance";
 import {
+  cyberChannelRemap,
   eyeColorRemap,
   outfitChannelRemap,
   skinToneRemap,
   weaponChannelRemap,
 } from "../iso/art/layers";
 import type { ComposedCharacter, LayerSlot } from "../iso/art/layers";
+import {
+  CYBER_LAYER_TRAITS,
+  cyberArtId,
+  cyberPulseFrames,
+} from "../iso/art/layers/cyberware";
 import { outfitArtId } from "../iso/art/layers/outfits";
 import { weaponArtId } from "../iso/art/layers/weapons";
 import { REMAP_CHANNELS } from "../iso/art/palette";
@@ -131,18 +137,17 @@ export interface ResolvedLayer {
   slot: LayerSlot;
   /**
    * Art reference: a layer id from the appearance catalogs; for the
-   * outfit and weapon slots, the equipped item's layer family/class
-   * keyed per build (outfitArtId / weaponArtId); for the still-stubbed
-   * cyberware slot, the equipped item id (its gear-visibility task maps
-   * item ids to authored layers; until then those ids resolve to
-   * nothing).
+   * outfit, weapon, and cyberware slots, the equipped item's layer
+   * family/class keyed per build (outfitArtId / weaponArtId /
+   * cyberArtId).
    */
   art: string;
   remap: Readonly<Record<string, string>>;
   /**
    * Per-frame channel remaps carried straight off a shimmering catalog
-   * entry (the cyber-lines face detail); the layer engine cycles them
-   * by animation frame. Absent on static layers.
+   * entry (the cyber-lines face detail) or a pulsing cyberware family
+   * (cyberPulseFrames); the layer engine cycles them by animation
+   * frame. Absent on static layers.
    */
   shimmer?: readonly Readonly<Record<string, string>>[];
 }
@@ -190,7 +195,11 @@ export type ItemLookup = (id: string) => Item | undefined;
  * without one (and unknown ids) keep the body's base garb underlayer.
  * The equipped weapon resolves the same way through its weaponLayer
  * class reference; unarmed characters (and weapons without a layer)
- * draw empty hands.
+ * draw empty hands. Installed enhancements resolve through their
+ * cyberLayer family reference into the topmost slot — every install
+ * shows, and several compose together. The optic glow sits on the eye
+ * rows, so eye-covering headwear drops it from the sprite exactly like
+ * the eyes layer (portraits keep it — their lens glass is dithered).
  */
 export function resolveLayers(
   appearance: Appearance,
@@ -286,12 +295,23 @@ export function resolveLayers(
   }
 
   // Fixed slot order (not object-key order) keeps the output stable no
-  // matter how the enhancements record was built.
+  // matter how the enhancements record was built. Unknown ids and
+  // enhancements without a layer reference degrade to no visible mark,
+  // never a crash.
   for (const slot of ENHANCEMENT_SLOTS) {
     const itemId = equipment.enhancements[slot];
-    if (itemId !== undefined) {
-      layers.push({ slot: "cyberware", art: itemId, remap: {} });
-    }
+    if (itemId === undefined) continue;
+    const item = lookupItem(itemId);
+    const ref = item?.kind === "enhancement" ? item.cyberLayer : undefined;
+    if (!ref) continue;
+    const traits = CYBER_LAYER_TRAITS[ref.id];
+    if (traits.eyeRegion && headwear.coversEyes) continue;
+    layers.push({
+      slot: "cyberware",
+      art: cyberArtId(ref.id, build),
+      remap: cyberChannelRemap(ref.accent),
+      ...(traits.pulses ? { shimmer: cyberPulseFrames(ref.accent) } : {}),
+    });
   }
 
   return layers;
