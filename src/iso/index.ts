@@ -22,6 +22,21 @@ export {
 } from "./events";
 export { findPath, findPathToAdjacent } from "./path";
 export {
+  MAX_AMBIENT_PER_MAP,
+  ambientLookSeed,
+  ambientSpriteId,
+  createCrowd,
+  crowdEntities,
+  inZone,
+  resolveZones,
+  roamTiles,
+  stepCrowd,
+  stepPedestrian,
+  type AmbientCrowd,
+  type AmbientPedestrian,
+  type AmbientZoneState,
+} from "./ambient";
+export {
   CAMERA_MARGIN,
   clampCamera,
   mapPixelBounds,
@@ -44,11 +59,14 @@ export {
   type LegendEntry,
   type PropId,
   type PropPlacement,
+  type AmbientSpec,
+  type AmbientZone,
   type SpawnPoint,
   type TileDef,
   type TileId,
 } from "./tilemap";
 export { createIsoScene, type IsoScene, type IsoSceneOptions } from "./scene";
+export { type RenderView, type SceneEntity } from "./render";
 export {
   createCombatScene,
   type CombatHighlights,

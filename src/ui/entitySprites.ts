@@ -10,9 +10,10 @@ import {
   composeVisual,
   defaultAppearance,
   interactableVisual,
+  seededAppearance,
 } from "../character";
 import { getEnemy } from "../data/enemies";
-import type { ComposedCharacter, IsoMap } from "../iso";
+import { ambientLookSeed, type ComposedCharacter, type IsoMap } from "../iso";
 
 function safeCompose(
   visual: Parameters<typeof composeVisual>[0],
@@ -49,6 +50,35 @@ export function npcSpriteSource(
       );
     }
     return memo.get(key);
+  };
+}
+
+/**
+ * Descriptor source for ambient pedestrians, keyed by the sprite id
+ * their look seed encodes. Memoized per id, so a whole crowd composes
+ * once per distinct look and — because the provider's bake keys
+ * serialize the descriptor — pedestrians who happen to share a look
+ * also share every baked canvas. Non-ambient ids resolve to undefined
+ * so this can be the scene's single entity source.
+ */
+export function ambientSpriteSource(): (
+  id: string,
+) => ComposedCharacter | undefined {
+  const memo = new Map<string, ComposedCharacter | undefined>();
+  return (id) => {
+    if (!memo.has(id)) {
+      const seed = ambientLookSeed(id);
+      memo.set(
+        id,
+        seed === null
+          ? undefined
+          : safeCompose(
+              { appearance: seededAppearance(seed) },
+              `ambient pedestrian "${id}"`,
+            ),
+      );
+    }
+    return memo.get(id);
   };
 }
 

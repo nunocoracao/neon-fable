@@ -5,6 +5,7 @@
  */
 import { audio } from "../audio";
 import { settings, stepZoom, type ZoomLevel } from "../settings";
+import { createCrowd, crowdEntities, stepCrowd, type AmbientCrowd } from "./ambient";
 import { facingFromDelta, type Facing } from "./animation";
 import { createPixelArtSprites } from "./art/provider";
 import {
@@ -40,6 +41,12 @@ export interface IsoSceneOptions {
   spawnId: string;
   onInteract: IsoInteractionHandler;
   sprites?: SpriteProvider;
+  /**
+   * Populate the map's declared ambient crowd (default true). Off gives
+   * a deterministic empty street for scene tests and dev inspection;
+   * arenas need no switch — they declare no ambient spec at all.
+   */
+  ambient?: boolean;
 }
 
 export interface IsoScene {
@@ -73,6 +80,9 @@ export function createIsoScene(
   let walkProgress = 0;
   /** Interactable to trigger once the walk finishes adjacent to it. */
   let pendingInteractable: Interactable | null = null;
+  /** Ambient pedestrians dressing the map; scenery only, never clicked. */
+  let crowd: AmbientCrowd =
+    options.ambient === false ? { pedestrians: [], zones: new Map() } : createCrowd(map);
 
   let viewportW = 0;
   let viewportH = 0;
@@ -272,6 +282,11 @@ export function createIsoScene(
     const dt = lastTime === null ? 0 : Math.min((time - lastTime) / 1000, 0.1);
     lastTime = time;
     stepWalk(dt);
+    const reducedMotion = settings.get().reducedMotion;
+    // Reduced motion stills the crowd along with the rest of the
+    // ambient clock: the player's own movement is the only motion the
+    // scene keeps, since that one is the player's own doing.
+    crowd = stepCrowd(crowd, map, reducedMotion ? 0 : dt);
     const view: RenderView = {
       map,
       camera,
@@ -279,6 +294,9 @@ export function createIsoScene(
       viewportH,
       hoverTile,
       path: walkQueue,
+      // The crowd rides in the same entity list as the player, so the
+      // renderer's one depth-sorted object pass keeps pedestrians,
+      // props, and the player correctly layered in a busy scene.
       entities: [
         {
           spriteId: "player",
@@ -286,11 +304,12 @@ export function createIsoScene(
           facing: playerFacing,
           moving: walkQueue.length > 0,
         },
+        ...crowdEntities(crowd),
       ],
       // Reduced motion freezes the animation clock: neon flicker, water
       // shimmer, and marker pulses go still while movement (driven by
       // positions, not the clock) stays fully visible.
-      timeMs: settings.get().reducedMotion ? 0 : time,
+      timeMs: reducedMotion ? 0 : time,
       dpr: window.devicePixelRatio || 1,
       zoom,
       glowEnabled: settings.get().glow,

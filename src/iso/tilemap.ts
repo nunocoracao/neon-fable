@@ -177,6 +177,34 @@ export interface SpawnPoint {
   y: number;
 }
 
+/**
+ * A rectangular stretch of a map ambient pedestrians keep to: a plaza,
+ * a market row, a street. Zones are authored as rectangles because a
+ * crowd only needs to read as belonging somewhere — the walkable tiles
+ * inside the rectangle are what a pedestrian actually roams, so a zone
+ * may overlap walls and water without any special-casing.
+ */
+export interface AmbientZone {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * How busy a map's streets are. Purely decorative: ambient pedestrians
+ * are scenery with no interaction, no collision, and no combat role
+ * (see src/iso/ambient.ts). Maps that should read as quiet declare a
+ * small count; arenas and empty rooms declare no spec at all.
+ */
+export interface AmbientSpec {
+  /** Pedestrians to spawn, clamped to MAX_AMBIENT_PER_MAP. */
+  count: number;
+  /** Zones pedestrians are dealt across, round-robin in this order. */
+  zones: readonly AmbientZone[];
+}
+
 export interface IsoMap {
   id: string;
   name: string;
@@ -187,6 +215,8 @@ export interface IsoMap {
   props: PropPlacement[];
   interactables: Interactable[];
   spawns: SpawnPoint[];
+  /** Ambient crowd to dress the map with; absent means no pedestrians. */
+  ambient?: AmbientSpec;
 }
 
 /** A legend entry for authoring maps as compact character rows. */

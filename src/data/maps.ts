@@ -244,6 +244,19 @@ const cinderPlaza: IsoMap = {
     { id: "player-start", x: 7, y: 10 },
     { id: "south-road", x: 7, y: 12 },
   ],
+  // The hub is the busiest map in the game and the one the player sees
+  // most: a modest, constant drift of people across the glow ring, a
+  // couple working the stall row, and foot traffic on the street below
+  // the curb. Zones are listed busiest-first — the crowd is dealt
+  // round-robin, so the plaza always fills before the market corner.
+  ambient: {
+    count: 9,
+    zones: [
+      { id: "plaza", x: 3, y: 5, width: 6, height: 4 },
+      { id: "street", x: 1, y: 10, width: 12, height: 3 },
+      { id: "market-row", x: 6, y: 8, width: 7, height: 2 },
+    ],
+  },
 };
 
 /**
@@ -366,6 +379,12 @@ const greywaterSteps: IsoMap = {
     },
   ],
   spawns: [{ id: "player-start", x: 7, y: 9 }],
+  // Greywater is a settlement, not a thoroughfare: a few residents
+  // crossing the walk between the cistern and the court, no more.
+  ambient: {
+    count: 4,
+    zones: [{ id: "walk", x: 1, y: 4, width: 9, height: 4 }],
+  },
 };
 
 /**
@@ -469,6 +488,12 @@ const exchangeVentworks: IsoMap = {
     },
   ],
   spawns: [{ id: "player-start", x: 7, y: 9 }],
+  // A utility floor on shift: a sparse trickle of vent crew between the
+  // cycler galleries. Auric's floor is worked, not strolled.
+  ambient: {
+    count: 3,
+    zones: [{ id: "cycler-lane", x: 3, y: 4, width: 6, height: 4 }],
+  },
 };
 
 /**
@@ -577,6 +602,13 @@ const auricSpire: IsoMap = {
     },
   ],
   spawns: [{ id: "player-start", x: 6, y: 9 }],
+  // Succession night: the concourse holds a standing muster. People
+  // cross the atrium under the light spine, but nobody hurries — this
+  // is a lobby, and Auric's lobbies are orderly.
+  ambient: {
+    count: 5,
+    zones: [{ id: "atrium", x: 1, y: 4, width: 9, height: 4 }],
+  },
 };
 
 /**
@@ -587,6 +619,10 @@ const auricSpire: IsoMap = {
  * Dimensions must match the owning encounter's grid; positions are tile
  * coordinates. Each arena keeps a "player-start" spawn mirroring the
  * encounter's playerStart so generic map tooling has a valid anchor.
+ *
+ * Arenas also declare no ambient crowd: a fight is the only thing
+ * happening on the map, and a bystander wandering through a firefight
+ * would read as a combatant the engine knows nothing about.
  *
  * Arenas are dressed with the tile vocabulary alone — no props, and no
  * per-tile speckling. Each reads as a small number of broad material

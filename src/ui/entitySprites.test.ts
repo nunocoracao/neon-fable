@@ -7,7 +7,12 @@ import {
 } from "../character";
 import { requireEnemy } from "../data/enemies";
 import { requireMap } from "../data/maps";
-import { enemySpriteSource, npcSpriteSource } from "./entitySprites";
+import { ambientSpriteId, createCrowd } from "../iso/ambient";
+import {
+  ambientSpriteSource,
+  enemySpriteSource,
+  npcSpriteSource,
+} from "./entitySprites";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -86,5 +91,38 @@ describe("enemySpriteSource", () => {
     const source = enemySpriteSource();
     expect(source("nme-nobody")).toBeUndefined();
     expect(source("nme-nobody")).toBeUndefined();
+  });
+});
+
+describe("ambientSpriteSource", () => {
+  it("composes a pedestrian's seeded look and memoizes it per id", () => {
+    const source = ambientSpriteSource();
+    const id = ambientSpriteId(12345);
+    expect(source(id)).toEqual(
+      composeVisual({ appearance: seededAppearance(12345) }),
+    );
+    // Memoized: a whole crowd sharing a look composes exactly once.
+    expect(source(id)).toBe(source(id));
+  });
+
+  it("resolves nothing for the player and enemy ids", () => {
+    const source = ambientSpriteSource();
+    expect(source("player")).toBeUndefined();
+    expect(source("nme-auric-agent")).toBeUndefined();
+  });
+
+  it("shares one descriptor across every pedestrian with the same look", () => {
+    const source = ambientSpriteSource();
+    const crowd = createCrowd(requireMap("cinder-plaza"));
+    const descriptors = crowd.pedestrians.map((ped) =>
+      source(ambientSpriteId(ped.lookSeed)),
+    );
+    expect(descriptors.every(Boolean)).toBe(true);
+    // Same look seed -> the identical object, so downstream bake keys
+    // (which serialize the descriptor) collide and share one canvas.
+    for (const ped of crowd.pedestrians) {
+      const id = ambientSpriteId(ped.lookSeed);
+      expect(source(id)).toBe(source(id));
+    }
   });
 });
