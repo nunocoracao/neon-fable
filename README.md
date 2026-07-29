@@ -150,6 +150,18 @@ rows). A map lists `interactables` — tiles that trigger `dialogue`
 (a node id) or `combat` (an encounter id) — and named spawn points.
 Hub-style maps need a `player-start` spawn.
 
+An explorable map can also declare an `ambient` crowd: a `count` of
+pedestrians plus the `zones` (rectangles) they are dealt across
+round-robin. Pedestrians are scenery — no interaction, no collision,
+no combat — and wander inside their own zone via the pathfinder with
+stable seeded looks. They never stop on an interactable's approach
+tile. Leave `ambient` off for arenas and any map that should read as
+empty. `maps.test.ts` lints the data: zones must sit in bounds, hold
+more standable tiles than the pedestrians assigned to them, and be
+internally connected (a zone drawn across a pinch point splits into
+islands and strands whoever spawns on the wrong side). The per-map
+ceiling is `MAX_AMBIENT_PER_MAP`.
+
 ### Story (`src/data/story/`)
 
 A `StoryArc` is a list of nodes; each node has `speaker`, `text`, and

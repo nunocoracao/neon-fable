@@ -2,9 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   composeVisual,
   interactableVisual,
+  seededAppearance,
   validateAppearance,
 } from "../character";
 import { ENHANCEMENT_SLOTS } from "../inventory/items";
+import {
+  MAX_AMBIENT_PER_MAP,
+  createCrowd,
+  inZone,
+  roamTiles,
+  stepCrowd,
+} from "../iso/ambient";
 import { PROP_ART } from "../iso/art/props";
 import { TILE_ART } from "../iso/art/tiles";
 import { findPath, findPathToAdjacent } from "../iso/path";
@@ -387,3 +395,155 @@ describe("NPC visuals", () => {
     expect(new Set(appearances).size).toBe(seeded.length);
   });
 });
+
+/**
+ * Ambient crowd lint. Pedestrians are authored purely as data (a count
+ * plus zone rectangles), so the things that can go wrong are all data
+ * mistakes: a zone drawn over a wall, a zone with too few standable
+ * tiles to seat its share of the crowd, a pocket a wanderer could get
+ * stranded in, or a crowd loosed onto an arena. Each is caught here
+ * rather than discovered as a frozen figure in a corner.
+ */
+describe("ambient crowds", () => {
+  it("keeps arenas empty — a fight is the only thing on that map", () => {
+    for (const arena of arenaMaps) {
+      expect(arena.ambient, `${arena.id} declares an ambient crowd`).toBeUndefined();
+    }
+  });
+
+  it("dresses the hub as the busiest street and the rest more quietly", () => {
+    const counts = explorableMaps.map((map) => [map.id, map.ambient?.count ?? 0]);
+    expect(counts).toEqual([
+      ["cinder-plaza", 9],
+      ["greywater-steps", 4],
+      ["exchange-ventworks", 3],
+      ["auric-spire", 5],
+    ]);
+    for (const map of explorableMaps) {
+      expect(map.ambient?.count ?? 0).toBeLessThanOrEqual(MAX_AMBIENT_PER_MAP);
+    }
+  });
+});
+
+describe.each(explorableMaps.map((m) => [m.id, m] as const))(
+  "ambient crowd on %s",
+  (_mapId, map) => {
+    const zones = map.ambient?.zones ?? [];
+
+    it("declares zones that fall inside the map", () => {
+      expect(zones.length).toBeGreaterThan(0);
+      expect(new Set(zones.map((z) => z.id)).size).toBe(zones.length);
+      for (const zone of zones) {
+        expect(zone.width, `${zone.id} width`).toBeGreaterThan(0);
+        expect(zone.height, `${zone.id} height`).toBeGreaterThan(0);
+        expect(inBounds(map, zone.x, zone.y), `${zone.id} origin`).toBe(true);
+        expect(
+          inBounds(map, zone.x + zone.width - 1, zone.y + zone.height - 1),
+          `${zone.id} far corner`,
+        ).toBe(true);
+      }
+    });
+
+    it("gives every zone room to wander", () => {
+      // A zone has to hold its share of the crowd with tiles to spare,
+      // or its pedestrians spend the game shuffling in place.
+      const count = map.ambient?.count ?? 0;
+      zones.forEach((zone, index) => {
+        const share = Math.ceil((count - index) / zones.length);
+        expect(
+          roamTiles(map, zone).length,
+          `zone ${zone.id} has too little standable ground`,
+        ).toBeGreaterThanOrEqual(share + 3);
+      });
+    });
+
+    it("leaves no pocket a wanderer could be stranded in", () => {
+      // Pedestrians route *within* their zone, so every roamable tile
+      // must be reachable from every other without leaving the
+      // rectangle. A zone drawn across a pinch point (a lamp post and a
+      // hydrant closing a gap) splits into islands, and a pedestrian
+      // seated on the wrong side spends the game shuffling in place.
+      for (const zone of zones) {
+        const tiles = roamTiles(map, zone);
+        const [first] = tiles;
+        if (!first) continue;
+        const stranded = tiles.filter(
+          (tile) =>
+            findPath(map, first, tile, (x, y) => inZone(zone, x, y)) === null,
+        );
+        expect(
+          stranded.map((t) => `(${t.x}, ${t.y})`),
+          `zone ${zone.id} splits into unreachable islands`,
+        ).toEqual([]);
+      }
+    });
+
+    it("seats the whole declared crowd on distinct, standable tiles", () => {
+      const crowd = createCrowd(map);
+      expect(crowd.pedestrians).toHaveLength(map.ambient?.count ?? 0);
+      const seats = crowd.pedestrians.map((p) => `${p.tile.x},${p.tile.y}`);
+      expect(new Set(seats).size).toBe(seats.length);
+      for (const ped of crowd.pedestrians) {
+        expect(
+          isWalkable(map, ped.tile.x, ped.tile.y),
+          `${ped.id} spawned on unwalkable ground`,
+        ).toBe(true);
+      }
+    });
+
+    it("never seats a pedestrian on a story NPC's approach tile", () => {
+      const triggers = new Set(
+        map.interactables.flatMap((i) =>
+          [
+            [i.x + 1, i.y],
+            [i.x - 1, i.y],
+            [i.x, i.y + 1],
+            [i.x, i.y - 1],
+          ].map(([x, y]) => `${x},${y}`),
+        ),
+      );
+      for (const ped of createCrowd(map).pedestrians) {
+        expect(
+          triggers.has(`${ped.tile.x},${ped.tile.y}`),
+          `${ped.id} blocks an interactable's approach tile`,
+        ).toBe(false);
+      }
+    });
+
+    it("gives every pedestrian a stable look the layer pipeline can draw", () => {
+      const looks = createCrowd(map).pedestrians.map((ped) => {
+        const appearance = seededAppearance(ped.lookSeed);
+        expect(validateAppearance(appearance), ped.id).toEqual([]);
+        expect(() => composeVisual({ appearance }), ped.id).not.toThrow();
+        return JSON.stringify(appearance);
+      });
+      // Variety is the point of a crowd: no two clones on one map.
+      expect(new Set(looks).size).toBe(looks.length);
+    });
+
+    it("wanders without ever standing somewhere it should not", () => {
+      let crowd = createCrowd(map);
+      const startTiles = crowd.pedestrians.map((p) => `${p.tile.x},${p.tile.y}`);
+      const visited = new Set(startTiles);
+      const rects = new Map(zones.map((zone) => [zone.id, zone]));
+      for (let frame = 0; frame < 1800; frame++) {
+        crowd = stepCrowd(crowd, map, 1 / 60);
+        for (const ped of crowd.pedestrians) {
+          expect(
+            isWalkable(map, ped.tile.x, ped.tile.y),
+            `${ped.id} walked onto unwalkable ground`,
+          ).toBe(true);
+          const zone = rects.get(ped.zoneId);
+          if (!zone) throw new Error(`unknown zone ${ped.zoneId}`);
+          expect(
+            inZone(zone, ped.tile.x, ped.tile.y),
+            `${ped.id} wandered out of zone ${ped.zoneId}`,
+          ).toBe(true);
+          visited.add(`${ped.tile.x},${ped.tile.y}`);
+        }
+      }
+      // Half a minute of wandering has actually gone somewhere.
+      expect(visited.size).toBeGreaterThan(startTiles.length);
+    });
+  },
+);
