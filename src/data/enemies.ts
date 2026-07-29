@@ -1,3 +1,4 @@
+import type { CharacterVisual } from "../character/appearance";
 import type { Stats } from "../character/stats";
 import type { RangeType } from "../inventory/items";
 
@@ -5,6 +6,11 @@ import type { RangeType } from "../inventory/items";
  * Enemy content. Enemies are pure typed data mirroring the player's combat
  * inputs (stats, weapon, armor, abilities); the combat engine builds
  * combatants from them. Encounters in encounters.ts place them on grids.
+ *
+ * Hostility reads through appearance data, not engine tinting: every
+ * archetype's visual carries a crimson or magenta optic (eyeColor) as
+ * the hostile cue — enemies.test pins the convention. Gear on the
+ * visual is cosmetic only; combat numbers come from stats/weapon/armor.
  */
 
 export interface EnemyWeapon {
@@ -24,6 +30,8 @@ export interface Enemy {
   armor: number;
   /** Abilities from src/data/abilities.ts the enemy AI may use. */
   abilityIds: string[];
+  /** Authored look, rendered through the layered appearance pipeline. */
+  visual: CharacterVisual;
 }
 
 export const enemies: Enemy[] = [
@@ -38,6 +46,23 @@ export const enemies: Enemy[] = [
     weapon: { name: "Service Pistol", damage: 4, rangeType: "ranged" },
     armor: 1,
     abilityIds: [],
+    // Pressed corporate gray: spire suit, slicked hair, crimson optics.
+    visual: {
+      appearance: {
+        skinTone: "golden-tan",
+        build: "lean",
+        hairStyle: "slicked",
+        hairColor: "raven",
+        eyes: "narrow",
+        eyeColor: "crimson",
+        brows: "straight",
+        mouth: "neutral",
+        faceDetail: "none",
+        headwear: "none",
+      },
+      outfit: "out-spire-suit",
+      weapon: "wpn-compact-pistol",
+    },
   },
   {
     id: "nme-rustyard-bruiser",
@@ -50,6 +75,23 @@ export const enemies: Enemy[] = [
     weapon: { name: "Rebar Club", damage: 5, rangeType: "melee" },
     armor: 1,
     abilityIds: ["ability-crush"],
+    // Scarred scrapyard bulk with salvage-grade chrome arms.
+    visual: {
+      appearance: {
+        skinTone: "deep-umber",
+        build: "heavy",
+        hairStyle: "none",
+        hairColor: "raven",
+        eyes: "standard",
+        eyeColor: "crimson",
+        brows: "heavy",
+        mouth: "frown",
+        faceDetail: "scar",
+        headwear: "none",
+      },
+      weapon: "wpn-stun-baton",
+      enhancements: { arms: "cyb-myomer-arms" },
+    },
   },
   {
     id: "nme-static-drone",
@@ -62,6 +104,21 @@ export const enemies: Enemy[] = [
     weapon: { name: "Arc Stinger", damage: 3, rangeType: "ranged" },
     armor: 0,
     abilityIds: ["ability-shock-dart"],
+    // Hooded shell, sensor band, breather grille: barely a face at all.
+    visual: {
+      appearance: {
+        skinTone: "porcelain",
+        build: "lean",
+        hairStyle: "none",
+        hairColor: "silver",
+        eyes: "cyber-band",
+        eyeColor: "crimson",
+        brows: "straight",
+        mouth: "breather",
+        faceDetail: "circuit-ink",
+        headwear: "hood",
+      },
+    },
   },
   {
     id: "nme-vault-sentinel",
@@ -74,6 +131,24 @@ export const enemies: Enemy[] = [
     weapon: { name: "Shock Maul", damage: 6, rangeType: "melee" },
     armor: 3,
     abilityIds: ["ability-stun-strike"],
+    // Chromed security slab: plate, reinforced arms, dermal armor.
+    visual: {
+      appearance: {
+        skinTone: "porcelain",
+        build: "heavy",
+        hairStyle: "none",
+        hairColor: "silver",
+        eyes: "cyber-band",
+        eyeColor: "crimson",
+        brows: "heavy",
+        mouth: "breather",
+        faceDetail: "none",
+        headwear: "none",
+      },
+      outfit: "out-cordon-plate",
+      weapon: "wpn-stun-baton",
+      enhancements: { arms: "cyb-torsion-frame", dermal: "cyb-dermal-weave" },
+    },
   },
   {
     id: "nme-auric-warden",
@@ -86,6 +161,23 @@ export const enemies: Enemy[] = [
     weapon: { name: "Riot Pistol", damage: 4, rangeType: "ranged" },
     armor: 2,
     abilityIds: [],
+    // Flood-grey harness and a service cap pulled low over red optics.
+    visual: {
+      appearance: {
+        skinTone: "warm-brown",
+        build: "heavy",
+        hairStyle: "buzz",
+        hairColor: "raven",
+        eyes: "narrow",
+        eyeColor: "crimson",
+        brows: "heavy",
+        mouth: "frown",
+        faceDetail: "none",
+        headwear: "cap",
+      },
+      outfit: "out-diver-harness",
+      weapon: "wpn-compact-pistol",
+    },
   },
   {
     id: "nme-court-sapper",
@@ -98,6 +190,23 @@ export const enemies: Enemy[] = [
     weapon: { name: "Spark Cutter", damage: 4, rangeType: "melee" },
     armor: 1,
     abilityIds: ["ability-shock-dart"],
+    // Patched wet-rig, tied-back hair, magenta work-lenses.
+    visual: {
+      appearance: {
+        skinTone: "golden-tan",
+        build: "lean",
+        hairStyle: "ponytail",
+        hairColor: "auburn",
+        eyes: "standard",
+        eyeColor: "magenta",
+        brows: "straight",
+        mouth: "neutral",
+        faceDetail: "none",
+        headwear: "cap",
+      },
+      outfit: "out-diver-harness",
+      weapon: "wpn-shard-knife",
+    },
   },
   {
     id: "nme-pump-custodian",
@@ -110,6 +219,23 @@ export const enemies: Enemy[] = [
     weapon: { name: "Valve Hammer", damage: 6, rangeType: "melee" },
     armor: 3,
     abilityIds: ["ability-stun-strike"],
+    // Mineral-crusted caretaker frame: dark shell, inked plating seams.
+    visual: {
+      appearance: {
+        skinTone: "deep-umber",
+        build: "heavy",
+        hairStyle: "none",
+        hairColor: "chestnut",
+        eyes: "cyber-band",
+        eyeColor: "crimson",
+        brows: "heavy",
+        mouth: "breather",
+        faceDetail: "circuit-ink",
+        headwear: "none",
+      },
+      weapon: "wpn-stun-baton",
+      enhancements: { arms: "cyb-torsion-frame" },
+    },
   },
   {
     id: "nme-cordon-enforcer",
@@ -122,6 +248,23 @@ export const enemies: Enemy[] = [
     weapon: { name: "Cordon Riot Gun", damage: 4, rangeType: "ranged" },
     armor: 2,
     abilityIds: ["ability-riot-net"],
+    // Matte interdiction plate under a tech hood; patient red stare.
+    visual: {
+      appearance: {
+        skinTone: "porcelain",
+        build: "heavy",
+        hairStyle: "buzz",
+        hairColor: "raven",
+        eyes: "narrow",
+        eyeColor: "crimson",
+        brows: "straight",
+        mouth: "frown",
+        faceDetail: "none",
+        headwear: "hood",
+      },
+      outfit: "out-cordon-plate",
+      weapon: "wpn-rail-spitter",
+    },
   },
   {
     id: "nme-auric-collector",
@@ -134,6 +277,23 @@ export const enemies: Enemy[] = [
     weapon: { name: "Writ-Server Pistol", damage: 4, rangeType: "ranged" },
     armor: 1,
     abilityIds: [],
+    // The good coat: ghostline mantle, silvered hair, magenta appraisal.
+    visual: {
+      appearance: {
+        skinTone: "warm-brown",
+        build: "lean",
+        hairStyle: "slicked",
+        hairColor: "silver",
+        eyes: "narrow",
+        eyeColor: "magenta",
+        brows: "arched",
+        mouth: "smirk",
+        faceDetail: "none",
+        headwear: "none",
+      },
+      outfit: "out-ghostline-mantle",
+      weapon: "wpn-compact-pistol",
+    },
   },
   {
     id: "nme-vent-crawler",
@@ -146,6 +306,23 @@ export const enemies: Enemy[] = [
     weapon: { name: "Shear Mandibles", damage: 5, rangeType: "melee" },
     armor: 2,
     abilityIds: ["ability-coolant-vent"],
+    // Feral duct chassis: scarred shell, scavenged claw-arms, red band.
+    visual: {
+      appearance: {
+        skinTone: "golden-tan",
+        build: "lean",
+        hairStyle: "none",
+        hairColor: "raven",
+        eyes: "cyber-band",
+        eyeColor: "crimson",
+        brows: "heavy",
+        mouth: "breather",
+        faceDetail: "scar",
+        headwear: "none",
+      },
+      weapon: "wpn-shard-knife",
+      enhancements: { arms: "cyb-myomer-arms" },
+    },
   },
   {
     id: "nme-halex-proxy",
@@ -158,6 +335,24 @@ export const enemies: Enemy[] = [
     weapon: { name: "Mandate Lance", damage: 5, rangeType: "ranged" },
     armor: 1,
     abilityIds: ["ability-mandate-pulse"],
+    // Polished civic idol: spire suit, dyed scalp glyph, magenta band.
+    visual: {
+      appearance: {
+        skinTone: "porcelain",
+        build: "lean",
+        hairStyle: "glyph",
+        hairColor: "silver",
+        eyes: "cyber-band",
+        eyeColor: "magenta",
+        brows: "arched",
+        mouth: "neutral",
+        faceDetail: "cyber-lines",
+        headwear: "none",
+      },
+      outfit: "out-spire-suit",
+      weapon: "wpn-spindle-projector",
+      enhancements: { neural: "cyb-lattice-coprocessor" },
+    },
   },
   {
     id: "nme-locus-aspect",
@@ -171,6 +366,24 @@ export const enemies: Enemy[] = [
     weapon: { name: "Succession Writ", damage: 5, rangeType: "ranged" },
     armor: 2,
     abilityIds: ["ability-mandate-pulse"],
+    // Founders-era custodian in civic white, jacked into the registry.
+    visual: {
+      appearance: {
+        skinTone: "porcelain",
+        build: "heavy",
+        hairStyle: "none",
+        hairColor: "silver",
+        eyes: "cyber-band",
+        eyeColor: "crimson",
+        brows: "straight",
+        mouth: "breather",
+        faceDetail: "circuit-ink",
+        headwear: "none",
+      },
+      outfit: "out-ghostline-mantle",
+      weapon: "wpn-spindle-projector",
+      enhancements: { neural: "cyb-lattice-coprocessor", dermal: "cyb-dermal-weave" },
+    },
   },
 ];
 

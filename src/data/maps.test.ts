@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
+import {
+  composeVisual,
+  interactableVisual,
+  validateAppearance,
+} from "../character";
+import { ENHANCEMENT_SLOTS } from "../inventory/items";
 import { findPathToAdjacent } from "../iso/path";
 import { inBounds, isWalkable, requireSpawn } from "../iso/tilemap";
 import { encounters, getEncounter } from "./encounters";
+import { getItem } from "./items";
 import { HUB_MAP_ID, getMap, maps, requireMap } from "./maps";
 import { findArcByNode } from "./story";
 
@@ -121,3 +128,91 @@ describe.each(encounters.map((e) => [e.id, e] as const))(
     });
   },
 );
+
+describe("NPC visuals", () => {
+  const npcs = maps.flatMap((map) =>
+    map.interactables
+      .filter((i) => i.spriteId === "npc")
+      .map((npc) => ({ map, npc })),
+  );
+
+  it("every named story NPC carries a deliberate authored visual", () => {
+    const authored = npcs
+      .filter(({ npc }) => npc.visual !== undefined)
+      .map(({ npc }) => npc.id)
+      .sort();
+    expect(authored).toEqual([
+      "auditor-booth",
+      "crown-watcher",
+      "flick",
+      "flick-steps",
+      "market-vendor",
+      "matron-ferrow",
+      "rust-runner",
+      "tram-messenger",
+    ]);
+  });
+
+  it("authored visuals validate and their gear resolves to drawable items", () => {
+    for (const { npc } of npcs) {
+      if (!npc.visual) continue;
+      expect(validateAppearance(npc.visual.appearance), npc.id).toEqual([]);
+      const { weapon, outfit, enhancements } = npc.visual;
+      if (weapon !== undefined) {
+        const item = getItem(weapon);
+        expect(
+          item?.kind === "weapon" && item.weaponLayer,
+          `${npc.id} weapon ${weapon}`,
+        ).toBeTruthy();
+      }
+      if (outfit !== undefined) {
+        const item = getItem(outfit);
+        expect(
+          item?.kind === "outfit" && item.outfitLayer,
+          `${npc.id} outfit ${outfit}`,
+        ).toBeTruthy();
+      }
+      for (const slot of ENHANCEMENT_SLOTS) {
+        const id = enhancements?.[slot];
+        if (id === undefined) continue;
+        const item = getItem(id);
+        expect(
+          item?.kind === "enhancement" && item.slot === slot && item.cyberLayer,
+          `${npc.id} ${slot} ${id}`,
+        ).toBeTruthy();
+      }
+    }
+  });
+
+  it("every NPC — authored or seeded — composes through the layer pipeline", () => {
+    for (const { map, npc } of npcs) {
+      expect(
+        () => composeVisual(interactableVisual(map.id, npc)),
+        `${map.id}/${npc.id}`,
+      ).not.toThrow();
+    }
+  });
+
+  it("Flick is the same person on both maps", () => {
+    const looks = npcs
+      .filter(({ npc }) => npc.id === "flick" || npc.id === "flick-steps")
+      .map(({ npc }) => npc.visual);
+    expect(looks).toHaveLength(2);
+    expect(looks[0]).toBe(looks[1]);
+  });
+
+  it("seeded ambient NPCs get stable, distinct looks per position", () => {
+    const seeded = npcs.filter(({ npc }) => npc.visual === undefined);
+    expect(seeded.map(({ npc }) => npc.id).sort()).toEqual([
+      "muster-crowd",
+      "vent-crew",
+    ]);
+    const appearances = seeded.map(({ map, npc }) => {
+      const visual = interactableVisual(map.id, npc);
+      expect(validateAppearance(visual.appearance), npc.id).toEqual([]);
+      expect(visual).toEqual(interactableVisual(map.id, npc));
+      return JSON.stringify(visual.appearance);
+    });
+    expect(new Set(appearances).size).toBe(seeded.length);
+  });
+});
