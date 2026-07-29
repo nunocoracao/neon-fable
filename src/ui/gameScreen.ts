@@ -16,7 +16,12 @@ import {
   carryoverCandidates,
   recordCompletionToStorage,
 } from "../state";
-import { createIsoScene, createPixelArtSprites, type IsoScene } from "../iso";
+import {
+  createIsoScene,
+  createPixelArtSprites,
+  type DayPhaseId,
+  type IsoScene,
+} from "../iso";
 import { ambientSpriteSource, npcSpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
 import { createAdvancementOverlay } from "./advancementOverlay";
@@ -98,6 +103,14 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let overlay: { kind: OverlayKind; handle: OverlayHandle } | null = null;
   let advanceButton: HTMLButtonElement | null = null;
+  /**
+   * The hour a story beat has staged this visit at, if any. A beat that
+   * sets one moves the scene's clock and leaves it there — the plaza
+   * stays at 3am for the rest of the act's business on it — while beats
+   * that set none leave whatever is showing alone. Leaving the map
+   * remounts the screen, which hands the clock back to the map.
+   */
+  let storyPhase: DayPhaseId | null = null;
 
   // "main-menu" is the fresh-game sentinel, not a content error.
   if (session.state.location !== "main-menu" && !getMap(session.state.location)) {
@@ -163,10 +176,21 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         arc,
         nodeId,
         onStateChange: refreshHud,
+        onNode(node) {
+          if (!node.dayPhase || node.dayPhase === storyPhase) return;
+          storyPhase = node.dayPhase;
+          scene?.setDayPhase(storyPhase);
+        },
         onCombat(encounterId, resumeNodeId) {
           closeOverlay();
           showScreen(
-            createCombatScreen({ session, encounterId, resumeNodeId }),
+            createCombatScreen({
+              session,
+              encounterId,
+              resumeNodeId,
+              // Fight under the hour the beat staged, not the map's.
+              dayPhase: storyPhase ?? undefined,
+            }),
           );
         },
         onTravel(_mapId, nextNodeId) {
@@ -429,6 +453,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       scene = createIsoScene(canvas, {
         map,
         spawnId: "player-start",
+        dayPhase: storyPhase,
         sprites: createPixelArtSprites({
           player: playerSpriteSource(session),
           npc: npcSpriteSource(map),

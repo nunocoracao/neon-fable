@@ -6,6 +6,7 @@ import {
   availableChoices,
   getNode,
   type StoryArc,
+  type StoryNode,
 } from "../narrative";
 import { revealDelayMs, settings } from "../settings";
 import { focusFirst } from "./focus";
@@ -28,6 +29,11 @@ export interface DialogueOverlayOptions {
   nodeId: string;
   /** Called after every applied choice so the HUD can refresh. */
   onStateChange(): void;
+  /**
+   * Called with each node as it is shown, so the scene behind the box
+   * can follow the beat's staging (the hour it plays at).
+   */
+  onNode?(node: StoryNode): void;
   /** A start-combat effect fired; resume dialogue at resumeNodeId after. */
   onCombat(encounterId: string, resumeNodeId: string | null): void;
   /** A travel effect fired; continue dialogue at nextNodeId on the new map. */
@@ -91,6 +97,7 @@ export function createDialogueOverlay(
       options.onComplete();
       return;
     }
+    options.onNode?.(node);
     panel.replaceChildren();
 
     const portrait = resolveSpeakerPortrait(node);

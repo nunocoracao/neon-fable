@@ -5,7 +5,14 @@
  * the game screen owns the real narrative/combat wiring; this screen
  * exists to inspect maps without a character.
  */
-import { createIsoScene, createPixelArtSprites, type IsoScene } from "../iso";
+import {
+  DAY_PHASES,
+  createIsoScene,
+  createPixelArtSprites,
+  resolveDayPhase,
+  type DayPhaseId,
+  type IsoScene,
+} from "../iso";
 import { requireMap } from "../data";
 import { ambientSpriteSource, npcSpriteSource } from "./entitySprites";
 import type { Screen } from "./screen";
@@ -46,10 +53,29 @@ export function createExploreScreen(options: ExploreScreenOptions): Screen {
       readout.className = "nf-explore-readout";
       readout.textContent = "Click a tile to move. Drag to pan.";
 
-      container.append(back, readout);
+      const map = requireMap(mapId);
+
+      // Hour cycle: the only way to see a map's three moods back to
+      // back, which is what tuning the tints actually needs. Dev-only —
+      // in the game the map and the story own the clock.
+      let phase: DayPhaseId = resolveDayPhase(map);
+      const hour = document.createElement("button");
+      hour.className = "nf-button nf-button-small";
+      const labelHour = (): void => {
+        hour.textContent = `Hour: ${phase}`;
+      };
+      labelHour();
+      hour.addEventListener("click", () => {
+        const next = DAY_PHASES[(DAY_PHASES.indexOf(phase) + 1) % DAY_PHASES.length];
+        if (!next) return;
+        phase = next;
+        labelHour();
+        scene?.setDayPhase(phase);
+      });
+
+      container.append(back, hour, readout);
       root.append(container);
 
-      const map = requireMap(mapId);
       scene = createIsoScene(canvas, {
         map,
         spawnId,
