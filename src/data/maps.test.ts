@@ -143,6 +143,7 @@ describe("NPC visuals", () => {
       .sort();
     expect(authored).toEqual([
       "auditor-booth",
+      "chrome-chapel",
       "crown-watcher",
       "flick",
       "flick-steps",

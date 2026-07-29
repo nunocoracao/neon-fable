@@ -78,9 +78,17 @@ export {
   type EncounterSpawn,
 } from "./encounters";
 export {
+  COSMETIC_APPEARANCE_TABS,
+  IDENTITY_CATEGORIES,
+  RESTYLE_PRICE,
+  RESTYLE_REFUSAL,
+  isCosmeticCategory,
+} from "./stylist";
+export {
   act1Arc,
   act2Arc,
   act3Arc,
+  chapelArc,
   findArcByNode,
   getArc,
   introArc,

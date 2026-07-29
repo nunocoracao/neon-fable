@@ -124,6 +124,31 @@ const cinderPlaza: IsoMap = {
       },
     },
     {
+      id: "chrome-chapel",
+      x: 2,
+      y: 3,
+      label: "Vesper — Chrome Chapel",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "chapel-door" },
+      // The stylist is their own best advertisement: dyed glyph cut,
+      // circuit ink, a mantle worn like vestments. Friendly optics.
+      visual: {
+        appearance: {
+          skinTone: "warm-brown",
+          build: "lean",
+          hairStyle: "glyph",
+          hairColor: "synth-violet",
+          eyes: "standard",
+          eyeColor: "hologram-blue",
+          brows: "arched",
+          mouth: "smirk",
+          faceDetail: "circuit-ink",
+          headwear: "none",
+        },
+        outfit: "out-ghostline-mantle",
+      },
+    },
+    {
       id: "plaza-terminal",
       x: 5,
       y: 5,
