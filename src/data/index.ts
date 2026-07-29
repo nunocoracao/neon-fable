@@ -32,6 +32,15 @@ export {
   type StyleOption,
 } from "./appearance";
 export {
+  APPEARANCE_TABS,
+  SWATCH_CATEGORIES,
+  moveInGrid,
+  type AppearanceTabConfig,
+  type AppearanceTabId,
+  type PickerCategoryConfig,
+  type ThumbKind,
+} from "./appearanceTabs";
+export {
   DEFAULT_BACKGROUND_ID,
   backgrounds,
   getBackground,
