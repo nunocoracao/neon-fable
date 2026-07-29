@@ -20,6 +20,7 @@ import {
   EYES_OPTIONS,
   HAIR_COLOR_OPTIONS,
   HAIR_STYLE_OPTIONS,
+  MOUTH_OPTIONS,
 } from "../../data/appearance";
 import {
   CHARACTER_FRAMES,
@@ -130,11 +131,13 @@ function bodyEntries(): GalleryEntry[] {
  * style: style × catalog hair color × facing idling on the lean body,
  * then style × build × facing walking in the canonical color — so both
  * builds and the walk-only secondary motion (hair trail) are visible
- * without the full color × build × state product. Two face sweeps on
+ * without the full color × build × state product. Three face sweeps on
  * the lean body's front view (faces only exist up front): eye shape ×
- * catalog eye color, and eye shape × brow shape in the canonical cyan.
- * Catalog styles whose art has not landed yet are skipped and join
- * automatically once their registry entry exists.
+ * catalog eye color, eye shape × brow shape in the canonical cyan, and
+ * one entry per mouth style (sprites always wear the resting mouth —
+ * expressions are portrait-only). Catalog styles whose art has not
+ * landed yet are skipped and join automatically once their registry
+ * entry exists.
  */
 function appearanceEntries(): GalleryEntry[] {
   const [hairChannel = "K"] = REMAP_CHANNELS.hair;
@@ -233,7 +236,29 @@ function appearanceEntries(): GalleryEntry[] {
       ),
     ),
   );
-  return [...colorSweep, ...buildSweep, ...eyeColorSweep, ...faceComboSweep];
+  const mouthSweep = MOUTH_OPTIONS.filter((option) =>
+    layerArtGrid("face", option.layer, "front"),
+  ).map((mouth) =>
+    entry(
+      `mouth ${mouth.id} e`,
+      {
+        build: "lean",
+        layers: [
+          { slot: "body", art: "lean", remap: {} },
+          { slot: "face", art: mouth.layer, remap: {} },
+        ],
+      },
+      "e",
+      "idle",
+    ),
+  );
+  return [
+    ...colorSweep,
+    ...buildSweep,
+    ...eyeColorSweep,
+    ...faceComboSweep,
+    ...mouthSweep,
+  ];
 }
 
 /**
