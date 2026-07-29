@@ -7,9 +7,11 @@ import {
   eyeColorRemap,
   outfitChannelRemap,
   skinToneRemap,
+  weaponChannelRemap,
 } from "../iso/art/layers";
 import type { ComposedCharacter, LayerSlot } from "../iso/art/layers";
 import { outfitArtId } from "../iso/art/layers/outfits";
+import { weaponArtId } from "../iso/art/layers/weapons";
 import { REMAP_CHANNELS } from "../iso/art/palette";
 import { ENHANCEMENT_SLOTS, type Item } from "../inventory/items";
 import type { EquipmentState } from "../inventory/equipment";
@@ -129,10 +131,11 @@ export interface ResolvedLayer {
   slot: LayerSlot;
   /**
    * Art reference: a layer id from the appearance catalogs; for the
-   * outfit slot, the equipped item's layer family keyed per build
-   * (outfitArtId); for the still-stubbed weapon/cyberware slots, the
-   * equipped item id (their gear-visibility tasks map item ids to
-   * authored layers; until then those ids resolve to nothing).
+   * outfit and weapon slots, the equipped item's layer family/class
+   * keyed per build (outfitArtId / weaponArtId); for the still-stubbed
+   * cyberware slot, the equipped item id (its gear-visibility task maps
+   * item ids to authored layers; until then those ids resolve to
+   * nothing).
    */
   art: string;
   remap: Readonly<Record<string, string>>;
@@ -181,10 +184,13 @@ export type ItemLookup = (id: string) => Item | undefined;
  * Facing-specific draw order (weapon behind the body when facing away)
  * stays in the engine's layerOrderFor.
  *
- * The equipped outfit resolves through item data: an item carrying an
+ * Equipped gear resolves through item data: an item carrying an
  * outfitLayer reference swaps the outfit layer to its family's grid for
  * the character's build, recolored by the item's material remaps; items
  * without one (and unknown ids) keep the body's base garb underlayer.
+ * The equipped weapon resolves the same way through its weaponLayer
+ * class reference; unarmed characters (and weapons without a layer)
+ * draw empty hands.
  */
 export function resolveLayers(
   appearance: Appearance,
@@ -268,7 +274,15 @@ export function resolveLayers(
   }
 
   if (equipment.weapon !== null) {
-    layers.push({ slot: "weapon", art: equipment.weapon, remap: {} });
+    const item = lookupItem(equipment.weapon);
+    const ref = item?.kind === "weapon" ? item.weaponLayer : undefined;
+    if (ref) {
+      layers.push({
+        slot: "weapon",
+        art: weaponArtId(ref.id, build),
+        remap: weaponChannelRemap(ref.accent),
+      });
+    }
   }
 
   // Fixed slot order (not object-key order) keeps the output stable no

@@ -114,6 +114,9 @@ describe("gallery sections", () => {
     const drawnOutfits = items.filter(
       (i) => i.kind === "outfit" && i.outfitLayer !== undefined,
     );
+    const drawnWeapons = items.filter(
+      (i) => i.kind === "weapon" && i.weaponLayer !== undefined,
+    );
     expect(appearance.entries.length).toBe(
       HAIR_STYLE_IDS.length * HAIR_COLOR_OPTIONS.length * 4 +
         HAIR_STYLE_IDS.length * BODY_BUILD_IDS.length * 4 +
@@ -122,7 +125,8 @@ describe("gallery sections", () => {
         MOUTH_OPTIONS.length +
         drawnDetails.length +
         drawnHeadwear.length * 4 +
-        drawnOutfits.length * BODY_BUILD_IDS.length * 4,
+        drawnOutfits.length * BODY_BUILD_IDS.length * 4 +
+        drawnWeapons.length * BODY_BUILD_IDS.length * 4,
     );
     for (const style of HAIR_STYLE_IDS) {
       for (const color of HAIR_COLOR_OPTIONS) {
@@ -246,6 +250,40 @@ describe("gallery sections", () => {
     // families, and distinct materials where families could overlap.
     const looks = outfits.map((i) => frame(`outfit ${i.id} lean e`));
     expect(new Set(looks).size).toBe(outfits.length);
+  });
+
+  it("covers every weapon per build and facing, each class distinct", () => {
+    const appearance = section("appearance");
+    const weapons = items.filter(
+      (i) => i.kind === "weapon" && i.weaponLayer !== undefined,
+    );
+    expect(weapons.length).toBeGreaterThanOrEqual(6);
+    for (const item of weapons) {
+      for (const build of BODY_BUILD_IDS) {
+        for (const facing of ["n", "e", "s", "w"]) {
+          expect(
+            appearance.entries.some(
+              (e) => e.id === `weapon ${item.id} ${build} ${facing}`,
+            ),
+            `weapon ${item.id} ${build} ${facing} present`,
+          ).toBe(true);
+        }
+      }
+    }
+    const frame = (id: string): string =>
+      appearance.entries.find((e) => e.id === id)?.frames[0]?.join("\n") ?? "";
+    // Items sharing a class (both pistols, both blades) intentionally
+    // read alike; every distinct class + accent silhouette is unique
+    // over the same lean base.
+    const classLooks = new Map<string, string>();
+    for (const item of weapons) {
+      if (item.kind !== "weapon" || !item.weaponLayer) continue;
+      classLooks.set(
+        JSON.stringify(item.weaponLayer),
+        frame(`weapon ${item.id} lean e`),
+      );
+    }
+    expect(new Set(classLooks.values()).size).toBe(classLooks.size);
   });
 
   it("covers every drawn face detail up front, and cyber-lines glows", () => {

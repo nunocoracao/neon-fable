@@ -1,5 +1,6 @@
 import type { StatKey } from "../character/stats";
 import type { OutfitLayerId } from "../iso/art/layers/outfits";
+import type { WeaponClassId } from "../iso/art/layers/weapons";
 import type { MaterialName } from "../iso/art/palette";
 
 /**
@@ -25,12 +26,28 @@ interface ItemBase {
   description: string;
 }
 
+/**
+ * How a weapon renders in the character's hands: which authored class
+ * silhouette it draws, and an optional material-ramp recolor for the
+ * energy-glow accent channel. Pure typed data — resolveLayers turns it
+ * into a layer-engine reference, so art code never switches on item
+ * ids. Weapons without one (and bare hands) draw nothing.
+ */
+export interface WeaponLayerRef {
+  /** Weapon class silhouette in the weapon art registry. */
+  id: WeaponClassId;
+  /** Recolor the energy-glow accent channel onto this material ramp. */
+  accent?: MaterialName;
+}
+
 export interface WeaponItem extends ItemBase {
   kind: "weapon";
   damage: number;
   rangeType: RangeType;
   /** Minimum effective stat needed to equip this weapon. */
   requirement?: { stat: StatKey; value: number };
+  /** Sprite layer held while equipped; absent means empty hands. */
+  weaponLayer?: WeaponLayerRef;
   effects: ItemEffect[];
 }
 

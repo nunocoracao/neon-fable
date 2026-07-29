@@ -124,17 +124,66 @@ describe("resolveLayers", () => {
     expect(layers.some((l) => l.art === "none")).toBe(false);
   });
 
-  it("stubs weapon and cyberware slots with the equipped item ids", () => {
+  it("resolves the equipped weapon's class layer per build, with its accent", () => {
     const layers = resolveLayers(defaultAppearance(), {
       weapon: "wpn-shard-knife",
       outfit: null,
       enhancements: { neural: "enh-neural-jack", arms: "enh-chrome-arm" },
     });
-    expect(layers.find((l) => l.slot === "weapon")?.art).toBe("wpn-shard-knife");
-    // Cyberware follows the fixed slot order, not insertion order.
+    // The shard knife's blade class, keyed to the lean default build.
+    expect(layers.find((l) => l.slot === "weapon")).toEqual({
+      slot: "weapon",
+      art: "blade@lean",
+      remap: {},
+    });
+    // Cyberware stays stubbed with item ids, in fixed slot order.
     expect(layers.filter((l) => l.slot === "cyberware").map((l) => l.art)).toEqual(
       ["enh-chrome-arm", "enh-neural-jack"],
     );
+
+    // The heavy build keys the same class to its own grid set, and an
+    // accented weapon carries its energy recolor (stun tip -> hologram).
+    const heavy = resolveLayers(
+      { ...defaultAppearance(), build: "heavy" },
+      { weapon: "wpn-stun-baton", outfit: null, enhancements: {} },
+    );
+    expect(heavy.find((l) => l.slot === "weapon")).toEqual({
+      slot: "weapon",
+      art: "baton@heavy",
+      remap: { l: "s", j: "t", k: "u" },
+    });
+  });
+
+  it("falls through to empty hands when unarmed or the weapon has no layer", () => {
+    const unarmed = resolveLayers(defaultAppearance(), emptyEquipment());
+    expect(unarmed.some((l) => l.slot === "weapon")).toBe(false);
+
+    // Unknown ids and weapons without a layer reference degrade the
+    // same way — bare hands, never a crash.
+    const unknown = resolveLayers(defaultAppearance(), {
+      weapon: "wpn-vaporware",
+      outfit: null,
+      enhancements: {},
+    });
+    expect(unknown.some((l) => l.slot === "weapon")).toBe(false);
+
+    const bareFixture = resolveLayers(
+      defaultAppearance(),
+      { weapon: "wpn-fixture", outfit: null, enhancements: {} },
+      (id) =>
+        id === "wpn-fixture"
+          ? {
+              id,
+              kind: "weapon",
+              name: "Fixture",
+              description: "",
+              damage: 1,
+              rangeType: "melee",
+              effects: [],
+            }
+          : undefined,
+    );
+    expect(bareFixture.some((l) => l.slot === "weapon")).toBe(false);
   });
 
   it("wires the cyber-lines catalog shimmer onto its face layer only", () => {
