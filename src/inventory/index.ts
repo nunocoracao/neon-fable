@@ -48,4 +48,8 @@ export {
   equippedItems,
   grantedAbilityIds,
 } from "./selectors";
-export { applyStartingGear, resolveStartingGear } from "./startingGear";
+export {
+  applyStartingGear,
+  resolveStartingGear,
+  startingEquipment,
+} from "./startingGear";

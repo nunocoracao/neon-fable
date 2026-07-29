@@ -610,6 +610,90 @@ body::after {
   display: block;
 }
 
+/* Live preview panel: pedestal stage, control row, and portrait inset.
+   The canvas backing store stays at the 2x bake size; the zoom ladder
+   scales it by whole multiples via CSS width/height, so art pixels
+   stay crisp at every level. */
+
+.nf-preview {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.6rem;
+  margin-top: 0;
+}
+
+.nf-preview-stage {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1.25rem 1rem 1.75rem;
+  background:
+    linear-gradient(
+      180deg,
+      var(--nf-bg-deep) 0%,
+      var(--nf-bg-raised) 85%,
+      var(--nf-bg-deep) 100%
+    );
+  border: 2px solid var(--nf-border);
+}
+
+/* Subtle pedestal glow under the character's feet. */
+.nf-preview-stage::before {
+  content: "";
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 55%;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: rgba(46, 230, 214, 0.12);
+  box-shadow: 0 0 0 2px rgba(46, 230, 214, 0.07);
+}
+
+.nf-preview-canvas {
+  position: relative;
+  display: block;
+  image-rendering: pixelated;
+}
+
+.nf-preview-portrait {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 2px;
+  background: var(--nf-bg-deep);
+  border: 2px solid var(--nf-border);
+}
+
+.nf-preview-portrait canvas.nf-portrait {
+  display: block;
+  width: 64px;
+  height: 64px;
+  border: none;
+}
+
+.nf-preview-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.nf-preview-readout {
+  margin-left: 0.35rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--nf-glow-cyan);
+}
+
+.nf-preview-hint {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
 .nf-review-section {
   border-top: 1px solid var(--nf-border);
   padding: 0.4rem 0 0.6rem;

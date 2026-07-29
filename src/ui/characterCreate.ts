@@ -41,9 +41,15 @@ import {
   introArc,
   type AppearanceTabId,
 } from "../data";
-import { emptyEquipment } from "../inventory/equipment";
+import { emptyEquipment, type EquipmentState } from "../inventory/equipment";
+import { startingEquipment } from "../inventory/startingGear";
 import { applyNewGamePlus, createNewGame } from "../state";
 import { createAppearancePicker } from "./appearancePicker";
+import {
+  createAppearancePreview,
+  type AppearancePreview,
+} from "./appearancePreview";
+import { DEFAULT_PREVIEW_STATE, type PreviewState } from "./previewState";
 import {
   characterNameError,
   formatBonuses,
@@ -68,9 +74,12 @@ import { createSession } from "./session";
  * legacy item picked from the finishing character's gear.
  *
  * The appearance step hosts the visual picker (./appearancePicker):
- * category tabs of live-baked thumbnails beside a live portrait
- * preview, plus stock/randomize shortcuts. Picks update the picker and
- * preview in place — no step re-render — so keyboard focus survives.
+ * category tabs of live-baked thumbnails beside the live animated
+ * preview (./appearancePreview) — the composed character in the chosen
+ * background's starting gear with rotate/walk/zoom controls (Q/E, W,
+ * +/− hotkeys) and a portrait inset — plus stock/randomize shortcuts.
+ * Picks update the picker and preview in place — no step re-render —
+ * so keyboard focus survives.
  */
 export interface NewGamePlusOffer {
   /** Extra point-buy points on top of the standard pool. */
@@ -129,6 +138,10 @@ export function createCharacterCreateScreen(
   let submitErrors: string[] = [];
   /** Active appearance-picker tab, preserved across step re-renders. */
   let appearanceTab: AppearanceTabId = APPEARANCE_TABS[0].id;
+  /** Live preview view state, preserved across step re-renders. */
+  let previewState: PreviewState = DEFAULT_PREVIEW_STATE;
+  /** The mounted preview panel while the appearance step is showing. */
+  let preview: AppearancePreview | null = null;
 
   function draft(): WizardDraft {
     return wizard.draft;
@@ -138,6 +151,21 @@ export function createCharacterCreateScreen(
     return (
       backgrounds.find((b) => b.id === draft().backgroundId) ?? backgrounds[0]
     );
+  }
+
+  /**
+   * Equipment the previews dress the draft in: the chosen background's
+   * starting gear. Bad gear content degrades to empty hands.
+   */
+  function previewEquipment(): EquipmentState {
+    const background = selectedBackground();
+    if (!background) return emptyEquipment();
+    try {
+      return startingEquipment(background);
+    } catch (error) {
+      console.error("Unresolvable starting gear; previewing bare", error);
+      return emptyEquipment();
+    }
   }
 
   /** Draft edit: re-render the active step in place (no focus move). */
@@ -433,15 +461,21 @@ export function createCharacterCreateScreen(
     const right = document.createElement("div");
     right.className = "nf-create-column";
 
-    const preview = document.createElement("div");
-    preview.className = "nf-appearance-preview";
-    const refreshPreview = (): void => {
-      preview.replaceChildren(
-        portraitCanvas(draft().appearance, emptyEquipment()),
-        appearanceSummary(),
-      );
+    const panel = createAppearancePreview({
+      appearance: () => draft().appearance,
+      equipment: previewEquipment,
+      initialState: previewState,
+      onStateChange: (state) => {
+        previewState = state;
+      },
+    });
+    preview = panel;
+
+    const summaryHost = document.createElement("div");
+    const refreshSummary = (): void => {
+      summaryHost.replaceChildren(appearanceSummary());
     };
-    refreshPreview();
+    refreshSummary();
 
     // Picks update the draft, picker, and preview in place instead of
     // re-rendering the step, so keyboard focus stays on the grid.
@@ -457,7 +491,8 @@ export function createCharacterCreateScreen(
           appearance: { ...draft().appearance, [category]: id },
         });
         picker.update();
-        refreshPreview();
+        panel.update();
+        refreshSummary();
         renderChrome();
       },
     });
@@ -479,7 +514,7 @@ export function createCharacterCreateScreen(
     controls.append(randomize, stock);
 
     left.append(picker.el);
-    right.append(preview, controls);
+    right.append(panel.el, controls, summaryHost);
     columns.append(left, right);
     body.append(columns);
   }
@@ -558,7 +593,7 @@ export function createCharacterCreateScreen(
     const look = document.createElement("div");
     look.className = "nf-appearance-preview";
     look.append(
-      portraitCanvas(current.appearance, emptyEquipment()),
+      portraitCanvas(current.appearance, previewEquipment()),
       appearanceSummary(),
     );
     body.append(reviewSection("Appearance", "appearance", look));
@@ -588,6 +623,8 @@ export function createCharacterCreateScreen(
 
   function renderStep(): void {
     if (!stepBody) return;
+    preview?.destroy();
+    preview = null;
     stepBody.replaceChildren();
     switch (wizard.step) {
       case "identity":
@@ -706,6 +743,30 @@ export function createCharacterCreateScreen(
     ) {
       return;
     }
+    // Live-preview hotkeys while the appearance step is showing.
+    if (wizard.step === "appearance" && preview) {
+      const key = event.key;
+      if (key === "q" || key === "Q") {
+        preview.rotate(-1);
+        return;
+      }
+      if (key === "e" || key === "E") {
+        preview.rotate(1);
+        return;
+      }
+      if (key === "w" || key === "W") {
+        preview.toggleMotion();
+        return;
+      }
+      if (key === "+" || key === "=") {
+        preview.stepZoom(1);
+        return;
+      }
+      if (key === "-" || key === "_") {
+        preview.stepZoom(-1);
+        return;
+      }
+    }
     // Number-row hotkeys jump straight to a step, same gate as the strip.
     const digit = Number.parseInt(event.key, 10);
     if (digit >= 1 && digit <= WIZARD_STEPS.length) {
@@ -796,6 +857,8 @@ export function createCharacterCreateScreen(
 
     unmount(): void {
       window.removeEventListener("keydown", onKeyDown);
+      preview?.destroy();
+      preview = null;
       container?.remove();
       container = null;
       stepBody = null;

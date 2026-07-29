@@ -1,7 +1,12 @@
 import type { CharacterState } from "../character/create";
 import { getBackground, type Background } from "../data/backgrounds";
 import { requireItem } from "../data/items";
-import { equip, type Loadout } from "./equipment";
+import {
+  emptyEquipment,
+  equip,
+  type EquipmentState,
+  type Loadout,
+} from "./equipment";
 import { addItem, type InventoryState } from "./inventory";
 import { type Item, type ItemResolver } from "./items";
 
@@ -14,6 +19,25 @@ export function resolveStartingGear(
   resolve: ItemResolver = requireItem,
 ): Item[] {
   return background.startingGearIds.map(resolve);
+}
+
+/**
+ * The equipment a fresh character of this background begins with: the
+ * first weapon and first outfit from the starting gear, matching
+ * applyStartingGear's auto-equip. Lets the creation wizard dress
+ * previews before any character or inventory exists.
+ */
+export function startingEquipment(
+  background: Background,
+  resolve: ItemResolver = requireItem,
+): EquipmentState {
+  const equipment = emptyEquipment();
+  for (const item of resolveStartingGear(background, resolve)) {
+    const slot =
+      item.kind === "weapon" || item.kind === "outfit" ? item.kind : null;
+    if (slot && equipment[slot] == null) equipment[slot] = item.id;
+  }
+  return equipment;
 }
 
 /**
