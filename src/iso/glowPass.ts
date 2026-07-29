@@ -11,7 +11,8 @@ import { INTERACTABLE_ART } from "./art/interactables";
 import { ART_SCALE } from "./art/pixel";
 import { PROP_ART } from "./art/props";
 import { TILE_ART } from "./art/tiles";
-import type { IsoMap } from "./tilemap";
+import { glowIntensityScale } from "./dayPhase";
+import { DEFAULT_DAY_PHASE, type DayPhaseId, type IsoMap } from "./tilemap";
 import { shimmerFactor, tileKey } from "./weather";
 
 /** One glow sprite to draw: world tile plus a screen-pixel offset. */
@@ -51,7 +52,12 @@ export function glowLitAtFrame(
   return !flicker || frame < frameCount - 1;
 }
 
-function toPlacement(source: GlowSource, x: number, y: number): GlowPlacement {
+function toPlacement(
+  source: GlowSource,
+  x: number,
+  y: number,
+  intensity: number,
+): GlowPlacement {
   return {
     x,
     y,
@@ -59,7 +65,9 @@ function toPlacement(source: GlowSource, x: number, y: number): GlowPlacement {
     offsetY: source.offsetY * ART_SCALE,
     color: source.color,
     radius: source.radius,
-    alpha: source.intensity,
+    // The hour scales every emissive alpha: neon reads harder against a
+    // late-night street and gives way to the sky at dusk.
+    alpha: Math.min(1, source.intensity * intensity),
   };
 }
 
@@ -115,21 +123,27 @@ export interface WeatherGlow {
  * the same frame choice the sprite provider makes, so flicker dropouts
  * kill the light too), interactable glows, and water reflections of the
  * prop/interactable glows — pooling on puddles too when it rains.
+ *
+ * `phase` is the hour the scene plays at: it scales every emissive
+ * alpha (see ./dayPhase.ts), leaving placement, color, and radius —
+ * everything authored — exactly where the art put them.
  */
 export function collectGlowPlacements(
   map: IsoMap,
   timeMs: number,
   weather: WeatherGlow | null = null,
+  phase: DayPhaseId = DEFAULT_DAY_PHASE,
 ): GlowPlacement[] {
   const placements: GlowPlacement[] = [];
   const objectGlows: GlowPlacement[] = [];
+  const intensity = glowIntensityScale(phase);
 
   for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < map.width; x++) {
       const id = map.tiles[y]?.[x];
       if (id === undefined) continue;
       for (const source of TILE_ART[id].glow ?? []) {
-        placements.push(toPlacement(source, x, y));
+        placements.push(toPlacement(source, x, y, intensity));
       }
     }
   }
@@ -147,7 +161,7 @@ export function collectGlowPlacements(
     );
     if (!glowLitAtFrame(art.frames.length, art.flicker, frame)) continue;
     for (const source of art.glow) {
-      objectGlows.push(toPlacement(source, prop.x, prop.y));
+      objectGlows.push(toPlacement(source, prop.x, prop.y, intensity));
     }
   }
 
@@ -155,7 +169,9 @@ export function collectGlowPlacements(
     if (interactable.spriteId === "npc") continue;
     const art = INTERACTABLE_ART[interactable.spriteId];
     for (const source of art.glow ?? []) {
-      objectGlows.push(toPlacement(source, interactable.x, interactable.y));
+      objectGlows.push(
+        toPlacement(source, interactable.x, interactable.y, intensity),
+      );
     }
   }
 

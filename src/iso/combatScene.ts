@@ -27,12 +27,13 @@ import {
   type TilePoint,
   type WorldPoint,
 } from "./coords";
+import { resolveDayPhase } from "./dayPhase";
 import { compareDrawables, type Drawable } from "./depth";
 import { observeDevicePixelRatio } from "./dpr";
 import type { EntitySpriteId, SpriteProvider } from "./sprites";
 import { tileKey, resolveWeather, type WeatherView } from "./weather";
 import { paintRainStreaks, paintSplashes } from "./weatherPaint";
-import type { IsoMap, WeatherId } from "./tilemap";
+import type { DayPhaseId, IsoMap, WeatherId } from "./tilemap";
 
 /** Authoritative view of one combatant, pushed by the combat screen. */
 export interface CombatSceneEntity {
@@ -69,6 +70,13 @@ export interface CombatSceneOptions {
    * grid stays readable. Visual only — nothing here reaches the engine.
    */
   weather?: WeatherId;
+  /**
+   * Hour to fight at. An arena has no clock of its own either, so the
+   * combat screen passes the hour the fight was entered under — the
+   * map's, or the one a story beat had staged. Visual only: the arena
+   * bakes through that phase's tinted palette (see ./dayPhase.ts).
+   */
+  dayPhase?: DayPhaseId;
 }
 
 export interface CombatScene {
@@ -162,6 +170,8 @@ export function createCombatScene(
 
   const entities = new Map<string, EntityView>();
   const floats: FloatingText[] = [];
+  // The inherited hour, baked into every sprite the arena draws.
+  sprites.setDayPhase?.(resolveDayPhase(map, options.dayPhase));
   /** The inherited weather, thinned for combat; null when clear or off. */
   let weatherEnabled = settings.get().weather;
   let weather: WeatherView | null = resolveWeather(map, {

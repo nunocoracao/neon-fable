@@ -213,6 +213,24 @@ export interface AmbientSpec {
  */
 export type WeatherId = "clear" | "rain";
 
+/**
+ * The hour a map plays at. Like weather, purely a look: the phase picks
+ * a bake-time palette tint and scales the neon glow pass (see
+ * src/iso/dayPhase.ts and src/iso/art/tint.ts) and nothing else — no
+ * stat, roll, or route anywhere in the game reads it.
+ *
+ * - "dusk": the last warm light off the towers, neon not yet winning.
+ * - "night": the hour every sprite is authored at — the neutral look.
+ * - "late": the small hours; the street goes cold and dark and the
+ *   signage is the only thing left burning.
+ */
+export type DayPhaseId = "dusk" | "night" | "late";
+
+export const DAY_PHASES: readonly DayPhaseId[] = ["dusk", "night", "late"];
+
+/** The phase the art is authored at; what an undeclared map plays under. */
+export const DEFAULT_DAY_PHASE: DayPhaseId = "night";
+
 export interface IsoMap {
   id: string;
   name: string;
@@ -227,6 +245,8 @@ export interface IsoMap {
   ambient?: AmbientSpec;
   /** Weather the map plays under; absent means clear. Visual only. */
   weather?: WeatherId;
+  /** Hour the map plays at; absent means night. Visual only. */
+  dayPhase?: DayPhaseId;
 }
 
 /** A legend entry for authoring maps as compact character rows. */

@@ -113,6 +113,26 @@ export const PALETTE: Readonly<Record<string, string>> = {
   u: "#a8c4ff", // hologram bright
 };
 
+/**
+ * Entries that read as their own light source: the neon trios, the
+ * danger lamp, and the hologram blues — every color a sign, screen, or
+ * warning light is actually drawn in, including the ones the emissive
+ * pass casts glows from.
+ *
+ * Day-phase tinting (see ./tint.ts) leaves these alone, so a tube is
+ * exactly as saturated at dusk as it is at 3am and only what it lights
+ * up changes. Two channels ride along deliberately: outfit accents are
+ * authored in the magenta ramp and face ink in the hologram ramp, so
+ * neon trim and lit tattoos keep their bite in every phase.
+ */
+export const EMISSIVE_COLORS: readonly string[] = [
+  "i", "g", "h", // neon cyan
+  "l", "j", "k", // neon magenta — also the outfit-accent channel
+  "o", "m", "n", // neon amber
+  "p", // danger red
+  "s", "t", "u", // hologram blue — also the tattoo-ink channel
+];
+
 /** A three-step material/skin ramp, ordered for the top-left light. */
 export interface ColorRamp {
   /** Darkest step — shadowed faces (bottom/right). */

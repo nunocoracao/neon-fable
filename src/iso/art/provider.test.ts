@@ -1,7 +1,12 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EntitySpriteId } from "../sprites";
-import type { InteractableSpriteId, PropId, TileId } from "../tilemap";
+import {
+  DAY_PHASES,
+  type InteractableSpriteId,
+  type PropId,
+  type TileId,
+} from "../tilemap";
 import type { Facing } from "../animation";
 import { INTERACTABLE_ART } from "./interactables";
 import { ART_SCALE } from "./pixel";
@@ -245,6 +250,63 @@ describe("createPixelArtSprites cache", () => {
     drive(4_000, 8_000);
     expect(sprites.cacheStats().misses).toBe(warm.misses);
     expect(sprites.cacheStats().evictions).toBe(0);
+  });
+
+  it("keys tinted bakes by day phase, so hours never share a canvas", () => {
+    const sprites = createPixelArtSprites();
+    const pose = { facing: "s" as const, moving: false, timeMs: 0 };
+    const nightTile = sprites.tile("pavement", 1, 1, 0);
+    const nightPlayer = sprites.entity("player", pose);
+    const warm = sprites.cacheStats();
+
+    sprites.setDayPhase?.("late");
+    // Same art, different hour: a fresh bake through the tinted palette.
+    expect(sprites.tile("pavement", 1, 1, 0)).not.toBe(nightTile);
+    expect(sprites.entity("player", pose)).not.toBe(nightPlayer);
+    expect(sprites.cacheStats().misses).toBe(warm.misses + 2);
+
+    // Walking back into the hour already baked costs nothing.
+    sprites.setDayPhase?.("night");
+    expect(sprites.tile("pavement", 1, 1, 0)).toBe(nightTile);
+    expect(sprites.entity("player", pose)).toBe(nightPlayer);
+    expect(sprites.cacheStats().misses).toBe(warm.misses + 2);
+  });
+
+  it("starts at the phase it was created with", () => {
+    const night = createPixelArtSprites();
+    const dusk = createPixelArtSprites({ dayPhase: "dusk" });
+    night.setDayPhase?.("dusk");
+    // Both providers are at dusk now, so both bake the same key: the
+    // constructor option and the setter are the same knob.
+    dusk.tile("pavement", 4, 2, 0);
+    night.tile("pavement", 4, 2, 0);
+    expect(night.cacheStats().misses).toBe(1);
+    expect(dusk.cacheStats().misses).toBe(1);
+  });
+
+  it("leaves phase-free bakes alone when the clock moves", () => {
+    const sprites = createPixelArtSprites();
+    const pose = { facing: "n" as const, moving: false, timeMs: 0 };
+    // Glows are emissive and flashes are one flat color: neither takes
+    // a tint, so neither pays for the hour changing.
+    const glow = sprites.glow("g", 22);
+    const flash = sprites.entitySilhouette("player", pose);
+    const warm = sprites.cacheStats();
+    sprites.setDayPhase?.("dusk");
+    expect(sprites.glow("g", 22)).toBe(glow);
+    expect(sprites.entitySilhouette("player", pose)).toBe(flash);
+    expect(sprites.cacheStats().misses).toBe(warm.misses);
+  });
+
+  it("re-baking every hour stays inside the byte budget", () => {
+    const sprites = createPixelArtSprites();
+    for (const phase of DAY_PHASES) {
+      sprites.setDayPhase?.(phase);
+      for (let t = 0; t <= 4_000; t += 16.7) renderFrame(sprites, t);
+    }
+    const stats = sprites.cacheStats();
+    expect(stats.evictions).toBe(0);
+    expect(stats.bytes).toBeLessThan(stats.budgetBytes);
   });
 
   it("exposes live stats through the window dev hook", () => {

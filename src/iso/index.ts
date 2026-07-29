@@ -44,6 +44,8 @@ export {
   type PixelBounds,
 } from "./camera";
 export {
+  DAY_PHASES,
+  DEFAULT_DAY_PHASE,
   TILE_DEFS,
   buildMapGrid,
   inBounds,
@@ -61,11 +63,13 @@ export {
   type PropPlacement,
   type AmbientSpec,
   type AmbientZone,
+  type DayPhaseId,
   type SpawnPoint,
   type TileDef,
   type TileId,
   type WeatherId,
 } from "./tilemap";
+export { glowIntensityScale, resolveDayPhase } from "./dayPhase";
 export {
   ARENA_STREAK_DENSITY,
   PUDDLE_DENSITY,
