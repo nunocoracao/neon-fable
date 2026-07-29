@@ -37,6 +37,7 @@ import { FACE_LAYERS } from "./layers/face";
 import { CRUSHED_HAIR_LAYERS, HAIR_LAYERS, hairWalkGrid } from "./layers/hair";
 import { HEADWEAR_LAYERS } from "./layers/headwear";
 import { OUTFIT_GRIDS } from "./layers/outfits";
+import { WEAPON_GRIDS } from "./layers/weapons";
 
 /** Layer slots in base (toward-camera) z-order, bottom to top. */
 export const LAYER_SLOTS = [
@@ -162,6 +163,17 @@ export function outfitChannelRemap(
   return remap;
 }
 
+/**
+ * Remap a weapon layer's energy-glow pixels onto a material ramp.
+ * Weapon glow rides the same accent channel outfit trim uses (applied
+ * per layer, so the two never collide); metal stays authored chrome.
+ */
+export function weaponChannelRemap(
+  accent?: MaterialName,
+): Readonly<Record<string, string>> {
+  return outfitChannelRemap(undefined, accent);
+}
+
 /** Remap the iris channel onto any palette entry. */
 export function eyeColorRemap(color: string): Readonly<Record<string, string>> {
   if (PALETTE[color] === undefined) {
@@ -224,6 +236,8 @@ const SLOT_REGISTRIES: Readonly<Partial<Record<LayerSlot, SlotRegistry>>> = {
   headwear: HEADWEAR_LAYERS as SlotRegistry,
   // Keyed by outfitArtId(family, build) — one aligned grid set per build.
   outfit: OUTFIT_GRIDS as SlotRegistry,
+  // Keyed by weaponArtId(class, build), same per-build scheme as outfits.
+  weapon: WEAPON_GRIDS as SlotRegistry,
 };
 
 /** The grid a layer draws for a view, or null while its art is unregistered. */

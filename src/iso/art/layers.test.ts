@@ -200,14 +200,16 @@ describe("layer art registries", () => {
     expect(layerArtGrid("headwear", "rebreather", "back")).not.toBeNull();
   });
 
-  it("resolves registered outfit art by per-build id", () => {
+  it("resolves registered outfit and weapon art by per-build id", () => {
     expect(layerArtGrid("outfit", "slicker@lean", "front")).not.toBeNull();
     expect(layerArtGrid("outfit", "plate@heavy", "back")).not.toBeNull();
+    expect(layerArtGrid("weapon", "blade@lean", "front")).not.toBeNull();
+    expect(layerArtGrid("weapon", "rifle@heavy", "back")).not.toBeNull();
   });
 
   it("returns null for unregistered slots and unknown art ids", () => {
-    // The weapon registry lands in a later gear task; its item ids
-    // resolve to nothing until then (same for unknown hair/headwear ids).
+    // Weapon art keys by class@build — bare item ids resolve to nothing
+    // (same for unknown hair/headwear ids).
     expect(layerArtGrid("hair", "mullet", "front")).toBeNull();
     expect(layerArtGrid("headwear", "crown", "front")).toBeNull();
     expect(layerArtGrid("weapon", "wpn-rail-spitter", "front")).toBeNull();
