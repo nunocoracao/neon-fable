@@ -17,10 +17,12 @@
  */
 import type { Facing, MotionState } from "../animation";
 import {
+  MATERIAL_RAMPS,
   PALETTE,
   REMAP_CHANNELS,
   SKIN_RAMPS,
   TRANSPARENT,
+  type MaterialName,
 } from "./palette";
 import { mirrored, remapped, type PixelGrid } from "./pixel";
 import {
@@ -34,6 +36,7 @@ import { bodyAnimFrames } from "./layers/bodyAnim";
 import { FACE_LAYERS } from "./layers/face";
 import { CRUSHED_HAIR_LAYERS, HAIR_LAYERS, hairWalkGrid } from "./layers/hair";
 import { HEADWEAR_LAYERS } from "./layers/headwear";
+import { OUTFIT_GRIDS } from "./layers/outfits";
 
 /** Layer slots in base (toward-camera) z-order, bottom to top. */
 export const LAYER_SLOTS = [
@@ -132,6 +135,33 @@ export function skinToneRemap(tone: number): Readonly<Record<string, string>> {
   return { [shade]: ramp.shade, [base]: ramp.base, [highlight]: ramp.highlight };
 }
 
+/**
+ * Remap the outfit primary (main cloth) and accent (trim) channels onto
+ * material ramps, position for position. Items carry the material names
+ * on their outfit layer reference; absent channels keep the authored
+ * dark-fabric and magenta colors.
+ */
+export function outfitChannelRemap(
+  primary?: MaterialName,
+  accent?: MaterialName,
+): Readonly<Record<string, string>> {
+  const remap: Record<string, string> = {};
+  const apply = (
+    channel: readonly string[],
+    material: MaterialName | undefined,
+  ): void => {
+    if (!material) return;
+    const ramp = MATERIAL_RAMPS[material];
+    const [shade, base, highlight] = channel;
+    remap[shade as string] = ramp.shade;
+    remap[base as string] = ramp.base;
+    remap[highlight as string] = ramp.highlight;
+  };
+  apply(REMAP_CHANNELS.outfitPrimary, primary);
+  apply(REMAP_CHANNELS.outfitAccent, accent);
+  return remap;
+}
+
 /** Remap the iris channel onto any palette entry. */
 export function eyeColorRemap(color: string): Readonly<Record<string, string>> {
   if (PALETTE[color] === undefined) {
@@ -192,6 +222,8 @@ const SLOT_REGISTRIES: Readonly<Partial<Record<LayerSlot, SlotRegistry>>> = {
   face: FACE_LAYERS as SlotRegistry,
   hair: { ...HAIR_LAYERS, ...CRUSHED_HAIR_LAYERS } as SlotRegistry,
   headwear: HEADWEAR_LAYERS as SlotRegistry,
+  // Keyed by outfitArtId(family, build) — one aligned grid set per build.
+  outfit: OUTFIT_GRIDS as SlotRegistry,
 };
 
 /** The grid a layer draws for a view, or null while its art is unregistered. */
