@@ -2,11 +2,14 @@
  * Visual appearance picker for the creation wizard's appearance step:
  * category tabs (Body / Hair / Face / Extras from the tab config in
  * src/data/appearanceTabs) over thumbnail grids with one live-baked
- * thumb per catalog entry. Thumbs are real renders of the working
- * appearance wearing each option — full-body idle minis for build and
- * skin, portrait crops for hair and face — cached exactly like the
- * portrait and sprite bakes. Only the active tab's grids are built, so
- * the step opens without baking every catalog.
+ * thumb per catalog entry, plus flat palette-chip swatch rows for the
+ * color categories (skin tone, hair color, eye color). Thumbs are real
+ * renders of the working appearance wearing each option — full-body
+ * idle minis for build, portrait crops for hair and face — cached
+ * exactly like the portrait and sprite bakes; picking a color changes
+ * the working look's remaps, so dependent thumbs re-bake under new
+ * descriptor keys. Only the active tab's grids are built, so the step
+ * opens without baking every catalog.
  *
  * Keyboard: arrow keys move within a grid, Tab cycles the category
  * tabs. Full a11y polish (roving tabindex, tablist semantics) is a
@@ -22,8 +25,10 @@ import {
   APPEARANCE_TABS,
   appearanceCatalogs,
   moveInGrid,
+  swatchChips,
   type AppearanceTabId,
-  type PickerCategoryConfig,
+  type SwatchCategoryConfig,
+  type ThumbCategoryConfig,
 } from "../data";
 import { emptyEquipment } from "../inventory/equipment";
 import {
@@ -115,7 +120,9 @@ export function createAppearancePicker(
     }
     render();
     if (focusGrid) {
-      body.querySelector<HTMLButtonElement>("button.nf-thumb")?.focus();
+      body
+        .querySelector<HTMLButtonElement>("button.nf-thumb, button.nf-swatch")
+        ?.focus();
     }
   }
 
@@ -135,7 +142,7 @@ export function createAppearancePicker(
   }
 
   function thumbCanvas(
-    config: PickerCategoryConfig,
+    config: ThumbCategoryConfig,
     look: Appearance,
     id: string,
   ): HTMLCanvasElement {
@@ -145,7 +152,10 @@ export function createAppearancePicker(
       : portraitCanvas(preview, emptyEquipment());
   }
 
-  function section(config: PickerCategoryConfig, look: Appearance): HTMLElement {
+  function thumbSection(
+    config: ThumbCategoryConfig,
+    look: Appearance,
+  ): HTMLElement {
     const wrap = document.createElement("div");
     wrap.className = "nf-thumb-section";
     const heading = document.createElement("span");
@@ -200,6 +210,60 @@ export function createAppearancePicker(
     return wrap;
   }
 
+  /**
+   * A swatch row for a color category: one flat palette chip per
+   * catalog entry, straight off swatchChips — no bakes involved.
+   */
+  function swatchSection(
+    config: SwatchCategoryConfig,
+    look: Appearance,
+  ): HTMLElement {
+    const wrap = document.createElement("div");
+    wrap.className = "nf-thumb-section";
+    const heading = document.createElement("span");
+    heading.className = "nf-field-label";
+    heading.textContent = config.label;
+
+    const row = document.createElement("div");
+    row.className = "nf-swatch-row";
+
+    for (const chip of swatchChips(config.category)) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "nf-swatch";
+      button.style.background = chip.color;
+      const selected = look[config.category] === chip.id;
+      if (selected) button.classList.add("nf-selected");
+      button.setAttribute("aria-pressed", String(selected));
+      button.dataset.category = config.category;
+      button.dataset.id = chip.id;
+      button.title = chip.label;
+      button.setAttribute("aria-label", `${config.label}: ${chip.label}`);
+      button.addEventListener("click", () =>
+        options.onPick(config.category, chip.id),
+      );
+      row.append(button);
+    }
+
+    // Left/right walk the single-row strip (columns = count makes
+    // up/down off-grid moves); swallowed like the thumb grids' keys.
+    row.addEventListener("keydown", (event: KeyboardEvent) => {
+      if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+      const chips = [
+        ...row.querySelectorAll<HTMLButtonElement>("button.nf-swatch"),
+      ];
+      const index = chips.indexOf(document.activeElement as HTMLButtonElement);
+      if (index === -1) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const next = moveInGrid(index, chips.length, chips.length, event.key);
+      if (next !== null) chips[next]?.focus();
+    });
+
+    wrap.append(heading, row);
+    return wrap;
+  }
+
   function renderBody(): void {
     const tab = APPEARANCE_TABS.find((t) => t.id === active) ?? APPEARANCE_TABS[0];
     const look = options.appearance();
@@ -213,7 +277,13 @@ export function createAppearancePicker(
             id: document.activeElement.dataset.id,
           }
         : null;
-    body.replaceChildren(...tab.categories.map((config) => section(config, look)));
+    body.replaceChildren(
+      ...tab.categories.map((config) =>
+        config.kind === "swatch"
+          ? swatchSection(config, look)
+          : thumbSection(config, look),
+      ),
+    );
     if (focused?.category && focused.id) {
       body
         .querySelector<HTMLButtonElement>(
@@ -241,10 +311,13 @@ export function createAppearancePicker(
     if (next) setTab(next.id, true);
   });
 
-  // Hovering or focusing a thumb surfaces its label in the caption bar.
+  // Hovering or focusing a thumb or chip surfaces its label in the
+  // caption bar.
   const showCaption = (target: EventTarget | null): void => {
     const thumb =
-      target instanceof HTMLElement ? target.closest("button.nf-thumb") : null;
+      target instanceof HTMLElement
+        ? target.closest("button.nf-thumb, button.nf-swatch")
+        : null;
     if (thumb instanceof HTMLElement) caption.textContent = thumb.title;
   };
   el.addEventListener("mouseover", (event) => showCaption(event.target));
