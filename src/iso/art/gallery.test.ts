@@ -11,6 +11,7 @@ import {
   EYES_OPTIONS,
   FACE_DETAIL_OPTIONS,
   HAIR_COLOR_OPTIONS,
+  HEADWEAR_OPTIONS,
   MOUTH_OPTIONS,
 } from "../../data/appearance";
 import { CHARACTER_FRAMES, ROLE_REMAPS } from "./characters";
@@ -108,13 +109,15 @@ describe("gallery sections", () => {
   it("covers every registered hair style × hair color × facing, plus a walk sweep per build", () => {
     const appearance = section("appearance");
     const drawnDetails = FACE_DETAIL_OPTIONS.filter((o) => o.layer !== null);
+    const drawnHeadwear = HEADWEAR_OPTIONS.filter((o) => o.layer !== null);
     expect(appearance.entries.length).toBe(
       HAIR_STYLE_IDS.length * HAIR_COLOR_OPTIONS.length * 4 +
         HAIR_STYLE_IDS.length * BODY_BUILD_IDS.length * 4 +
         EYES_OPTIONS.length * EYE_COLOR_OPTIONS.length +
         EYES_OPTIONS.length * BROWS_OPTIONS.length +
         MOUTH_OPTIONS.length +
-        drawnDetails.length,
+        drawnDetails.length +
+        drawnHeadwear.length * 4,
     );
     for (const style of HAIR_STYLE_IDS) {
       for (const color of HAIR_COLOR_OPTIONS) {
@@ -191,6 +194,27 @@ describe("gallery sections", () => {
       appearance.entries.find((e) => e.id === id)?.frames[0]?.join("\n") ?? "";
     const looks = MOUTH_OPTIONS.map((m) => frame(`mouth ${m.id} e`));
     expect(new Set(looks).size).toBe(MOUTH_OPTIONS.length);
+  });
+
+  it("covers every drawn headwear option per facing, each distinct over the same base", () => {
+    const appearance = section("appearance");
+    const drawn = HEADWEAR_OPTIONS.filter((o) => o.layer !== null);
+    for (const head of drawn) {
+      for (const facing of ["n", "e", "s", "w"]) {
+        expect(
+          appearance.entries.some(
+            (e) => e.id === `headwear ${head.id} ${facing}`,
+          ),
+          `headwear ${head.id} ${facing} present`,
+        ).toBe(true);
+      }
+    }
+    const frame = (id: string): string =>
+      appearance.entries.find((e) => e.id === id)?.frames[0]?.join("\n") ?? "";
+    // The hair/eye interaction rules make each option read differently
+    // over the same eyes + bob base.
+    const looks = drawn.map((h) => frame(`headwear ${h.id} e`));
+    expect(new Set(looks).size).toBe(drawn.length);
   });
 
   it("covers every drawn face detail up front, and cyber-lines glows", () => {
