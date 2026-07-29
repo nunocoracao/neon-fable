@@ -30,7 +30,9 @@ import {
 import { compareDrawables, type Drawable } from "./depth";
 import { observeDevicePixelRatio } from "./dpr";
 import type { EntitySpriteId, SpriteProvider } from "./sprites";
-import type { IsoMap } from "./tilemap";
+import { tileKey, resolveWeather, type WeatherView } from "./weather";
+import { paintRainStreaks, paintSplashes } from "./weatherPaint";
+import type { IsoMap, WeatherId } from "./tilemap";
 
 /** Authoritative view of one combatant, pushed by the combat screen. */
 export interface CombatSceneEntity {
@@ -60,6 +62,13 @@ export interface CombatSceneOptions {
   onTileClick(tile: TilePoint): void;
   onTileHover(tile: TilePoint | null): void;
   sprites?: SpriteProvider;
+  /**
+   * Weather to fight under. An arena has no sky of its own, so the
+   * combat screen passes the weather of the map the fight was entered
+   * from; the streaks are then thinned (ARENA_STREAK_DENSITY) so the
+   * grid stays readable. Visual only — nothing here reaches the engine.
+   */
+  weather?: WeatherId;
 }
 
 export interface CombatScene {
@@ -153,6 +162,25 @@ export function createCombatScene(
 
   const entities = new Map<string, EntityView>();
   const floats: FloatingText[] = [];
+  /** The inherited weather, thinned for combat; null when clear or off. */
+  let weatherEnabled = settings.get().weather;
+  let weather: WeatherView | null = resolveWeather(map, {
+    enabled: weatherEnabled,
+    weather: options.weather,
+    arena: true,
+  });
+
+  /** Follows the settings toggle mid-fight without a subscription. */
+  function syncWeather(): void {
+    const enabled = settings.get().weather;
+    if (enabled === weatherEnabled) return;
+    weatherEnabled = enabled;
+    weather = resolveWeather(map, {
+      enabled,
+      weather: options.weather,
+      arena: true,
+    });
+  }
   let highlights: CombatHighlights = {
     reachable: [],
     targets: [],
@@ -353,13 +381,15 @@ export function createCombatScene(
     ctx!.translate(snap(viewportW / 2 - camera.sx), snap(viewportH / 2 - camera.sy));
 
     // Ground pass. Reduced motion freezes the ambient clock so neon
-    // flicker and water shimmer go still.
+    // flicker, water shimmer, and the rain go still.
     const tileTime = settings.get().reducedMotion ? 0 : now;
+    syncWeather();
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         const tileId = map.tiles[y]?.[x];
         if (tileId === undefined) continue;
-        const sprite = sprites.tile(tileId, x, y, tileTime);
+        const wet = weather?.puddles.has(tileKey(x, y)) === true;
+        const sprite = sprites.tile(tileId, x, y, tileTime, wet);
         const { sx, sy } = worldToScreen(x, y);
         ctx!.drawImage(
           sprite.image,
@@ -368,6 +398,7 @@ export function createCombatScene(
         );
       }
     }
+    if (weather) paintSplashes(ctx!, sprites, weather, tileTime, dpr);
 
     // Highlights sit on the ground under everything.
     for (const tile of highlights.reachable) {
@@ -432,6 +463,20 @@ export function createCombatScene(
     }
 
     ctx!.restore();
+
+    // Screen-space rain curtain, thinned for the arena so the grid,
+    // the highlights, and the damage numbers stay readable through it.
+    if (weather) {
+      paintRainStreaks(
+        ctx!,
+        sprites,
+        weather,
+        tileTime,
+        viewportW,
+        viewportH,
+        dpr,
+      );
+    }
   }
 
   let rafId = 0;

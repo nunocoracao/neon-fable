@@ -36,6 +36,12 @@ import {
   type SpriteCacheStats,
 } from "./spriteCache";
 import { TILE_ART } from "./tiles";
+import {
+  RAIN_STREAK_ART,
+  SPLASH_ANCHOR_X,
+  SPLASH_ANCHOR_Y,
+  SPLASH_ART,
+} from "./weather";
 
 /** Tile-diamond center in 1x art pixels (v2 geometry: 64×32 tiles). */
 const TILE_ANCHOR_X = 32;
@@ -157,16 +163,19 @@ export function createPixelArtSprites(
   }
 
   return {
-    tile(id: TileId, x: number, y: number, timeMs: number): Sprite {
+    tile(id: TileId, x: number, y: number, timeMs: number, wet = false): Sprite {
       const art = TILE_ART[id];
       const variant = variantIndex(x, y, art.variants.length);
-      const frames = art.variants[variant] ?? [];
+      // Rain variants run parallel to the dry ones, so a wet tile keeps
+      // the texture its coordinate always picked — only water is added.
+      const rain = wet ? art.wet : undefined;
+      const frames = (rain ?? art.variants)[variant] ?? [];
       let frame = 0;
       if (frames.length > 1 && art.frameMs > 0) {
         // Per-tile phase offset so water/glow tiles don't pulse in sync.
         frame = frameAt(timeMs + tilePhaseMs(x, y, art.frameMs), art.frameMs, frames.length);
       }
-      return cached(`tile:${id}:${variant}:${frame}`, () =>
+      return cached(`tile:${id}:${variant}:${frame}:${rain ? "wet" : "dry"}`, () =>
         bakeSprite(frames[frame] ?? [], TILE_ANCHOR_X, TILE_ANCHOR_Y),
       );
     },
@@ -230,6 +239,20 @@ export function createPixelArtSprites(
 
     glow(color: string, radius: number): Sprite {
       return cached(`glow:${color}:${radius}`, () => bakeGlow(color, radius));
+    },
+
+    rainStreak(layer: number): Sprite {
+      // Anchored at the grid's top-left: streak placements are already
+      // the corner of the sprite, so the draw needs no offset math.
+      return cached(`rain:${layer}`, () =>
+        bakeSprite(RAIN_STREAK_ART[layer] ?? [], 0, 0),
+      );
+    },
+
+    splash(frame: number): Sprite {
+      return cached(`splash:${frame}`, () =>
+        bakeSprite(SPLASH_ART[frame] ?? [], SPLASH_ANCHOR_X, SPLASH_ANCHOR_Y),
+      );
     },
 
     cacheStats(): SpriteCacheStats {

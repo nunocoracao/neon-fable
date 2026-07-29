@@ -15,6 +15,7 @@ import {
   type GlowPlacement,
 } from "./glowPass";
 import type { Interactable, IsoMap, PropPlacement, TileId } from "./tilemap";
+import { SHIMMER_PERIOD_MS, shimmerFactor, tileKey } from "./weather";
 
 function makeMap(
   overrides: Partial<IsoMap> & { width: number; height: number },
@@ -198,6 +199,56 @@ describe("collectGlowPlacements", () => {
     const placements = collectGlowPlacements(map, t);
     expect(placements.length).toBe(1);
     expect(placements[0]?.x).toBe(1);
+  });
+
+  it("puddles reflect while it rains, and only the ones the map pooled", () => {
+    // Rain makes wet ground behave exactly like canal water in the
+    // glow pass — same machinery, one more reflective surface.
+    const map = makeMap({ width: 5, height: 3, props: [prop("shop-sign", 1, 1)] });
+    const t = flickerTime(1, 1, true);
+    const dry = collectGlowPlacements(map, t);
+    expect(dry.length).toBe(1);
+
+    const weather = { puddles: new Set([tileKey(2, 1)]) };
+    const wet = collectGlowPlacements(map, t, weather);
+    const reflections = wet.filter((p) => p.x !== 1 || p.y !== 1);
+    expect(reflections.length).toBe(1);
+    const source = (PROP_ART["shop-sign"].glow ?? [])[0]!;
+    const reflection = reflections[0] as GlowPlacement;
+    expect(reflection.x).toBe(2);
+    expect(reflection.offsetY).toBe(REFLECTION_SINK * ART_SCALE);
+    expect(reflection.radius).toBe(
+      Math.round(source.radius * REFLECTION_RADIUS_FACTOR),
+    );
+    // Alpha is the dry reflection alpha, shimmering.
+    const flat = source.intensity * (REFLECTION_ALPHA[1] ?? 0);
+    expect(reflection.alpha).toBeCloseTo(flat * shimmerFactor(2, 1, t), 9);
+  });
+
+  it("shimmers wet reflections around their flat alpha as time runs", () => {
+    const map = makeMap({ width: 5, height: 3, props: [prop("shop-sign", 1, 1)] });
+    const weather = { puddles: new Set([tileKey(2, 1)]) };
+    const alphas: number[] = [];
+    for (let t = 0; t < SHIMMER_PERIOD_MS; t += 100) {
+      // Sample only lit moments; the flicker dropout is tested above.
+      const placements = collectGlowPlacements(map, flickerTime(1, 1, true) + t, weather);
+      const reflection = placements.find((p) => p.x === 2);
+      if (reflection) alphas.push(reflection.alpha);
+    }
+    expect(alphas.length).toBeGreaterThan(4);
+    const low = Math.min(...alphas);
+    const high = Math.max(...alphas);
+    expect(high).toBeGreaterThan(low);
+    expect(low).toBeGreaterThan(0);
+  });
+
+  it("leaves the glow pass exactly as it was when the sky is clear", () => {
+    const map = makeMap({ width: 5, height: 3, props: [prop("shop-sign", 1, 1)] });
+    map.tiles[1]![2] = "canal";
+    const t = flickerTime(1, 1, true);
+    expect(collectGlowPlacements(map, t, null)).toEqual(
+      collectGlowPlacements(map, t),
+    );
   });
 
   it("reflection constants stay a cheap accent: faint, shrunken, short-range", () => {
