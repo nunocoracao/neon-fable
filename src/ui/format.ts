@@ -4,6 +4,7 @@ import {
   type PointBuyError,
   type StatKey,
 } from "../character/stats";
+import { NAME_MAX_LENGTH } from "../character/wizard";
 import { STAT_KEYS } from "../character/stats";
 import { getAbility, type Ability } from "../data/abilities";
 import { getItem } from "../data/items";
@@ -150,7 +151,9 @@ export function uninstallWarning(item: EnhancementItem): string {
 export function characterNameError(name: string): string | null {
   const trimmed = name.trim();
   if (trimmed.length === 0) return "Enter a name";
-  if (trimmed.length > 24) return "Names cap at 24 characters";
+  if (trimmed.length > NAME_MAX_LENGTH) {
+    return `Names cap at ${NAME_MAX_LENGTH} characters`;
+  }
   return null;
 }
 

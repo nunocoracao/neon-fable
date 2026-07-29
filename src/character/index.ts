@@ -60,6 +60,27 @@ export {
   type CreateCharacterInput,
 } from "./create";
 export {
+  NAME_MAX_LENGTH,
+  WIZARD_STEPS,
+  WIZARD_STEP_LABELS,
+  advance,
+  canAdvance,
+  canGoBack,
+  canJumpTo,
+  createWizard,
+  draftsEqual,
+  goBack,
+  jumpTo,
+  nameValid,
+  stepIndex,
+  stepValid,
+  updateDraft,
+  type WizardContext,
+  type WizardDraft,
+  type WizardState,
+  type WizardStep,
+} from "./wizard";
+export {
   AdvancementError,
   availablePoints,
   earnedPoints,

@@ -137,6 +137,12 @@ describe("New Game+ character creation", () => {
     }
   }
 
+  function setName(value: string): void {
+    const input = document.querySelector<HTMLInputElement>("#nf-name-input")!;
+    input.value = value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
   it("labels the bonus, offers the legacy picks, and stamps the new run", () => {
     finishARun();
     showScreen(createMainMenuScreen());
@@ -146,21 +152,25 @@ describe("New Game+ character creation", () => {
     expect(textOf(".nf-create")).toContain(
       `+${NG_PLUS_BONUS_POINTS} point-buy points`,
     );
-    expect(textOf(".nf-create")).toContain(
-      `(15 + ${NG_PLUS_BONUS_POINTS} legacy points)`,
-    );
-    // Legacy picks: both carried items plus the travel-light option.
+    setName("Echo");
+    button("Next")!.click();
+
+    // Background step carries the legacy picks: both carried items plus
+    // the travel-light option.
     expect(button("Shard Knife")).toBeTruthy();
     expect(button("Warden Optics")).toBeTruthy();
     expect(button("Travel light")).toBeTruthy();
-
     button("Warden Optics")!.click();
-    const nameInput =
-      document.querySelector<HTMLInputElement>("#nf-name-input")!;
-    nameInput.value = "Echo";
-    nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+    button("Next")!.click();
+
+    expect(textOf(".nf-create")).toContain(
+      `(15 + ${NG_PLUS_BONUS_POINTS} legacy points)`,
+    );
     allocateEverything();
     expect(textOf(".nf-remaining")).toContain("Points remaining: 0");
+    button("Next")!.click(); // appearance placeholder
+    button("Next")!.click(); // review
+    expect(textOf(".nf-create")).toContain("Warden Optics");
     button("Jack In")!.click();
 
     // The new run mounted (intro dialogue over the hub) and autosaved
@@ -184,8 +194,11 @@ describe("New Game+ character creation", () => {
     button("New Game")!.click();
     expect(textOf(".nf-create")).toContain("New Runner");
     expect(textOf(".nf-create")).not.toContain("New Game+");
-    expect(textOf(".nf-create")).toContain("(15 points)");
+    setName("Echo");
+    button("Next")!.click();
     expect(button("Travel light")).toBeUndefined();
+    button("Next")!.click();
+    expect(textOf(".nf-create")).toContain("(15 points)");
   });
 
   it("skips legacy ids that no longer resolve to items", () => {
@@ -200,6 +213,8 @@ describe("New Game+ character creation", () => {
     );
     showScreen(createMainMenuScreen());
     button("New Game+")!.click();
+    setName("Echo");
+    button("Next")!.click();
     expect(button("Shard Knife")).toBeTruthy();
     expect(button("itm-retired-content")).toBeUndefined();
   });
