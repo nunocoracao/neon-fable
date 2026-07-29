@@ -57,6 +57,19 @@ export interface SpriteProvider {
     timeMs: number,
     open?: number,
   ): Sprite;
+  /**
+   * Solid-color silhouette of the same frame an `interactable` call
+   * would return, for the focus outline. Idle loops recolor pixels but
+   * never move one in or out of the shape, so one bake per kind covers
+   * every frame of its loop.
+   */
+  interactableSilhouette(
+    id: InteractableSpriteId,
+    x: number,
+    y: number,
+    timeMs: number,
+    color: string,
+  ): Sprite;
   entity(id: EntitySpriteId, pose: EntityPose): Sprite;
   /** Solid-color silhouette of the same frame, for hit flashes. */
   entitySilhouette(id: EntitySpriteId, pose: EntityPose): Sprite;

@@ -262,6 +262,43 @@ export function createPixelArtSprites(
       );
     },
 
+    interactableSilhouette(
+      id: InteractableSpriteId,
+      x: number,
+      y: number,
+      timeMs: number,
+      color: string,
+    ): Sprite {
+      if (id === "npc") {
+        // Same pose the sprite lookup would pick, so the outline sits
+        // exactly on the shape it is tracing.
+        const phase = hash2(x, y) % 1000;
+        const descriptor = options?.npc?.(x, y) ?? FALLBACK_CHARACTER;
+        const { state, frame } = composedPose({
+          facing: "s",
+          moving: false,
+          timeMs: timeMs + phase,
+        });
+        return untinted(
+          `outline:${color}:${composedFrameKey(descriptor, "s", state, frame)}`,
+          () =>
+            bakeSilhouette(
+              composedCharacterGrid(descriptor, "s", state, frame),
+              color,
+              BODY_FRAME.anchorX,
+              BODY_FRAME.anchorY,
+            ),
+        );
+      }
+      // Object idle loops recolor pixels without ever moving one in or
+      // out of the shape, so the resting frame stands for all of them —
+      // one bake per kind, held for as long as the scene lives.
+      const art = INTERACTABLE_ART[id];
+      return untinted(`outline:${color}:${id}`, () =>
+        bakeSilhouette(art.frames[0] ?? [], color, art.anchorX, art.anchorY),
+      );
+    },
+
     entity(id: EntitySpriteId, pose: EntityPose): Sprite {
       return composedSprite(descriptorFor(id), pose);
     },
