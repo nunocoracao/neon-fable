@@ -10,6 +10,9 @@ import { PALETTE, TRANSPARENT } from "./palette";
 /** A palette-indexed sprite grid; rows top to bottom, all equal width. */
 export type PixelGrid = readonly string[];
 
+/** A palette-character substitution table, as consumed by `remapped`. */
+export type ChannelRemap = Readonly<Record<string, string>>;
+
 /** Integer scale factor from 1x art pixels to on-screen canvas pixels. */
 export const ART_SCALE = 2;
 
