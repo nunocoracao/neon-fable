@@ -11,7 +11,14 @@ import {
   type PixelGrid,
 } from "./pixel";
 import { PROP_ART } from "./props";
-import { TILE_ART } from "./tiles";
+import { TILE_ART, puddleGrid } from "./tiles";
+import {
+  RAIN_STREAK_ART,
+  SPLASH_ANCHOR_X,
+  SPLASH_ANCHOR_Y,
+  SPLASH_ART,
+  streakSlant,
+} from "./weather";
 
 function expectValid(grid: PixelGrid, label: string): void {
   expect(gridErrors(grid), label).toEqual([]);
@@ -27,38 +34,56 @@ describe("palette", () => {
   });
 });
 
-describe("tile art", () => {
-  it("every tile grid is a valid palette-indexed native 64×32 diamond", () => {
-    for (const [id, art] of Object.entries(TILE_ART)) {
-      art.variants.forEach((frames, v) => {
-        expect(frames.length, `${id} variant ${v} has frames`).toBeGreaterThan(0);
+/**
+ * Every registered tile grid, flattened and labelled — dry variants and
+ * the rain variants alike, so a puddled tile is held to exactly the same
+ * standard as the ground it was derived from.
+ */
+function allTileGrids(): ReadonlyArray<{ label: string; grid: PixelGrid }> {
+  const grids: Array<{ label: string; grid: PixelGrid }> = [];
+  for (const [id, art] of Object.entries(TILE_ART)) {
+    const sets: ReadonlyArray<[string, readonly PixelGrid[][]]> = art.wet
+      ? [
+          ["dry", art.variants],
+          ["wet", art.wet],
+        ]
+      : [["dry", art.variants]];
+    for (const [kind, variants] of sets) {
+      variants.forEach((frames, v) => {
+        expect(frames.length, `${id} ${kind} variant ${v} has frames`)
+          .toBeGreaterThan(0);
         frames.forEach((grid, f) => {
-          expectValid(grid, `${id} variant ${v} frame ${f}`);
-          expect(grid.length, `${id} v${v} f${f} height`).toBe(32);
-          expect(grid[0]?.length, `${id} v${v} f${f} width`).toBe(64);
+          grids.push({ label: `${id} ${kind} v${v} f${f}`, grid });
         });
       });
+    }
+  }
+  return grids;
+}
+
+describe("tile art", () => {
+  it("every tile grid is a valid palette-indexed native 64×32 diamond", () => {
+    for (const { label, grid } of allTileGrids()) {
+      expectValid(grid, label);
+      expect(grid.length, `${label} height`).toBe(32);
+      expect(grid[0]?.length, `${label} width`).toBe(64);
     }
   });
 
   it("tiles fill the 64×32 diamond mask exactly", () => {
-    for (const id of Object.keys(TILE_ART) as (keyof typeof TILE_ART)[]) {
-      TILE_ART[id].variants.forEach((frames, v) => {
-        frames.forEach((grid, f) => {
-          grid.forEach((row, r) => {
-            const w = DIAMOND_WIDTHS[r] ?? 0;
-            const pad = (64 - w) / 2;
-            expect(row.length, `${id} v${v} f${f} row ${r}`).toBe(64);
-            expect(
-              row.slice(0, pad) + row.slice(pad + w),
-              `${id} v${v} f${f} row ${r} exterior`,
-            ).toBe(TRANSPARENT.repeat(2 * pad));
-            expect(
-              row.slice(pad, pad + w).includes(TRANSPARENT),
-              `${id} v${v} f${f} row ${r} has holes`,
-            ).toBe(false);
-          });
-        });
+    for (const { label, grid } of allTileGrids()) {
+      grid.forEach((row, r) => {
+        const w = DIAMOND_WIDTHS[r] ?? 0;
+        const pad = (64 - w) / 2;
+        expect(row.length, `${label} row ${r}`).toBe(64);
+        expect(
+          row.slice(0, pad) + row.slice(pad + w),
+          `${label} row ${r} exterior`,
+        ).toBe(TRANSPARENT.repeat(2 * pad));
+        expect(
+          row.slice(pad, pad + w).includes(TRANSPARENT),
+          `${label} row ${r} has holes`,
+        ).toBe(false);
       });
     }
   });
@@ -694,6 +719,118 @@ describe("glow registrations", () => {
       const isWater = id === "canal" || id === "canal-deep";
       expect(art.reflective === true, `tile ${id}`).toBe(isWater);
     }
+  });
+});
+
+describe("weather art", () => {
+  const RAINABLE_TILES = new Set([
+    "pavement",
+    "pavement-cracked",
+    "road",
+    "quay-n",
+    "quay-e",
+    "quay-s",
+    "quay-w",
+    "rust-floor",
+  ]);
+
+  it("only open outdoor ground registers rain variants", () => {
+    // The canal is already water, foundations are wall bases, and no
+    // interior floor is under the sky.
+    for (const [id, art] of Object.entries(TILE_ART)) {
+      expect(art.wet !== undefined, `tile ${id}`).toBe(RAINABLE_TILES.has(id));
+    }
+  });
+
+  it("rain variants stay parallel to the dry ones, frame for frame", () => {
+    for (const [id, art] of Object.entries(TILE_ART)) {
+      if (!art.wet) continue;
+      expect(art.wet.length, `${id} variant count`).toBe(art.variants.length);
+      art.wet.forEach((frames, v) => {
+        expect(frames.length, `${id} v${v} frame count`).toBe(
+          art.variants[v]?.length,
+        );
+      });
+    }
+  });
+
+  it("every puddle actually changes the ground it pools on", () => {
+    for (const [id, art] of Object.entries(TILE_ART)) {
+      if (!art.wet) continue;
+      art.wet.forEach((frames, v) => {
+        frames.forEach((grid, f) => {
+          const dry = art.variants[v]?.[f] ?? [];
+          expect(grid.join("\n"), `${id} v${v} f${f}`).not.toBe(dry.join("\n"));
+        });
+      });
+    }
+  });
+
+  it("puddles differ between tile kinds and between variants", () => {
+    const shapes = new Set<string>();
+    for (const art of Object.values(TILE_ART)) {
+      for (const frames of art.wet ?? []) {
+        for (const grid of frames) shapes.add(grid.join("\n"));
+      }
+    }
+    const total = Object.values(TILE_ART).reduce(
+      (n, art) => n + (art.wet ?? []).reduce((m, frames) => m + frames.length, 0),
+      0,
+    );
+    expect(shapes.size).toBe(total);
+  });
+
+  it("puddleGrid is pure: the same source and seed give the same pool", () => {
+    const base = TILE_ART.pavement.variants[0]?.[0] ?? [];
+    expect(puddleGrid(base, 5)).toEqual(puddleGrid(base, 5));
+    expect(puddleGrid(base, 5)).not.toEqual(puddleGrid(base, 6));
+  });
+
+  it("rain streak sprites are valid grids that lean one consistent way", () => {
+    expect(RAIN_STREAK_ART.length).toBe(2);
+    RAIN_STREAK_ART.forEach((grid, i) => {
+      expectValid(grid, `rain streak ${i}`);
+      expect(grid.length, `rain streak ${i} length`).toBeGreaterThan(4);
+      // Streaks lean with the wind, all in the same direction, or the
+      // two curtains would blow against each other.
+      expect(streakSlant(grid), `rain streak ${i} slant`).toBeGreaterThan(0);
+      expect(streakSlant(grid), `rain streak ${i} slant`).toBeLessThan(1);
+    });
+    // The near layer is the longer, more visible one.
+    expect((RAIN_STREAK_ART[1] ?? []).length).toBeGreaterThan(
+      (RAIN_STREAK_ART[0] ?? []).length,
+    );
+  });
+
+  it("streakSlant reads the lean off the art, and nothing off an empty grid", () => {
+    expect(streakSlant(["9..", ".9.", "..9"])).toBe(1);
+    expect(streakSlant(["..9", ".9.", "9.."])).toBe(-1);
+    expect(streakSlant(["9", "9", "9"])).toBe(0);
+    expect(streakSlant([])).toBe(0);
+    expect(streakSlant(["...", "..."])).toBe(0);
+  });
+
+  it("splash frames are valid, same-sized, and fade as the ripple opens", () => {
+    expect(SPLASH_ART.length).toBeGreaterThanOrEqual(2);
+    const width = SPLASH_ART[0]?.[0]?.length ?? 0;
+    const height = SPLASH_ART[0]?.length ?? 0;
+    SPLASH_ART.forEach((grid, i) => {
+      expectValid(grid, `splash ${i}`);
+      expect(grid.length, `splash ${i} height`).toBe(height);
+      expect(grid[0]?.length, `splash ${i} width`).toBe(width);
+      expect(
+        grid.some((row) => row.includes(TRANSPARENT) === false || row.trim() !== ""),
+        `splash ${i} paints something`,
+      ).toBe(true);
+    });
+    // The anchor sits inside the frame: splashes land on tile centers.
+    expect(SPLASH_ANCHOR_X).toBeLessThan(width);
+    expect(SPLASH_ANCHOR_Y).toBeLessThan(height);
+    // Each frame is drawn a step dimmer than the last (9 -> 8 -> 7).
+    const inks = SPLASH_ART.map(
+      (grid) => [...grid.join("")].filter((ch) => ch !== TRANSPARENT)[0] ?? "",
+    );
+    expect(inks).toEqual([...inks].sort().reverse());
   });
 });
 
