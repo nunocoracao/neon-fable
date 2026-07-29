@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { defaultAppearance } from "../character";
+import { composeCharacter, defaultAppearance } from "../character";
+import { fixtureAppearance, fixtureCharacter } from "../character/testSupport";
 import { createNewGame, GAME_STATE_VERSION } from "./gameState";
 import { setFlag } from "./flags";
 import {
@@ -63,6 +64,33 @@ describe("save system", () => {
     const state = makeState();
     saveGame(state, "slot1", storage, 1000);
     expect(loadGame("slot1", storage)).toEqual(state);
+  });
+
+  it("round-trips a customized appearance and its composed descriptor", () => {
+    const storage = createMemoryStorage();
+    const appearance = fixtureAppearance({
+      skinTone: "deep-umber",
+      build: "heavy",
+      hairStyle: "locs",
+      hairColor: "silver",
+      eyes: "cyber-band",
+      eyeColor: "magenta",
+      faceDetail: "cyber-lines",
+      headwear: "hood",
+    });
+    const state = createNewGame({
+      character: fixtureCharacter({ appearance }),
+      seed: 5,
+    });
+    saveGame(state, "slot1", storage, 1000);
+    const loaded = loadGame("slot1", storage);
+    expect(loaded.player.appearance).toEqual(appearance);
+    // The loaded character resolves to the identical render descriptor:
+    // same layers, same remaps, same build — pixel-for-pixel the same
+    // sprite as before the save (starting gear included).
+    expect(
+      composeCharacter(loaded.player.appearance, loaded.player.equipment),
+    ).toEqual(composeCharacter(appearance, state.player.equipment));
   });
 
   it("supports three named slots plus autosave independently", () => {
@@ -174,6 +202,13 @@ describe("save system", () => {
     expect(loaded.flags["metFixer"]).toBe(true);
     expect(loaded.credits).toBe(180);
     expect(loaded.rng).toEqual({ seed: 987654 });
+    // The migrated look composes with the save's own v6 gear: the render
+    // descriptor derives without error and shows the equipped outfit.
+    const composed = composeCharacter(
+      loaded.player.appearance,
+      loaded.player.equipment,
+    );
+    expect(composed.layers.some((layer) => layer.slot === "outfit")).toBe(true);
   });
 
   it("a migrated v6 save round-trips through save and load", () => {

@@ -41,6 +41,8 @@ export interface ReviewLine {
 /** The New Game+ carry-over offer the review needs to summarize. */
 export interface ReviewNgPlus {
   bonusPoints: number;
+  /** The carried look that seeded the appearance step, when one did. */
+  legacyAppearance?: WizardDraft["appearance"] | null;
 }
 
 export interface ReviewModel {
@@ -128,7 +130,11 @@ export function reviewModel(
     legacy: ngPlus
       ? {
           pick: legacyPick,
-          line: `${legacyPick} · +${ngPlus.bonusPoints} bonus point-buy points`,
+          line:
+            `${legacyPick} · +${ngPlus.bonusPoints} bonus point-buy points` +
+            (ngPlus.legacyAppearance
+              ? " · last runner's look carried over"
+              : ""),
         }
       : null,
   };

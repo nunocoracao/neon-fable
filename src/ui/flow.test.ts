@@ -2,11 +2,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   baseStats,
-  createCharacter,
   presetAppearanceFor,
   randomizeUnlocked,
 } from "../character";
-import { backgroundPresets, getAppearanceOption, getBackground } from "../data";
+import { fixtureAppearance, fixtureCharacter } from "../character/testSupport";
+import { backgroundPresets, getAppearanceOption } from "../data";
 import { createRng } from "../state/rng";
 import { DEFAULT_SETTINGS, SETTINGS_KEY, settings } from "../settings";
 import { createNewGame, type GameState } from "../state";
@@ -100,13 +100,11 @@ function createTestCharacter(): void {
  * through the UI. Nothing on the dialogue path to the fight draws RNG or
  * changes combat inputs, so combat setup matches the live session's. */
 function testCharacterState(seed: number): GameState {
-  const background = getBackground("gutter-courier")!;
   const allocation = baseStats();
   allocation.body += 5;
   allocation.tech += 5;
   allocation.intelligence += 5;
-  const character = createCharacter({ name: "Vex", background, allocation });
-  return createNewGame({ character, seed });
+  return createNewGame({ character: fixtureCharacter({ allocation }), seed });
 }
 
 /** A seed whose scripted enc-auric-scout fight ends in victory. */
@@ -670,6 +668,34 @@ describe("character creation wizard", () => {
     expect(textOf(".nf-wizard-body")).toMatch(/Shard Knife/);
     click("Jack In");
     expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
+  });
+
+  it("ignores an NG+ carried look that no longer validates", () => {
+    showScreen(
+      createCharacterCreateScreen({
+        ngPlus: {
+          bonusPoints: 3,
+          legacyItemIds: [],
+          legacyAppearance: fixtureAppearance({ hairStyle: "retired-style" }),
+        },
+      }),
+    );
+    // No look note on identity, and the appearance step seeds from the
+    // background preset exactly as a plain New Game would.
+    expect(textOf(".nf-wizard-body")).not.toMatch(/look carries over/);
+    setName("Vex");
+    click("Next");
+    click("Next");
+    bumpStat(0, 5);
+    bumpStat(2, 5);
+    bumpStat(4, 5);
+    bumpStat(1, 3);
+    click("Next");
+    const preset = backgroundPresets("gutter-courier")[0]!.appearance;
+    const summary = textOf(".nf-appearance-summary");
+    expect(summary).toContain(
+      getAppearanceOption("skinTone", preset.skinTone)!.label,
+    );
   });
 });
 

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { getBackground } from "../data/backgrounds";
-import { defaultAppearance, randomAppearance } from "./appearance";
+import {
+  AppearanceValidationError,
+  defaultAppearance,
+  randomAppearance,
+} from "./appearance";
 import { createRng } from "../state/rng";
 import {
   CharacterCreationError,
@@ -24,6 +28,7 @@ describe("createCharacter", () => {
       name: "  Vex  ",
       background: courier,
       allocation: defaultAllocation(),
+      appearance: defaultAppearance(),
     });
     expect(character).toEqual({
       name: "Vex",
@@ -45,6 +50,7 @@ describe("createCharacter", () => {
       name: "Nyx",
       background: diver,
       allocation: defaultAllocation(),
+      appearance: defaultAppearance(),
     });
     expect(character.stats.tech).toBe(8);
     expect(character.stats.body).toBe(6);
@@ -55,6 +61,7 @@ describe("createCharacter", () => {
       name: "Vex",
       background: courier,
       allocation: defaultAllocation(),
+      appearance: defaultAppearance(),
     });
     expect(character.hp).toBe(maxHp(character.stats));
   });
@@ -64,6 +71,7 @@ describe("createCharacter", () => {
       name: "Vex",
       background: courier,
       allocation: defaultAllocation(),
+      appearance: defaultAppearance(),
     });
     character.tags.push("mutated");
     expect(courier.tags).toEqual(["street", "courier"]);
@@ -72,10 +80,20 @@ describe("createCharacter", () => {
   it("rejects an invalid allocation with the validation errors", () => {
     const overspent: Stats = { ...defaultAllocation(), body: 10 };
     expect(() =>
-      createCharacter({ name: "Vex", background: courier, allocation: overspent }),
+      createCharacter({
+        name: "Vex",
+        background: courier,
+        allocation: overspent,
+        appearance: defaultAppearance(),
+      }),
     ).toThrowError(CharacterCreationError);
     try {
-      createCharacter({ name: "Vex", background: courier, allocation: overspent });
+      createCharacter({
+        name: "Vex",
+        background: courier,
+        allocation: overspent,
+        appearance: defaultAppearance(),
+      });
     } catch (error) {
       expect((error as CharacterCreationError).errors).toContainEqual({
         code: "overspent",
@@ -83,13 +101,28 @@ describe("createCharacter", () => {
     }
   });
 
-  it("defaults to the stock appearance when none is given", () => {
+  it("rejects an appearance referencing unknown catalog ids", () => {
+    const broken = { ...defaultAppearance(), hairStyle: "bogus" };
+    expect(() =>
+      createCharacter({
+        name: "Vex",
+        background: courier,
+        allocation: defaultAllocation(),
+        appearance: broken,
+      }),
+    ).toThrowError(AppearanceValidationError);
+  });
+
+  it("copies the appearance instead of aliasing the input", () => {
+    const appearance = defaultAppearance();
     const character = createCharacter({
       name: "Vex",
       background: courier,
       allocation: defaultAllocation(),
+      appearance,
     });
-    expect(character.appearance).toEqual(defaultAppearance());
+    appearance.hairColor = "silver";
+    expect(character.appearance.hairColor).toBe("raven");
   });
 
   it("keeps a provided appearance verbatim", () => {
@@ -108,6 +141,7 @@ describe("createCharacter", () => {
       name: "Vex",
       background: courier,
       allocation: defaultAllocation(),
+      appearance: defaultAppearance(),
     });
     expect(JSON.parse(JSON.stringify(character))).toEqual(character);
   });

@@ -123,4 +123,22 @@ describe("reviewModel", () => {
       "Travel light · +2 bonus point-buy points",
     );
   });
+
+  it("mentions the carried look only when one seeded the wizard", () => {
+    const carried = reviewModel(draft(), {
+      bonusPoints: 3,
+      legacyAppearance: defaultAppearance(),
+    });
+    expect(carried.legacy?.line).toBe(
+      "Travel light · +3 bonus point-buy points · last runner's look carried over",
+    );
+
+    const withoutLook = reviewModel(draft(), {
+      bonusPoints: 3,
+      legacyAppearance: null,
+    });
+    expect(withoutLook.legacy?.line).toBe(
+      "Travel light · +3 bonus point-buy points",
+    );
+  });
 });

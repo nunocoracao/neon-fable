@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   POINT_POOL,
-  createCharacter,
   defaultAllocation,
   validateAllocation,
 } from "../character";
-import { getBackground } from "../data/backgrounds";
+import { fixtureAppearance, fixtureCharacter } from "../character/testSupport";
 import { countItem, hasItem, installEnhancement, addItem, equip } from "../inventory";
 import { GAME_STATE_VERSION, createNewGame } from "./gameState";
 import {
@@ -13,6 +12,7 @@ import {
   NG_PLUS_CARRYOVER_FLAG,
   NG_PLUS_FLAG,
   applyNewGamePlus,
+  carryoverAppearance,
   carryoverCandidates,
   isNewGamePlus,
 } from "./ngplus";
@@ -32,12 +32,23 @@ describe("carry-over candidates", () => {
   });
 
   it("returns an empty list for a bare character", () => {
-    const character = createCharacter({
-      name: "Vex",
-      background: getBackground("gutter-courier")!,
-      allocation: defaultAllocation(),
+    expect(carryoverCandidates(fixtureCharacter())).toEqual([]);
+  });
+});
+
+describe("carry-over appearance", () => {
+  it("returns a copy of the finishing character's look", () => {
+    const appearance = fixtureAppearance({
+      skinTone: "deep-umber",
+      hairStyle: "mohawk",
+      hairColor: "synth-violet",
+      headwear: "cap",
     });
-    expect(carryoverCandidates(character)).toEqual([]);
+    const character = fixtureCharacter({ appearance });
+    const carried = carryoverAppearance(character);
+    expect(carried).toEqual(appearance);
+    // A copy, not a shared reference: mutating it never touches the source.
+    expect(carried).not.toBe(character.appearance);
   });
 });
 
@@ -89,21 +100,13 @@ describe("New Game+ point pool", () => {
 
   it("createCharacter accepts the expanded pool", () => {
     const allocation = { ...defaultAllocation(), tech: 6 + NG_PLUS_BONUS_POINTS };
-    const character = createCharacter({
-      name: "Vex",
-      background: getBackground("gutter-courier")!,
+    const character = fixtureCharacter({
       allocation,
       pointPool: POINT_POOL + NG_PLUS_BONUS_POINTS,
     });
     expect(character.name).toBe("Vex");
     // Standard-pool creation is unchanged.
-    expect(() =>
-      createCharacter({
-        name: "Vex",
-        background: getBackground("gutter-courier")!,
-        allocation,
-      }),
-    ).toThrow(/overspent/);
+    expect(() => fixtureCharacter({ allocation })).toThrow(/overspent/);
   });
 });
 

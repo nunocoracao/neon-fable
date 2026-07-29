@@ -1,16 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createCharacter, defaultAllocation } from "../character";
-import { getBackground } from "../data/backgrounds";
+import { fixtureCharacter } from "../character/testSupport";
 import { useConsumable } from "./consume";
 import { addItem, countItem, emptyInventory } from "./inventory";
 import { InventoryError } from "./items";
 
 function makeCharacter() {
-  return createCharacter({
-    name: "Vex",
-    background: getBackground("gutter-courier")!,
-    allocation: defaultAllocation(),
-  });
+  return fixtureCharacter();
 }
 
 function expectCode(fn: () => unknown, code: InventoryError["code"]) {

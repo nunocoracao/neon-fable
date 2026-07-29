@@ -26,6 +26,7 @@ import {
   stepValid,
   updateDraft,
   validateAllocation,
+  validateAppearance,
   type Appearance,
   type AppearanceLocks,
   type DerivedAttributes,
@@ -81,8 +82,9 @@ import { createSession } from "./session";
  * screen renders whichever step is active and dispatches transitions.
  * The whole draft lives in memory for the life of the screen, so moving
  * between steps never loses a choice. In New Game+ mode a modest,
- * clearly-labeled carry-over applies: bonus point-buy points and one
- * legacy item picked from the finishing character's gear.
+ * clearly-labeled carry-over applies: bonus point-buy points, one
+ * legacy item picked from the finishing character's gear, and the
+ * finishing character's look seeding the appearance step.
  *
  * The appearance step hosts the visual picker (./appearancePicker):
  * category tabs of live-baked thumbnails beside the live animated
@@ -97,6 +99,12 @@ export interface NewGamePlusOffer {
   bonusPoints: number;
   /** Item ids the finishing character passed forward; the player picks one. */
   legacyItemIds: string[];
+  /**
+   * The finishing character's look, seeded as the wizard's initial
+   * working appearance (every field stays editable). Absent or invalid
+   * looks fall back to the stock defaults.
+   */
+  legacyAppearance?: Appearance | null;
 }
 
 export interface CharacterCreateOptions {
@@ -128,6 +136,13 @@ export function createCharacterCreateScreen(
   const legacyChoices = ngPlus
     ? ngPlus.legacyItemIds.filter((id) => getItem(id) !== undefined)
     : [];
+  // The carried look seeds the working appearance only while every id
+  // still validates — retired options fall back to the stock look.
+  const legacyLook =
+    ngPlus?.legacyAppearance &&
+    validateAppearance(ngPlus.legacyAppearance).length === 0
+      ? { ...ngPlus.legacyAppearance }
+      : null;
   const pointPool = POINT_POOL + (ngPlus?.bonusPoints ?? 0);
   const context: WizardContext = {
     pointPool,
@@ -137,7 +152,7 @@ export function createCharacterCreateScreen(
     name: "",
     backgroundId: backgrounds[0]?.id ?? "",
     allocation: baseStats(),
-    appearance: defaultAppearance(),
+    appearance: legacyLook ?? defaultAppearance(),
     legacyItemId: legacyChoices[0] ?? null,
   };
   let wizard: WizardState = createWizard(initialDraft);
@@ -149,8 +164,9 @@ export function createCharacterCreateScreen(
   let previewState: PreviewState = DEFAULT_PREVIEW_STATE;
   /** The mounted preview panel while the appearance step is showing. */
   let preview: AppearancePreview | null = null;
-  /** First entry to the appearance step seeds from the background preset. */
-  let appearanceSeeded = false;
+  /** First entry to the appearance step seeds from the background preset
+   * — unless the NG+ carried look already claimed the working appearance. */
+  let appearanceSeeded = legacyLook !== null;
   /** Set by a review Edit link: finishing that step returns to review. */
   let returnToReview = false;
   /** Per-category locks; locked categories survive Surprise Me. */
@@ -291,7 +307,10 @@ export function createCharacterCreateScreen(
       legacyNote.className = "nf-dim";
       legacyNote.textContent =
         `New Game+ bonus: +${ngPlus.bonusPoints} point-buy points and ` +
-        "one piece of your last runner's gear.";
+        "one piece of your last runner's gear." +
+        (legacyLook
+          ? " Their look carries over too — restyle it on the Appearance step."
+          : "");
       body.append(legacyNote);
     }
   }
@@ -743,7 +762,14 @@ export function createCharacterCreateScreen(
    * its step and returns here afterward.
    */
   function renderReview(body: HTMLElement): void {
-    const model = reviewModel(draft(), ngPlus);
+    // The review summarizes the offer as it actually applied: the
+    // carried look only counts when it seeded the working appearance.
+    const model = reviewModel(
+      draft(),
+      ngPlus
+        ? { bonusPoints: ngPlus.bonusPoints, legacyAppearance: legacyLook }
+        : null,
+    );
 
     const columns = document.createElement("div");
     columns.className = "nf-create-columns nf-review-columns";

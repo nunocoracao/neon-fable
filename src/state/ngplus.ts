@@ -1,4 +1,4 @@
-import type { CharacterState } from "../character";
+import type { Appearance, CharacterState } from "../character";
 import { requireItem } from "../data/items";
 import { addItem } from "../inventory";
 import type { ItemResolver } from "../inventory";
@@ -7,9 +7,10 @@ import type { GameState } from "./gameState";
 /**
  * New Game+: a modest carry-over into a fresh run after any completed
  * playthrough. The bonus lives in character creation (extra point-buy
- * points) and one legacy item granted here; everything is recorded on
- * the new run's own GameState via flags, so NG+ saves stay
- * self-contained and pre-NG+ saves load exactly as before.
+ * points, plus the finished character's appearance seeding the wizard)
+ * and one legacy item granted here; everything is recorded on the new
+ * run's own GameState via flags, so NG+ saves stay self-contained and
+ * pre-NG+ saves load exactly as before.
  */
 
 /** Extra point-buy points a New Game+ character allocates. */
@@ -28,16 +29,21 @@ export function isNewGamePlus(state: GameState): boolean {
 /**
  * The item ids a finishing character can pass forward: equipped weapon
  * and outfit plus every installed enhancement.
- *
- * Note: the appearance-persistence task will extend carry-over to also
- * copy the finished character's Appearance into the new run; nothing
- * here handles appearance yet, by design.
  */
 export function carryoverCandidates(character: CharacterState): string[] {
   const { weapon, outfit, enhancements } = character.equipment;
   return [weapon, outfit, ...Object.values(enhancements)].filter(
     (id): id is string => typeof id === "string",
   );
+}
+
+/**
+ * The look a finishing character passes forward: a fresh copy of its
+ * appearance, recorded in meta-progress and seeded into the New Game+
+ * wizard as the initial working look (every field stays editable there).
+ */
+export function carryoverAppearance(character: CharacterState): Appearance {
+  return { ...character.appearance };
 }
 
 /**

@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fixtureAppearance } from "../character/testSupport";
 import {
   META_PROGRESS_KEY,
   createNewGame,
@@ -134,8 +135,15 @@ describe("finished saves", () => {
 describe("final ending handoff", () => {
   it("routes a final ending's dialogue straight to the epilogue and autosaves finished", () => {
     const base = createNewGame({ playerName: "Vex", seed: 3 });
+    // A customized look, so the carry-over assertions below can't pass
+    // by accident on the stock defaults.
+    const styled = {
+      ...base.player,
+      appearance: fixtureAppearance({ hairStyle: "locs", headwear: "visor" }),
+    };
     const session = createSession({
       ...base,
+      player: styled,
       location: "auric-spire",
       flags: { "hex-exchange": true },
     });
@@ -163,6 +171,10 @@ describe("final ending handoff", () => {
     expect(meta.ngPlusUnlocked).toBe(true);
     expect(meta.epiloguesSeen).toContain("hex-registrar");
     expect(meta.legacyItemIds).toContain(saved.player.equipment.weapon);
+    // The finishing character's look landed alongside the loadout, ready
+    // to seed the next New Game+ wizard.
+    expect(meta.legacyAppearance).toEqual(styled.appearance);
+    expect(saved.player.appearance).toEqual(styled.appearance);
     expect(saved.flags["meta-recorded"]).toBe(true);
 
     // Reopening that finished autosave shows the epilogue again but

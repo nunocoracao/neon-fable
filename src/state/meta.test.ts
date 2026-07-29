@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { fixtureAppearance } from "../character/testSupport";
 import { endings } from "../data/endings";
 import {
   META_PROGRESS_KEY,
@@ -25,6 +26,11 @@ function sampleMeta(overrides: Partial<MetaProgress> = {}): MetaProgress {
     completions: 1,
     ngPlusUnlocked: true,
     legacyItemIds: ["wpn-arc-lash", "cyb-warden-optics"],
+    legacyAppearance: fixtureAppearance({
+      skinTone: "deep-umber",
+      hairStyle: "mohawk",
+      hairColor: "synth-violet",
+    }),
     ...overrides,
   };
 }
@@ -54,6 +60,7 @@ describe("meta-progress serialization", () => {
       completions: -3,
       ngPlusUnlocked: "yes",
       legacyItemIds: [null, "wpn-arc-lash"],
+      legacyAppearance: "not-a-look",
     });
     expect(migrated).toEqual({
       endingsSeen: ["ending-ghost"],
@@ -61,7 +68,39 @@ describe("meta-progress serialization", () => {
       completions: 0,
       ngPlusUnlocked: false,
       legacyItemIds: ["wpn-arc-lash"],
+      legacyAppearance: null,
     });
+  });
+
+  it("parses records from before the appearance carry-over to a null look", () => {
+    // Verbatim v1 payload as written before legacyAppearance existed.
+    const meta = parseMetaProgress(
+      JSON.stringify({
+        version: 1,
+        endingsSeen: ["ending-freehold"],
+        epiloguesSeen: ["city-freehold"],
+        completions: 1,
+        ngPlusUnlocked: true,
+        legacyItemIds: ["wpn-arc-lash"],
+      }),
+    );
+    expect(meta.legacyAppearance).toBeNull();
+    expect(meta.endingsSeen).toEqual(["ending-freehold"]);
+  });
+
+  it("clamps a stored look to null when any field is missing or unknown", () => {
+    const partial = clampMetaProgress({
+      legacyAppearance: { skinTone: "porcelain" },
+    });
+    expect(partial.legacyAppearance).toBeNull();
+    const retired = clampMetaProgress({
+      legacyAppearance: fixtureAppearance({ hairStyle: "retired-style" }),
+    });
+    expect(retired.legacyAppearance).toBeNull();
+    const valid = clampMetaProgress({
+      legacyAppearance: fixtureAppearance({ headwear: "cap" }),
+    });
+    expect(valid.legacyAppearance).toEqual(fixtureAppearance({ headwear: "cap" }));
   });
 
   it("clamp derives the NG+ unlock from a completed run", () => {
@@ -110,6 +149,7 @@ describe("recording completions", () => {
     endingId: "ending-commons",
     epilogueIds: ["city-commons", "flick-friend"],
     legacyItemIds: ["wpn-stun-baton"],
+    legacyAppearance: fixtureAppearance({ headwear: "hood" }),
   };
 
   it("adds the ending, counts the run, and unlocks NG+", () => {
@@ -119,6 +159,7 @@ describe("recording completions", () => {
     expect(meta.completions).toBe(1);
     expect(meta.ngPlusUnlocked).toBe(true);
     expect(meta.legacyItemIds).toEqual(["wpn-stun-baton"]);
+    expect(meta.legacyAppearance).toEqual(fixtureAppearance({ headwear: "hood" }));
   });
 
   it("records a repeated ending once but still counts the run", () => {
@@ -136,13 +177,17 @@ describe("recording completions", () => {
     expect(twice.completions).toBe(2);
   });
 
-  it("replaces the legacy candidates with the newest run's loadout", () => {
+  it("replaces the legacy candidates and look with the newest run's", () => {
     const first = recordCompletion(emptyMetaProgress(), completion);
     const second = recordCompletion(first, {
       ...completion,
       legacyItemIds: ["out-spire-suit", "cyb-optic-suite"],
+      legacyAppearance: fixtureAppearance({ hairColor: "silver" }),
     });
     expect(second.legacyItemIds).toEqual(["out-spire-suit", "cyb-optic-suite"]);
+    expect(second.legacyAppearance).toEqual(
+      fixtureAppearance({ hairColor: "silver" }),
+    );
   });
 
   it("recordCompletionToStorage is the explicit write path", () => {
@@ -184,9 +229,20 @@ describe("merging meta-progress", () => {
   it("keeps the base legacy when the newer record has none", () => {
     const merged = mergeMetaProgress(
       sampleMeta(),
-      sampleMeta({ legacyItemIds: [] }),
+      sampleMeta({ legacyItemIds: [], legacyAppearance: null }),
     );
     expect(merged.legacyItemIds).toEqual(["wpn-arc-lash", "cyb-warden-optics"]);
+    expect(merged.legacyAppearance).toEqual(sampleMeta().legacyAppearance);
+  });
+
+  it("the newer record's look wins when both sides have one", () => {
+    const merged = mergeMetaProgress(
+      sampleMeta(),
+      sampleMeta({ legacyAppearance: fixtureAppearance({ eyes: "cyber-band" }) }),
+    );
+    expect(merged.legacyAppearance).toEqual(
+      fixtureAppearance({ eyes: "cyber-band" }),
+    );
   });
 });
 

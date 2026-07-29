@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createCharacter, defaultAllocation } from "../character";
-import { backgrounds, getBackground } from "../data/backgrounds";
+import { fixtureCharacter } from "../character/testSupport";
+import { backgrounds } from "../data/backgrounds";
 import { emptyInventory } from "./inventory";
 import type { Item } from "./items";
 import {
@@ -10,11 +10,7 @@ import {
 } from "./startingGear";
 
 function makeCharacter(backgroundId: string) {
-  return createCharacter({
-    name: "Vex",
-    background: getBackground(backgroundId)!,
-    allocation: defaultAllocation(),
-  });
+  return fixtureCharacter({ backgroundId });
 }
 
 describe("resolveStartingGear", () => {
