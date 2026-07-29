@@ -33,12 +33,18 @@ import {
 import { INTERACTABLE_ART } from "./interactables";
 import {
   composedCharacterGrid,
+  cyberChannelRemap,
   layerArtGrid,
   outfitChannelRemap,
   weaponChannelRemap,
   type ComposedCharacter,
 } from "./layers";
 import { BODY_BUILD_IDS, bodyViewForFacing } from "./layers/body";
+import {
+  CYBER_LAYER_TRAITS,
+  cyberArtId,
+  cyberPulseFrames,
+} from "./layers/cyberware";
 import { outfitArtId } from "./layers/outfits";
 import { weaponArtId } from "./layers/weapons";
 import { BODY_ANIM } from "./layers/bodyAnim";
@@ -148,10 +154,13 @@ function bodyEntries(): GalleryEntry[] {
  * eyes and bob hair, applying the catalog hair/eye interaction rules
  * by hand so the gallery shows exactly what resolveLayers produces.
  * One outfit sweep per wearable item with a layer reference × build ×
- * facing, wearing the item's material remaps, and one weapon sweep per
+ * facing, wearing the item's material remaps, one weapon sweep per
  * weapon item with a class reference × build × facing, holding the
- * item's accent recolor. Catalog styles whose art has not landed yet
- * are skipped and join automatically once their registry entry exists.
+ * item's accent recolor, and one cyberware sweep per enhancement item
+ * with a family reference × build × facing, showing the item's glow
+ * recolor (pulsing families animate their 2-frame flare). Catalog
+ * styles whose art has not landed yet are skipped and join
+ * automatically once their registry entry exists.
  */
 function appearanceEntries(): GalleryEntry[] {
   const [hairChannel = "K"] = REMAP_CHANNELS.hair;
@@ -385,6 +394,40 @@ function appearanceEntries(): GalleryEntry[] {
       );
     });
   });
+  // One cyberware sweep per enhancement item that carries a family
+  // reference, per build and facing, showing the item's glow recolor
+  // and pulse — the exact overlay resolveLayers produces when installed.
+  const cyberSweep = items.flatMap((item) => {
+    if (item.kind !== "enhancement" || !item.cyberLayer) return [];
+    const ref = item.cyberLayer;
+    const remap = cyberChannelRemap(ref.accent);
+    const shimmer = CYBER_LAYER_TRAITS[ref.id].pulses
+      ? cyberPulseFrames(ref.accent)
+      : undefined;
+    return BODY_BUILD_IDS.flatMap((build) => {
+      const art = cyberArtId(ref.id, build);
+      if (!layerArtGrid("cyberware", art, "front")) return [];
+      return FACINGS.map((facing) =>
+        entry(
+          `cyber ${item.id} ${build} ${facing}`,
+          {
+            build,
+            layers: [
+              { slot: "body", art: build, remap: {} },
+              {
+                slot: "cyberware",
+                art,
+                remap,
+                ...(shimmer ? { shimmer } : {}),
+              },
+            ],
+          },
+          facing,
+          "idle",
+        ),
+      );
+    });
+  });
   return [
     ...colorSweep,
     ...buildSweep,
@@ -395,6 +438,7 @@ function appearanceEntries(): GalleryEntry[] {
     ...headwearSweep,
     ...outfitSweep,
     ...weaponSweep,
+    ...cyberSweep,
   ];
 }
 
