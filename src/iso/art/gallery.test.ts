@@ -14,6 +14,7 @@ import {
   HEADWEAR_OPTIONS,
   MOUTH_OPTIONS,
 } from "../../data/appearance";
+import { items } from "../../data/items";
 import { CHARACTER_FRAMES, ROLE_REMAPS } from "./characters";
 import { INTERACTABLE_ART } from "./interactables";
 import { BODY_BUILD_IDS } from "./layers/body";
@@ -110,6 +111,9 @@ describe("gallery sections", () => {
     const appearance = section("appearance");
     const drawnDetails = FACE_DETAIL_OPTIONS.filter((o) => o.layer !== null);
     const drawnHeadwear = HEADWEAR_OPTIONS.filter((o) => o.layer !== null);
+    const drawnOutfits = items.filter(
+      (i) => i.kind === "outfit" && i.outfitLayer !== undefined,
+    );
     expect(appearance.entries.length).toBe(
       HAIR_STYLE_IDS.length * HAIR_COLOR_OPTIONS.length * 4 +
         HAIR_STYLE_IDS.length * BODY_BUILD_IDS.length * 4 +
@@ -117,7 +121,8 @@ describe("gallery sections", () => {
         EYES_OPTIONS.length * BROWS_OPTIONS.length +
         MOUTH_OPTIONS.length +
         drawnDetails.length +
-        drawnHeadwear.length * 4,
+        drawnHeadwear.length * 4 +
+        drawnOutfits.length * BODY_BUILD_IDS.length * 4,
     );
     for (const style of HAIR_STYLE_IDS) {
       for (const color of HAIR_COLOR_OPTIONS) {
@@ -215,6 +220,32 @@ describe("gallery sections", () => {
     // over the same eyes + bob base.
     const looks = drawn.map((h) => frame(`headwear ${h.id} e`));
     expect(new Set(looks).size).toBe(drawn.length);
+  });
+
+  it("covers every wearable outfit per build and facing, each distinct", () => {
+    const appearance = section("appearance");
+    const outfits = items.filter(
+      (i) => i.kind === "outfit" && i.outfitLayer !== undefined,
+    );
+    expect(outfits.length).toBeGreaterThanOrEqual(5);
+    for (const item of outfits) {
+      for (const build of BODY_BUILD_IDS) {
+        for (const facing of ["n", "e", "s", "w"]) {
+          expect(
+            appearance.entries.some(
+              (e) => e.id === `outfit ${item.id} ${build} ${facing}`,
+            ),
+            `outfit ${item.id} ${build} ${facing} present`,
+          ).toBe(true);
+        }
+      }
+    }
+    const frame = (id: string): string =>
+      appearance.entries.find((e) => e.id === id)?.frames[0]?.join("\n") ?? "";
+    // Every item reads differently over the same lean base — distinct
+    // families, and distinct materials where families could overlap.
+    const looks = outfits.map((i) => frame(`outfit ${i.id} lean e`));
+    expect(new Set(looks).size).toBe(outfits.length);
   });
 
   it("covers every drawn face detail up front, and cyber-lines glows", () => {
