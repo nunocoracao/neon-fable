@@ -2,13 +2,15 @@ import { BODY_BUILD_IDS, type BodyBuildId } from "../iso/art/layers/body";
 import {
   BROW_EXPRESSION_PORTRAITS,
   BROW_PORTRAITS,
+  CYBER_LINES_SHIMMER,
   EXPRESSION_IDS,
   EYE_PORTRAITS,
+  FACE_DETAIL_PORTRAITS,
   MOUTH_EXPRESSION_PORTRAITS,
   MOUTH_PORTRAITS,
   type ExpressionId,
 } from "../iso/art/layers/face";
-import type { PixelGrid } from "../iso/art/pixel";
+import type { ChannelRemap, PixelGrid } from "../iso/art/pixel";
 
 /**
  * Appearance catalogs: the single source of truth for every visual
@@ -71,6 +73,20 @@ export interface FaceStyleOption extends StyleOption {
  */
 export interface ExpressiveFaceStyleOption extends FaceStyleOption {
   expressions: Readonly<Record<ExpressionId, PixelGrid>>;
+}
+
+/**
+ * A face-detail pick (scars, tattoos, cyber-lines): an overlay above
+ * the other face parts and below hair. Non-none entries carry their
+ * portrait-resolution overlay grid; a shimmering entry (cyber-lines)
+ * additionally carries per-frame channel remaps the sprite layer
+ * engine cycles by animation frame — the glow is pure catalog data.
+ */
+export interface FaceDetailOption extends StyleOption {
+  /** Portrait overlay grid, or null for the bare "none" entry. */
+  portrait: PixelGrid | null;
+  /** Sprite-level per-frame remaps; absent for static details. */
+  shimmer?: readonly ChannelRemap[];
 }
 
 /** A color pick: references a palette character to remap a channel onto. */
@@ -206,11 +222,42 @@ export const MOUTH_OPTIONS: readonly ExpressiveFaceStyleOption[] = [
   },
 ];
 
-export const FACE_DETAIL_OPTIONS: readonly StyleOption[] = [
-  { id: "none", label: "None", layer: null },
-  { id: "scar", label: "Scar", layer: "scar" },
-  { id: "tattoo", label: "Tattoo", layer: "tattoo" },
-  { id: "cyber-lines", label: "Cyber-Lines", layer: "cyber-lines" },
+export const FACE_DETAIL_OPTIONS: readonly FaceDetailOption[] = [
+  { id: "none", label: "None", layer: null, portrait: null },
+  // "scar" keeps its persisted id from the schema task; the authored
+  // detail reads as a slash down the cheek.
+  {
+    id: "scar",
+    label: "Cheek Scar",
+    layer: "scar",
+    portrait: FACE_DETAIL_PORTRAITS.scar,
+  },
+  {
+    id: "brow-split",
+    label: "Brow-Split Scar",
+    layer: "brow-split",
+    portrait: FACE_DETAIL_PORTRAITS["brow-split"],
+  },
+  // "tattoo" keeps its persisted id; authored as the geometric chevrons.
+  {
+    id: "tattoo",
+    label: "Geometric Tattoo",
+    layer: "tattoo",
+    portrait: FACE_DETAIL_PORTRAITS.tattoo,
+  },
+  {
+    id: "cyber-lines",
+    label: "Subdermal Cyber-Lines",
+    layer: "cyber-lines",
+    portrait: FACE_DETAIL_PORTRAITS["cyber-lines"],
+    shimmer: CYBER_LINES_SHIMMER,
+  },
+  {
+    id: "circuit-ink",
+    label: "Circuit Ink",
+    layer: "circuit-ink",
+    portrait: FACE_DETAIL_PORTRAITS["circuit-ink"],
+  },
 ];
 
 export const HEADWEAR_OPTIONS: readonly StyleOption[] = [

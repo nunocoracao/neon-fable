@@ -103,6 +103,40 @@ describe("appearance catalogs", () => {
     );
   });
 
+  it("offers six face details whose non-none entries carry sprite and portrait art", () => {
+    expect(FACE_DETAIL_OPTIONS).toHaveLength(6);
+    const none = FACE_DETAIL_OPTIONS.find((o) => o.id === "none");
+    expect(none?.layer).toBeNull();
+    expect(none?.portrait).toBeNull();
+    const drawn = FACE_DETAIL_OPTIONS.filter((o) => o.layer !== null);
+    expect(drawn).toHaveLength(5);
+    for (const option of drawn) {
+      expect(
+        FACE_LAYERS[option.layer as keyof typeof FACE_LAYERS],
+        `${option.id} sprite layer`,
+      ).toBeDefined();
+      expect(option.portrait, `${option.id} portrait`).not.toBeNull();
+      expect(gridErrors(option.portrait ?? []), `${option.id} portrait`).toEqual(
+        [],
+      );
+    }
+    // The catalog covers every declared face-detail id, and vice versa.
+    expect(drawn.map((o) => o.layer).sort()).toEqual(
+      [...FACE_PART_IDS.faceDetail].sort(),
+    );
+  });
+
+  it("only the cyber-lines detail shimmers, with a 2-frame cycle", () => {
+    for (const option of FACE_DETAIL_OPTIONS) {
+      if (option.id === "cyber-lines") {
+        expect(option.shimmer).toBeDefined();
+        expect(option.shimmer).toHaveLength(2);
+      } else {
+        expect(option.shimmer, option.id).toBeUndefined();
+      }
+    }
+  });
+
   it("getAppearanceOption finds by id and misses unknowns", () => {
     expect(getAppearanceOption("skinTone", "porcelain")?.ramp).toBe(0);
     expect(getAppearanceOption("hairStyle", "mullet")).toBeUndefined();
