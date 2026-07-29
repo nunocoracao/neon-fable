@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   APPEARANCE_FIELDS,
   composeCharacter,
+  composeVisual,
   defaultAppearance,
   randomAppearance,
   resolveLayers,
+  seededAppearance,
   validateAppearance,
   type Appearance,
+  type CharacterVisual,
 } from "./appearance";
 import {
   BUILD_OPTIONS,
@@ -674,5 +677,72 @@ describe("composeCharacter", () => {
     ];
     // 4 tones on the lean build + heavy; "lean" appears in both sets.
     expect(new Set(looks.map(grid)).size).toBe(looks.length - 1);
+  });
+});
+
+describe("seededAppearance", () => {
+  it("is deterministic: the same seed always produces the same look", () => {
+    for (const seed of [0, 1, 7, 0xdeadbeef, 4294967295]) {
+      expect(seededAppearance(seed)).toEqual(seededAppearance(seed));
+    }
+  });
+
+  it("always validates against the catalogs", () => {
+    for (let seed = 0; seed < 250; seed++) {
+      expect(validateAppearance(seededAppearance(seed)), `seed ${seed}`).toEqual(
+        [],
+      );
+    }
+  });
+
+  it("produces real variety across seeds", () => {
+    const looks = new Set(
+      Array.from({ length: 50 }, (_, seed) =>
+        JSON.stringify(seededAppearance(seed)),
+      ),
+    );
+    expect(looks.size).toBeGreaterThan(40);
+  });
+});
+
+describe("composeVisual", () => {
+  it("matches composeCharacter over the equivalent equipment state", () => {
+    const visual: CharacterVisual = {
+      appearance: defaultAppearance(),
+      weapon: "wpn-compact-pistol",
+      outfit: "out-spire-suit",
+      enhancements: { arms: "cyb-myomer-arms" },
+    };
+    expect(composeVisual(visual)).toEqual(
+      composeCharacter(visual.appearance, {
+        weapon: "wpn-compact-pistol",
+        outfit: "out-spire-suit",
+        enhancements: { arms: "cyb-myomer-arms" },
+      }),
+    );
+  });
+
+  it("treats omitted gear as empty equipment", () => {
+    expect(composeVisual({ appearance: defaultAppearance() })).toEqual(
+      composeCharacter(defaultAppearance(), emptyEquipment()),
+    );
+  });
+
+  it("draws authored gear: outfit, weapon, and cyberware layers appear", () => {
+    const { layers } = composeVisual({
+      appearance: defaultAppearance(),
+      weapon: "wpn-compact-pistol",
+      outfit: "out-spire-suit",
+      enhancements: { arms: "cyb-myomer-arms" },
+    });
+    const slots = layers.map((layer) => layer.slot);
+    expect(slots).toContain("outfit");
+    expect(slots).toContain("weapon");
+    expect(slots).toContain("cyberware");
+  });
+
+  it("rejects an invalid appearance", () => {
+    const broken = { ...defaultAppearance(), hairStyle: "bogus" };
+    expect(() => composeVisual({ appearance: broken })).toThrow(/hairStyle/);
   });
 });

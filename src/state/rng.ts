@@ -26,6 +26,19 @@ export function nextFloat(state: RngState): RngResult<number> {
   return { state: { seed }, value };
 }
 
+/**
+ * FNV-1a hash of a string to a uint32, for deriving stable RNG seeds
+ * from content ids and map coordinates (e.g. ambient NPC looks).
+ */
+export function hashSeed(text: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
 /** Integer in [min, max] inclusive. */
 export function nextInt(
   state: RngState,

@@ -19,10 +19,14 @@ import {
 import { outfitArtId } from "../iso/art/layers/outfits";
 import { weaponArtId } from "../iso/art/layers/weapons";
 import { REMAP_CHANNELS } from "../iso/art/palette";
-import { ENHANCEMENT_SLOTS, type Item } from "../inventory/items";
+import {
+  ENHANCEMENT_SLOTS,
+  type EnhancementSlot,
+  type Item,
+} from "../inventory/items";
 import type { EquipmentState } from "../inventory/equipment";
 import { getItem } from "../data/items";
-import { nextInt, type RngResult, type RngState } from "../state/rng";
+import { createRng, nextInt, type RngResult, type RngState } from "../state/rng";
 
 /**
  * The player-facing appearance model: what the character looks like,
@@ -124,6 +128,54 @@ export function randomAppearance(rng: RngState): RngResult<Appearance> {
     headwear: pick("headwear"),
   };
   return { state, value };
+}
+
+/**
+ * A stable random appearance for a seed: the same seed always produces
+ * the same (always-valid) look. Ambient NPCs derive their seed from
+ * their map position, so a given passerby looks the same on every
+ * visit and across sessions.
+ */
+export function seededAppearance(seed: number): Appearance {
+  return randomAppearance(createRng(seed)).value;
+}
+
+/**
+ * The authored look of a non-player character: an appearance plus the
+ * gear item ids drawn on the sprite, resolved exactly like player
+ * equipment (outfit layer, held weapon, cyberware overlays). Content
+ * data (enemy archetypes, named map NPCs) declares these; hostile-optic
+ * accents and the rest of a role's read live entirely in this data —
+ * the engine applies no role tinting.
+ */
+export interface CharacterVisual {
+  appearance: Appearance;
+  /** Weapon item id drawn in the hands, if any. */
+  weapon?: string;
+  /** Outfit item id worn over the base garb, if any. */
+  outfit?: string;
+  /** Installed enhancement item ids per cyber slot, if any. */
+  enhancements?: Partial<Record<EnhancementSlot, string>>;
+}
+
+/**
+ * Compose a CharacterVisual into the layer engine's render descriptor —
+ * the NPC/enemy counterpart of composeCharacter over player state.
+ * Throws AppearanceValidationError on unknown appearance ids.
+ */
+export function composeVisual(
+  visual: CharacterVisual,
+  lookupItem: ItemLookup = getItem,
+): ComposedCharacter {
+  return composeCharacter(
+    visual.appearance,
+    {
+      weapon: visual.weapon ?? null,
+      outfit: visual.outfit ?? null,
+      enhancements: visual.enhancements ?? {},
+    },
+    lookupItem,
+  );
 }
 
 /**
