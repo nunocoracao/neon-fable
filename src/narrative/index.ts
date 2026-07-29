@@ -3,6 +3,7 @@
  * over GameState. Pure functions only — story content lives in
  * src/data/story/.
  */
+export { PLAYER_SPEAKER } from "./types";
 export type {
   AddItemEffect,
   BackgroundRequirement,

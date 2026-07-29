@@ -1,4 +1,6 @@
 import { audio } from "../audio";
+import { visualEquipment } from "../character";
+import { resolveSpeakerPortrait, type ExpressionId } from "../data";
 import {
   applyChoice,
   availableChoices,
@@ -9,13 +11,16 @@ import { revealDelayMs, settings } from "../settings";
 import { focusFirst } from "./focus";
 import { requirementLabels } from "./format";
 import type { OverlayHandle } from "./overlay";
+import { portraitCanvas } from "./portraits";
 import type { Session } from "./session";
 
 /**
  * Dialogue box over the iso scene. Renders the current story node and
  * its presented choices; all gating and effects go through the narrative
  * engine — this file never inspects requirements or applies effects
- * itself.
+ * itself. Speaker identity resolves through the cast catalog: NPC
+ * portrait on the left, the player's own on the right, active speaker
+ * highlighted; narration renders portrait-free.
  */
 export interface DialogueOverlayOptions {
   session: Session;
@@ -48,6 +53,37 @@ export function createDialogueOverlay(
   panel.className = "nf-panel nf-dialogue";
   el.append(panel);
 
+  /**
+   * One side of the portrait row. The expression is stamped on the
+   * container so tests (and dev tooling) can read which variant the
+   * bake used without decoding pixels.
+   */
+  function portraitSide(
+    role: "npc" | "player",
+    canvas: HTMLCanvasElement,
+    active: boolean,
+    expression: ExpressionId,
+  ): HTMLDivElement {
+    const side = document.createElement("div");
+    side.className = `nf-dialogue-side ${
+      active ? "nf-portrait-active" : "nf-portrait-dim"
+    }`;
+    side.dataset.role = role;
+    side.dataset.expression = expression;
+    side.append(canvas);
+    return side;
+  }
+
+  function playerSide(active: boolean, expression: ExpressionId): HTMLDivElement {
+    const player = session.state.player;
+    return portraitSide(
+      "player",
+      portraitCanvas(player.appearance, player.equipment, expression),
+      active,
+      expression,
+    );
+  }
+
   function render(): void {
     const node = getNode(arc, nodeId);
     if (!node) {
@@ -57,17 +93,53 @@ export function createDialogueOverlay(
     }
     panel.replaceChildren();
 
-    if (node.speaker) {
+    const portrait = resolveSpeakerPortrait(node);
+    const row = document.createElement("div");
+    row.className = "nf-dialogue-row";
+    const main = document.createElement("div");
+    main.className = "nf-dialogue-main";
+
+    // NPC left, player right; the speaking side is highlighted, the
+    // listening side dimmed. Narration keeps the row bare.
+    if (portrait.kind === "npc") {
+      row.append(
+        portraitSide(
+          "npc",
+          portraitCanvas(
+            portrait.visual.appearance,
+            visualEquipment(portrait.visual),
+            portrait.expression,
+          ),
+          true,
+          portrait.expression,
+        ),
+      );
+    }
+    row.append(main);
+    if (portrait.kind === "player") {
+      row.append(playerSide(true, portrait.expression));
+    } else if (portrait.kind !== "narration") {
+      row.append(playerSide(false, "neutral"));
+    }
+    panel.append(row);
+
+    const speakerName =
+      portrait.kind === "player"
+        ? session.state.player.name
+        : portrait.kind === "narration"
+          ? null
+          : portrait.name;
+    if (speakerName) {
       const speaker = document.createElement("div");
       speaker.className = "nf-dialogue-speaker";
-      speaker.textContent = node.speaker;
-      panel.append(speaker);
+      speaker.textContent = speakerName;
+      main.append(speaker);
     }
 
     const text = document.createElement("p");
     text.className = "nf-dialogue-text";
     renderNodeText(text, node.text);
-    panel.append(text);
+    main.append(text);
 
     const choices = document.createElement("div");
     choices.className = "nf-dialogue-choices";
@@ -86,7 +158,7 @@ export function createDialogueOverlay(
       }
       choices.append(button);
     }
-    panel.append(choices);
+    main.append(choices);
     // Keyboard flow: Enter takes the focused (first enabled) choice.
     focusFirst(choices);
   }

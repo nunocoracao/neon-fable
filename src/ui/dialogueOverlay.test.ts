@@ -1,0 +1,161 @@
+// @vitest-environment happy-dom
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fixtureCharacter } from "../character/testSupport";
+import { PLAYER_SPEAKER, type StoryArc } from "../narrative";
+import { createNewGame } from "../state";
+import { createDialogueOverlay } from "./dialogueOverlay";
+import type { OverlayHandle } from "./overlay";
+import { createSession, type Session } from "./session";
+
+/**
+ * Drives the dialogue overlay in happy-dom. The canvas 2D context is
+ * stubbed — portrait pixels are not under test, only that speaker
+ * identity resolves to the right portrait sides, the active speaker is
+ * highlighted, expressions stamp through from line data, and narration
+ * renders portrait-free.
+ */
+
+/** A value whose every property/call yields another such value — enough to
+ * satisfy the canvas 2D API without rendering anything. */
+function anything(): unknown {
+  const fn = (): unknown => anything();
+  return new Proxy(fn, {
+    get: (_target, prop) =>
+      prop === Symbol.toPrimitive ? () => 0 : anything(),
+    set: () => true,
+    apply: () => anything(),
+  });
+}
+
+const endChoice = {
+  id: "done",
+  label: "Done.",
+  effects: [{ type: "end" } as const],
+};
+
+const arc: StoryArc = {
+  id: "test-arc",
+  title: "Test Arc",
+  entryNodeId: "npc-line",
+  nodes: [
+    {
+      id: "npc-line",
+      speaker: "Sable",
+      expression: "grim",
+      text: "The fixer waits.",
+      choices: [endChoice],
+    },
+    {
+      id: "player-line",
+      speaker: PLAYER_SPEAKER,
+      expression: "smile",
+      text: "You answer.",
+      choices: [endChoice],
+    },
+    {
+      id: "narration",
+      text: "Rain drums on the skylight.",
+      choices: [endChoice],
+    },
+    {
+      id: "unlisted-line",
+      speaker: "A Passing Stranger",
+      text: "Spare a chit?",
+      choices: [endChoice],
+    },
+  ],
+};
+
+let session: Session;
+let handle: OverlayHandle | undefined;
+
+function open(nodeId: string): void {
+  handle = createDialogueOverlay({
+    session,
+    arc,
+    nodeId,
+    onStateChange: () => {},
+    onCombat: () => {},
+    onTravel: () => {},
+    onStylist: () => {},
+    onEnded: () => {},
+    onComplete: () => {},
+  });
+  document.body.append(handle.el);
+}
+
+function side(role: "npc" | "player"): HTMLElement | null {
+  return document.querySelector(`.nf-dialogue-side[data-role="${role}"]`);
+}
+
+beforeEach(() => {
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+    anything() as never,
+  );
+  session = createSession(
+    createNewGame({ character: fixtureCharacter({ name: "Vex" }) }),
+  );
+});
+
+afterEach(() => {
+  handle?.destroy();
+  handle = undefined;
+  document.body.replaceChildren();
+  vi.restoreAllMocks();
+});
+
+describe("dialogue portraits", () => {
+  it("shows the NPC active on the left and the player dimmed on the right", () => {
+    open("npc-line");
+    const npc = side("npc");
+    const player = side("player");
+    expect(npc).not.toBeNull();
+    expect(player).not.toBeNull();
+    expect(npc?.classList.contains("nf-portrait-active")).toBe(true);
+    expect(player?.classList.contains("nf-portrait-dim")).toBe(true);
+    expect(npc?.querySelector("canvas.nf-portrait")).not.toBeNull();
+    expect(player?.querySelector("canvas.nf-portrait")).not.toBeNull();
+    // NPC left of the text, player right of it.
+    const row = document.querySelector(".nf-dialogue-row");
+    expect([...(row?.children ?? [])].map((c) => c.className.split(" ")[0]))
+      .toEqual(["nf-dialogue-side", "nf-dialogue-main", "nf-dialogue-side"]);
+    expect(document.querySelector(".nf-dialogue-speaker")?.textContent).toBe(
+      "Sable",
+    );
+  });
+
+  it("plays the line's expression on the speaking portrait only", () => {
+    open("npc-line");
+    expect(side("npc")?.dataset.expression).toBe("grim");
+    expect(side("player")?.dataset.expression).toBe("neutral");
+  });
+
+  it("shows the player active under their own name on player lines", () => {
+    open("player-line");
+    expect(side("npc")).toBeNull();
+    const player = side("player");
+    expect(player?.classList.contains("nf-portrait-active")).toBe(true);
+    expect(player?.dataset.expression).toBe("smile");
+    expect(document.querySelector(".nf-dialogue-speaker")?.textContent).toBe(
+      "Vex",
+    );
+  });
+
+  it("renders narration portrait-free", () => {
+    open("narration");
+    expect(document.querySelector(".nf-dialogue-side")).toBeNull();
+    expect(document.querySelector(".nf-dialogue-speaker")).toBeNull();
+    expect(
+      document.querySelector(".nf-dialogue-text")?.textContent,
+    ).toContain("Rain drums");
+  });
+
+  it("degrades an unlisted speaker to a named line without an NPC portrait", () => {
+    open("unlisted-line");
+    expect(side("npc")).toBeNull();
+    expect(side("player")?.classList.contains("nf-portrait-dim")).toBe(true);
+    expect(document.querySelector(".nf-dialogue-speaker")?.textContent).toBe(
+      "A Passing Stranger",
+    );
+  });
+});

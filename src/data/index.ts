@@ -53,6 +53,12 @@ export {
   getBackground,
   type Background,
 } from "./backgrounds";
+export {
+  cast,
+  castVisual,
+  resolveSpeakerPortrait,
+  type SpeakerPortrait,
+} from "./cast";
 export { getItem, items, requireItem } from "./items";
 export {
   abilities,
