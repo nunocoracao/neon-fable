@@ -11,7 +11,11 @@ import {
 } from "../data";
 import { availablePoints } from "../character";
 import { selectVignettes } from "../narrative";
-import { carryoverCandidates, recordCompletionToStorage } from "../state";
+import {
+  carryoverAppearance,
+  carryoverCandidates,
+  recordCompletionToStorage,
+} from "../state";
 import { createIsoScene, createPixelArtSprites, type IsoScene } from "../iso";
 import { npcSpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
@@ -71,6 +75,7 @@ function recordFinishedRun(session: Session): void {
       endingId,
       epilogueIds: selectVignettes(state, epilogueVignettes).map((v) => v.id),
       legacyItemIds: carryoverCandidates(state.player),
+      legacyAppearance: carryoverAppearance(state.player),
     },
     session.storage,
   );

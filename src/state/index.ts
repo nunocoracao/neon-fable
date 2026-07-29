@@ -43,6 +43,7 @@ export {
   NG_PLUS_CARRYOVER_FLAG,
   NG_PLUS_FLAG,
   applyNewGamePlus,
+  carryoverAppearance,
   carryoverCandidates,
   isNewGamePlus,
 } from "./ngplus";

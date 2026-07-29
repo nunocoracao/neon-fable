@@ -1,3 +1,8 @@
+import {
+  APPEARANCE_FIELDS,
+  validateAppearance,
+  type Appearance,
+} from "../character";
 import type { ChapterEnding } from "../data/endings";
 
 /**
@@ -29,6 +34,13 @@ export interface MetaProgress {
    * item ids it had equipped or installed. New Game+ offers one of these.
    */
   legacyItemIds: string[];
+  /**
+   * The most recent finished character's look, seeded into the New
+   * Game+ wizard as its initial working appearance. Null until a run
+   * finishes (records written before the appearance carry-over, or
+   * whose stored look no longer validates, degrade to null too).
+   */
+  legacyAppearance: Appearance | null;
 }
 
 export function emptyMetaProgress(): MetaProgress {
@@ -38,6 +50,7 @@ export function emptyMetaProgress(): MetaProgress {
     completions: 0,
     ngPlusUnlocked: false,
     legacyItemIds: [],
+    legacyAppearance: null,
   };
 }
 
@@ -48,6 +61,24 @@ function stringList(value: unknown): string[] {
     if (typeof entry === "string" && entry.length > 0) seen.add(entry);
   }
   return [...seen];
+}
+
+/**
+ * Coerces a stored value into a valid Appearance or null: every field
+ * must be a string its catalog knows. Anything else — records from
+ * before the appearance carry-over, or looks referencing retired
+ * options — degrades to null, and NG+ falls back to the stock look.
+ */
+function clampAppearance(value: unknown): Appearance | null {
+  if (typeof value !== "object" || value === null) return null;
+  const record = value as Record<string, unknown>;
+  const look = {} as Appearance;
+  for (const field of APPEARANCE_FIELDS) {
+    const id = record[field];
+    if (typeof id !== "string") return null;
+    look[field] = id;
+  }
+  return validateAppearance(look).length === 0 ? look : null;
 }
 
 /** Coerces any value into a valid MetaProgress, field by field. */
@@ -67,6 +98,7 @@ export function clampMetaProgress(value: unknown): MetaProgress {
     // A finished run always unlocks NG+, even if the flag was lost.
     ngPlusUnlocked: record.ngPlusUnlocked === true || completions > 0,
     legacyItemIds: stringList(record.legacyItemIds),
+    legacyAppearance: clampAppearance(record.legacyAppearance),
   };
 }
 
@@ -99,8 +131,8 @@ export function parseMetaProgress(raw: string | null): MetaProgress {
 
 /**
  * Unions two records: every ending or vignette either side has seen
- * counts, the higher completion count wins, and the legacy loadout
- * follows `next` (the more recent record) when it has one.
+ * counts, the higher completion count wins, and the legacy loadout and
+ * look follow `next` (the more recent record) when it has them.
  */
 export function mergeMetaProgress(
   base: MetaProgress,
@@ -113,6 +145,7 @@ export function mergeMetaProgress(
     ngPlusUnlocked: base.ngPlusUnlocked || next.ngPlusUnlocked,
     legacyItemIds:
       next.legacyItemIds.length > 0 ? next.legacyItemIds : base.legacyItemIds,
+    legacyAppearance: next.legacyAppearance ?? base.legacyAppearance,
   });
 }
 
@@ -123,6 +156,8 @@ export interface CompletionRecord {
   epilogueIds: string[];
   /** Equipped/installed item ids on the finishing character. */
   legacyItemIds: string[];
+  /** The finishing character's look, offered to the NG+ wizard. */
+  legacyAppearance: Appearance;
 }
 
 /** Folds one finished playthrough into a meta-progress record. Pure. */
@@ -136,6 +171,7 @@ export function recordCompletion(
     completions: meta.completions + 1,
     ngPlusUnlocked: true,
     legacyItemIds: completion.legacyItemIds,
+    legacyAppearance: completion.legacyAppearance,
   });
 }
 
