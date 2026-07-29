@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { ZOOM_LEVELS } from "../settings";
 import { ART_SCALE } from "./art/pixel";
 import {
+  CAMERA_MARGIN,
   cameraTranslation,
   clampCamera,
+  initialCamera,
   mapPixelBounds,
   snapToPixelGrid,
   viewportToWorld,
@@ -64,6 +66,86 @@ describe("clampCamera", () => {
     const noMargin = clampCamera({ sx: 9999, sy: 300 }, bounds, 200, 200, 0);
     const withMargin = clampCamera({ sx: 9999, sy: 300 }, bounds, 200, 200, 50);
     expect(withMargin.sx).toBe(noMargin.sx + 50);
+  });
+});
+
+/**
+ * Arrival framing. A transition drops the player somewhere new behind a
+ * cover; when the cover lifts the camera has to already be on them. A
+ * camera that starts elsewhere and corrects on the next frame is the
+ * jump this whole function exists to prevent.
+ */
+describe("initialCamera", () => {
+  it("centers the arrival tile on a map with room to scroll", () => {
+    const map = makeMap(40, 40);
+    const spawn = { x: 12, y: 31 };
+    const camera = initialCamera(map, spawn, 800, 600);
+    expect(camera).toEqual(worldToScreen(spawn.x, spawn.y));
+    // ...and the player is dead center in the viewport.
+    const css = worldToViewport(camera, 800, 600, 1, camera.sx, camera.sy);
+    expect(css).toEqual({ x: 400, y: 300 });
+  });
+
+  it("keeps the arrival on screen even when the map must be clamped", () => {
+    // A spawn in the map's far corner cannot be centered without
+    // showing the void, so the camera clamps — but the player must
+    // still be inside the viewport, not shoved off its edge.
+    const map = makeMap(40, 40);
+    for (const spawn of [
+      { x: 0, y: 0 },
+      { x: 39, y: 0 },
+      { x: 0, y: 39 },
+      { x: 39, y: 39 },
+    ]) {
+      const camera = initialCamera(map, spawn, 640, 480);
+      const target = worldToScreen(spawn.x, spawn.y);
+      const css = worldToViewport(camera, 640, 480, 1, target.sx, target.sy);
+      expect(css.x, `${spawn.x},${spawn.y} x`).toBeGreaterThanOrEqual(0);
+      expect(css.x, `${spawn.x},${spawn.y} x`).toBeLessThanOrEqual(640);
+      expect(css.y, `${spawn.x},${spawn.y} y`).toBeGreaterThanOrEqual(0);
+      expect(css.y, `${spawn.x},${spawn.y} y`).toBeLessThanOrEqual(480);
+    }
+  });
+
+  it("is already settled: re-clamping it moves nothing", () => {
+    // The frame after arrival must not shift. Whatever the camera is
+    // opened on has to be a fixed point of the clamp the scene applies
+    // every resize, at every zoom.
+    const map = makeMap(24, 18);
+    for (const zoom of ZOOM_LEVELS) {
+      for (const spawn of [{ x: 0, y: 0 }, { x: 7, y: 9 }, { x: 23, y: 17 }]) {
+        const camera = initialCamera(map, spawn, 900, 500, zoom);
+        expect(
+          clampCamera(camera, mapPixelBounds(map), 900 / zoom, 500 / zoom),
+          `zoom ${zoom} at ${spawn.x},${spawn.y}`,
+        ).toEqual(camera);
+      }
+    }
+  });
+
+  it("centers a map smaller than the viewport instead of the player", () => {
+    // Nothing to scroll: the map itself is the shot, so the camera sits
+    // on its middle no matter which corner the player arrived in.
+    const map = makeMap(3, 3);
+    const bounds = mapPixelBounds(map);
+    const camera = initialCamera(map, { x: 0, y: 0 }, 4000, 4000);
+    expect(camera).toEqual({
+      sx: (bounds.minX + bounds.maxX) / 2,
+      sy: (bounds.minY + bounds.maxY) / 2,
+    });
+  });
+
+  it("frames the same way the scene's panning clamp does", () => {
+    const map = makeMap(30, 30);
+    const spawn = { x: 2, y: 28 };
+    expect(initialCamera(map, spawn, 700, 400, 1.5, CAMERA_MARGIN)).toEqual(
+      clampCamera(
+        worldToScreen(spawn.x, spawn.y),
+        mapPixelBounds(map),
+        700 / 1.5,
+        400 / 1.5,
+      ),
+    );
   });
 });
 

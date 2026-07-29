@@ -1,17 +1,22 @@
 import { describe, expect, it } from "vitest";
 import {
+  ENTRY_SPAWN_ID,
   INTERIOR_FLOOR_IDS,
   TRIM_EDGES,
   buildMapGrid,
+  entryFacing,
   inBounds,
   interactableAt,
   isWalkable,
+  mapExits,
   neighbors,
   requireSpawn,
   tileAt,
   tileMaterial,
+  type Interactable,
   type IsoMap,
   type LegendEntry,
+  type SpawnPoint,
 } from "./tilemap";
 
 const legend: Record<string, LegendEntry> = {
@@ -137,5 +142,66 @@ describe("tileMaterial", () => {
     ] as const;
     const materials = distinct.map(tileMaterial);
     expect(new Set(materials).size).toBe(distinct.length);
+  });
+});
+
+/**
+ * Arrivals. Every spawn sits at a threshold — a stair head, a tram
+ * arch, the road below a plaza — so the useful default is to turn
+ * whoever lands on it toward the space they just entered. Authored
+ * facings win, for the thresholds the shape of the map gets wrong.
+ */
+describe("entryFacing", () => {
+  const wide = makeMap(Array.from({ length: 9 }, () => ".".repeat(9)));
+
+  function spawn(x: number, y: number, facing?: SpawnPoint["facing"]): SpawnPoint {
+    return { id: "entry", x, y, facing };
+  }
+
+  it("turns an arrival in from whichever edge it landed on", () => {
+    expect(entryFacing(wide, spawn(4, 8))).toBe("n");
+    expect(entryFacing(wide, spawn(4, 0))).toBe("s");
+    expect(entryFacing(wide, spawn(0, 4))).toBe("e");
+    expect(entryFacing(wide, spawn(8, 4))).toBe("w");
+  });
+
+  it("prefers an authored facing over the derived one", () => {
+    // Bottom edge: the shape says look north, the author says east.
+    expect(entryFacing(wide, spawn(4, 8, "e"))).toBe("e");
+    expect(entryFacing(wide, spawn(4, 8, "s"))).toBe("s");
+  });
+
+  it("falls back to facing the camera dead-center on the map", () => {
+    expect(entryFacing(wide, spawn(4, 4))).toBe("s");
+  });
+
+  it("names the spawn every map is expected to carry", () => {
+    expect(ENTRY_SPAWN_ID).toBe("player-start");
+  });
+});
+
+describe("mapExits", () => {
+  const door: Interactable = {
+    id: "door",
+    x: 1,
+    y: 0,
+    label: "Side Door",
+    spriteId: "door",
+    interaction: { kind: "dialogue", nodeId: "n" },
+    exit: { mapId: "elsewhere" },
+  };
+  const kiosk: Interactable = {
+    id: "kiosk",
+    x: 0,
+    y: 1,
+    label: "Kiosk",
+    spriteId: "terminal",
+    interaction: { kind: "dialogue", nodeId: "n" },
+  };
+
+  it("picks out only the interactables that lead off the map", () => {
+    const map = { ...makeMap(["..", ".."]), interactables: [kiosk, door] };
+    expect(mapExits(map).map((i) => i.id)).toEqual(["door"]);
+    expect(mapExits({ ...map, interactables: [kiosk] })).toEqual([]);
   });
 });
