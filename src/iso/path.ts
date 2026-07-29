@@ -9,18 +9,31 @@ import { isWalkable, neighbors, type IsoMap } from "./tilemap";
 const keyOf = (p: TilePoint): string => `${p.x},${p.y}`;
 
 /**
+ * An extra restriction on which walkable tiles a path may cross, beyond
+ * the map's own walkability. Ambient pedestrians use it to stay inside
+ * their zone; the player passes none and roams the whole map.
+ */
+export type TileFilter = (x: number, y: number) => boolean;
+
+/**
  * Shortest path from start to goal over walkable tiles, inclusive of
  * both endpoints. The start tile itself need not be walkable (the player
- * is already standing there). Returns null when the goal is unreachable
- * or not walkable; returns [start] when start equals goal.
+ * is already standing there) nor pass the filter (a walker confined to a
+ * region may be routed home from outside it). Returns null when the goal
+ * is unreachable, not walkable, or filtered out; returns [start] when
+ * start equals goal.
  */
 export function findPath(
   map: IsoMap,
   start: TilePoint,
   goal: TilePoint,
+  canEnter?: TileFilter,
 ): TilePoint[] | null {
+  const passable = (x: number, y: number): boolean =>
+    isWalkable(map, x, y) && (canEnter === undefined || canEnter(x, y));
+
   if (sameTile(start, goal)) return [start];
-  if (!isWalkable(map, goal.x, goal.y)) return null;
+  if (!passable(goal.x, goal.y)) return null;
 
   const cameFrom = new Map<string, TilePoint>();
   const visited = new Set<string>([keyOf(start)]);
@@ -31,7 +44,7 @@ export function findPath(
     if (!current) break;
     for (const next of neighbors(current)) {
       const key = keyOf(next);
-      if (visited.has(key) || !isWalkable(map, next.x, next.y)) continue;
+      if (visited.has(key) || !passable(next.x, next.y)) continue;
       visited.add(key);
       cameFrom.set(key, current);
       if (sameTile(next, goal)) {
