@@ -7,9 +7,11 @@ import { audio } from "../audio";
 import { settings, stepZoom, type ZoomLevel } from "../settings";
 import { createCrowd, crowdEntities, stepCrowd, type AmbientCrowd } from "./ambient";
 import { facingFromDelta, type Facing } from "./animation";
+import { hasOpeningArt } from "./art/interactables";
 import { createPixelArtSprites } from "./art/provider";
 import {
   clampCamera,
+  initialCamera,
   mapPixelBounds,
   viewportToWorld,
   type Camera,
@@ -24,12 +26,18 @@ import {
   type WorldPoint,
 } from "./coords";
 import { resolveDayPhase } from "./dayPhase";
-import type { IsoInteractionHandler } from "./events";
+import type {
+  IsoExitHint,
+  IsoExitHintHandler,
+  IsoInteractionHandler,
+} from "./events";
 import { findPath, findPathToAdjacent } from "./path";
-import { renderScene, type RenderView } from "./render";
+import { renderScene, type OpeningView, type RenderView } from "./render";
+import { doorCycleMs, doorOpen01, doorTiming } from "./transition";
 import { resolveWeather, type WeatherView } from "./weather";
 import type { SpriteProvider } from "./sprites";
 import {
+  entryFacing,
   interactableAt,
   isWalkable,
   requireSpawn,
@@ -43,6 +51,12 @@ export interface IsoSceneOptions {
   /** Spawn point id the player starts on. */
   spawnId: string;
   onInteract: IsoInteractionHandler;
+  /**
+   * Called when the exit under the cursor — or the one the player is
+   * stood beside — changes, and with null when none is in focus. The
+   * shell turns it into the on-screen label naming the destination.
+   */
+  onExitHint?: IsoExitHintHandler;
   sprites?: SpriteProvider;
   /**
    * Populate the map's declared ambient crowd (default true). Off gives
@@ -64,6 +78,13 @@ export interface IsoScene {
    * so returning to an hour already walked redraws nothing.
    */
   setDayPhase(story: DayPhaseId | null): void;
+  /**
+   * Play an interactable's way-opening (a door parting, an exit's iris
+   * flaring) and let it shut again. Returns false — having done
+   * nothing — when that kind has no opening art, which is the caller's
+   * cue to skip the door beat of a transition.
+   */
+  playOpening(interactableId: string): boolean;
   /** Stop the animation loop and remove all listeners. */
   destroy(): void;
 }
@@ -86,14 +107,26 @@ export function createIsoScene(
   const spawn = requireSpawn(map, options.spawnId);
   let playerTile: TilePoint = { x: spawn.x, y: spawn.y };
   let playerPos: WorldPoint = { x: spawn.x, y: spawn.y };
-  /** Last walk direction; the idle sprite keeps facing it. */
-  let playerFacing: Facing = "s";
+  /**
+   * Last walk direction; the idle sprite keeps facing it. An arrival
+   * starts looking into the map rather than back out of the doorway.
+   */
+  let playerFacing: Facing = entryFacing(map, spawn);
   /** Tiles still to walk; [0] is the tile currently being entered. */
   let walkQueue: TilePoint[] = [];
   /** 0..1 progress from playerTile toward walkQueue[0]. */
   let walkProgress = 0;
   /** Interactable to trigger once the walk finishes adjacent to it. */
   let pendingInteractable: Interactable | null = null;
+  /**
+   * The interactable playing its opening, and the frame clock it
+   * started on — null until the first frame after the request, so the
+   * envelope is measured against the same rAF clock everything else in
+   * the scene uses rather than the wall.
+   */
+  let opening: { target: Interactable; startedAt: number | null } | null = null;
+  /** Last exit reported to the shell, so the label only changes on change. */
+  let exitHint: IsoExitHint | null = null;
   /** Ambient pedestrians dressing the map; scenery only, never clicked. */
   let crowd: AmbientCrowd =
     options.ambient === false ? { pedestrians: [], zones: new Map() } : createCrowd(map);
@@ -117,6 +150,13 @@ export function createIsoScene(
   let viewportH = 0;
   let zoom: ZoomLevel = settings.get().zoom;
   let camera: Camera = worldToScreen(spawn.x, spawn.y);
+  /**
+   * Whether the camera has been placed against a measured viewport. A
+   * canvas often has no size yet when the scene is built, so the first
+   * real resize is what settles the camera on the player — after that
+   * resizes only re-clamp, leaving any pan the player made alone.
+   */
+  let cameraSettled = false;
   let hoverTile: TilePoint | null = null;
 
   // Pointer state for distinguishing click from drag-pan.
@@ -143,6 +183,12 @@ export function createIsoScene(
     canvas.height = Math.round(viewportH * dpr);
     const scale = dpr * zoom;
     ctx!.setTransform(scale, 0, 0, scale, 0, 0);
+    if (!cameraSettled && viewportW > 0 && viewportH > 0) {
+      // First measured frame: open on the player, already centered.
+      camera = initialCamera(map, playerTile, viewportW, viewportH, zoom);
+      cameraSettled = true;
+      return;
+    }
     // At higher zoom the viewport spans fewer world units.
     camera = clampCamera(camera, bounds, viewportW / zoom, viewportH / zoom);
   }
@@ -305,12 +351,70 @@ export function createIsoScene(
     }
   }
 
+  /**
+   * How far open the interactable mid-opening is this frame, clearing
+   * it once the cycle has run. Reduced motion collapses the envelope to
+   * nothing, so the door is never caught part-way.
+   */
+  function stepOpening(time: number, reducedMotion: boolean): OpeningView | null {
+    if (!opening) return null;
+    if (opening.startedAt === null) opening.startedAt = time;
+    const timing = doorTiming(reducedMotion);
+    const elapsed = time - opening.startedAt;
+    if (elapsed >= doorCycleMs(timing)) {
+      opening = null;
+      return null;
+    }
+    return {
+      interactableId: opening.target.id,
+      open01: doorOpen01(elapsed, timing),
+    };
+  }
+
+  /** The exit the cursor is on, else the one the player is stood beside. */
+  function focusedExit(): IsoExitHint | null {
+    const hovered = hoverTile
+      ? interactableAt(map, hoverTile.x, hoverTile.y)
+      : undefined;
+    if (hovered?.exit) {
+      return {
+        interactableId: hovered.id,
+        label: hovered.label,
+        mapId: hovered.exit.mapId,
+        reason: "hover",
+      };
+    }
+    const beside = map.interactables.find(
+      (i) => i.exit !== undefined && tileDistance(playerTile, i) === 1,
+    );
+    if (beside?.exit) {
+      return {
+        interactableId: beside.id,
+        label: beside.label,
+        mapId: beside.exit.mapId,
+        reason: "nearby",
+      };
+    }
+    return null;
+  }
+
+  function reportExitHint(): void {
+    const next = focusedExit();
+    const same =
+      next?.interactableId === exitHint?.interactableId &&
+      next?.reason === exitHint?.reason;
+    if (same) return;
+    exitHint = next;
+    options.onExitHint?.(next);
+  }
+
   let rafId = 0;
   let lastTime: number | null = null;
   function frame(time: number): void {
     const dt = lastTime === null ? 0 : Math.min((time - lastTime) / 1000, 0.1);
     lastTime = time;
     stepWalk(dt);
+    reportExitHint();
     const reducedMotion = settings.get().reducedMotion;
     // Reduced motion stills the crowd along with the rest of the
     // ambient clock: the player's own movement is the only motion the
@@ -347,6 +451,7 @@ export function createIsoScene(
       // still reads as wet without anything moving.
       weather,
       dayPhase,
+      opening: stepOpening(time, reducedMotion),
     };
     renderScene(ctx!, sprites, view);
     rafId = requestAnimationFrame(frame);
@@ -382,6 +487,13 @@ export function createIsoScene(
       if (next === dayPhase) return;
       dayPhase = next;
       sprites.setDayPhase?.(next);
+    },
+
+    playOpening(interactableId: string): boolean {
+      const target = map.interactables.find((i) => i.id === interactableId);
+      if (!target || !hasOpeningArt(target.spriteId)) return false;
+      opening = { target, startedAt: null };
+      return true;
     },
 
     destroy(): void {

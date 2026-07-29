@@ -4,6 +4,7 @@
  * this module owns the shapes and pure queries (bounds, walkability).
  */
 import type { CharacterVisual } from "../character/appearance";
+import { facingFromDelta, type Facing } from "./animation";
 import type { TilePoint } from "./coords";
 import type { MapInteraction } from "./events";
 
@@ -151,6 +152,27 @@ export type InteractableSpriteId =
   | "exit";
 
 /**
+ * Where an interactable leads. Declaring one is what makes something a
+ * way out: it earns the shared exit marker under it, a label naming
+ * what is on the other side, and the door-then-fade transition when the
+ * scene it opens ends in travel. The iso layer never resolves the ids —
+ * it only reports them, exactly like interactions.
+ */
+export interface MapExit {
+  /** Destination map id. */
+  mapId: string;
+  /**
+   * Spawn point to arrive on over there; absent means the map's own
+   * ENTRY_SPAWN_ID. Arrivals face into the map from wherever they land
+   * (see entryFacing).
+   */
+  entryId?: string;
+}
+
+/** The spawn every map has, and where an arrival lands by default. */
+export const ENTRY_SPAWN_ID = "player-start";
+
+/**
  * An NPC/object the player can interact with from an adjacent tile.
  * Interactables occupy (and block) their tile; the interaction payload
  * is emitted as-is by the scene — the iso layer never interprets it.
@@ -162,6 +184,8 @@ export interface Interactable {
   label: string;
   spriteId: InteractableSpriteId;
   interaction: MapInteraction;
+  /** Set on interactables that lead off this map; see MapExit. */
+  exit?: MapExit;
   /**
    * Authored look for "npc" sprites, rendered through the layered
    * appearance pipeline. Named story NPCs set this in map data; absent
@@ -175,6 +199,11 @@ export interface SpawnPoint {
   id: string;
   x: number;
   y: number;
+  /**
+   * Which way an arrival on this spawn looks. Absent derives it from
+   * the map's shape — see entryFacing.
+   */
+  facing?: Facing;
 }
 
 /**
@@ -308,6 +337,24 @@ export function interactableAt(
 
 export function spawnPoint(map: IsoMap, id: string): SpawnPoint | undefined {
   return map.spawns.find((s) => s.id === id);
+}
+
+/**
+ * Which way the player looks on arriving at a spawn: the authored
+ * facing, or — since every spawn sits at a threshold — turned toward
+ * the middle of the map, so you always arrive looking into a space
+ * rather than back out of it.
+ */
+export function entryFacing(map: IsoMap, spawn: SpawnPoint): Facing {
+  if (spawn.facing) return spawn.facing;
+  const dx = (map.width - 1) / 2 - spawn.x;
+  const dy = (map.height - 1) / 2 - spawn.y;
+  return facingFromDelta(dx, dy) ?? "s";
+}
+
+/** Every interactable on the map that leads somewhere else. */
+export function mapExits(map: IsoMap): Interactable[] {
+  return map.interactables.filter((i) => i.exit !== undefined);
 }
 
 export function requireSpawn(map: IsoMap, id: string): SpawnPoint {

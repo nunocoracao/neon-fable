@@ -20,8 +20,11 @@ import { resolveDayPhase } from "../iso/dayPhase";
 import {
   DAY_PHASES,
   DEFAULT_DAY_PHASE,
+  ENTRY_SPAWN_ID,
+  entryFacing,
   inBounds,
   isWalkable,
+  mapExits,
   requireSpawn,
   tileAt,
   tileMaterial,
@@ -311,6 +314,77 @@ describe.each(arenaMaps.map((m) => [m.id, m] as const))(
     });
   },
 );
+
+/**
+ * Exit lint. An exit is the one piece of map data that points at
+ * another map, so it is the one that can rot silently: a destination
+ * that was renamed, an entry spawn that was moved. Both would show up
+ * to the player as a label naming nowhere and an arrival on the wrong
+ * side of the map, so both are checked here.
+ */
+describe("map exits", () => {
+  const exits = maps.flatMap((map) =>
+    mapExits(map).map((exit) => ({ map, exit })),
+  );
+
+  it("marks the ways out of the districts, and nothing on an arena", () => {
+    expect(exits.map(({ map, exit }) => `${map.id}/${exit.id}`)).toEqual([
+      "greywater-steps/chainwell-stair",
+      "exchange-ventworks/tram-gate",
+      "auric-spire/spire-tram",
+    ]);
+    for (const arena of arenaMaps) {
+      expect(mapExits(arena), `${arena.id} declares an exit`).toEqual([]);
+    }
+  });
+
+  it("leads somewhere real, arriving on a spawn that exists there", () => {
+    for (const { map, exit } of exits) {
+      const target = exit.exit;
+      if (!target) throw new Error(`${exit.id} lost its exit`);
+      const destination = getMap(target.mapId);
+      expect(destination, `${map.id}/${exit.id} → ${target.mapId}`).toBeDefined();
+      if (!destination) continue;
+      // The label the player reads is the destination's own name.
+      expect(destination.name.length).toBeGreaterThan(0);
+      const entryId = target.entryId ?? ENTRY_SPAWN_ID;
+      expect(
+        () => requireSpawn(destination, entryId),
+        `${map.id}/${exit.id} arrives on missing spawn "${entryId}"`,
+      ).not.toThrow();
+    }
+  });
+
+  it("never leads back onto the map it is standing on", () => {
+    for (const { map, exit } of exits) {
+      expect(exit.exit?.mapId, `${map.id}/${exit.id}`).not.toBe(map.id);
+    }
+  });
+
+  it("arrives facing into the destination, not back out of the way in", () => {
+    for (const { exit } of exits) {
+      const destination = requireMap(exit.exit?.mapId ?? "");
+      const entry = requireSpawn(destination, exit.exit?.entryId ?? ENTRY_SPAWN_ID);
+      // Every arrival point in the game is on the map's south edge, so
+      // an arrival that looked "s" would be staring at a wall.
+      expect(entryFacing(destination, entry), `${destination.id}/${entry.id}`).toBe(
+        "n",
+      );
+    }
+  });
+
+  it("stands its exits where a player can walk up to them", () => {
+    // An exit nobody can reach is a way out that does not exist; the
+    // marker and its label would be a lie.
+    for (const { map, exit } of exits) {
+      const start = requireSpawn(map, ENTRY_SPAWN_ID);
+      expect(
+        findPathToAdjacent(map, { x: start.x, y: start.y }, exit),
+        `${map.id}/${exit.id} unreachable`,
+      ).not.toBeNull();
+    }
+  });
+});
 
 describe("NPC visuals", () => {
   const npcs = maps.flatMap((map) =>

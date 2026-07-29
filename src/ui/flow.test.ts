@@ -9,6 +9,12 @@ import { fixtureAppearance, fixtureCharacter } from "../character/testSupport";
 import { backgroundPresets, getAppearanceOption } from "../data";
 import { createRng } from "../state/rng";
 import { DEFAULT_SETTINGS, SETTINGS_KEY, settings } from "../settings";
+import {
+  TRANSITION_CUT,
+  TRANSITION_TIMING,
+  transitionDurationMs,
+  transitionSwapMs,
+} from "../iso/transition";
 import { createNewGame, type GameState } from "../state";
 import { createCharacterCreateScreen } from "./characterCreate";
 import { findFightSeed, replayStep } from "./combatTestSupport";
@@ -845,11 +851,80 @@ describe("act 1 chapter flow", () => {
   }
 
   it("travel choices move the player to the destination map", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     mountAt("a1-ascend", "greywater-steps");
     expect(textOf(".nf-hud-status")).toMatch(/Greywater Steps/);
     click("Climb to Cinder Row");
     expect(document.querySelector(".nf-dialogue")).toBeNull();
+
+    // The map swaps behind the cover, not on the click: until then the
+    // player is still standing on the map they are leaving.
+    const transition = document.querySelector(".nf-transition");
+    expect(transition).not.toBeNull();
+    expect(textOf(".nf-hud-status")).toMatch(/Greywater Steps/);
+
+    vi.advanceTimersByTime(transitionSwapMs(TRANSITION_TIMING));
     expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
+    // ...and the destination is named while the screen is covered.
+    expect(textOf(".nf-transition-card")).toMatch(/Cinder Row Plaza/);
+
+    // The cover lifts and clears itself off the page.
+    vi.advanceTimersByTime(transitionDurationMs(TRANSITION_TIMING));
+    expect(document.querySelector(".nf-transition")).toBeNull();
+    expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
+  });
+
+  it("reduced motion cuts to the destination instead of fading", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    settings.update({ reducedMotion: true });
+    mountAt("a1-ascend", "greywater-steps");
+    click("Climb to Cinder Row");
+
+    // No fade to wait through — one tick and the player is there.
+    vi.advanceTimersByTime(0);
+    expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
+    expect(textOf(".nf-transition-card")).toMatch(/Cinder Row Plaza/);
+
+    vi.advanceTimersByTime(transitionDurationMs(TRANSITION_CUT));
+    expect(document.querySelector(".nf-transition")).toBeNull();
+  });
+
+  it("leaving the map mid-transition abandons it rather than travelling", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    mountAt("a1-ascend", "greywater-steps");
+    click("Climb to Cinder Row");
+    expect(document.querySelector(".nf-transition")).not.toBeNull();
+
+    // Quitting to the menu before the swap must not drop the player
+    // onto the destination a moment later.
+    showScreen(createMainMenuScreen());
+    expect(document.querySelector(".nf-transition")).toBeNull();
+    vi.advanceTimersByTime(10_000);
+    expect(document.querySelector(".nf-hud-status")).toBeNull();
+    expect(buttonByText("New Game")).toBeDefined();
+  });
+
+  it("labels the way out with where it leads", () => {
+    // The Ventworks tram gate stands directly above the map's entry
+    // spawn, so the player arrives already stood beside it.
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return 1;
+    });
+    const state: GameState = {
+      ...testCharacterState(1),
+      location: "exchange-ventworks",
+    };
+    showScreen(createGameScreen({ session: createSession(state) }));
+
+    // Nothing is claimed before the scene has run a frame.
+    const hint = document.querySelector(".nf-exit-hint");
+    expect(hint?.classList.contains("nf-exit-hint-visible")).toBe(false);
+
+    frames[0]?.(0);
+    expect(hint?.textContent).toBe("Tram Gate → Cinder Row Plaza");
+    expect(hint?.classList.contains("nf-exit-hint-visible")).toBe(true);
   });
 
   it("chapter endings open the chapter-end screen, not a toast", () => {

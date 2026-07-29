@@ -16,6 +16,8 @@ export {
 } from "./coords";
 export { compareDrawables, depthOf, sortDrawables, type DrawLayer, type Drawable } from "./depth";
 export {
+  type IsoExitHint,
+  type IsoExitHintHandler,
   type IsoInteractionEvent,
   type IsoInteractionHandler,
   type MapInteraction,
@@ -39,6 +41,7 @@ export {
 export {
   CAMERA_MARGIN,
   clampCamera,
+  initialCamera,
   mapPixelBounds,
   type Camera,
   type PixelBounds,
@@ -46,16 +49,20 @@ export {
 export {
   DAY_PHASES,
   DEFAULT_DAY_PHASE,
+  ENTRY_SPAWN_ID,
   TILE_DEFS,
   buildMapGrid,
+  entryFacing,
   inBounds,
   interactableAt,
   isWalkable,
+  mapExits,
   neighbors,
   requireSpawn,
   spawnPoint,
   tileAt,
   type Interactable,
+  type MapExit,
   type InteractableSpriteId,
   type IsoMap,
   type LegendEntry,
@@ -90,7 +97,25 @@ export {
   type WeatherView,
 } from "./weather";
 export { createIsoScene, type IsoScene, type IsoSceneOptions } from "./scene";
-export { type RenderView, type SceneEntity } from "./render";
+export { type OpeningView, type RenderView, type SceneEntity } from "./render";
+export {
+  DOOR_TIMING,
+  TRANSITION_CUT,
+  TRANSITION_TIMING,
+  coverAlpha,
+  destinationShown,
+  doorCycleMs,
+  doorFrameIndex,
+  doorOpen01,
+  doorTiming,
+  transitionDurationMs,
+  transitionPhaseAt,
+  transitionSwapMs,
+  transitionTiming,
+  type DoorTiming,
+  type TransitionPhase,
+  type TransitionTiming,
+} from "./transition";
 export {
   createCombatScene,
   type CombatHighlights,

@@ -28,6 +28,13 @@ export interface SceneEntity {
   moving: boolean;
 }
 
+/** An interactable part-way through its way-opening art this frame. */
+export interface OpeningView {
+  interactableId: string;
+  /** 0 shut, 1 wide open — see ./transition.ts. */
+  open01: number;
+}
+
 export interface RenderView {
   map: IsoMap;
   camera: Camera;
@@ -61,6 +68,8 @@ export interface RenderView {
    * renderer does with the phase is scale the glow pass.
    */
   dayPhase?: DayPhaseId;
+  /** The one interactable mid-opening, if any. */
+  opening?: OpeningView | null;
 }
 
 interface SceneDrawable extends Drawable {
@@ -96,6 +105,21 @@ export function renderScene(
 
   // Splashes land on the ground, under the highlights and every object.
   if (weather) paintSplashes(ctx, sprites, weather, timeMs, scale);
+
+  // Exit affordance: every interactable that leads off the map gets the
+  // same lit ring laid in its tile, so a way out reads identically
+  // whether it is a door, a stair, or a tram arch. The ones already
+  // drawn as the marker itself skip it rather than double-painting.
+  for (const exit of map.interactables) {
+    if (!exit.exit || exit.spriteId === "exit") continue;
+    drawSprite(
+      ctx,
+      sprites.interactable("exit", exit.x, exit.y, timeMs),
+      exit.x,
+      exit.y,
+      scale,
+    );
+  }
 
   // Highlights sit on the ground, under all objects.
   // Pulsing marker under every interactable so points of interest read
@@ -136,7 +160,13 @@ export function renderScene(
       x: i.x,
       y: i.y,
       layer: "object" as const,
-      sprite: sprites.interactable(i.spriteId, i.x, i.y, timeMs),
+      sprite: sprites.interactable(
+        i.spriteId,
+        i.x,
+        i.y,
+        timeMs,
+        view.opening?.interactableId === i.id ? view.opening.open01 : 0,
+      ),
     })),
     ...view.entities.map((e) => ({
       x: e.position.x,

@@ -45,11 +45,17 @@ export interface SpriteProvider {
    */
   tile(id: TileId, x: number, y: number, timeMs: number, wet?: boolean): Sprite;
   prop(id: PropId, x: number, y: number, timeMs: number): Sprite;
+  /**
+   * `open` (0..1) swaps the idle loop for the kind's way-opening art —
+   * a door's leaves parting, an exit's iris flooding with light. Kinds
+   * with no opening art ignore it, as does the resting value 0.
+   */
   interactable(
     id: InteractableSpriteId,
     x: number,
     y: number,
     timeMs: number,
+    open?: number,
   ): Sprite;
   entity(id: EntitySpriteId, pose: EntityPose): Sprite;
   /** Solid-color silhouette of the same frame, for hit flashes. */

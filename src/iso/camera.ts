@@ -3,7 +3,13 @@
  * screen point that appears at the center of the viewport; panning moves
  * it and clamping keeps the map on screen. Pure so it can be tested.
  */
-import { TILE_H, TILE_W, worldToScreen, type ScreenPoint } from "./coords";
+import {
+  TILE_H,
+  TILE_W,
+  worldToScreen,
+  type ScreenPoint,
+  type TilePoint,
+} from "./coords";
 import type { IsoMap } from "./tilemap";
 
 export interface Camera {
@@ -59,6 +65,29 @@ export function clampCamera(
     sx: clampAxis(camera.sx, bounds.minX - margin, bounds.maxX + margin, viewportW),
     sy: clampAxis(camera.sy, bounds.minY - margin, bounds.maxY + margin, viewportH),
   };
+}
+
+/**
+ * The camera a scene opens on: centered on the tile the player stands
+ * on and clamped into the map, so the very first frame after arriving
+ * is already settled. Computed once the viewport is measured — starting
+ * elsewhere and correcting later is exactly the jump this avoids.
+ */
+export function initialCamera(
+  map: IsoMap,
+  focus: TilePoint,
+  viewportW: number,
+  viewportH: number,
+  zoom = 1,
+  margin: number = CAMERA_MARGIN,
+): Camera {
+  return clampCamera(
+    worldToScreen(focus.x, focus.y),
+    mapPixelBounds(map),
+    viewportW / zoom,
+    viewportH / zoom,
+    margin,
+  );
 }
 
 // --- Zoomed view math --------------------------------------------------
