@@ -18,6 +18,7 @@ import {
   uninstallWarning,
 } from "./format";
 import type { OverlayHandle } from "./overlay";
+import { portraitCanvas } from "./portraits";
 import type { Session } from "./session";
 
 /**
@@ -260,13 +261,21 @@ export function createInventoryOverlay(
 
     const header = document.createElement("div");
     header.className = "nf-panel-header";
+    // Player portrait derived live from appearance + equipped gear, so
+    // equipping an outfit or installing head cyberware shows here at
+    // once (render() rebuilds the header on every state change).
+    const identity = document.createElement("div");
+    identity.className = "nf-inventory-identity";
+    const { player } = session.state;
+    identity.append(portraitCanvas(player.appearance, player.equipment));
     const title = document.createElement("h2");
     title.textContent = "Inventory";
+    identity.append(title);
     const close = document.createElement("button");
     close.className = "nf-button nf-button-small";
     close.textContent = "Close [Esc]";
     close.addEventListener("click", options.onClose);
-    header.append(title, close);
+    header.append(identity, close);
     panel.append(header);
 
     renderStatus(panel);

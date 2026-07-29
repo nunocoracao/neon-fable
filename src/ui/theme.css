@@ -473,6 +473,22 @@ body::after {
   width: min(60rem, calc(100vw - 3rem));
 }
 
+.nf-inventory-identity {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Baked player portrait (96×96 backing canvas at integer scale). */
+.nf-portrait {
+  width: 96px;
+  height: 96px;
+  image-rendering: pixelated;
+  border: 2px solid var(--nf-border);
+  background: var(--nf-outline);
+  flex: none;
+}
+
 /* --- Advancement --- */
 
 .nf-advancement {
