@@ -205,6 +205,14 @@ export interface AmbientSpec {
   zones: readonly AmbientZone[];
 }
 
+/**
+ * The sky a map plays under. Purely a look: weather drives the rain
+ * overlay, puddle art, and reflection shimmer (see src/iso/weather.ts)
+ * and nothing else — no stat, roll, or route anywhere in the game reads
+ * it. Absent means "clear".
+ */
+export type WeatherId = "clear" | "rain";
+
 export interface IsoMap {
   id: string;
   name: string;
@@ -217,6 +225,8 @@ export interface IsoMap {
   spawns: SpawnPoint[];
   /** Ambient crowd to dress the map with; absent means no pedestrians. */
   ambient?: AmbientSpec;
+  /** Weather the map plays under; absent means clear. Visual only. */
+  weather?: WeatherId;
 }
 
 /** A legend entry for authoring maps as compact character rows. */

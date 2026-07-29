@@ -64,7 +64,27 @@ export {
   type SpawnPoint,
   type TileDef,
   type TileId,
+  type WeatherId,
 } from "./tilemap";
+export {
+  ARENA_STREAK_DENSITY,
+  PUDDLE_DENSITY,
+  RAIN_LAYERS,
+  activeSplashes,
+  puddleAt,
+  puddleTiles,
+  rainStreaks,
+  resolveWeather,
+  shimmerFactor,
+  splashFrameAt,
+  tileHoldsWater,
+  tileKey,
+  wetTiles,
+  type RainLayer,
+  type RainStreak,
+  type Splash,
+  type WeatherView,
+} from "./weather";
 export { createIsoScene, type IsoScene, type IsoSceneOptions } from "./scene";
 export { type RenderView, type SceneEntity } from "./render";
 export {

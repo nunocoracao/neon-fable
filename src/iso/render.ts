@@ -12,6 +12,8 @@ import { compareDrawables, type Drawable } from "./depth";
 import { collectGlowPlacements } from "./glowPass";
 import { isWalkable, type IsoMap } from "./tilemap";
 import type { EntitySpriteId, Sprite, SpriteProvider } from "./sprites";
+import { tileKey, type WeatherView } from "./weather";
+import { paintRainStreaks, paintSplashes } from "./weatherPaint";
 
 export interface SceneEntity {
   spriteId: EntitySpriteId;
@@ -42,6 +44,12 @@ export interface RenderView {
   zoom: number;
   /** Draw the additive neon glow pass (the settings toggle). */
   glowEnabled: boolean;
+  /**
+   * Active weather, or null/absent for clear skies (also what the
+   * settings toggle resolves to when weather effects are off). Purely a
+   * look — see src/iso/weather.ts.
+   */
+  weather?: WeatherView | null;
 }
 
 interface SceneDrawable extends Drawable {
@@ -54,6 +62,7 @@ export function renderScene(
   view: RenderView,
 ): void {
   const { map, camera, viewportW, viewportH, timeMs, dpr, zoom } = view;
+  const weather = view.weather ?? null;
   const scale = dpr * zoom;
   ctx.clearRect(0, 0, viewportW / zoom, viewportH / zoom);
   ctx.imageSmoothingEnabled = false;
@@ -63,13 +72,19 @@ export function renderScene(
   ctx.translate(tx, ty);
 
   // Ground pass: flat tiles never overlap, so simple row order suffices.
+  // Under rain, tiles the weather marked as pooling water swap to their
+  // puddle variant — same texture, water added.
   for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < map.width; x++) {
       const tileId = map.tiles[y]?.[x];
       if (tileId === undefined) continue;
-      drawSprite(ctx, sprites.tile(tileId, x, y, timeMs), x, y, scale);
+      const wet = weather?.puddles.has(tileKey(x, y)) === true;
+      drawSprite(ctx, sprites.tile(tileId, x, y, timeMs, wet), x, y, scale);
     }
   }
+
+  // Splashes land on the ground, under the highlights and every object.
+  if (weather) paintSplashes(ctx, sprites, weather, timeMs, scale);
 
   // Highlights sit on the ground, under all objects.
   // Pulsing marker under every interactable so points of interest read
@@ -132,7 +147,7 @@ export function renderScene(
   // reflections, composited additively over the whole scene so signage
   // reads as casting light rather than just being bright.
   if (view.glowEnabled) {
-    const glows = collectGlowPlacements(map, timeMs);
+    const glows = collectGlowPlacements(map, timeMs, weather);
     if (glows.length > 0) {
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
@@ -151,6 +166,20 @@ export function renderScene(
   }
 
   ctx.restore();
+
+  // Rain falls in front of the camera, not on the world: the curtain is
+  // screen-space, so it is drawn after the camera translation is undone.
+  if (weather) {
+    paintRainStreaks(
+      ctx,
+      sprites,
+      weather,
+      timeMs,
+      viewportW / zoom,
+      viewportH / zoom,
+      scale,
+    );
+  }
 }
 
 function drawSprite(

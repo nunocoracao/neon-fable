@@ -26,6 +26,7 @@ import {
 import type { IsoInteractionHandler } from "./events";
 import { findPath, findPathToAdjacent } from "./path";
 import { renderScene, type RenderView } from "./render";
+import { resolveWeather, type WeatherView } from "./weather";
 import type { SpriteProvider } from "./sprites";
 import {
   interactableAt,
@@ -83,6 +84,14 @@ export function createIsoScene(
   /** Ambient pedestrians dressing the map; scenery only, never clicked. */
   let crowd: AmbientCrowd =
     options.ambient === false ? { pedestrians: [], zones: new Map() } : createCrowd(map);
+  /**
+   * The map's weather, resolved once (puddle placement is fixed for a
+   * map) and rebuilt when the player toggles the setting. Null is both
+   * "clear skies" and "weather effects off".
+   */
+  let weather: WeatherView | null = resolveWeather(map, {
+    enabled: settings.get().weather,
+  });
 
   let viewportW = 0;
   let viewportH = 0;
@@ -313,6 +322,10 @@ export function createIsoScene(
       dpr: window.devicePixelRatio || 1,
       zoom,
       glowEnabled: settings.get().glow,
+      // Rain rides the same frozen clock: reduced motion leaves the
+      // streaks hanging still and the puddles in place, so the map
+      // still reads as wet without anything moving.
+      weather,
     };
     renderScene(ctx!, sprites, view);
     rafId = requestAnimationFrame(frame);
@@ -333,6 +346,11 @@ export function createIsoScene(
     if (next.zoom !== zoom) {
       zoom = next.zoom;
       resize();
+    }
+    const wanted = next.weather && weather === null;
+    const unwanted = !next.weather && weather !== null;
+    if (wanted || unwanted) {
+      weather = resolveWeather(map, { enabled: next.weather });
     }
   });
   rafId = requestAnimationFrame(frame);

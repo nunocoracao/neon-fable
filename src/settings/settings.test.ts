@@ -41,10 +41,22 @@ describe("clampSettings", () => {
   it("keeps valid fields and clamps invalid ones independently", () => {
     expect(
       clampSettings({ textSpeed: "fast", reducedMotion: "yes", zoom: 1.5 }),
-    ).toEqual({ textSpeed: "fast", reducedMotion: false, zoom: 1.5, glow: true });
+    ).toEqual({
+      textSpeed: "fast",
+      reducedMotion: false,
+      zoom: 1.5,
+      glow: true,
+      weather: true,
+    });
     expect(
       clampSettings({ textSpeed: "warp", reducedMotion: true }),
-    ).toEqual({ textSpeed: "normal", reducedMotion: true, zoom: 1, glow: true });
+    ).toEqual({
+      textSpeed: "normal",
+      reducedMotion: true,
+      zoom: 1,
+      glow: true,
+      weather: true,
+    });
   });
 
   it("ignores unknown fields", () => {
@@ -53,6 +65,7 @@ describe("clampSettings", () => {
       reducedMotion: false,
       zoom: 1,
       glow: true,
+      weather: true,
     });
   });
 
@@ -61,6 +74,13 @@ describe("clampSettings", () => {
     expect(clampSettings({ glow: false }).glow).toBe(false);
     expect(clampSettings({ glow: "off" }).glow).toBe(true);
     expect(clampSettings({ glow: 0 }).glow).toBe(true);
+  });
+
+  it("weather defaults on; only an explicit false disables it", () => {
+    expect(clampSettings({}).weather).toBe(true);
+    expect(clampSettings({ weather: false }).weather).toBe(false);
+    expect(clampSettings({ weather: "off" }).weather).toBe(true);
+    expect(clampSettings({ weather: 0 }).weather).toBe(true);
   });
 
   it("rejects zoom values off the level ladder", () => {
@@ -95,6 +115,7 @@ describe("parse / serialize / migrate", () => {
       reducedMotion: true,
       zoom: 1.5,
       glow: false,
+      weather: false,
     } as const;
     expect(parseSettings(serializeSettings(settings))).toEqual(settings);
   });
@@ -116,7 +137,13 @@ describe("parse / serialize / migrate", () => {
   it("migrates unknown or future versions field-tolerantly", () => {
     expect(
       migrateSettings({ version: 99, textSpeed: "instant", extra: true }),
-    ).toEqual({ textSpeed: "instant", reducedMotion: false, zoom: 1, glow: true });
+    ).toEqual({
+      textSpeed: "instant",
+      reducedMotion: false,
+      zoom: 1,
+      glow: true,
+      weather: true,
+    });
     expect(migrateSettings({ version: "zero" })).toEqual(DEFAULT_SETTINGS);
   });
 
@@ -131,6 +158,7 @@ describe("parse / serialize / migrate", () => {
       reducedMotion: true,
       zoom: 1,
       glow: true,
+      weather: true,
     });
   });
 
@@ -146,6 +174,7 @@ describe("parse / serialize / migrate", () => {
       reducedMotion: false,
       zoom: 2,
       glow: true,
+      weather: true,
     });
   });
 });
@@ -159,7 +188,13 @@ describe("load / save", () => {
   it("persists under the settings key, separate from save slots", () => {
     const storage = fakeStorage();
     saveSettings(
-      { textSpeed: "instant", reducedMotion: true, zoom: 2, glow: false },
+      {
+        textSpeed: "instant",
+        reducedMotion: true,
+        zoom: 2,
+        glow: false,
+        weather: false,
+      },
       storage,
     );
     expect(Object.keys(storage.data)).toEqual([SETTINGS_KEY]);
@@ -168,6 +203,7 @@ describe("load / save", () => {
       reducedMotion: true,
       zoom: 2,
       glow: false,
+      weather: false,
     });
   });
 
@@ -206,7 +242,13 @@ describe("settings store", () => {
   it("loads persisted settings at creation", () => {
     const storage = fakeStorage();
     saveSettings(
-      { textSpeed: "fast", reducedMotion: true, zoom: 1.5, glow: true },
+      {
+        textSpeed: "fast",
+        reducedMotion: true,
+        zoom: 1.5,
+        glow: true,
+        weather: true,
+      },
       storage,
     );
     const store = createSettingsStore(storage);
@@ -215,6 +257,7 @@ describe("settings store", () => {
       reducedMotion: true,
       zoom: 1.5,
       glow: true,
+      weather: true,
     });
   });
 
@@ -230,6 +273,7 @@ describe("settings store", () => {
       reducedMotion: false,
       zoom: 1,
       glow: true,
+      weather: true,
     });
     expect(loadSettings(storage).textSpeed).toBe("instant");
     expect(seen).toEqual(["instant"]);

@@ -9,6 +9,7 @@ import { PROP_ART } from "./props";
 import { skinToneRemap, type ComposedCharacter } from "./layers";
 import { createPixelArtSprites, type PixelArtSprites } from "./provider";
 import { TILE_ART } from "./tiles";
+import { SPLASH_ANCHOR_X, SPLASH_ANCHOR_Y } from "./weather";
 import type { SpriteCacheStats } from "./spriteCache";
 
 /**
@@ -114,6 +115,36 @@ describe("createPixelArtSprites cache", () => {
     expect(first.anchorY).toBe(size / 2);
     expect((first.image as HTMLCanvasElement).width).toBe(size);
     expect((first.image as HTMLCanvasElement).height).toBe(size);
+  });
+
+  it("swaps in a tile's rain variant only where the ground has one", () => {
+    const sprites = createPixelArtSprites();
+    const dry = sprites.tile("pavement", 2, 3, 0);
+    expect(sprites.tile("pavement", 2, 3, 0, false)).toBe(dry);
+    // Wet is a separate bake, cached under its own key.
+    const wet = sprites.tile("pavement", 2, 3, 0, true);
+    expect(wet).not.toBe(dry);
+    expect(sprites.tile("pavement", 2, 3, 0, true)).toBe(wet);
+    // Ground with no rain art ignores the flag rather than failing.
+    const interior = sprites.tile("bar-floor", 1, 1, 0);
+    expect(sprites.tile("bar-floor", 1, 1, 0, true)).toBe(interior);
+  });
+
+  it("bakes rain streaks and splash frames once each", () => {
+    const sprites = createPixelArtSprites();
+    const far = sprites.rainStreak(0);
+    expect(sprites.rainStreak(0)).toBe(far);
+    expect(sprites.rainStreak(1)).not.toBe(far);
+    // Streaks are anchored at their tail: placements are already the
+    // sprite's corner.
+    expect(far.anchorX).toBe(0);
+    expect(far.anchorY).toBe(0);
+
+    const splash = sprites.splash(0);
+    expect(sprites.splash(0)).toBe(splash);
+    expect(sprites.splash(1)).not.toBe(splash);
+    expect(splash.anchorX).toBe(SPLASH_ANCHOR_X * ART_SCALE);
+    expect(splash.anchorY).toBe(SPLASH_ANCHOR_Y * ART_SCALE);
   });
 
   it("refuses glow colors that are not hex palette entries", () => {

@@ -41,6 +41,14 @@ export interface TileArt {
    * and interactable glows (a cheap reflection accent, not lighting).
    */
   reflective?: boolean;
+  /**
+   * Rain variants, parallel to `variants` frame for frame: the same
+   * textures with a puddle pooled into them. Presence is the
+   * data-driven flag for "this ground can hold water" — ground that
+   * declares none (interiors, wall foundations, the canal itself) never
+   * swaps under rain, whatever the weather says.
+   */
+  wet?: readonly PixelGrid[][];
 }
 
 /* --- Pavement (native 64×32): concrete sidewalk plates split by seam
@@ -874,6 +882,135 @@ export function baseboardGrid(
   });
 }
 
+/* --- Rain variants: the same ground textures with a puddle pooled
+   into them. A puddle is painted as a tint of what is already there
+   rather than a flat blue blob, so the plate seams, cracks, and grime
+   under the water keep reading — water darkens and cools a surface, it
+   does not replace it. Light still comes from the top left: the sheen
+   sits on the pool's upper-left rim and the specular glints with it.
+   Pure grid math, so a puddle is the same puddle every session. --- */
+
+/**
+ * One step "wetter" for a palette character: darker and cooler for
+ * surfaces, dimmer for anything emissive (neon never brightens for
+ * being underwater). Characters outside the table are left alone.
+ */
+const WET_TINT: Readonly<Record<string, string>> = {
+  // Concrete cools onto the blue-gray slates as it soaks.
+  S: "R",
+  R: "Q",
+  Q: "3",
+  // Neutral ramp steps down toward the ink — but the dark end turns to
+  // water rather than to void: a puddle on night asphalt reads as dark
+  // blue standing water, not as a hole punched in the street.
+  "9": "8",
+  "8": "7",
+  "7": "6",
+  "6": "5",
+  "5": "4",
+  "4": "3",
+  "3": "2",
+  "2": "e",
+  "1": "e",
+  "0": "d",
+  // Rust darkens into its own shade.
+  c: "b",
+  b: "a",
+  a: "1",
+  // Signage and neon dim through the water.
+  n: "m",
+  m: "o",
+  o: "b",
+  h: "g",
+  g: "i",
+  i: "f",
+  Z: "Y",
+  Y: "b",
+  // Water is already water; it only ever deepens.
+  f: "e",
+  e: "d",
+  d: "d",
+};
+
+/** Apply the wet tint `steps` times. */
+function wetChar(ch: string, steps: number): string {
+  let out = ch;
+  for (let i = 0; i < steps; i++) out = WET_TINT[out] ?? out;
+  return out;
+}
+
+/** Half-width of a puddle, in 1x art pixels, before per-seed jitter. */
+const PUDDLE_RADIUS = 15;
+
+/**
+ * Pool a seeded puddle into a ground grid. The pool is an iso-flattened
+ * (2:1) ellipse sunk toward the lower half of the diamond, with a
+ * hash-jittered edge so no two puddles share an outline. Every painted
+ * cell stays inside the diamond mask — a wet tile is the same silhouette
+ * as a dry one.
+ */
+export function puddleGrid(base: PixelGrid, seed: number): string[] {
+  const cx = 32 + (hash2(seed, 11) % 9) - 4;
+  const cy = 17 + (hash2(seed, 23) % 5);
+  const rx = PUDDLE_RADIUS + (hash2(seed, 37) % 6);
+  const ry = rx / 2;
+  return base.map((row, r) => {
+    const width = DIAMOND_WIDTHS[r] ?? 0;
+    const pad = (64 - width) / 2;
+    const cells = [...row];
+    for (let x = pad; x < pad + width; x++) {
+      const nx = (x - cx) / rx;
+      const ny = (r - cy) / ry;
+      // A ±0.09 wobble on the normalized radius: enough to break the
+      // ellipse into an organic outline, too little to punch holes.
+      const jitter = ((hash2(x + seed * 71, r * 13 + seed) % 100) / 100 - 0.5) * 0.18;
+      const depth = Math.hypot(nx, ny) + jitter;
+      if (depth >= 1) continue;
+      const ch = cells[x] ?? "";
+      if (depth < 0.62) {
+        // Deep water: doubly darkened, with still-water pooling.
+        cells[x] =
+          hash2(x * 5 + seed, r * 3 + seed * 17) % 5 === 0
+            ? "e"
+            : wetChar(ch, 2);
+      } else if (depth >= 0.9 && ny < 0) {
+        // Lit rim: a thin sheen where the pool meets dry ground.
+        cells[x] = hash2(x + seed * 29, r * 7 + seed) % 2 === 0 ? "f" : wetChar(ch, 1);
+      } else {
+        cells[x] = wetChar(ch, 1);
+      }
+      // Broken horizontal glint lines across the pool — the standard
+      // read for "this is a reflective surface" rather than a shadow.
+      // They break up per row so the water never looks ruled, and the
+      // far (upper) half catches more light, as a real pool does.
+      if (depth < 0.85 && (r + (hash2(seed, r) % 3)) % 4 === 0) {
+        if (hash2(x * 3 + seed, r * 11 + seed) % 3 !== 0) {
+          cells[x] = ny < -0.3 ? "6" : "f";
+        }
+      }
+      // Speculars on the upper-left face of the pool, with the light.
+      if (nx < 0 && ny < 0 && depth > 0.3 && depth < 0.8) {
+        if (hash2(x * 13 + seed * 3, r + seed * 5) % 17 === 0) cells[x] = "8";
+      }
+    }
+    return cells.join("");
+  });
+}
+
+/**
+ * The same tile art plus its rain variants. The salt separates tile
+ * kinds so pavement and road don't pool identical puddles, and the
+ * variant index separates textures within a kind.
+ */
+function puddled(art: TileArt, salt: number): TileArt {
+  return {
+    ...art,
+    wet: art.variants.map((frames, v) =>
+      frames.map((grid) => puddleGrid(grid, salt * 31 + v + 1)),
+    ),
+  };
+}
+
 /** Variant grids plus the shade its baseboard trim feathers into. */
 interface InteriorFloorSet {
   variants: readonly PixelGrid[];
@@ -916,34 +1053,48 @@ const INTERIOR_TILE_ART = Object.fromEntries(
 ) as Record<InteriorFloorId | InteriorTrimId, TileArt>;
 
 export const TILE_ART: Readonly<Record<TileId, TileArt>> = {
-  pavement: { variants: [[pavementA], [pavementB], [pavementC]], frameMs: 0 },
-  "pavement-cracked": {
-    variants: [[crackedA], [crackedB], [crackedC]],
-    frameMs: 0,
-  },
+  // Outdoor ground opts into puddles; the plaza's neon ring, the canal
+  // (already water), wall foundations, and every interior floor do not.
+  pavement: puddled(
+    { variants: [[pavementA], [pavementB], [pavementC]], frameMs: 0 },
+    1,
+  ),
+  "pavement-cracked": puddled(
+    {
+      variants: [[crackedA], [crackedB], [crackedC]],
+      frameMs: 0,
+    },
+    2,
+  ),
   "plaza-glow": {
     variants: plazaGlowVariants,
     frameMs: 900,
     // The inset neon ring lifts the plaza floor a touch.
     glow: [{ color: "g", radius: 20, intensity: 0.14, offsetX: 0, offsetY: 0 }],
   },
-  road: {
-    variants: [[roadA], [roadB], [roadC], [roadD], [roadE]],
-    frameMs: 0,
-  },
+  road: puddled(
+    {
+      variants: [[roadA], [roadB], [roadC], [roadD], [roadE]],
+      frameMs: 0,
+    },
+    3,
+  ),
   canal: { variants: canalVariants, frameMs: 420, reflective: true },
   "canal-deep": { variants: canalDeepVariants, frameMs: 560, reflective: true },
-  "quay-n": { variants: quayVariants("n"), frameMs: 0 },
-  "quay-e": { variants: quayVariants("e"), frameMs: 0 },
-  "quay-s": { variants: quayVariants("s"), frameMs: 0 },
-  "quay-w": { variants: quayVariants("w"), frameMs: 0 },
+  "quay-n": puddled({ variants: quayVariants("n"), frameMs: 0 }, 4),
+  "quay-e": puddled({ variants: quayVariants("e"), frameMs: 0 }, 5),
+  "quay-s": puddled({ variants: quayVariants("s"), frameMs: 0 }, 6),
+  "quay-w": puddled({ variants: quayVariants("w"), frameMs: 0 }, 7),
   foundation: {
     variants: [foundationFill(1), foundationFill(2)].map((grid) => [grid]),
     frameMs: 0,
   },
-  "rust-floor": {
-    variants: [1, 2, 3].map((seed) => [rustPlateFloor(seed)]),
-    frameMs: 0,
-  },
+  "rust-floor": puddled(
+    {
+      variants: [1, 2, 3].map((seed) => [rustPlateFloor(seed)]),
+      frameMs: 0,
+    },
+    8,
+  ),
   ...INTERIOR_TILE_ART,
 };

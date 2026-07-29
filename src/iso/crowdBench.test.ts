@@ -6,6 +6,7 @@ import { createCrowd, crowdEntities, stepCrowd } from "./ambient";
 import { createPixelArtSprites } from "./art/provider";
 import { mapPixelBounds } from "./camera";
 import { renderScene, type RenderView } from "./render";
+import { resolveWeather } from "./weather";
 
 /**
  * Frame-cost guard for the busiest map in the game (the hub, with its
@@ -127,6 +128,50 @@ describe("crowded-scene frame budget", () => {
     expect(hits).toBeGreaterThan(0);
     expect(misses / (hits + misses)).toBeLessThan(0.05);
     expect(steady.evictions).toBe(0);
+  });
+
+  it("keeps a rainy crowded frame inside the same budget", () => {
+    // Rain adds a few hundred streak draws and a handful of splashes on
+    // top of everything above, all resolved from the same bake cache
+    // (two streak sprites, three splash frames). If weather ever starts
+    // baking per frame, this is where it shows up.
+    const rainy = requireMap("greywater-steps");
+    expect(rainy.weather).toBe("rain");
+    const weather = resolveWeather(rainy, { enabled: true });
+    const sprites = createPixelArtSprites({ entity: ambientSpriteSource() });
+    const ctx = stubContext();
+    const rainBounds = mapPixelBounds(rainy);
+
+    const runRainFrames = (): void => {
+      let crowd = createCrowd(rainy);
+      for (let frame = 0; frame < FRAMES; frame++) {
+        crowd = stepCrowd(crowd, rainy, 1 / 60);
+        renderScene(ctx, sprites, {
+          map: rainy,
+          camera: { sx: rainBounds.minX + 200, sy: rainBounds.minY + 200 },
+          viewportW: 1280,
+          viewportH: 720,
+          hoverTile: { x: 5, y: 5 },
+          path: [],
+          entities: crowdEntities(crowd),
+          timeMs: frame * (1000 / 60),
+          dpr: 2,
+          zoom: 1,
+          glowEnabled: true,
+          weather,
+        });
+      }
+    };
+
+    runRainFrames();
+    const warmed = sprites.cacheStats();
+    const start = performance.now();
+    runRainFrames();
+    const perFrame = (performance.now() - start) / FRAMES;
+    expect(perFrame, `${perFrame.toFixed(3)}ms per rainy frame`).toBeLessThan(
+      FRAME_BUDGET_MS,
+    );
+    expect(sprites.cacheStats().misses - warmed.misses).toBe(0);
   });
 
   it("bakes one canvas per look and pose, not per pedestrian", () => {

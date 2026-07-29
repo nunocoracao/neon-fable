@@ -385,6 +385,11 @@ const greywaterSteps: IsoMap = {
     count: 4,
     zones: [{ id: "walk", x: 1, y: 4, width: 9, height: 4 }],
   },
+  // The quayside district is where it always rains: water off the
+  // cistern, puddles standing in the cracked slabs, the court's neon
+  // pooling in them. Visual only — the fights and the story here play
+  // exactly as they do under a clear sky.
+  weather: "rain",
 };
 
 /**

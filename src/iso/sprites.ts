@@ -34,7 +34,11 @@ export interface EntityPose {
 }
 
 export interface SpriteProvider {
-  tile(id: TileId, x: number, y: number, timeMs: number): Sprite;
+  /**
+   * `wet` swaps in the tile's rain variant (a pooled puddle) where the
+   * ground kind has one; ground without rain art ignores it.
+   */
+  tile(id: TileId, x: number, y: number, timeMs: number, wet?: boolean): Sprite;
   prop(id: PropId, x: number, y: number, timeMs: number): Sprite;
   interactable(
     id: InteractableSpriteId,
@@ -50,4 +54,8 @@ export interface SpriteProvider {
    * pass; radius is in 1x art pixels, anchored at the glow center.
    */
   glow(color: string, radius: number): Sprite;
+  /** Pre-baked rain streak for a parallax layer, anchored at its tail. */
+  rainStreak(layer: number): Sprite;
+  /** Pre-baked splash micro-frame, anchored on the tile diamond center. */
+  splash(frame: number): Sprite;
 }

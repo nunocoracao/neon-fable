@@ -168,6 +168,25 @@ function buildSettingsPanel(onClose: () => void): HTMLElement {
     "over the streets. Turn it off for a flatter, faster picture.";
   panel.append(glowNote);
 
+  panel.append(
+    segmentedRow(
+      "Weather",
+      [
+        ["on", "On"],
+        ["off", "Off"],
+      ] as const,
+      (value) => (value === "on") === settings.get().weather,
+      (value) => settings.update({ weather: value === "on" }),
+    ),
+  );
+  const weatherNote = document.createElement("p");
+  weatherNote.className = "nf-dim";
+  weatherNote.textContent =
+    "Weather draws rain, puddles, and splashes on the districts that " +
+    "have them. It never changes how the game plays — turn it off for a " +
+    "clearer, cheaper picture. Reduced motion stills the rain on its own.";
+  panel.append(weatherNote);
+
   const motionHeading = document.createElement("h3");
   motionHeading.textContent = "Motion";
   panel.append(

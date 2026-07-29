@@ -12,6 +12,7 @@ import { ART_SCALE } from "./art/pixel";
 import { PROP_ART } from "./art/props";
 import { TILE_ART } from "./art/tiles";
 import type { IsoMap } from "./tilemap";
+import { shimmerFactor, tileKey } from "./weather";
 
 /** One glow sprite to draw: world tile plus a screen-pixel offset. */
 export interface GlowPlacement {
@@ -64,18 +65,28 @@ function toPlacement(source: GlowSource, x: number, y: number): GlowPlacement {
 
 /**
  * Faint offset copies of an object glow pooled onto nearby reflective
- * tiles (canal water) — a pre-authored accent, not a lighting model.
+ * tiles (canal water, and puddles while it rains) — a pre-authored
+ * accent, not a lighting model. Under rain every reflection also
+ * shimmers, on the same machinery: the alpha is just modulated per tile.
  */
-function reflectionsOf(map: IsoMap, glow: GlowPlacement): GlowPlacement[] {
+function reflectionsOf(
+  map: IsoMap,
+  glow: GlowPlacement,
+  timeMs: number,
+  weather: WeatherGlow | null,
+): GlowPlacement[] {
   const reflections: GlowPlacement[] = [];
   for (let dy = -REFLECTION_RANGE; dy <= REFLECTION_RANGE; dy++) {
     for (let dx = -REFLECTION_RANGE; dx <= REFLECTION_RANGE; dx++) {
       const tx = glow.x + dx;
       const ty = glow.y + dy;
       const id = map.tiles[ty]?.[tx];
-      if (id === undefined || !TILE_ART[id].reflective) continue;
+      if (id === undefined) continue;
+      const puddle = weather?.puddles.has(tileKey(tx, ty)) === true;
+      if (!TILE_ART[id].reflective && !puddle) continue;
       const factor = REFLECTION_ALPHA[Math.max(Math.abs(dx), Math.abs(dy))];
       if (!factor) continue;
+      const shimmer = weather ? shimmerFactor(tx, ty, timeMs) : 1;
       reflections.push({
         x: tx,
         y: ty,
@@ -83,7 +94,7 @@ function reflectionsOf(map: IsoMap, glow: GlowPlacement): GlowPlacement[] {
         offsetY: REFLECTION_SINK * ART_SCALE,
         color: glow.color,
         radius: Math.round(glow.radius * REFLECTION_RADIUS_FACTOR),
-        alpha: glow.alpha * factor,
+        alpha: glow.alpha * factor * shimmer,
       });
     }
   }
@@ -91,14 +102,24 @@ function reflectionsOf(map: IsoMap, glow: GlowPlacement): GlowPlacement[] {
 }
 
 /**
+ * Wet ground the glow pass should treat as reflective: the puddles of
+ * an active weather view (see ./weather.ts). Passing one also turns on
+ * the per-tile reflection shimmer.
+ */
+export interface WeatherGlow {
+  puddles: ReadonlySet<string>;
+}
+
+/**
  * Every glow to draw this frame: tile glows, lit prop glows (following
  * the same frame choice the sprite provider makes, so flicker dropouts
  * kill the light too), interactable glows, and water reflections of the
- * prop/interactable glows.
+ * prop/interactable glows — pooling on puddles too when it rains.
  */
 export function collectGlowPlacements(
   map: IsoMap,
   timeMs: number,
+  weather: WeatherGlow | null = null,
 ): GlowPlacement[] {
   const placements: GlowPlacement[] = [];
   const objectGlows: GlowPlacement[] = [];
@@ -140,7 +161,7 @@ export function collectGlowPlacements(
 
   placements.push(...objectGlows);
   for (const glow of objectGlows) {
-    placements.push(...reflectionsOf(map, glow));
+    placements.push(...reflectionsOf(map, glow, timeMs, weather));
   }
   return placements;
 }
