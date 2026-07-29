@@ -22,9 +22,11 @@ import {
   requireSpawn,
   tileAt,
   tileMaterial,
+  type IsoMap,
   type PropId,
   type TileId,
 } from "../iso/tilemap";
+import { puddleTiles, tileHoldsWater } from "../iso/weather";
 import { encounters, getEncounter } from "./encounters";
 import { getItem } from "./items";
 import { HUB_MAP_ID, getMap, maps, requireMap } from "./maps";
@@ -421,6 +423,66 @@ describe("ambient crowds", () => {
     ]);
     for (const map of explorableMaps) {
       expect(map.ambient?.count ?? 0).toBeLessThanOrEqual(MAX_AMBIENT_PER_MAP);
+    }
+  });
+});
+
+describe("weather", () => {
+  it("rains on the quayside and nowhere else, with the hub left clear", () => {
+    const declared = explorableMaps.map((map) => [map.id, map.weather ?? "clear"]);
+    expect(declared).toEqual([
+      ["cinder-plaza", "clear"],
+      // Greywater Steps is the game's quayside district: cistern water,
+      // quay lips, standing puddles. It is where rain is shown off.
+      ["greywater-steps", "rain"],
+      ["exchange-ventworks", "clear"],
+      ["auric-spire", "clear"],
+    ]);
+  });
+
+  it("leaves arenas without a sky of their own — they inherit one", () => {
+    for (const arena of arenaMaps) {
+      expect(arena.weather, `${arena.id} declares weather`).toBeUndefined();
+    }
+  });
+
+  it("gives the rainy map ground that can actually hold water", () => {
+    const rainy = explorableMaps.filter((map) => map.weather === "rain");
+    expect(rainy.length).toBeGreaterThan(0);
+    for (const map of rainy) {
+      const puddles = puddleTiles(map);
+      expect(puddles.size, `${map.id} puddles`).toBeGreaterThan(4);
+      // Puddles never land on ground the sky cannot reach.
+      for (const key of puddles) {
+        const [x, y] = key.split(",").map(Number) as [number, number];
+        const id = map.tiles[y]?.[x];
+        expect(id && tileHoldsWater(id), `${map.id} puddle at ${key}`).toBe(true);
+      }
+    }
+  });
+
+  it("changes nothing a player can walk on, fight over, or route through", () => {
+    // Weather is a look. Declaring it (or clearing it) must leave every
+    // gameplay query over the map byte-for-byte identical.
+    for (const map of maps) {
+      for (const weather of ["clear", "rain", undefined] as const) {
+        const restyled: IsoMap = { ...map, weather };
+        for (let y = 0; y < map.height; y++) {
+          for (let x = 0; x < map.width; x++) {
+            expect(isWalkable(restyled, x, y), `${map.id} ${x},${y}`).toBe(
+              isWalkable(map, x, y),
+            );
+          }
+        }
+        const spawn = map.spawns[0];
+        if (!spawn) continue;
+        for (const target of map.interactables) {
+          expect(
+            findPathToAdjacent(restyled, spawn, target)?.length ?? null,
+            `${map.id} route to ${target.id}`,
+          ).toBe(findPathToAdjacent(map, spawn, target)?.length ?? null);
+        }
+      }
     }
   });
 });

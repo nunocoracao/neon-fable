@@ -21,7 +21,7 @@ import {
   type GridPosition,
 } from "../combat";
 import { audio, hitSoundForDamage } from "../audio";
-import { getAbility, getEncounter, getItem, requireMap } from "../data";
+import { getAbility, getEncounter, getItem, getMap, requireMap } from "../data";
 import {
   createCombatScene,
   createPixelArtSprites,
@@ -795,6 +795,9 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
           player: playerSpriteSource(session),
           entity: enemySpriteSource(),
         }),
+        // A fight happens under the sky of the place it started in: the
+        // arena inherits the weather of the map the player walked from.
+        weather: getMap(session.state.location)?.weather,
         onTileClick,
         onTileHover,
       });
