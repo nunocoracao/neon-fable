@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   appearanceCatalogs,
   getAppearanceOption,
+  BROWS_OPTIONS,
   EYE_COLOR_OPTIONS,
+  EYES_OPTIONS,
   FACE_DETAIL_OPTIONS,
   HAIR_COLOR_OPTIONS,
   HAIR_STYLE_OPTIONS,
@@ -12,7 +14,9 @@ import {
   type AppearanceCategory,
 } from "./appearance";
 import { BODY_BUILD_IDS } from "../iso/art/layers/body";
+import { FACE_LAYERS, FACE_PART_IDS } from "../iso/art/layers/face";
 import { HAIR_COLORS, PALETTE, SKIN_RAMPS } from "../iso/art/palette";
+import { gridErrors } from "../iso/art/pixel";
 
 const categories = Object.keys(appearanceCatalogs) as AppearanceCategory[];
 
@@ -70,6 +74,26 @@ describe("appearance catalogs", () => {
       const none = options.find((o) => o.layer === null);
       expect(none).toBeDefined();
     }
+  });
+
+  it("every eyes/brows option carries both sprite and portrait art", () => {
+    for (const option of [...EYES_OPTIONS, ...BROWS_OPTIONS]) {
+      // Sprite ref: a registered face layer grid.
+      expect(
+        FACE_LAYERS[option.layer as keyof typeof FACE_LAYERS],
+        `${option.id} sprite layer`,
+      ).toBeDefined();
+      // Portrait ref: a non-empty, valid portrait-resolution grid.
+      expect(option.portrait.length, `${option.id} portrait`).toBeGreaterThan(0);
+      expect(gridErrors(option.portrait), `${option.id} portrait`).toEqual([]);
+    }
+    // The catalogs cover every declared eye/brow shape, and vice versa.
+    expect(EYES_OPTIONS.map((o) => o.layer).sort()).toEqual(
+      [...FACE_PART_IDS.eyes].sort(),
+    );
+    expect(BROWS_OPTIONS.map((o) => o.layer).sort()).toEqual(
+      [...FACE_PART_IDS.brows].sort(),
+    );
   });
 
   it("getAppearanceOption finds by id and misses unknowns", () => {

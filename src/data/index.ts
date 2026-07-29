@@ -19,6 +19,7 @@ export {
   type AppearanceOption,
   type BuildOption,
   type ColorOption,
+  type FaceStyleOption,
   type SkinToneOption,
   type StyleOption,
 } from "./appearance";

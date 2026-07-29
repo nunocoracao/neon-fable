@@ -1,4 +1,6 @@
 import { BODY_BUILD_IDS, type BodyBuildId } from "../iso/art/layers/body";
+import { BROW_PORTRAITS, EYE_PORTRAITS } from "../iso/art/layers/face";
+import type { PixelGrid } from "../iso/art/pixel";
 
 /**
  * Appearance catalogs: the single source of truth for every visual
@@ -38,6 +40,18 @@ export interface BuildOption extends AppearanceOption {
  */
 export interface StyleOption extends AppearanceOption {
   layer: string | null;
+}
+
+/**
+ * A face style pick (eyes, brows): always draws a layer, and also
+ * carries the portrait-resolution grid for its option — one screen-left
+ * eye/brow with the richer 2–4px strokes a head-and-shoulders portrait
+ * needs (see EYE_PORTRAITS / BROW_PORTRAITS in the face layer module).
+ * The portrait task consumes this data straight off the catalog entry.
+ */
+export interface FaceStyleOption extends StyleOption {
+  layer: string;
+  portrait: PixelGrid;
 }
 
 /** A color pick: references a palette character to remap a channel onto. */
@@ -84,10 +98,26 @@ export const HAIR_COLOR_OPTIONS: readonly ColorOption[] = [
   { id: "synth-violet", label: "Synth Violet", color: "P" },
 ];
 
-export const EYES_OPTIONS: readonly StyleOption[] = [
-  { id: "standard", label: "Standard", layer: "standard" },
-  { id: "narrow", label: "Narrow", layer: "narrow" },
-  { id: "wide", label: "Wide", layer: "wide" },
+export const EYES_OPTIONS: readonly FaceStyleOption[] = [
+  {
+    id: "standard",
+    label: "Standard",
+    layer: "standard",
+    portrait: EYE_PORTRAITS.standard,
+  },
+  {
+    id: "narrow",
+    label: "Narrow",
+    layer: "narrow",
+    portrait: EYE_PORTRAITS.narrow,
+  },
+  { id: "wide", label: "Wide", layer: "wide", portrait: EYE_PORTRAITS.wide },
+  {
+    id: "cyber-band",
+    label: "Cyber-Band",
+    layer: "cyber-band",
+    portrait: EYE_PORTRAITS["cyber-band"],
+  },
 ];
 
 /** Eye colors remap the canonical iris channel ("g"). */
@@ -100,10 +130,25 @@ export const EYE_COLOR_OPTIONS: readonly ColorOption[] = [
   { id: "crimson", label: "Crimson", color: "p" },
 ];
 
-export const BROWS_OPTIONS: readonly StyleOption[] = [
-  { id: "straight", label: "Straight", layer: "straight" },
-  { id: "arched", label: "Arched", layer: "arched" },
-  { id: "heavy", label: "Heavy", layer: "heavy" },
+export const BROWS_OPTIONS: readonly FaceStyleOption[] = [
+  {
+    id: "straight",
+    label: "Straight",
+    layer: "straight",
+    portrait: BROW_PORTRAITS.straight,
+  },
+  {
+    id: "arched",
+    label: "Arched",
+    layer: "arched",
+    portrait: BROW_PORTRAITS.arched,
+  },
+  {
+    id: "heavy",
+    label: "Heavy",
+    layer: "heavy",
+    portrait: BROW_PORTRAITS.heavy,
+  },
 ];
 
 export const MOUTH_OPTIONS: readonly StyleOption[] = [
