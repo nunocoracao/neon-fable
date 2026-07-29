@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fixtureAppearance } from "../character/testSupport";
 import {
   NG_PLUS_BONUS_POINTS,
   emptyMetaProgress,
@@ -40,12 +41,21 @@ function anything(): unknown {
   });
 }
 
+/** The distinctive look every finished fixture run passes forward. */
+const FINISHED_LOOK = fixtureAppearance({
+  skinTone: "deep-umber",
+  hairStyle: "mohawk",
+  hairColor: "synth-violet",
+  headwear: "cap",
+});
+
 function finishARun(): void {
   recordCompletionToStorage(
     {
       endingId: "ending-freehold",
       epilogueIds: ["city-freehold"],
       legacyItemIds: ["wpn-shard-knife", "cyb-warden-optics"],
+      legacyAppearance: FINISHED_LOOK,
     },
     localStorage,
   );
@@ -186,6 +196,63 @@ describe("New Game+ character creation", () => {
         (s: { itemId: string }) => s.itemId === "cyb-warden-optics",
       ),
     ).toBe(true);
+  });
+
+  it("seeds the wizard with the last runner's look and notes it on review", () => {
+    finishARun();
+    showScreen(createMainMenuScreen());
+    button("New Game+")!.click();
+
+    // The identity step announces the carried look up front.
+    expect(textOf(".nf-create")).toContain("Their look carries over");
+    setName("Echo");
+    button("Next")!.click(); // background
+    button("Next")!.click(); // stats
+    allocateEverything();
+    button("Next")!.click(); // appearance
+
+    // The appearance step opens on the carried look, not the background
+    // preset or the stock defaults — and stays fully editable.
+    const summary = textOf(".nf-appearance-summary");
+    expect(summary).toContain("Deep Umber");
+    expect(summary).toContain("Hair: Mohawk");
+    expect(summary).toContain("Hair color: Synth Violet");
+    expect(summary).toContain("Knit Cap");
+
+    button("Next")!.click(); // review
+    expect(textOf(".nf-review-legacy")).toContain(
+      "last runner's look carried over",
+    );
+    button("Jack In")!.click();
+
+    // The carried look is what the new run actually starts with.
+    const raw = localStorage.getItem("neon-fable:save:autosave");
+    const saved = JSON.parse(raw!).state;
+    expect(saved.player.appearance).toEqual(FINISHED_LOOK);
+  });
+
+  it("falls back to the stock look when meta has no stored look", () => {
+    saveMetaProgress(
+      {
+        ...emptyMetaProgress(),
+        completions: 1,
+        ngPlusUnlocked: true,
+        legacyItemIds: ["wpn-shard-knife"],
+      },
+      localStorage,
+    );
+    showScreen(createMainMenuScreen());
+    button("New Game+")!.click();
+    expect(textOf(".nf-create")).not.toContain("Their look carries over");
+    setName("Echo");
+    button("Next")!.click();
+    button("Next")!.click();
+    allocateEverything();
+    button("Next")!.click(); // appearance: seeded from the background preset
+    const summary = textOf(".nf-appearance-summary");
+    expect(summary).not.toContain("Mohawk — Synth Violet");
+    button("Next")!.click();
+    expect(textOf(".nf-review-legacy")).not.toContain("look carried over");
   });
 
   it("plain New Game is untouched by the unlock", () => {

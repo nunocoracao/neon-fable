@@ -71,6 +71,7 @@ export function createMainMenuScreen(): Screen {
               ngPlus: {
                 bonusPoints: NG_PLUS_BONUS_POINTS,
                 legacyItemIds: meta.legacyItemIds,
+                legacyAppearance: meta.legacyAppearance,
               },
             }),
           ),
