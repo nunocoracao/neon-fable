@@ -347,6 +347,31 @@ body::after {
   width: min(46rem, calc(100vw - 3rem));
 }
 
+/* Portrait row: NPC face left, player face right, text between. */
+.nf-dialogue-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.nf-dialogue-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.nf-dialogue-side {
+  flex: none;
+}
+
+/* The speaking side glows; the listening side falls back into the rain. */
+.nf-portrait-active .nf-portrait {
+  border-color: var(--nf-glow-cyan);
+}
+
+.nf-portrait-dim {
+  opacity: 0.45;
+}
+
 .nf-dialogue-speaker {
   font-family: var(--nf-font-display);
   letter-spacing: 0.15em;
@@ -1345,7 +1370,8 @@ body::after {
 
 /* Dialogue beats: each node's re-rendered text slides in. */
 .nf-dialogue-speaker,
-.nf-dialogue-text {
+.nf-dialogue-text,
+.nf-dialogue-side {
   animation: nf-rise-in 260ms ease both;
 }
 
