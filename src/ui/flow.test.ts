@@ -259,6 +259,89 @@ describe("character creation wizard", () => {
     expect(textOf(".nf-wizard-hint")).toMatch(/remaining points/i);
   });
 
+  it("a character can be created keyboard-only through the roving tab order", () => {
+    // Keyboard simulation: Tab moves through the document's tab stops
+    // (tabIndex >= 0 only — roving grids expose exactly one), Enter
+    // activates the focused button, arrows go to the key handlers.
+    const active = (): HTMLElement => document.activeElement as HTMLElement;
+    const tabbables = (): HTMLElement[] =>
+      [
+        ...document.querySelectorAll<HTMLElement>(
+          "button, input, select, textarea, [tabindex]",
+        ),
+      ].filter((el) => !el.hasAttribute("disabled") && el.tabIndex >= 0);
+    const pressTabKey = (): void => {
+      const stops = tabbables();
+      const index = stops.indexOf(active());
+      stops[(index + 1) % stops.length]?.focus();
+    };
+    const tabTo = (match: (el: HTMLElement) => boolean): void => {
+      for (let i = 0; i < 100; i++) {
+        pressTabKey();
+        if (match(active())) return;
+      }
+      throw new Error("control not reachable by Tab");
+    };
+    const enter = (): void => active().click();
+    const arrow = (key: string): void => {
+      active().dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    };
+    const label = (el: HTMLElement): string => (el.textContent ?? "").trim();
+
+    // Main menu opens focused on New Game; Enter starts the wizard.
+    expect(label(active())).toBe("New Game");
+    enter();
+    // Identity: focus lands in the name field; type, Tab to Next, Enter.
+    expect(active().id).toBe("nf-name-input");
+    setName("Vex");
+    tabTo((el) => label(el) === "Next");
+    enter();
+    // Background: focus enters the radiogroup; ArrowDown to the second
+    // card, Enter selects it and focus survives the re-render.
+    expect(active().classList.contains("nf-bg-card")).toBe(true);
+    arrow("ArrowDown");
+    enter();
+    expect(active().getAttribute("aria-checked")).toBe("true");
+    tabTo((el) => label(el) === "Next");
+    enter();
+    // Stats: spend the whole pool with Enter on the + buttons; focus
+    // sticks to each button across re-renders via its focus key.
+    // Reflexes first: the chosen background's starting sidearm needs 5.
+    for (const stat of ["body", "reflexes", "tech"]) {
+      tabTo((el) => el.dataset.focusKey === `stat:${stat}:plus`);
+      for (let i = 0; i < 5; i++) enter();
+      // Focus stays on the + button — or, once the pool empties and
+      // every + disables, falls back to the row's − instead of <body>.
+      expect(active().dataset.focusKey).toMatch(
+        new RegExp(`^stat:${stat}:`),
+      );
+    }
+    tabTo((el) => label(el) === "Next");
+    enter();
+    // Appearance: the picker tablist is the first stop; ArrowRight moves
+    // without switching, Enter activates the Hair tab and keeps focus.
+    expect(active().getAttribute("role")).toBe("tab");
+    arrow("ArrowRight");
+    expect(label(active())).toBe("Hair");
+    expect(active().getAttribute("aria-selected")).toBe("false");
+    enter();
+    expect(active().getAttribute("aria-selected")).toBe("true");
+    // Tab into the style grid (one stop, on the current selection),
+    // arrow to a neighbor, Enter picks it, focus stays in place.
+    tabTo((el) => el.dataset.category === "hairStyle");
+    arrow("ArrowRight");
+    const picked = active().dataset.id!;
+    enter();
+    expect(active().dataset.id).toBe(picked);
+    expect(active().getAttribute("aria-checked")).toBe("true");
+    tabTo((el) => label(el) === "Next");
+    enter();
+    // Review: Jack In is reachable and starts the game.
+    tabTo((el) => label(el) === "Jack In");
+    enter();
+    expect(document.querySelector(".nf-dialogue")).toBeTruthy();
+  });
+
   it("marks the current step with aria-current and announces changes politely", () => {
     click("New Game");
     const currentChips = () =>
