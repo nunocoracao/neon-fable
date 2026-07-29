@@ -195,6 +195,8 @@ export function resolveLayers(
     layers.push({ slot: "outfit", art: equipment.outfit, remap: {} });
   }
 
+  const headwear = requireOption("headwear", appearance.headwear);
+
   const facePart = (
     field: "eyes" | "brows" | "mouth" | "faceDetail",
     remap: Readonly<Record<string, string>>,
@@ -213,17 +215,30 @@ export function resolveLayers(
       });
     }
   };
-  facePart("eyes", { ...skin, ...eyeRemap });
+  // Headwear that covers the eye rows drops the eyes layer outright —
+  // the eye color survives only in portraits, where the lens glass is
+  // dithered translucent.
+  if (!headwear.coversEyes) {
+    facePart("eyes", { ...skin, ...eyeRemap });
+  }
   facePart("brows", hairRemap);
   facePart("mouth", skin);
   facePart("faceDetail", skin);
 
+  // The headwear's catalog rule picks the hair layer: unchanged when
+  // it shows, the style's flattened under-cap variant when it crushes,
+  // nothing when it hides.
   const hair = requireOption("hairStyle", appearance.hairStyle);
-  if (hair.layer !== null) {
-    layers.push({ slot: "hair", art: hair.layer, remap: hairRemap });
+  const hairArt =
+    headwear.hairRule === "hides"
+      ? null
+      : headwear.hairRule === "crushes"
+        ? hair.crushed
+        : hair.layer;
+  if (hairArt !== null) {
+    layers.push({ slot: "hair", art: hairArt, remap: hairRemap });
   }
 
-  const headwear = requireOption("headwear", appearance.headwear);
   if (headwear.layer !== null) {
     layers.push({ slot: "headwear", art: headwear.layer, remap: {} });
   }

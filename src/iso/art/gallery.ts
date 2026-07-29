@@ -21,6 +21,7 @@ import {
   FACE_DETAIL_OPTIONS,
   HAIR_COLOR_OPTIONS,
   HAIR_STYLE_OPTIONS,
+  HEADWEAR_OPTIONS,
   MOUTH_OPTIONS,
 } from "../../data/appearance";
 import {
@@ -138,8 +139,11 @@ function bodyEntries(): GalleryEntry[] {
  * entry per mouth style (sprites always wear the resting mouth —
  * expressions are portrait-only), and one entry per face detail over
  * the full default face (the cyber-lines entry animates its catalog
- * shimmer). Catalog styles whose art has not landed yet are skipped
- * and join automatically once their registry entry exists.
+ * shimmer). One headwear sweep per drawn option × facing over standard
+ * eyes and bob hair, applying the catalog hair/eye interaction rules
+ * by hand so the gallery shows exactly what resolveLayers produces.
+ * Catalog styles whose art has not landed yet are skipped and join
+ * automatically once their registry entry exists.
  */
 function appearanceEntries(): GalleryEntry[] {
   const [hairChannel = "K"] = REMAP_CHANNELS.hair;
@@ -283,6 +287,44 @@ function appearanceEntries(): GalleryEntry[] {
       "idle",
     ),
   );
+  // Headwear over the same lean base wearing standard eyes and the
+  // chin-length bob, per facing, so the data-driven interaction rules
+  // read straight off the gallery: the visor covers the eye rows (eyes
+  // dropped), the cap and rebreather swap the bob for its crushed
+  // under-cap variant, the hood hides it outright.
+  const bobCrushed =
+    HAIR_STYLE_OPTIONS.find((style) => style.id === "bob")?.crushed ?? null;
+  const headwearSweep = HEADWEAR_OPTIONS.filter(
+    (option) =>
+      option.layer !== null && layerArtGrid("headwear", option.layer, "front"),
+  ).flatMap((head) => {
+    const hairArt =
+      head.hairRule === "hides"
+        ? null
+        : head.hairRule === "crushes"
+          ? bobCrushed
+          : "bob";
+    return FACINGS.map((facing) =>
+      entry(
+        `headwear ${head.id} ${facing}`,
+        {
+          build: "lean",
+          layers: [
+            { slot: "body", art: "lean", remap: {} },
+            ...(head.coversEyes
+              ? []
+              : [{ slot: "face", art: "standard", remap: {} } as const]),
+            ...(hairArt === null
+              ? []
+              : [{ slot: "hair", art: hairArt, remap: {} } as const]),
+            { slot: "headwear", art: head.layer ?? "", remap: {} },
+          ],
+        },
+        facing,
+        "idle",
+      ),
+    );
+  });
   return [
     ...colorSweep,
     ...buildSweep,
@@ -290,6 +332,7 @@ function appearanceEntries(): GalleryEntry[] {
     ...faceComboSweep,
     ...mouthSweep,
     ...detailSweep,
+    ...headwearSweep,
   ];
 }
 

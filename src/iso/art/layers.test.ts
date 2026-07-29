@@ -163,7 +163,7 @@ describe("channel remaps", () => {
 });
 
 describe("layer art registries", () => {
-  it("resolves registered body, face, and hair art per view", () => {
+  it("resolves registered body, face, hair, and headwear art per view", () => {
     expect(layerArtGrid("body", "lean", "front")).not.toBeNull();
     expect(layerArtGrid("body", "heavy", "back")).not.toBeNull();
     expect(layerArtGrid("face", "standard", "front")).not.toBeNull();
@@ -171,13 +171,17 @@ describe("layer art registries", () => {
     expect(layerArtGrid("face", "neutral", "front")).not.toBeNull();
     expect(layerArtGrid("hair", "buzz", "front")).not.toBeNull();
     expect(layerArtGrid("hair", "bob", "back")).not.toBeNull();
+    expect(layerArtGrid("hair", "crushed-short", "front")).not.toBeNull();
+    expect(layerArtGrid("hair", "crushed-long", "back")).not.toBeNull();
+    expect(layerArtGrid("headwear", "visor", "front")).not.toBeNull();
+    expect(layerArtGrid("headwear", "rebreather", "back")).not.toBeNull();
   });
 
   it("returns null for unregistered slots and unknown art ids", () => {
-    // Headwear/gear registries land in later tasks; their catalog ids
-    // resolve to nothing until then (same for unknown hair ids).
+    // Gear registries land in later tasks; their catalog ids resolve
+    // to nothing until then (same for unknown hair/headwear ids).
     expect(layerArtGrid("hair", "mullet", "front")).toBeNull();
-    expect(layerArtGrid("headwear", "visor", "front")).toBeNull();
+    expect(layerArtGrid("headwear", "crown", "front")).toBeNull();
     expect(layerArtGrid("weapon", "wpn-rail-spitter", "front")).toBeNull();
     expect(layerArtGrid("body", "giant", "front")).toBeNull();
     expect(layerArtGrid("face", "no-such-face", "front")).toBeNull();

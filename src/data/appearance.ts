@@ -10,6 +10,7 @@ import {
   MOUTH_PORTRAITS,
   type ExpressionId,
 } from "../iso/art/layers/face";
+import { HEADWEAR_PORTRAITS } from "../iso/art/layers/headwear";
 import type { ChannelRemap, PixelGrid } from "../iso/art/pixel";
 
 /**
@@ -19,11 +20,9 @@ import type { ChannelRemap, PixelGrid } from "../iso/art/pixel";
  * resolveLayers turns them into layer-engine art references.
  *
  * Art references are ids into each layer slot's grid registry
- * (src/iso/art/layers). Categories whose authored grids land in later
- * tasks (hair styles, eye/brow/mouth shapes, face details, headwear)
- * still declare their layer ids here — the art tasks author grids for
- * these ids and their tests assert every catalog entry is covered.
- * Color entries reference palette characters directly.
+ * (src/iso/art/layers); every category's grids are authored and each
+ * registry's tests assert every catalog entry is covered. Color
+ * entries reference palette characters directly.
  */
 
 /** Every entry has a stable id (persisted in saves) and a UI label. */
@@ -107,20 +106,48 @@ export const BUILD_OPTIONS: readonly BuildOption[] = [
   { id: "heavy", label: "Heavy", build: "heavy" },
 ];
 
-export const HAIR_STYLE_OPTIONS: readonly StyleOption[] = [
-  { id: "none", label: "Shaved", layer: null },
+/**
+ * A hair style: its resting layer plus the layer drawn instead when
+ * headwear with the "crushes" rule flattens it. The crushed variants
+ * are shared per style group (CRUSHED_HAIR_LAYERS in the hair module):
+ * cropped styles press to "crushed-short", falling styles to
+ * "crushed-long", the shaved glyph keeps its own dye layer, and null
+ * (shaved) draws nothing when crushed.
+ */
+export interface HairStyleOption extends StyleOption {
+  crushed: string | null;
+}
+
+export const HAIR_STYLE_OPTIONS: readonly HairStyleOption[] = [
+  { id: "none", label: "Shaved", layer: null, crushed: null },
   // "buzz" keeps its persisted id from the schema task; the authored
   // style reads as a short crop.
-  { id: "buzz", label: "Short Crop", layer: "buzz" },
-  { id: "slicked", label: "Slicked Back", layer: "slicked" },
-  { id: "bob", label: "Chin-Length Bob", layer: "bob" },
-  { id: "spikes", label: "Short Spikes", layer: "spikes" },
-  { id: "mohawk", label: "Mohawk", layer: "mohawk" },
-  { id: "locs", label: "Shoulder Locs", layer: "locs" },
+  { id: "buzz", label: "Short Crop", layer: "buzz", crushed: "crushed-short" },
+  {
+    id: "slicked",
+    label: "Slicked Back",
+    layer: "slicked",
+    crushed: "crushed-short",
+  },
+  { id: "bob", label: "Chin-Length Bob", layer: "bob", crushed: "crushed-long" },
+  {
+    id: "spikes",
+    label: "Short Spikes",
+    layer: "spikes",
+    crushed: "crushed-short",
+  },
+  { id: "mohawk", label: "Mohawk", layer: "mohawk", crushed: "crushed-short" },
+  { id: "locs", label: "Shoulder Locs", layer: "locs", crushed: "crushed-long" },
   // "ponytail" keeps its persisted id; authored as the long tied-back
   // tail in hair set 2.
-  { id: "ponytail", label: "Tied-Back Tail", layer: "ponytail" },
-  { id: "glyph", label: "Dyed Glyph", layer: "glyph" },
+  {
+    id: "ponytail",
+    label: "Tied-Back Tail",
+    layer: "ponytail",
+    crushed: "crushed-long",
+  },
+  // Scalp dye has no volume to flatten — crushing keeps the glyph.
+  { id: "glyph", label: "Dyed Glyph", layer: "glyph", crushed: "glyph" },
 ];
 
 /** Hair colors remap the canonical raven channel ("K"). */
@@ -260,11 +287,72 @@ export const FACE_DETAIL_OPTIONS: readonly FaceDetailOption[] = [
   },
 ];
 
-export const HEADWEAR_OPTIONS: readonly StyleOption[] = [
-  { id: "none", label: "None", layer: null },
-  { id: "cap", label: "Runner Cap", layer: "cap" },
-  { id: "hood", label: "Hood", layer: "hood" },
-  { id: "visor", label: "Visor", layer: "visor" },
+/**
+ * How a headwear option treats the hair layer underneath: "shows"
+ * leaves it unchanged, "crushes" swaps it for the style's flattened
+ * under-cap variant (the entry's `crushed` layer), "hides" omits it
+ * entirely. Applied by resolveLayers — pure catalog data, no engine
+ * special cases.
+ */
+export type HairInteraction = "shows" | "crushes" | "hides";
+
+/**
+ * A headwear pick: the layer above hair. Carries its hair-interaction
+ * rule, whether it covers the eye rows (resolveLayers then drops the
+ * eyes layer — the character keeps eye color only in portraits, where
+ * the lens glass dithers translucent), and its portrait overlay.
+ */
+export interface HeadwearOption extends StyleOption {
+  hairRule: HairInteraction;
+  coversEyes: boolean;
+  /** Portrait overlay grid, or null for the bare "none" entry. */
+  portrait: PixelGrid | null;
+}
+
+export const HEADWEAR_OPTIONS: readonly HeadwearOption[] = [
+  {
+    id: "none",
+    label: "None",
+    layer: null,
+    hairRule: "shows",
+    coversEyes: false,
+    portrait: null,
+  },
+  // "cap"/"hood"/"visor" keep their persisted ids from the schema
+  // task; the authored options read as a knit cap, a tech hood, and a
+  // half-visor.
+  {
+    id: "cap",
+    label: "Knit Cap",
+    layer: "cap",
+    hairRule: "crushes",
+    coversEyes: false,
+    portrait: HEADWEAR_PORTRAITS.cap,
+  },
+  {
+    id: "hood",
+    label: "Tech Hood",
+    layer: "hood",
+    hairRule: "hides",
+    coversEyes: false,
+    portrait: HEADWEAR_PORTRAITS.hood,
+  },
+  {
+    id: "visor",
+    label: "Half-Visor",
+    layer: "visor",
+    hairRule: "shows",
+    coversEyes: true,
+    portrait: HEADWEAR_PORTRAITS.visor,
+  },
+  {
+    id: "rebreather",
+    label: "Full-Face Rebreather",
+    layer: "rebreather",
+    hairRule: "crushes",
+    coversEyes: true,
+    portrait: HEADWEAR_PORTRAITS.rebreather,
+  },
 ];
 
 /**

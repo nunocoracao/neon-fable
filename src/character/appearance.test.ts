@@ -11,6 +11,7 @@ import {
 import {
   BUILD_OPTIONS,
   FACE_DETAIL_OPTIONS,
+  HAIR_STYLE_OPTIONS,
   SKIN_TONE_OPTIONS,
 } from "../data/appearance";
 import { emptyEquipment } from "../inventory/equipment";
@@ -161,8 +162,10 @@ describe("resolveLayers", () => {
   });
 
   it("keeps base z-order: body, then face parts, hair, headwear on top", () => {
+    // The cap crushes hair (it stays a layer) and leaves eyes visible,
+    // so every slot appears.
     const layers = resolveLayers(
-      { ...defaultAppearance(), headwear: "hood", faceDetail: "scar" },
+      { ...defaultAppearance(), headwear: "cap", faceDetail: "scar" },
       emptyEquipment(),
     );
     const slots = layers.map((l) => l.slot);
@@ -184,6 +187,88 @@ describe("resolveLayers", () => {
         emptyEquipment(),
       ),
     ).toThrow(/eyes="laser"/);
+  });
+});
+
+describe("headwear hair-interaction rules", () => {
+  const withHeadwear = (headwear: string, hairStyle = "bob") =>
+    resolveLayers(
+      {
+        ...defaultAppearance(),
+        hairStyle,
+        hairColor: "synth-violet",
+        headwear,
+      },
+      emptyEquipment(),
+    );
+
+  it("'shows': the visor leaves hair unchanged", () => {
+    const layers = withHeadwear("visor");
+    expect(layers.find((l) => l.slot === "hair")).toEqual({
+      slot: "hair",
+      art: "bob",
+      remap: { K: "P" },
+    });
+    expect(layers.find((l) => l.slot === "headwear")?.art).toBe("visor");
+  });
+
+  it("'crushes': the cap swaps hair to its group's flattened variant, keeping the color remap", () => {
+    const long = withHeadwear("cap").find((l) => l.slot === "hair");
+    expect(long).toEqual({
+      slot: "hair",
+      art: HAIR_STYLE_OPTIONS.find((o) => o.id === "bob")?.crushed,
+      remap: { K: "P" },
+    });
+    const short = withHeadwear("cap", "buzz").find((l) => l.slot === "hair");
+    expect(short?.art).toBe(
+      HAIR_STYLE_OPTIONS.find((o) => o.id === "buzz")?.crushed,
+    );
+    expect(short?.art).not.toBe(long?.art);
+  });
+
+  it("'hides': the hood omits the hair layer entirely", () => {
+    const layers = withHeadwear("hood");
+    expect(layers.some((l) => l.slot === "hair")).toBe(false);
+    expect(layers.find((l) => l.slot === "headwear")?.art).toBe("hood");
+  });
+
+  it("crushing follows the catalog data on the edge styles", () => {
+    // Shaved hair has no crushed variant: no hair layer under the cap.
+    expect(
+      withHeadwear("cap", "none").some((l) => l.slot === "hair"),
+    ).toBe(false);
+    // The glyph's scalp dye maps to itself.
+    expect(
+      withHeadwear("cap", "glyph").find((l) => l.slot === "hair")?.art,
+    ).toBe("glyph");
+  });
+
+  it("coversEyes drops the eyes layer for the visor and rebreather only", () => {
+    const eyesArt = "standard";
+    for (const headwear of ["visor", "rebreather"]) {
+      const layers = withHeadwear(headwear);
+      expect(
+        layers.some((l) => l.art === eyesArt),
+        headwear,
+      ).toBe(false);
+      // The other face parts stay.
+      expect(layers.filter((l) => l.slot === "face")).toHaveLength(2);
+    }
+    for (const headwear of ["none", "cap", "hood"]) {
+      expect(
+        withHeadwear(headwear).some((l) => l.art === eyesArt),
+        headwear,
+      ).toBe(true);
+    }
+  });
+
+  it("the rebreather both crushes hair and covers the eyes", () => {
+    const layers = withHeadwear("rebreather");
+    expect(layers.find((l) => l.slot === "hair")?.art).toBe(
+      HAIR_STYLE_OPTIONS.find((o) => o.id === "bob")?.crushed,
+    );
+    expect(layers.some((l) => l.art === "standard")).toBe(false);
+    expect(layers.find((l) => l.slot === "headwear")?.art).toBe("rebreather");
   });
 });
 
@@ -225,6 +310,10 @@ describe("composeCharacter", () => {
       { ...defaultAppearance(), mouth: "smirk" },
       { ...defaultAppearance(), faceDetail: "scar" },
       { ...defaultAppearance(), faceDetail: "cyber-lines" },
+      { ...defaultAppearance(), headwear: "cap" },
+      { ...defaultAppearance(), headwear: "hood" },
+      { ...defaultAppearance(), headwear: "visor" },
+      { ...defaultAppearance(), headwear: "rebreather" },
     ];
     expect(new Set(variants.map(key)).size).toBe(variants.length);
   });
