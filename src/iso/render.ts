@@ -10,7 +10,12 @@ import { cameraTranslation, snapToPixelGrid, type Camera } from "./camera";
 import { TILE_H, TILE_W, worldToScreen, type TilePoint, type WorldPoint } from "./coords";
 import { compareDrawables, type Drawable } from "./depth";
 import { collectGlowPlacements } from "./glowPass";
-import { isWalkable, type IsoMap } from "./tilemap";
+import {
+  DEFAULT_DAY_PHASE,
+  isWalkable,
+  type DayPhaseId,
+  type IsoMap,
+} from "./tilemap";
 import type { EntitySpriteId, Sprite, SpriteProvider } from "./sprites";
 import { tileKey, type WeatherView } from "./weather";
 import { paintRainStreaks, paintSplashes } from "./weatherPaint";
@@ -50,6 +55,12 @@ export interface RenderView {
    * look — see src/iso/weather.ts.
    */
   weather?: WeatherView | null;
+  /**
+   * The hour the scene plays at; absent means night. The tint itself is
+   * already baked into the sprites the provider hands back — all the
+   * renderer does with the phase is scale the glow pass.
+   */
+  dayPhase?: DayPhaseId;
 }
 
 interface SceneDrawable extends Drawable {
@@ -147,7 +158,12 @@ export function renderScene(
   // reflections, composited additively over the whole scene so signage
   // reads as casting light rather than just being bright.
   if (view.glowEnabled) {
-    const glows = collectGlowPlacements(map, timeMs, weather);
+    const glows = collectGlowPlacements(
+      map,
+      timeMs,
+      weather,
+      view.dayPhase ?? DEFAULT_DAY_PHASE,
+    );
     if (glows.length > 0) {
       ctx.save();
       ctx.globalCompositeOperation = "lighter";

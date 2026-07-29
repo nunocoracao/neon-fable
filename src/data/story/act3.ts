@@ -45,6 +45,11 @@ export const act3Arc: StoryArc = {
         "screen, someone has been waiting for you to cross the " +
         "glow-tiles, and doesn't pretend otherwise.",
       location: "cinder-row:plaza",
+      // Act 3 opens in the small hours, on the same plaza the player
+      // has been crossing at dusk since the first scene. The hour holds
+      // for the rest of the act's business on the hub, so every
+      // Succession beat plays on a colder, darker Cinder Row.
+      dayPhase: "late",
       choices: [
         {
           id: "quiet",

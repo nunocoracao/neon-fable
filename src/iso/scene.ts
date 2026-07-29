@@ -23,6 +23,7 @@ import {
   type TilePoint,
   type WorldPoint,
 } from "./coords";
+import { resolveDayPhase } from "./dayPhase";
 import type { IsoInteractionHandler } from "./events";
 import { findPath, findPathToAdjacent } from "./path";
 import { renderScene, type RenderView } from "./render";
@@ -32,6 +33,7 @@ import {
   interactableAt,
   isWalkable,
   requireSpawn,
+  type DayPhaseId,
   type Interactable,
   type IsoMap,
 } from "./tilemap";
@@ -48,9 +50,20 @@ export interface IsoSceneOptions {
    * arenas need no switch — they declare no ambient spec at all.
    */
   ambient?: boolean;
+  /**
+   * Story override for the hour the scene plays at; null (the default)
+   * leaves the map's own declaration in charge. See ./dayPhase.ts.
+   */
+  dayPhase?: DayPhaseId | null;
 }
 
 export interface IsoScene {
+  /**
+   * Move the scene's clock: a story beat's hour, or null to fall back
+   * to the map's own. Re-bakes lazily — the provider caches per phase,
+   * so returning to an hour already walked redraws nothing.
+   */
+  setDayPhase(story: DayPhaseId | null): void;
   /** Stop the animation loop and remove all listeners. */
   destroy(): void;
 }
@@ -92,6 +105,13 @@ export function createIsoScene(
   let weather: WeatherView | null = resolveWeather(map, {
     enabled: settings.get().weather,
   });
+  /**
+   * The hour the scene plays at: the map's own unless a story beat has
+   * moved the clock. Pushed into the sprite provider, which bakes
+   * through the phase's tinted palette.
+   */
+  let dayPhase = resolveDayPhase(map, options.dayPhase);
+  sprites.setDayPhase?.(dayPhase);
 
   let viewportW = 0;
   let viewportH = 0;
@@ -326,6 +346,7 @@ export function createIsoScene(
       // streaks hanging still and the puddles in place, so the map
       // still reads as wet without anything moving.
       weather,
+      dayPhase,
     };
     renderScene(ctx!, sprites, view);
     rafId = requestAnimationFrame(frame);
@@ -356,6 +377,13 @@ export function createIsoScene(
   rafId = requestAnimationFrame(frame);
 
   return {
+    setDayPhase(story: DayPhaseId | null): void {
+      const next = resolveDayPhase(map, story);
+      if (next === dayPhase) return;
+      dayPhase = next;
+      sprites.setDayPhase?.(next);
+    },
+
     destroy(): void {
       cancelAnimationFrame(rafId);
       window.removeEventListener("resize", resize);

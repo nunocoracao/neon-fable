@@ -14,7 +14,16 @@ import {
   glowLitAtFrame,
   type GlowPlacement,
 } from "./glowPass";
-import type { Interactable, IsoMap, PropPlacement, TileId } from "./tilemap";
+import { glowIntensityScale } from "./dayPhase";
+import {
+  DAY_PHASES,
+  DEFAULT_DAY_PHASE,
+  type DayPhaseId,
+  type Interactable,
+  type IsoMap,
+  type PropPlacement,
+  type TileId,
+} from "./tilemap";
 import { SHIMMER_PERIOD_MS, shimmerFactor, tileKey } from "./weather";
 
 function makeMap(
@@ -259,6 +268,65 @@ describe("collectGlowPlacements", () => {
       expect(factor).toBeLessThan(0.5);
     }
     expect(REFLECTION_ALPHA[0]).toBe(0);
+  });
+});
+
+describe("the hour on the glow pass", () => {
+  const map = makeMap({
+    width: 5,
+    height: 5,
+    props: [prop("streetlight", 2, 3)],
+    interactables: [interactable("terminal", 1, 1)],
+  });
+
+  it("leaves the default hour exactly as authored", () => {
+    const t = flickerTime(2, 3, true);
+    expect(collectGlowPlacements(map, t, null, DEFAULT_DAY_PHASE)).toEqual(
+      collectGlowPlacements(map, t),
+    );
+  });
+
+  it("scales every alpha by the phase, and nothing else", () => {
+    const t = flickerTime(2, 3, true);
+    const night = collectGlowPlacements(map, t);
+    for (const phase of DAY_PHASES) {
+      const staged = collectGlowPlacements(map, t, null, phase);
+      const scale = glowIntensityScale(phase);
+      expect(staged.length, phase).toBe(night.length);
+      staged.forEach((placement, i) => {
+        const base = night[i] as GlowPlacement;
+        expect(placement.alpha, `${phase} alpha ${i}`).toBeCloseTo(
+          Math.min(1, base.alpha * scale),
+        );
+        // Placement, color, and radius are authored; the hour never
+        // moves a light or repaints it.
+        expect({ ...placement, alpha: 0 }, `${phase} placement ${i}`).toEqual({
+          ...base,
+          alpha: 0,
+        });
+      });
+    }
+  });
+
+  it("burns the neon harder in the small hours than at dusk", () => {
+    const t = flickerTime(2, 3, true);
+    const alphaAt = (phase: DayPhaseId): number =>
+      collectGlowPlacements(map, t, null, phase).reduce(
+        (sum, g) => sum + g.alpha,
+        0,
+      );
+    expect(alphaAt("late")).toBeGreaterThan(alphaAt("night"));
+    expect(alphaAt("night")).toBeGreaterThan(alphaAt("dusk"));
+  });
+
+  it("never drives an alpha out of range", () => {
+    const t = flickerTime(2, 3, true);
+    for (const phase of DAY_PHASES) {
+      for (const glow of collectGlowPlacements(map, t, null, phase)) {
+        expect(glow.alpha, phase).toBeGreaterThan(0);
+        expect(glow.alpha, phase).toBeLessThanOrEqual(1);
+      }
+    }
   });
 });
 

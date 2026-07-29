@@ -20,7 +20,13 @@ import type {
   Sprite,
   SpriteProvider,
 } from "../sprites";
-import type { InteractableSpriteId, PropId, TileId } from "../tilemap";
+import {
+  DEFAULT_DAY_PHASE,
+  type DayPhaseId,
+  type InteractableSpriteId,
+  type PropId,
+  type TileId,
+} from "../tilemap";
 import { INTERACTABLE_ART } from "./interactables";
 import { BODY_FRAME } from "./layers/body";
 import {
@@ -35,6 +41,7 @@ import {
   createSpriteCache,
   type SpriteCacheStats,
 } from "./spriteCache";
+import { phasePalette } from "./tint";
 import { TILE_ART } from "./tiles";
 import {
   RAIN_STREAK_ART,
@@ -108,6 +115,12 @@ export interface PixelArtSpriteOptions {
    * should memoize per position.
    */
   npc?: (x: number, y: number) => ComposedCharacter | undefined;
+  /**
+   * Hour to bake at (see ../dayPhase.ts); defaults to night, the hour
+   * the art is authored at. Scenes call setDayPhase when a story beat
+   * moves the clock.
+   */
+  dayPhase?: DayPhaseId;
 }
 
 /**
@@ -132,7 +145,26 @@ export function createPixelArtSprites(
   const cache = createSpriteCache<Sprite>(SPRITE_CACHE_BUDGET_BYTES, spriteBytes);
   exposeCacheStats(cache);
 
-  const cached = (key: string, make: () => Sprite): Sprite => cache.get(key, make);
+  /** The hour every tinted bake goes through, and its baked palette. */
+  let phase: DayPhaseId = options?.dayPhase ?? DEFAULT_DAY_PHASE;
+  let palette = phasePalette(phase);
+
+  /**
+   * Cache key for a tinted bake. The phase is part of the key, so the
+   * three hours are three sets of baked canvases that survive each
+   * other: walking a street back at dusk redraws nothing.
+   */
+  const cached = (key: string, make: () => Sprite): Sprite =>
+    cache.get(`${phase}|${key}`, make);
+
+  /**
+   * Cache key for a bake the hour cannot touch: the hit-flash
+   * silhouette (one flat color) and the emissive glows (neon is its own
+   * light source). Keeping these off the phase key means switching
+   * hours never re-bakes them.
+   */
+  const untinted = (key: string, make: () => Sprite): Sprite =>
+    cache.get(key, make);
 
   const player = (): ComposedCharacter =>
     options?.player?.() ?? FALLBACK_CHARACTER;
@@ -158,6 +190,7 @@ export function createPixelArtSprites(
           composedCharacterGrid(descriptor, pose.facing, state, frame),
           BODY_FRAME.anchorX,
           BODY_FRAME.anchorY,
+          palette,
         ),
     );
   }
@@ -176,7 +209,7 @@ export function createPixelArtSprites(
         frame = frameAt(timeMs + tilePhaseMs(x, y, art.frameMs), art.frameMs, frames.length);
       }
       return cached(`tile:${id}:${variant}:${frame}:${rain ? "wet" : "dry"}`, () =>
-        bakeSprite(frames[frame] ?? [], TILE_ANCHOR_X, TILE_ANCHOR_Y),
+        bakeSprite(frames[frame] ?? [], TILE_ANCHOR_X, TILE_ANCHOR_Y, palette),
       );
     },
 
@@ -191,7 +224,7 @@ export function createPixelArtSprites(
         timeMs,
       );
       return cached(`prop:${id}:${frame}`, () =>
-        bakeSprite(art.frames[frame] ?? [], art.anchorX, art.anchorY),
+        bakeSprite(art.frames[frame] ?? [], art.anchorX, art.anchorY, palette),
       );
     },
 
@@ -214,7 +247,7 @@ export function createPixelArtSprites(
       const phase = (hash2(x, y) % 5) * 120;
       const frame = frameAt(timeMs + phase, art.frameMs, art.frames.length);
       return cached(`interactable:${id}:${frame}`, () =>
-        bakeSprite(art.frames[frame] ?? [], art.anchorX, art.anchorY),
+        bakeSprite(art.frames[frame] ?? [], art.anchorX, art.anchorY, palette),
       );
     },
 
@@ -225,7 +258,7 @@ export function createPixelArtSprites(
     entitySilhouette(id: EntitySpriteId, pose: EntityPose): Sprite {
       const descriptor = descriptorFor(id);
       const { state, frame } = composedPose(pose);
-      return cached(
+      return untinted(
         `flash:${composedFrameKey(descriptor, pose.facing, state, frame)}`,
         () =>
           bakeSilhouette(
@@ -238,21 +271,32 @@ export function createPixelArtSprites(
     },
 
     glow(color: string, radius: number): Sprite {
-      return cached(`glow:${color}:${radius}`, () => bakeGlow(color, radius));
+      return untinted(`glow:${color}:${radius}`, () => bakeGlow(color, radius));
     },
 
     rainStreak(layer: number): Sprite {
       // Anchored at the grid's top-left: streak placements are already
       // the corner of the sprite, so the draw needs no offset math.
       return cached(`rain:${layer}`, () =>
-        bakeSprite(RAIN_STREAK_ART[layer] ?? [], 0, 0),
+        bakeSprite(RAIN_STREAK_ART[layer] ?? [], 0, 0, palette),
       );
     },
 
     splash(frame: number): Sprite {
       return cached(`splash:${frame}`, () =>
-        bakeSprite(SPLASH_ART[frame] ?? [], SPLASH_ANCHOR_X, SPLASH_ANCHOR_Y),
+        bakeSprite(
+          SPLASH_ART[frame] ?? [],
+          SPLASH_ANCHOR_X,
+          SPLASH_ANCHOR_Y,
+          palette,
+        ),
       );
+    },
+
+    setDayPhase(next: DayPhaseId): void {
+      if (next === phase) return;
+      phase = next;
+      palette = phasePalette(next);
     },
 
     cacheStats(): SpriteCacheStats {

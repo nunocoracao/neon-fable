@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fixtureCharacter } from "../character/testSupport";
-import { PLAYER_SPEAKER, type StoryArc } from "../narrative";
+import { PLAYER_SPEAKER, type StoryArc, type StoryNode } from "../narrative";
 import { createNewGame } from "../state";
 import { createDialogueOverlay } from "./dialogueOverlay";
 import type { OverlayHandle } from "./overlay";
@@ -63,17 +63,24 @@ const arc: StoryArc = {
       text: "Spare a chit?",
       choices: [endChoice],
     },
+    {
+      id: "staged-line",
+      text: "The hour turns over.",
+      dayPhase: "late",
+      choices: [{ id: "on", label: "On.", target: "narration" }],
+    },
   ],
 };
 
 let session: Session;
 let handle: OverlayHandle | undefined;
 
-function open(nodeId: string): void {
+function open(nodeId: string, onNode?: (node: StoryNode) => void): void {
   handle = createDialogueOverlay({
     session,
     arc,
     nodeId,
+    onNode,
     onStateChange: () => {},
     onCombat: () => {},
     onTravel: () => {},
@@ -156,6 +163,28 @@ describe("dialogue portraits", () => {
     expect(side("player")?.classList.contains("nf-portrait-dim")).toBe(true);
     expect(document.querySelector(".nf-dialogue-speaker")?.textContent).toBe(
       "A Passing Stranger",
+    );
+  });
+});
+
+describe("scene staging", () => {
+  it("reports every node it shows, so the scene can follow the beat", () => {
+    const shown: StoryNode[] = [];
+    open("staged-line", (node) => shown.push(node));
+    expect(shown.map((node) => node.id)).toEqual(["staged-line"]);
+    expect(shown[0]?.dayPhase).toBe("late");
+
+    // Advancing reports the next line, staging and all — a beat that
+    // sets no hour reports none rather than restating the last.
+    document.querySelector<HTMLButtonElement>(".nf-choice")?.click();
+    expect(shown.map((node) => node.id)).toEqual(["staged-line", "narration"]);
+    expect(shown[1]?.dayPhase).toBeUndefined();
+  });
+
+  it("is optional — dialogue runs without anyone listening", () => {
+    expect(() => open("staged-line")).not.toThrow();
+    expect(document.querySelector(".nf-dialogue-text")?.textContent).toContain(
+      "hour turns over",
     );
   });
 });

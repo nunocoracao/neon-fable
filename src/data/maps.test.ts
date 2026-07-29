@@ -16,7 +16,10 @@ import {
 import { PROP_ART } from "../iso/art/props";
 import { TILE_ART } from "../iso/art/tiles";
 import { findPath, findPathToAdjacent } from "../iso/path";
+import { resolveDayPhase } from "../iso/dayPhase";
 import {
+  DAY_PHASES,
+  DEFAULT_DAY_PHASE,
   inBounds,
   isWalkable,
   requireSpawn,
@@ -479,6 +482,62 @@ describe("weather", () => {
         for (const target of map.interactables) {
           expect(
             findPathToAdjacent(restyled, spawn, target)?.length ?? null,
+            `${map.id} route to ${target.id}`,
+          ).toBe(findPathToAdjacent(map, spawn, target)?.length ?? null);
+        }
+      }
+    }
+  });
+});
+
+describe("day phase", () => {
+  it("walks the districts from dusk into the small hours", () => {
+    const declared = explorableMaps.map((map) => [
+      map.id,
+      map.dayPhase ?? DEFAULT_DAY_PHASE,
+    ]);
+    expect(declared).toEqual([
+      // The hub is met at the end of the working day...
+      ["cinder-plaza", "dusk"],
+      // ...the middle districts play at the hour the art is authored
+      // at, which is the look the whole game is tuned around...
+      ["greywater-steps", "night"],
+      ["exchange-ventworks", "night"],
+      // ...and the climb happens against a deadline at dawn.
+      ["auric-spire", "late"],
+    ]);
+  });
+
+  it("leaves arenas without a clock of their own — they inherit one", () => {
+    for (const arena of arenaMaps) {
+      expect(arena.dayPhase, `${arena.id} declares an hour`).toBeUndefined();
+    }
+  });
+
+  it("resolves every map to a real hour", () => {
+    for (const map of maps) {
+      expect(DAY_PHASES, map.id).toContain(resolveDayPhase(map));
+    }
+  });
+
+  it("changes nothing a player can walk on, fight over, or route through", () => {
+    // The hour is a look. Staging a map at any of them (or none) must
+    // leave every gameplay query over it byte-for-byte identical.
+    for (const map of maps) {
+      for (const dayPhase of [...DAY_PHASES, undefined]) {
+        const staged: IsoMap = { ...map, dayPhase };
+        for (let y = 0; y < map.height; y++) {
+          for (let x = 0; x < map.width; x++) {
+            expect(isWalkable(staged, x, y), `${map.id} ${x},${y}`).toBe(
+              isWalkable(map, x, y),
+            );
+          }
+        }
+        const spawn = map.spawns[0];
+        if (!spawn) continue;
+        for (const target of map.interactables) {
+          expect(
+            findPathToAdjacent(staged, spawn, target)?.length ?? null,
             `${map.id} route to ${target.id}`,
           ).toBe(findPathToAdjacent(map, spawn, target)?.length ?? null);
         }

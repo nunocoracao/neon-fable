@@ -5,7 +5,12 @@
  * the animation clock. The pixel-art implementation lives in ./art.
  */
 import type { Facing } from "./animation";
-import type { InteractableSpriteId, PropId, TileId } from "./tilemap";
+import type {
+  DayPhaseId,
+  InteractableSpriteId,
+  PropId,
+  TileId,
+} from "./tilemap";
 
 /**
  * "player" for the player character; any other value identifies a
@@ -58,4 +63,10 @@ export interface SpriteProvider {
   rainStreak(layer: number): Sprite;
   /** Pre-baked splash micro-frame, anchored on the tile diamond center. */
   splash(frame: number): Sprite;
+  /**
+   * Move the clock: subsequent bakes go through the hour's tinted
+   * palette (see ./dayPhase.ts). Optional — a provider that does not
+   * tint simply ignores the hour.
+   */
+  setDayPhase?(phase: DayPhaseId): void;
 }

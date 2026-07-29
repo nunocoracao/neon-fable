@@ -83,11 +83,16 @@ export function rowsShifted(
  * Bake a grid onto an offscreen canvas at ART_SCALE. The anchor is given
  * in 1x art pixels and scaled to match. Horizontal same-color runs
  * collapse into single fillRect calls.
+ *
+ * `palette` defaults to the master table; scenes bake through a day
+ * phase's tinted palette instead (see ./tint.ts), which is the only way
+ * time of day reaches the pixels — there is no runtime filter.
  */
 export function bakeSprite(
   grid: PixelGrid,
   anchorX: number,
   anchorY: number,
+  palette: Readonly<Record<string, string>> = PALETTE,
 ): Sprite {
   const width = grid[0]?.length ?? 0;
   const canvas = document.createElement("canvas");
@@ -95,7 +100,7 @@ export function bakeSprite(
   canvas.height = grid.length * ART_SCALE;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not create 2d context for sprite");
-  paintGrid(ctx, grid, (ch) => PALETTE[ch]);
+  paintGrid(ctx, grid, (ch) => palette[ch]);
   return { image: canvas, anchorX: anchorX * ART_SCALE, anchorY: anchorY * ART_SCALE };
 }
 

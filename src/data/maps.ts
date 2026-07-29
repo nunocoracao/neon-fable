@@ -257,6 +257,11 @@ const cinderPlaza: IsoMap = {
       { id: "market-row", x: 6, y: 8, width: 7, height: 2 },
     ],
   },
+  // Cinder Row keeps working hours. The player meets the Sprawl at the
+  // end of the day, with the last warm light still coming off the
+  // towers and the signage only starting to win — the softest the hub
+  // ever looks, and the baseline the story's later hours read against.
+  dayPhase: "dusk",
 };
 
 /**
@@ -614,6 +619,10 @@ const auricSpire: IsoMap = {
     count: 5,
     zones: [{ id: "atrium", x: 1, y: 4, width: 9, height: 4 }],
   },
+  // The climb happens in the small hours, against a deadline at dawn.
+  // The concourse runs cold and dark and its own signage is the only
+  // thing burning — the hour the whole act has been walking toward.
+  dayPhase: "late",
 };
 
 /**

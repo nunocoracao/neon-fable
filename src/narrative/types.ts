@@ -1,5 +1,6 @@
 import type { StatKey } from "../character/stats";
 import type { ExpressionId } from "../data/appearance";
+import type { DayPhaseId } from "../iso/tilemap";
 import type { FlagValue } from "../state/flags";
 
 /**
@@ -181,6 +182,14 @@ export interface StoryNode {
   text: string;
   /** Optional map/location tag (e.g. "cinder-row:filament-bar"). */
   location?: string;
+  /**
+   * Stages the scene behind this beat at an hour, overriding whatever
+   * the map declares — a mission that happens at 3am looks like 3am on
+   * the same street the player walked at dusk. The hour holds for the
+   * rest of the visit (leaving the map hands the clock back to it), and
+   * is purely a look: see src/iso/dayPhase.ts.
+   */
+  dayPhase?: DayPhaseId;
   choices: Choice[];
 }
 

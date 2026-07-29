@@ -29,7 +29,7 @@ import {
 } from "../iso";
 import { enemySpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
-import type { IsoMap, TilePoint } from "../iso";
+import type { DayPhaseId, IsoMap, TilePoint } from "../iso";
 import { SaveError, loadGame, type GameState } from "../state";
 import { focusFirst, installListNav } from "./focus";
 import {
@@ -67,6 +67,12 @@ export interface CombatScreenOptions {
   encounterId: string;
   /** Dialogue node to resume after a victory, if any. */
   resumeNodeId: string | null;
+  /**
+   * Hour to fight under, when a story beat had the scene staged at one.
+   * Absent falls back to the hour of the map the fight was entered
+   * from — an arena has no clock of its own. Visual only.
+   */
+  dayPhase?: DayPhaseId;
   /** Pause between enemy actions; 0 runs enemy turns synchronously. */
   enemyDelayMs?: number;
 }
@@ -795,9 +801,13 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
           player: playerSpriteSource(session),
           entity: enemySpriteSource(),
         }),
-        // A fight happens under the sky of the place it started in: the
-        // arena inherits the weather of the map the player walked from.
+        // A fight happens under the sky — and at the hour — of the
+        // place it started in: the arena inherits both from the map the
+        // player walked from, with a story beat's staged hour, if there
+        // was one, taking precedence over that map's own.
         weather: getMap(session.state.location)?.weather,
+        dayPhase:
+          options.dayPhase ?? getMap(session.state.location)?.dayPhase,
         onTileClick,
         onTileHover,
       });
