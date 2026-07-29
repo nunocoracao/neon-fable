@@ -4,11 +4,14 @@ import {
   composeCharacter,
   composeVisual,
   defaultAppearance,
+  presetAppearanceFor,
   randomAppearance,
+  randomizeUnlocked,
   resolveLayers,
   seededAppearance,
   validateAppearance,
   type Appearance,
+  type AppearanceLocks,
   type CharacterVisual,
 } from "./appearance";
 import {
@@ -16,7 +19,9 @@ import {
   FACE_DETAIL_OPTIONS,
   HAIR_STYLE_OPTIONS,
   SKIN_TONE_OPTIONS,
+  backgroundPresets,
 } from "../data/appearance";
+import { backgrounds } from "../data/backgrounds";
 import { getItem, items } from "../data/items";
 import { emptyEquipment } from "../inventory/equipment";
 import {
@@ -79,6 +84,94 @@ describe("randomAppearance", () => {
     }
     expect(seenBuilds.size).toBeGreaterThan(1);
     expect(seenHair.size).toBeGreaterThan(2);
+  });
+});
+
+describe("randomizeUnlocked", () => {
+  it("keeps locked categories and always validates, across many seeds", () => {
+    const start = presetAppearanceFor("grid-diver");
+    const locks: AppearanceLocks = {
+      hairStyle: true,
+      hairColor: true,
+      headwear: true,
+    };
+    for (let seed = 0; seed < 200; seed++) {
+      const { value } = randomizeUnlocked(start, locks, createRng(seed));
+      expect(validateAppearance(value), `seed ${seed}`).toEqual([]);
+      expect(value.hairStyle, `seed ${seed}`).toBe(start.hairStyle);
+      expect(value.hairColor, `seed ${seed}`).toBe(start.hairColor);
+      expect(value.headwear, `seed ${seed}`).toBe(start.headwear);
+    }
+  });
+
+  it("validates under arbitrary lock subsets", () => {
+    for (let seed = 0; seed < 100; seed++) {
+      // Derive a different lock subset per seed from its bits.
+      const locks = Object.fromEntries(
+        APPEARANCE_FIELDS.map((field, i) => [field, ((seed >> i) & 1) === 1]),
+      ) as AppearanceLocks;
+      const { value } = randomizeUnlocked(
+        defaultAppearance(),
+        locks,
+        createRng(seed),
+      );
+      expect(validateAppearance(value), `seed ${seed}`).toEqual([]);
+      for (const field of APPEARANCE_FIELDS) {
+        if (locks[field]) {
+          expect(value[field], `seed ${seed} ${field}`).toBe(
+            defaultAppearance()[field],
+          );
+        }
+      }
+    }
+  });
+
+  it("is deterministic and advances the rng only for unlocked fields", () => {
+    const rng = createRng(77);
+    const locks: AppearanceLocks = { build: true, mouth: true };
+    const first = randomizeUnlocked(defaultAppearance(), locks, rng);
+    expect(randomizeUnlocked(defaultAppearance(), locks, rng)).toEqual(first);
+    expect(first.state).not.toEqual(rng);
+
+    // Every field locked: the look and the rng state both come back
+    // untouched — repeated clicks with all locks burn no entropy.
+    const allLocked = Object.fromEntries(
+      APPEARANCE_FIELDS.map((field) => [field, true]),
+    ) as AppearanceLocks;
+    const frozen = randomizeUnlocked(first.value, allLocked, rng);
+    expect(frozen.value).toEqual(first.value);
+    expect(frozen.state).toEqual(rng);
+  });
+
+  it("with nothing locked it matches randomAppearance from the same state", () => {
+    for (const seed of [0, 9, 4321]) {
+      expect(
+        randomizeUnlocked(
+          presetAppearanceFor("tower-analyst"),
+          {},
+          createRng(seed),
+        ),
+      ).toEqual(randomAppearance(createRng(seed)));
+    }
+  });
+});
+
+describe("presetAppearanceFor", () => {
+  it("returns every background's first preset as a fresh, valid copy", () => {
+    for (const background of backgrounds) {
+      const first = backgroundPresets(background.id)[0]!;
+      const seeded = presetAppearanceFor(background.id);
+      expect(seeded, background.id).toEqual(first.appearance);
+      // A copy: editing the working look never mutates the preset data.
+      expect(seeded, background.id).not.toBe(first.appearance);
+      expect(validateAppearance(seeded), background.id).toEqual([]);
+    }
+  });
+
+  it("falls back to the stock look for a background without presets", () => {
+    expect(presetAppearanceFor("no-such-background")).toEqual(
+      defaultAppearance(),
+    );
   });
 });
 

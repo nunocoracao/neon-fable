@@ -632,6 +632,23 @@ body::after {
   box-shadow: 2px 2px 0 rgba(110, 33, 72, 0.8);
 }
 
+/* Preset row and per-category lock toggles on the appearance step. */
+
+.nf-preset-row {
+  margin-top: 0.75rem;
+}
+
+.nf-lock-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.nf-lock.nf-selected {
+  border-color: var(--nf-glow-magenta);
+  color: var(--nf-glow-magenta);
+}
+
 /* Live preview panel: pedestal stage, control row, and portrait inset.
    The canvas backing store stays at the 2x bake size; the zoom ladder
    scales it by whole multiples via CSS width/height, so art pixels

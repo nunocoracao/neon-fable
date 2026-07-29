@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  BACKGROUND_APPEARANCE_PRESETS,
   appearanceCatalogs,
+  backgroundPresets,
   getAppearanceOption,
   resolveExpression,
   BROWS_OPTIONS,
@@ -17,6 +19,11 @@ import {
   type AppearanceCategory,
   type ExpressionId,
 } from "./appearance";
+import { backgrounds } from "./backgrounds";
+import {
+  defaultAppearance,
+  validateAppearance,
+} from "../character/appearance";
 import { BODY_BUILD_IDS } from "../iso/art/layers/body";
 import { FACE_LAYERS, FACE_PART_IDS } from "../iso/art/layers/face";
 import {
@@ -243,5 +250,40 @@ describe("resolveExpression", () => {
     expect(() =>
       resolveExpression("neutral", "straight", "sneer" as ExpressionId),
     ).toThrow(/unknown expression/);
+  });
+});
+
+describe("background appearance presets", () => {
+  const allPresets = Object.values(BACKGROUND_APPEARANCE_PRESETS).flat();
+
+  it("every background has exactly 2 presets, and none are orphaned", () => {
+    for (const background of backgrounds) {
+      expect(backgroundPresets(background.id), background.id).toHaveLength(2);
+    }
+    expect(Object.keys(BACKGROUND_APPEARANCE_PRESETS).sort()).toEqual(
+      backgrounds.map((b) => b.id).sort(),
+    );
+    expect(backgroundPresets("no-such-background")).toEqual([]);
+  });
+
+  it("every preset validates against the catalogs", () => {
+    for (const preset of allPresets) {
+      expect(validateAppearance(preset.appearance), preset.id).toEqual([]);
+    }
+  });
+
+  it("preset ids are unique and labels are non-empty", () => {
+    const ids = allPresets.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const preset of allPresets) {
+      expect(preset.id).toMatch(/^[a-z0-9-]+$/);
+      expect(preset.label.length, preset.id).toBeGreaterThan(0);
+    }
+  });
+
+  it("presets are distinct looks — from each other and the stock look", () => {
+    const looks = allPresets.map((p) => JSON.stringify(p.appearance));
+    looks.push(JSON.stringify(defaultAppearance()));
+    expect(new Set(looks).size).toBe(looks.length);
   });
 });

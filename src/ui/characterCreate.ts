@@ -21,11 +21,14 @@ import {
   draftsEqual,
   goBack,
   jumpTo,
-  seededAppearance,
+  presetAppearanceFor,
+  randomizeUnlocked,
   stepValid,
   updateDraft,
   validateAllocation,
+  type Appearance,
   type AppearanceField,
+  type AppearanceLocks,
   type DerivedAttributes,
   type Stats,
   type WizardContext,
@@ -35,6 +38,7 @@ import {
 } from "../character";
 import {
   APPEARANCE_TABS,
+  backgroundPresets,
   backgrounds,
   getAppearanceOption,
   getItem,
@@ -42,6 +46,7 @@ import {
   type AppearanceTabId,
 } from "../data";
 import { emptyEquipment, type EquipmentState } from "../inventory/equipment";
+import { createRng, type RngState } from "../state/rng";
 import { startingEquipment } from "../inventory/startingGear";
 import { applyNewGamePlus, createNewGame } from "../state";
 import { createAppearancePicker } from "./appearancePicker";
@@ -90,6 +95,13 @@ export interface NewGamePlusOffer {
 
 export interface CharacterCreateOptions {
   ngPlus?: NewGamePlusOffer;
+  /**
+   * RNG state the "Surprise Me" button draws from; injected by tests
+   * for determinism. Defaults to a wall-clock seed — each visit to the
+   * screen shuffles differently, but successive clicks within it still
+   * walk one deterministic sequence.
+   */
+  appearanceRng?: RngState;
 }
 
 const APPEARANCE_LABELS: Record<AppearanceField, string> = {
@@ -142,6 +154,13 @@ export function createCharacterCreateScreen(
   let previewState: PreviewState = DEFAULT_PREVIEW_STATE;
   /** The mounted preview panel while the appearance step is showing. */
   let preview: AppearancePreview | null = null;
+  /** First entry to the appearance step seeds from the background preset. */
+  let appearanceSeeded = false;
+  /** Per-category locks; locked categories survive Surprise Me. */
+  let locks: AppearanceLocks = {};
+  /** Advancing RNG behind Surprise Me — each click rolls a new look. */
+  let surpriseRng: RngState =
+    options.appearanceRng ?? createRng(Date.now() >>> 0);
 
   function draft(): WizardDraft {
     return wizard.draft;
@@ -179,6 +198,15 @@ export function createCharacterCreateScreen(
   /** Step change: render the new step and move focus into it. */
   function navigate(next: WizardState): void {
     if (next.step === wizard.step) return;
+    // First entry to the appearance step seeds the working look from
+    // the chosen background's first preset; after that the draft is the
+    // player's and navigation never overwrites it.
+    if (next.step === "appearance" && !appearanceSeeded) {
+      appearanceSeeded = true;
+      next = updateDraft(next, {
+        appearance: presetAppearanceFor(next.draft.backgroundId),
+      });
+    }
     wizard = next;
     renderStep();
     renderChrome();
@@ -477,44 +505,131 @@ export function createCharacterCreateScreen(
     };
     refreshSummary();
 
-    // Picks update the draft, picker, and preview in place instead of
-    // re-rendering the step, so keyboard focus stays on the grid.
+    const presetsHost = document.createElement("div");
+    const refreshPresets = (): void => {
+      presetsHost.replaceChildren(presetSection());
+    };
+
+    /**
+     * The single working-appearance update path: option picks, preset
+     * clicks, Surprise Me, and Stock Look all land here, updating the
+     * draft, picker, preview, summary, and preset row in place (no step
+     * re-render) so keyboard focus survives and everything stays in
+     * sync.
+     */
+    const applyLook = (appearance: Appearance): void => {
+      submitErrors = [];
+      wizard = updateDraft(wizard, { appearance });
+      picker.update();
+      panel.update();
+      refreshSummary();
+      refreshPresets();
+      renderChrome();
+    };
+
     const picker = createAppearancePicker({
       appearance: () => draft().appearance,
       initialTab: appearanceTab,
       onTabChange: (tab) => {
         appearanceTab = tab;
       },
-      onPick: (category, id) => {
-        submitErrors = [];
-        wizard = updateDraft(wizard, {
-          appearance: { ...draft().appearance, [category]: id },
-        });
-        picker.update();
-        panel.update();
-        refreshSummary();
-        renderChrome();
-      },
+      onPick: (category, id) =>
+        applyLook({ ...draft().appearance, [category]: id }),
     });
+
+    /**
+     * Preset row: the chosen background's authored looks as portrait
+     * thumbnails, each applied wholesale on click. Portraits bake
+     * through the same cache as every other thumb.
+     */
+    function presetSection(): HTMLElement {
+      const wrap = document.createElement("div");
+      wrap.className = "nf-thumb-section nf-preset-row";
+      const heading = document.createElement("span");
+      heading.className = "nf-field-label";
+      heading.textContent = "Preset looks";
+
+      const row = document.createElement("div");
+      row.className = "nf-thumb-grid";
+      const presets = backgroundPresets(draft().backgroundId);
+      row.style.gridTemplateColumns = `repeat(${Math.max(presets.length, 1)}, max-content)`;
+      for (const preset of presets) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "nf-thumb";
+        const selected = APPEARANCE_FIELDS.every(
+          (field) => draft().appearance[field] === preset.appearance[field],
+        );
+        if (selected) button.classList.add("nf-selected");
+        button.setAttribute("aria-pressed", String(selected));
+        button.title = preset.label;
+        button.setAttribute("aria-label", `Preset: ${preset.label}`);
+        button.append(portraitCanvas(preset.appearance, previewEquipment()));
+        button.addEventListener("click", () =>
+          applyLook({ ...preset.appearance }),
+        );
+        row.append(button);
+      }
+      wrap.append(heading, row);
+      return wrap;
+    }
+    refreshPresets();
+
+    /**
+     * Lock toggles: one per appearance category; locked categories keep
+     * their current pick when Surprise Me rolls.
+     */
+    const lockSection = (): HTMLElement => {
+      const wrap = document.createElement("div");
+      wrap.className = "nf-thumb-section";
+      const heading = document.createElement("span");
+      heading.className = "nf-field-label";
+      heading.textContent = "Locks — kept on Surprise Me";
+      const row = document.createElement("div");
+      row.className = "nf-lock-row";
+      for (const field of APPEARANCE_FIELDS) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "nf-button nf-button-small nf-lock";
+        button.dataset.field = field;
+        button.textContent = APPEARANCE_LABELS[field];
+        const sync = (): void => {
+          const locked = locks[field] === true;
+          button.classList.toggle("nf-selected", locked);
+          button.setAttribute("aria-pressed", String(locked));
+          button.title = locked
+            ? `${APPEARANCE_LABELS[field]}: locked (survives Surprise Me)`
+            : `${APPEARANCE_LABELS[field]}: unlocked`;
+        };
+        sync();
+        button.addEventListener("click", () => {
+          locks = { ...locks, [field]: !locks[field] };
+          sync();
+        });
+        row.append(button);
+      }
+      wrap.append(heading, row);
+      return wrap;
+    };
 
     const controls = document.createElement("div");
     controls.className = "nf-wizard-controls";
-    const randomize = document.createElement("button");
-    randomize.className = "nf-button";
-    randomize.textContent = "Randomize Look";
-    randomize.addEventListener("click", () =>
-      patchDraft({ appearance: seededAppearance(Date.now()) }),
-    );
+    const surprise = document.createElement("button");
+    surprise.className = "nf-button";
+    surprise.textContent = "Surprise Me";
+    surprise.addEventListener("click", () => {
+      const roll = randomizeUnlocked(draft().appearance, locks, surpriseRng);
+      surpriseRng = roll.state;
+      applyLook(roll.value);
+    });
     const stock = document.createElement("button");
     stock.className = "nf-button";
     stock.textContent = "Stock Look";
-    stock.addEventListener("click", () =>
-      patchDraft({ appearance: defaultAppearance() }),
-    );
-    controls.append(randomize, stock);
+    stock.addEventListener("click", () => applyLook(defaultAppearance()));
+    controls.append(surprise, stock);
 
     left.append(picker.el);
-    right.append(panel.el, controls, summaryHost);
+    right.append(panel.el, presetsHost, controls, lockSection(), summaryHost);
     columns.append(left, right);
     body.append(columns);
   }

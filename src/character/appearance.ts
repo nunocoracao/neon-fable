@@ -1,5 +1,6 @@
 import {
   appearanceCatalogs,
+  backgroundPresets,
   getAppearanceOption,
   type AppearanceCategory,
 } from "../data/appearance";
@@ -101,33 +102,58 @@ export function defaultAppearance(): Appearance {
 }
 
 /**
- * A uniformly random pick from every catalog, via the seeded RNG (never
- * Math.random) so background presets and the creation wizard's
- * randomize button are replayable. Always validates by construction.
+ * Per-category lock flags for randomization: a truthy field survives
+ * randomizeUnlocked untouched. Absent fields are unlocked.
  */
-export function randomAppearance(rng: RngState): RngResult<Appearance> {
+export type AppearanceLocks = Readonly<
+  Partial<Record<AppearanceField, boolean>>
+>;
+
+/**
+ * Re-roll every unlocked category to a uniformly random catalog pick,
+ * keeping locked categories exactly as they are. Pure over the injected
+ * RNG state (never Math.random), so the creation wizard's "Surprise Me"
+ * button is replayable and deterministic in tests. Locked fields draw
+ * nothing from the RNG; with everything locked the state comes back
+ * unchanged. Always validates by construction.
+ */
+export function randomizeUnlocked(
+  current: Appearance,
+  locks: AppearanceLocks,
+  rng: RngState,
+): RngResult<Appearance> {
   let state = rng;
-  const pick = (field: AppearanceField): string => {
+  const value: Appearance = { ...current };
+  for (const field of APPEARANCE_FIELDS) {
+    if (locks[field]) continue;
     const catalog = appearanceCatalogs[field];
     const roll = nextInt(state, 0, catalog.length - 1);
     state = roll.state;
     const option = catalog[roll.value];
     if (!option) throw new Error(`empty catalog for ${field}`);
-    return option.id;
-  };
-  const value: Appearance = {
-    skinTone: pick("skinTone"),
-    build: pick("build"),
-    hairStyle: pick("hairStyle"),
-    hairColor: pick("hairColor"),
-    eyes: pick("eyes"),
-    eyeColor: pick("eyeColor"),
-    brows: pick("brows"),
-    mouth: pick("mouth"),
-    faceDetail: pick("faceDetail"),
-    headwear: pick("headwear"),
-  };
+    value[field] = option.id;
+  }
   return { state, value };
+}
+
+/**
+ * A uniformly random pick from every catalog, via the seeded RNG (never
+ * Math.random) so ambient NPC looks and the creation wizard's
+ * randomize button are replayable. Always validates by construction.
+ */
+export function randomAppearance(rng: RngState): RngResult<Appearance> {
+  return randomizeUnlocked(defaultAppearance(), {}, rng);
+}
+
+/**
+ * The look the creation wizard seeds the appearance step from on first
+ * entry: the chosen background's first authored preset, or the stock
+ * look for a background without presets. Returns a fresh copy, safe to
+ * edit as the working appearance.
+ */
+export function presetAppearanceFor(backgroundId: string): Appearance {
+  const preset = backgroundPresets(backgroundId)[0];
+  return preset ? { ...preset.appearance } : defaultAppearance();
 }
 
 /**
