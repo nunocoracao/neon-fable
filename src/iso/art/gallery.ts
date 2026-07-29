@@ -1,8 +1,8 @@
 /**
  * Dev art-gallery registry: flattens every registered piece of art —
- * tile variants, props, interactables, legacy character animations, and
- * hi-res body animations — into uniform display entries. Grids pass
- * through the same remap/mirror/upscale shims the sprite provider
+ * tile variants, props, interactables, the composed NPC/enemy cast,
+ * and hi-res body animations — into uniform display entries. Grids
+ * pass through the same compose/remap/mirror shims the sprite provider
  * applies, so the gallery shows exactly what renders in-game. This
  * module is pure data + filtering (no canvas); baking happens in the
  * gallery screen. Future art systems (appearance layer combinations,
@@ -24,12 +24,11 @@ import {
   HEADWEAR_OPTIONS,
   MOUTH_OPTIONS,
 } from "../../data/appearance";
+import { composeVisual } from "../../character/appearance";
+import { interactableVisual } from "../../character/npc";
+import { enemies } from "../../data/enemies";
 import { items } from "../../data/items";
-import {
-  CHARACTER_FRAMES,
-  ROLE_REMAPS,
-  type CharacterRole,
-} from "./characters";
+import { maps } from "../../data/maps";
 import { INTERACTABLE_ART } from "./interactables";
 import {
   composedCharacterGrid,
@@ -52,12 +51,10 @@ import { REMAP_CHANNELS } from "./palette";
 import {
   mirrored,
   nativeScaled,
-  remapped,
   upscaled,
   type PixelGrid,
 } from "./pixel";
 import { PROP_ART } from "./props";
-import { IDLE_FRAME_MS, WALK_FRAME_MS } from "./provider";
 import { TILE_ART } from "./tiles";
 
 /** One gallery cell: a labeled frame loop ready to bake at ART_SCALE. */
@@ -98,8 +95,8 @@ function propEntries(): GalleryEntry[] {
 }
 
 function interactableEntries(): GalleryEntry[] {
-  // The "npc" sprite id resolves through the character pipeline and is
-  // covered by the legacy characters section.
+  // The "npc" sprite id resolves through the appearance pipeline and
+  // is covered by the cast section.
   return Object.entries(INTERACTABLE_ART).map(([id, art]) => ({
     id,
     frames: art.frames,
@@ -107,19 +104,38 @@ function interactableEntries(): GalleryEntry[] {
   }));
 }
 
-function legacyCharacterEntries(): GalleryEntry[] {
-  const roles = Object.keys(ROLE_REMAPS) as CharacterRole[];
-  return roles.flatMap((role) =>
-    FACINGS.flatMap((facing) =>
-      MOTIONS.map((state) => ({
-        id: `${role} ${facing} ${state}`,
-        frames: CHARACTER_FRAMES[facing][state].map((grid) =>
-          upscaled(remapped(grid, ROLE_REMAPS[role])),
-        ),
-        frameMs: state === "walk" ? WALK_FRAME_MS : IDLE_FRAME_MS,
-      })),
+/**
+ * The full cast through the real appearance pipeline: every enemy
+ * archetype's authored visual idling on all four facings, plus every
+ * map NPC interactable — authored named looks and stable seeded
+ * ambient fallbacks alike — exactly as the provider composes them.
+ */
+function castEntries(): GalleryEntry[] {
+  const idle = (
+    id: string,
+    who: ComposedCharacter,
+    facing: Facing,
+  ): GalleryEntry => ({
+    id,
+    frames: Array.from({ length: BODY_TIMING.idle.frameCount }, (_, frame) =>
+      composedCharacterGrid(who, facing, "idle", frame),
     ),
+    frameMs: BODY_TIMING.idle.frameMs,
+  });
+  const enemySweep = enemies.flatMap((enemy) => {
+    const who = composeVisual(enemy.visual);
+    return FACINGS.map((facing) =>
+      idle(`enemy ${enemy.id} ${facing}`, who, facing),
+    );
+  });
+  const npcSweep = maps.flatMap((map) =>
+    map.interactables
+      .filter((npc) => npc.spriteId === "npc")
+      .map((npc) =>
+        idle(`npc ${npc.id}`, composeVisual(interactableVisual(map.id, npc)), "s"),
+      ),
   );
+  return [...enemySweep, ...npcSweep];
 }
 
 function bodyEntries(): GalleryEntry[] {
@@ -455,7 +471,7 @@ const SECTION_BUILDERS: ReadonlyArray<{
   { id: "tiles", title: "Tiles", build: tileEntries },
   { id: "props", title: "Props", build: propEntries },
   { id: "interactables", title: "Interactables", build: interactableEntries },
-  { id: "characters", title: "Characters (legacy)", build: legacyCharacterEntries },
+  { id: "cast", title: "Cast (NPCs & enemies)", build: castEntries },
   { id: "bodies", title: "Bodies (hi-res)", build: bodyEntries },
   { id: "appearance", title: "Appearance layers", build: appearanceEntries },
 ];

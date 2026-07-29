@@ -4,7 +4,34 @@
  * buildMapGrid; interactables reference story node and encounter ids by
  * string only — the iso layer never resolves them.
  */
+import type { CharacterVisual } from "../character/appearance";
 import { buildMapGrid, type IsoMap, type LegendEntry } from "../iso/tilemap";
+
+/**
+ * Authored looks for named story NPCs, rendered through the layered
+ * appearance pipeline. Deliberate and role-fitting — friendly faces
+ * avoid the crimson/magenta hostile-optic cue reserved for enemies
+ * (the rust-runner ambusher wears it on purpose). NPC interactables
+ * without a visual (crowds, ambient figures) get a stable seeded look
+ * from their map position instead (character/npc.ts).
+ */
+
+// Flick appears on two maps; one look, one const.
+const FLICK_VISUAL: CharacterVisual = {
+  appearance: {
+    skinTone: "golden-tan",
+    build: "lean",
+    hairStyle: "spikes",
+    hairColor: "synth-violet",
+    eyes: "wide",
+    eyeColor: "cyan",
+    brows: "arched",
+    mouth: "smirk",
+    faceDetail: "none",
+    headwear: "none",
+  },
+  outfit: "out-courier-slicker",
+};
 
 /**
  * Cinder Row plaza — the hub. A neon-lit square between tenement
@@ -79,6 +106,22 @@ const cinderPlaza: IsoMap = {
       label: "Wet-market vendor",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "wet-market" },
+      // Stall-keeper bulk: knit cap, diver's harness, easy grin.
+      visual: {
+        appearance: {
+          skinTone: "warm-brown",
+          build: "heavy",
+          hairStyle: "bob",
+          hairColor: "chestnut",
+          eyes: "standard",
+          eyeColor: "amber",
+          brows: "straight",
+          mouth: "smirk",
+          faceDetail: "none",
+          headwear: "cap",
+        },
+        outfit: "out-diver-harness",
+      },
     },
     {
       id: "plaza-terminal",
@@ -95,6 +138,22 @@ const cinderPlaza: IsoMap = {
       label: "Rustyard runner",
       spriteId: "npc",
       interaction: { kind: "combat", encounterId: "enc-rustyard-ambush" },
+      // An ambusher on the street: wears the hostile crimson optic.
+      visual: {
+        appearance: {
+          skinTone: "deep-umber",
+          build: "lean",
+          hairStyle: "mohawk",
+          hairColor: "auburn",
+          eyes: "narrow",
+          eyeColor: "crimson",
+          brows: "heavy",
+          mouth: "frown",
+          faceDetail: "scar",
+          headwear: "none",
+        },
+        weapon: "wpn-shard-knife",
+      },
     },
     {
       id: "flick",
@@ -103,6 +162,7 @@ const cinderPlaza: IsoMap = {
       label: "Flick",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "a1-start" },
+      visual: FLICK_VISUAL,
     },
     {
       id: "tram-messenger",
@@ -111,6 +171,22 @@ const cinderPlaza: IsoMap = {
       label: "Restless messenger",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "a2-start" },
+      // Pale, hollow-eyed courier half-hidden in a tech hood.
+      visual: {
+        appearance: {
+          skinTone: "porcelain",
+          build: "lean",
+          hairStyle: "buzz",
+          hairColor: "blond",
+          eyes: "wide",
+          eyeColor: "hologram-blue",
+          brows: "straight",
+          mouth: "neutral",
+          faceDetail: "none",
+          headwear: "hood",
+        },
+        outfit: "out-courier-slicker",
+      },
     },
     {
       id: "crown-watcher",
@@ -119,6 +195,22 @@ const cinderPlaza: IsoMap = {
       label: "Watcher under the dead screens",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "a3-start" },
+      // Grey-locked sentinel of the plaza, split brow, silver stare.
+      visual: {
+        appearance: {
+          skinTone: "deep-umber",
+          build: "lean",
+          hairStyle: "locs",
+          hairColor: "silver",
+          eyes: "narrow",
+          eyeColor: "silver",
+          brows: "heavy",
+          mouth: "frown",
+          faceDetail: "brow-split",
+          headwear: "none",
+        },
+        outfit: "out-ghostline-mantle",
+      },
     },
   ],
   spawns: [
@@ -188,6 +280,22 @@ const greywaterSteps: IsoMap = {
       label: "Matron Ferrow",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "a1-ferrow" },
+      // The Steps' matriarch: silver tail, work harness, set jaw.
+      visual: {
+        appearance: {
+          skinTone: "warm-brown",
+          build: "heavy",
+          hairStyle: "ponytail",
+          hairColor: "silver",
+          eyes: "standard",
+          eyeColor: "amber",
+          brows: "straight",
+          mouth: "frown",
+          faceDetail: "none",
+          headwear: "none",
+        },
+        outfit: "out-diver-harness",
+      },
     },
     {
       id: "patch-den",
@@ -212,6 +320,7 @@ const greywaterSteps: IsoMap = {
       label: "Flick",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "a1-flick-steps" },
+      visual: FLICK_VISUAL,
     },
     {
       id: "notice-board",
@@ -418,6 +527,22 @@ const auricSpire: IsoMap = {
       label: "Auditor's Booth",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "a3-lin" },
+      // Lin: registry auditor in spire dress, circuit-inked, precise.
+      visual: {
+        appearance: {
+          skinTone: "porcelain",
+          build: "lean",
+          hairStyle: "bob",
+          hairColor: "raven",
+          eyes: "narrow",
+          eyeColor: "hologram-blue",
+          brows: "straight",
+          mouth: "neutral",
+          faceDetail: "circuit-ink",
+          headwear: "none",
+        },
+        outfit: "out-spire-suit",
+      },
     },
     {
       id: "muster-crowd",

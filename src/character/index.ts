@@ -22,16 +22,20 @@ export {
 export {
   APPEARANCE_FIELDS,
   composeCharacter,
+  composeVisual,
   defaultAppearance,
   randomAppearance,
   resolveLayers,
+  seededAppearance,
   validateAppearance,
   type Appearance,
   type AppearanceError,
   type AppearanceField,
+  type CharacterVisual,
   type ItemLookup,
   type ResolvedLayer,
 } from "./appearance";
+export { interactableVisual, npcSeed } from "./npc";
 export {
   composePortrait,
   portraitKey,

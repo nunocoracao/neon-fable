@@ -3,6 +3,7 @@
  * interactable, and spawn placements. Map content lives in src/data;
  * this module owns the shapes and pure queries (bounds, walkability).
  */
+import type { CharacterVisual } from "../character/appearance";
 import type { TilePoint } from "./coords";
 import type { MapInteraction } from "./events";
 
@@ -114,6 +115,13 @@ export interface Interactable {
   label: string;
   spriteId: InteractableSpriteId;
   interaction: MapInteraction;
+  /**
+   * Authored look for "npc" sprites, rendered through the layered
+   * appearance pipeline. Named story NPCs set this in map data; absent
+   * means a stable seeded look derived from the map position (see
+   * character/npc.ts). Ignored for object sprite ids.
+   */
+  visual?: CharacterVisual;
 }
 
 export interface SpawnPoint {

@@ -1,13 +1,8 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BODY_TIMING, type Facing, type MotionState } from "../animation";
-import {
-  CHARACTER_ANCHOR_X,
-  CHARACTER_ANCHOR_Y,
-  CHARACTER_FRAMES,
-  ROLE_REMAPS,
-  type CharacterRole,
-} from "./characters";
+import { composeVisual } from "../../character/appearance";
+import { enemies } from "../../data/enemies";
 import { INTERACTABLE_ART } from "./interactables";
 import {
   composedCharacterGrid,
@@ -21,7 +16,6 @@ import {
   bakeSprite,
   mirrored,
   nativeScaled,
-  remapped,
   upscaled,
 } from "./pixel";
 import { PROP_ART } from "./props";
@@ -81,30 +75,8 @@ function bakeEverything(): number {
     }
   }
 
-  const roles = Object.keys(ROLE_REMAPS) as CharacterRole[];
   const facings: Facing[] = ["n", "e", "s", "w"];
   const states: MotionState[] = ["idle", "walk"];
-  for (const facing of facings) {
-    for (const state of states) {
-      for (const frame of CHARACTER_FRAMES[facing][state]) {
-        for (const role of roles) {
-          bakeSprite(
-            upscaled(remapped(frame, ROLE_REMAPS[role])),
-            CHARACTER_ANCHOR_X * SHIM,
-            CHARACTER_ANCHOR_Y * SHIM,
-          );
-          baked++;
-        }
-        bakeSilhouette(
-          upscaled(frame),
-          "#ffffff",
-          CHARACTER_ANCHOR_X * SHIM,
-          CHARACTER_ANCHOR_Y * SHIM,
-        );
-        baked++;
-      }
-    }
-  }
 
   // The v2 layered bodies: both builds and views, plus the mirrored
   // facings the provider derives at bake time.
@@ -149,6 +121,23 @@ function bakeEverything(): number {
             BODY_FRAME.anchorY,
           );
           baked++;
+        }
+      }
+    }
+  }
+
+  // The composed cast: every enemy archetype's full authored layer
+  // stack (outfit, weapon, cyberware) plus a hit-flash silhouette —
+  // what a combat scene pays to warm its cache.
+  for (const enemy of enemies) {
+    const character = composeVisual(enemy.visual);
+    for (const facing of facings) {
+      for (const state of states) {
+        for (let i = 0; i < BODY_TIMING[state].frameCount; i++) {
+          const grid = composedCharacterGrid(character, facing, state, i);
+          bakeSprite(grid, BODY_FRAME.anchorX, BODY_FRAME.anchorY);
+          bakeSilhouette(grid, "#ffffff", BODY_FRAME.anchorX, BODY_FRAME.anchorY);
+          baked += 2;
         }
       }
     }

@@ -5,8 +5,9 @@
  * the game screen owns the real narrative/combat wiring; this screen
  * exists to inspect maps without a character.
  */
-import { createIsoScene, type IsoScene } from "../iso";
+import { createIsoScene, createPixelArtSprites, type IsoScene } from "../iso";
 import { requireMap } from "../data";
+import { npcSpriteSource } from "./entitySprites";
 import type { Screen } from "./screen";
 
 export interface ExploreScreenOptions {
@@ -48,9 +49,11 @@ export function createExploreScreen(options: ExploreScreenOptions): Screen {
       container.append(back, readout);
       root.append(container);
 
+      const map = requireMap(mapId);
       scene = createIsoScene(canvas, {
-        map: requireMap(mapId),
+        map,
         spawnId,
+        sprites: createPixelArtSprites({ npc: npcSpriteSource(map) }),
         onInteract(event): void {
           const detail =
             event.interaction.kind === "dialogue"

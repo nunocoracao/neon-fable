@@ -27,6 +27,7 @@ import {
   createPixelArtSprites,
   type CombatScene,
 } from "../iso";
+import { enemySpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
 import type { IsoMap, TilePoint } from "../iso";
 import { SaveError, loadGame, type GameState } from "../state";
@@ -368,7 +369,8 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     scene.setEntities(
       combat.combatants.map((c) => ({
         id: c.id,
-        spriteId: c.kind === "player" ? ("player" as const) : ("enemy" as const),
+        // Enemy archetype ids key the composed look via enemySpriteSource.
+        spriteId: c.kind === "player" ? "player" : c.enemyId ?? "enemy",
         position: { ...c.position },
         hp: Math.max(0, c.hp),
         maxHp: c.maxHp,
@@ -789,7 +791,10 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       audio.setMusicContext("combat");
       scene = createCombatScene(canvas, {
         map: arenaMap,
-        sprites: createPixelArtSprites({ player: playerSpriteSource(session) }),
+        sprites: createPixelArtSprites({
+          player: playerSpriteSource(session),
+          entity: enemySpriteSource(),
+        }),
         onTileClick,
         onTileHover,
       });

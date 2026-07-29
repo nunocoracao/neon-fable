@@ -14,8 +14,9 @@ import {
   HEADWEAR_OPTIONS,
   MOUTH_OPTIONS,
 } from "../../data/appearance";
+import { enemies } from "../../data/enemies";
 import { items } from "../../data/items";
-import { CHARACTER_FRAMES, ROLE_REMAPS } from "./characters";
+import { maps } from "../../data/maps";
 import { INTERACTABLE_ART } from "./interactables";
 import { BODY_BUILD_IDS } from "./layers/body";
 import { HAIR_STYLE_IDS } from "./layers/hair";
@@ -44,7 +45,7 @@ describe("gallery sections", () => {
       "tiles",
       "props",
       "interactables",
-      "characters",
+      "cast",
       "bodies",
       "appearance",
     ]);
@@ -81,17 +82,29 @@ describe("gallery sections", () => {
     );
   });
 
-  it("covers every legacy role, facing, and motion state", () => {
-    const chars = section("characters");
-    expect(chars.entries.length).toBe(Object.keys(ROLE_REMAPS).length * 4 * 2);
-    for (const role of Object.keys(ROLE_REMAPS)) {
+  it("covers every enemy archetype per facing and every map NPC", () => {
+    const cast = section("cast");
+    const npcCount = maps.reduce(
+      (sum, map) =>
+        sum + map.interactables.filter((i) => i.spriteId === "npc").length,
+      0,
+    );
+    expect(cast.entries.length).toBe(enemies.length * 4 + npcCount);
+    for (const enemy of enemies) {
       for (const facing of ["n", "e", "s", "w"]) {
-        for (const state of ["idle", "walk"]) {
-          expect(
-            chars.entries.some((e) => e.id === `${role} ${facing} ${state}`),
-            `${role} ${facing} ${state} present`,
-          ).toBe(true);
-        }
+        expect(
+          cast.entries.some((e) => e.id === `enemy ${enemy.id} ${facing}`),
+          `enemy ${enemy.id} ${facing} present`,
+        ).toBe(true);
+      }
+    }
+    for (const map of maps) {
+      for (const npc of map.interactables) {
+        if (npc.spriteId !== "npc") continue;
+        expect(
+          cast.entries.some((e) => e.id === `npc ${npc.id}`),
+          `npc ${npc.id} present`,
+        ).toBe(true);
       }
     }
   });
@@ -377,33 +390,36 @@ describe("gallery entries", () => {
     }
   });
 
-  it("character animations exist for all facings and actually animate", () => {
-    const chars = section("characters");
-    for (const entry of chars.entries) {
+  it("cast entries animate at the composed 32×48 layer frame", () => {
+    const cast = section("cast");
+    for (const entry of cast.entries) {
       expect(entry.frames.length, `${entry.id} frames`).toBeGreaterThan(1);
       expect(entry.frameMs, `${entry.id} frameMs`).toBeGreaterThan(0);
+      expect(entry.frames[0]?.length, `${entry.id} height`).toBe(48);
+      expect(entry.frames[0]?.[0]?.length, `${entry.id} width`).toBe(32);
     }
   });
 
-  it("applies the in-game shims: tiles at 64×32, legacy characters doubled", () => {
+  it("renders tiles at native 64×32", () => {
     for (const entry of section("tiles").entries) {
       for (const grid of entry.frames) {
         expect(grid.length, `${entry.id} height`).toBe(32);
         expect(grid[0]?.length, `${entry.id} width`).toBe(64);
       }
     }
-    const legacyH = (CHARACTER_FRAMES.e.idle[0] ?? []).length;
-    for (const entry of section("characters").entries) {
-      expect(entry.frames[0]?.length, `${entry.id} doubled`).toBe(legacyH * 2);
-    }
   });
 
-  it("role remaps recolor the shared character grids", () => {
-    const chars = section("characters");
+  it("authored cast looks are deliberate: distinct where they should be, shared where they should be", () => {
+    const cast = section("cast");
     const frame = (id: string): string =>
-      chars.entries.find((e) => e.id === id)?.frames[0]?.join("\n") ?? "";
-    expect(frame("enemy e idle")).not.toBe("");
-    expect(frame("npc e idle")).not.toBe(frame("enemy e idle"));
+      cast.entries.find((e) => e.id === id)?.frames[0]?.join("\n") ?? "";
+    // Every enemy archetype reads as its own figure.
+    const enemyLooks = enemies.map((e) => frame(`enemy ${e.id} s`));
+    expect(new Set(enemyLooks).size).toBe(enemies.length);
+    // Flick is the same person on both maps.
+    expect(frame("npc flick")).toBe(frame("npc flick-steps"));
+    // Seeded ambient NPCs (no authored visual) differ from each other.
+    expect(frame("npc vent-crew")).not.toBe(frame("npc muster-crowd"));
   });
 });
 

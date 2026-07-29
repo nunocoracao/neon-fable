@@ -7,7 +7,13 @@
 import type { Facing } from "./animation";
 import type { InteractableSpriteId, PropId, TileId } from "./tilemap";
 
-export type EntitySpriteId = "player" | "enemy";
+/**
+ * "player" for the player character; any other value identifies a
+ * non-player look the provider resolves through its injected entity
+ * descriptor source (combat uses enemy archetype ids). Unresolvable
+ * ids render the stock fallback look rather than crashing.
+ */
+export type EntitySpriteId = string;
 
 /**
  * A drawable image plus its anchor: the pixel inside the image that

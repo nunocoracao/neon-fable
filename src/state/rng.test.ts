@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRng, nextFloat, nextInt, type RngState } from "./rng";
+import { createRng, hashSeed, nextFloat, nextInt, type RngState } from "./rng";
 
 function sequence(seed: number, count: number): number[] {
   let state: RngState = createRng(seed);
@@ -60,5 +60,28 @@ describe("seeded RNG", () => {
     state = nextFloat(state).state;
     const revived = JSON.parse(JSON.stringify(state)) as RngState;
     expect(nextFloat(revived).value).toBe(nextFloat(state).value);
+  });
+});
+
+describe("hashSeed", () => {
+  it("is a stable pure function of the text", () => {
+    expect(hashSeed("cinder-plaza:3,7")).toBe(hashSeed("cinder-plaza:3,7"));
+    expect(hashSeed("")).toBe(hashSeed(""));
+  });
+
+  it("always lands in uint32 range", () => {
+    for (const text of ["", "a", "cinder-plaza:3,7", "☂ unicode ☂"]) {
+      const hash = hashSeed(text);
+      expect(Number.isInteger(hash)).toBe(true);
+      expect(hash).toBeGreaterThanOrEqual(0);
+      expect(hash).toBeLessThanOrEqual(0xffffffff);
+    }
+  });
+
+  it("separates nearby inputs", () => {
+    const hashes = new Set(
+      ["map:0,0", "map:0,1", "map:1,0", "other:0,0", "map:10,10"].map(hashSeed),
+    );
+    expect(hashes.size).toBe(5);
   });
 });
