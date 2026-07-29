@@ -48,6 +48,13 @@ export {
   isNewGamePlus,
 } from "./ngplus";
 export {
+  applyRestyle,
+  restyleChanged,
+  restyledLook,
+  type RestyleRefusalReason,
+  type RestyleResult,
+} from "./restyle";
+export {
   createRng,
   nextFloat,
   nextInt,
