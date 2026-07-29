@@ -58,8 +58,9 @@ describe("playerSpriteSource", () => {
     };
     const after = source();
     expect(after).not.toBe(before);
+    // The equipped knife resolves to its blade class layer per build.
     expect(after.layers.find((l) => l.slot === "weapon")?.art).toBe(
-      "wpn-shard-knife",
+      "blade@lean",
     );
   });
 
