@@ -242,7 +242,9 @@ const cinderPlaza: IsoMap = {
   ],
   spawns: [
     { id: "player-start", x: 7, y: 10 },
-    { id: "south-road", x: 7, y: 12 },
+    // Where the tram and the Chainwell stair put you down: on the
+    // street under the curb, looking up into the plaza.
+    { id: "south-road", x: 7, y: 12, facing: "n" },
   ],
   // The hub is the busiest map in the game and the one the player sees
   // most: a modest, constant drift of people across the glow ring, a
@@ -381,6 +383,9 @@ const greywaterSteps: IsoMap = {
       label: "Chainwell Stair",
       spriteId: "exit",
       interaction: { kind: "dialogue", nodeId: "a1-ascend" },
+      // The climb back up to Cinder Row: arrivals come out on the road
+      // below the plaza, the way anyone walking up the Steps would.
+      exit: { mapId: "cinder-plaza", entryId: "south-road" },
     },
   ],
   spawns: [{ id: "player-start", x: 7, y: 9 }],
@@ -495,6 +500,7 @@ const exchangeVentworks: IsoMap = {
       label: "Tram Gate",
       spriteId: "exit",
       interaction: { kind: "dialogue", nodeId: "a2-tram" },
+      exit: { mapId: "cinder-plaza", entryId: "south-road" },
     },
   ],
   spawns: [{ id: "player-start", x: 7, y: 9 }],
@@ -609,6 +615,7 @@ const auricSpire: IsoMap = {
       label: "Tram Gate",
       spriteId: "exit",
       interaction: { kind: "dialogue", nodeId: "a3-tram" },
+      exit: { mapId: "cinder-plaza", entryId: "south-road" },
     },
   ],
   spawns: [{ id: "player-start", x: 6, y: 9 }],
