@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { createCharacter, defaultAllocation } from "../character";
 import { backgrounds, getBackground } from "../data/backgrounds";
 import { emptyInventory } from "./inventory";
-import { applyStartingGear, resolveStartingGear } from "./startingGear";
+import type { Item } from "./items";
+import {
+  applyStartingGear,
+  resolveStartingGear,
+  startingEquipment,
+} from "./startingGear";
 
 function makeCharacter(backgroundId: string) {
   return createCharacter({
@@ -18,6 +23,41 @@ describe("resolveStartingGear", () => {
       const gear = resolveStartingGear(background);
       expect(gear.map((item) => item.id)).toEqual(background.startingGearIds);
     }
+  });
+});
+
+describe("startingEquipment", () => {
+  it("matches the slots applyStartingGear equips for every background", () => {
+    for (const background of backgrounds) {
+      const { character } = applyStartingGear(
+        makeCharacter(background.id),
+        emptyInventory(),
+      );
+      expect(startingEquipment(background)).toEqual(character.equipment);
+    }
+  });
+
+  it("takes the first weapon and outfit and skips other kinds", () => {
+    const stub = (id: string): Item =>
+      ({
+        id,
+        name: id,
+        description: "",
+        kind: id.startsWith("wpn-")
+          ? "weapon"
+          : id.startsWith("out-")
+            ? "outfit"
+            : "consumable",
+      }) as Item;
+    const background = {
+      ...backgrounds[0]!,
+      startingGearIds: ["med-patch", "wpn-first", "out-first", "wpn-second"],
+    };
+    expect(startingEquipment(background, stub)).toEqual({
+      weapon: "wpn-first",
+      outfit: "out-first",
+      enhancements: {},
+    });
   });
 });
 
