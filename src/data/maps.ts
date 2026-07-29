@@ -24,28 +24,43 @@ import {
  */
 
 /**
- * Cinder Row plaza — the hub. A neon-lit square between tenement
- * blocks: glow-tiled plaza center, a storm canal along the east wall
- * (fenced off where it meets the square), and the Filament bar door in
- * the north face.
+ * Cinder Row plaza — the hub, dressed as the game's postcard shot. Four
+ * zones, each with its own furniture and light: the Filament bar
+ * frontage along the north face (plank threshold under the door, its
+ * neon totem beside it), Vesper's Chrome Chapel in the west wall
+ * (clinic-tile threshold under her sign), the storm canal down the east
+ * wall (quay lips both banks, capped with a barrier fence where it
+ * meets the square), and the wet-market corner in the south-east
+ * (A-frame sign, crate stacks, trash, cabling). A glow-ring plaza
+ * anchors the center under the district holo-billboard, and a curbed,
+ * lamp-lit street runs full-bleed along the open south edge — the
+ * tenement walls frame north, east, and west only, so the street stays
+ * visible instead of hiding behind the wall sprites.
  */
 const hubLegend: Record<string, LegendEntry> = {
   "#": { tile: "foundation", prop: { propId: "building", blocks: true } },
   // The Filament's doorway: worn barroom planks spilling out under the
   // door, baseboard-shadowed where they meet the dark interior behind.
   d: { tile: "bar-floor-n" },
+  // The Chrome Chapel's doorway in the west wall: scrubbed clinical
+  // tile under Vesper's door, baseboard-shadowed toward the parlor.
+  q: { tile: "clinic-floor-w" },
   ".": { tile: "pavement" },
   ",": { tile: "pavement-cracked" },
   "=": { tile: "plaza-glow" },
   r: { tile: "road" },
+  // Curb: the sidewalk's quay lip stepping down to the street.
+  "-": { tile: "quay-s" },
+  L: { tile: "quay-s", prop: { propId: "streetlight", blocks: true } },
   "~": { tile: "canal" },
   D: { tile: "canal-deep" },
   e: { tile: "quay-e" },
   w: { tile: "quay-w" },
+  n: { tile: "quay-n" },
   B: { tile: "quay-n", prop: { propId: "barrier", blocks: true } },
   l: { tile: "pavement", prop: { propId: "streetlight", blocks: true } },
-  b: { tile: "pavement", prop: { propId: "barrier", blocks: true } },
   v: { tile: "pavement", prop: { propId: "vent-stack", blocks: true } },
+  c: { tile: "pavement", prop: { propId: "crate", blocks: true } },
   h: { tile: "pavement", prop: { propId: "holo-sign", blocks: true } },
   N: { tile: "pavement", prop: { propId: "neon-sign", blocks: true } },
   H: { tile: "pavement", prop: { propId: "holo-billboard", blocks: true } },
@@ -57,18 +72,19 @@ const hubLegend: Record<string, LegendEntry> = {
 };
 
 const hubRows = [
-  "###d##########",
-  "#....N.H.eDDw#",
-  "#.l......e~~w#",
-  "#...====.e~~w#",
-  "#...====..BB.#",
-  "#...====..,.u#",
-  "#.,.====..s.l#",
-  "#y..........,#",
-  "#.l....v..u.h#",
-  "#,.........t.#",
-  "#rrrrrrrrrrrr#",
-  "##############",
+  "####d###########",
+  "#.....N..h.eDDw#",
+  "#.l..u..,.ve~~w#",
+  "#N..,====..e~~w#",
+  "#q...====..nBBn#",
+  "#..,.====..,.l.#",
+  "#.l..====.H..u.#",
+  "#y........,..c.#",
+  "#.l........s.c.#",
+  "#,....u....u.t.#",
+  "#---L------L---#",
+  "rrrrrrrrrrrrrrrr",
+  "rrrrrrrrrrrrrrrr",
 ];
 
 const hubGrid = buildMapGrid(hubLegend, hubRows);
@@ -83,7 +99,7 @@ const cinderPlaza: IsoMap = {
   interactables: [
     {
       id: "filament-door",
-      x: 3,
+      x: 4,
       y: 0,
       label: "The Filament",
       spriteId: "door",
@@ -91,8 +107,9 @@ const cinderPlaza: IsoMap = {
     },
     {
       id: "market-vendor",
-      x: 10,
-      y: 7,
+      x: 12,
+      y: 8,
+      // Working the stall row between the A-frame sign and the crates.
       label: "Wet-market vendor",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "wet-market" },
@@ -115,8 +132,10 @@ const cinderPlaza: IsoMap = {
     },
     {
       id: "chrome-chapel",
+      // Beside the chapel threshold, clear of the wall and lamp sprites
+      // so the stylist reads at a glance.
       x: 2,
-      y: 3,
+      y: 4,
       label: "Vesper — Chrome Chapel",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "chapel-door" },
@@ -124,16 +143,16 @@ const cinderPlaza: IsoMap = {
     },
     {
       id: "plaza-terminal",
-      x: 5,
-      y: 5,
+      x: 9,
+      y: 4,
       label: "Public terminal",
       spriteId: "terminal",
       interaction: { kind: "dialogue", nodeId: "start" },
     },
     {
       id: "rust-runner",
-      x: 11,
-      y: 5,
+      x: 12,
+      y: 6,
       label: "Rustyard runner",
       spriteId: "npc",
       interaction: { kind: "combat", encounterId: "enc-rustyard-ambush" },
@@ -158,6 +177,7 @@ const cinderPlaza: IsoMap = {
       id: "flick",
       x: 8,
       y: 7,
+      // Loitering at the plaza ring's south-east corner.
       label: "Flick",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "a1-start" },
@@ -165,8 +185,8 @@ const cinderPlaza: IsoMap = {
     },
     {
       id: "tram-messenger",
-      x: 4,
-      y: 8,
+      x: 3,
+      y: 9,
       label: "Restless messenger",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "a2-start" },
@@ -189,8 +209,8 @@ const cinderPlaza: IsoMap = {
     },
     {
       id: "crown-watcher",
-      x: 2,
-      y: 6,
+      x: 10,
+      y: 7,
       label: "Watcher under the dead screens",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "a3-start" },
@@ -213,8 +233,8 @@ const cinderPlaza: IsoMap = {
     },
   ],
   spawns: [
-    { id: "player-start", x: 6, y: 9 },
-    { id: "south-road", x: 6, y: 10 },
+    { id: "player-start", x: 7, y: 10 },
+    { id: "south-road", x: 7, y: 12 },
   ],
 };
 

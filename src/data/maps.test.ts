@@ -6,7 +6,7 @@ import {
 } from "../character";
 import { ENHANCEMENT_SLOTS } from "../inventory/items";
 import { findPathToAdjacent } from "../iso/path";
-import { inBounds, isWalkable, requireSpawn } from "../iso/tilemap";
+import { inBounds, isWalkable, requireSpawn, tileAt } from "../iso/tilemap";
 import { encounters, getEncounter } from "./encounters";
 import { getItem } from "./items";
 import { HUB_MAP_ID, getMap, maps, requireMap } from "./maps";
@@ -54,6 +54,41 @@ describe.each(maps.map((m) => [m.id, m] as const))("map %s", (_id, map) => {
     }
     for (const interactable of map.interactables) {
       expect(inBounds(map, interactable.x, interactable.y)).toBe(true);
+    }
+  });
+
+  // Map lint: an interactable occupies (and blocks) its own tile, so
+  // isWalkable is false there by construction — assert the ground under
+  // it instead: a walkable tile kind, clear of blocking props, and
+  // approachable from every spawn point.
+  it("places every interactable on walkable, unobstructed ground", () => {
+    for (const interactable of map.interactables) {
+      expect(
+        tileAt(map, interactable.x, interactable.y)?.walkable,
+        `interactable ${interactable.id} sits on an unwalkable tile`,
+      ).toBe(true);
+      expect(
+        map.props.some(
+          (p) => p.blocks && p.x === interactable.x && p.y === interactable.y,
+        ),
+        `interactable ${interactable.id} shares a tile with a blocking prop`,
+      ).toBe(false);
+    }
+  });
+
+  it("keeps every interactable reachable from every spawn point", () => {
+    for (const spawn of map.spawns) {
+      for (const interactable of map.interactables) {
+        const path = findPathToAdjacent(
+          map,
+          { x: spawn.x, y: spawn.y },
+          interactable,
+        );
+        expect(
+          path,
+          `interactable ${interactable.id} unreachable from spawn ${spawn.id}`,
+        ).not.toBeNull();
+      }
     }
   });
 });
