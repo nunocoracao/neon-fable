@@ -3,6 +3,7 @@ import { InventoryError } from "../inventory/items";
 import { layerArtGrid } from "../iso/art/layers";
 import { BODY_BUILD_IDS, BODY_VIEW_IDS } from "../iso/art/layers/body";
 import { outfitArtId } from "../iso/art/layers/outfits";
+import { weaponArtId } from "../iso/art/layers/weapons";
 import { MATERIAL_RAMPS } from "../iso/art/palette";
 import { backgrounds } from "./backgrounds";
 import { getItem, items, requireItem } from "./items";
@@ -102,6 +103,32 @@ describe("item content", () => {
       i.kind === "outfit" ? JSON.stringify(i.outfitLayer) : "",
     );
     expect(new Set(looks).size).toBe(outfits.length);
+  });
+
+  it("gives every weapon a class layer that resolves for both builds and views", () => {
+    const weapons = items.filter((i) => i.kind === "weapon");
+    for (const item of weapons) {
+      if (item.kind !== "weapon") continue;
+      const ref = item.weaponLayer;
+      // Schema-wise the layer is optional (absent items draw empty
+      // hands); every shipped weapon carries one.
+      expect(ref, `${item.id} needs a weaponLayer`).toBeDefined();
+      if (!ref) continue;
+      for (const build of BODY_BUILD_IDS) {
+        for (const view of BODY_VIEW_IDS) {
+          expect(
+            layerArtGrid("weapon", weaponArtId(ref.id, build), view),
+            `${item.id} -> ${ref.id} ${build} ${view}`,
+          ).not.toBeNull();
+        }
+      }
+      if (ref.accent !== undefined) {
+        expect(
+          MATERIAL_RAMPS[ref.accent],
+          `${item.id} accent ${ref.accent}`,
+        ).toBeDefined();
+      }
+    }
   });
 
   it("resolves every background starting-gear id to a real item", () => {

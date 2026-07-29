@@ -17,6 +17,7 @@ export const items: Item[] = [
       "to move with, sharp enough to end an argument.",
     damage: 4,
     rangeType: "melee",
+    weaponLayer: { id: "blade" },
     effects: [{ type: "stat-mod", stat: "reflexes", amount: 1 }],
   },
   {
@@ -29,6 +30,7 @@ export const items: Item[] = [
     damage: 5,
     rangeType: "ranged",
     requirement: { stat: "reflexes", value: 5 },
+    weaponLayer: { id: "pistol" },
     effects: [],
   },
   {
@@ -40,6 +42,8 @@ export const items: Item[] = [
       "Made for dropping people, not killing them.",
     damage: 3,
     rangeType: "melee",
+    // Stun coils crackle hologram-blue at the rod tip.
+    weaponLayer: { id: "baton", accent: "hologramBlue" },
     effects: [{ type: "grant-ability", abilityId: "ability-stun-strike" }],
   },
   // --- Outfits ---
@@ -92,6 +96,8 @@ export const items: Item[] = [
     damage: 6,
     rangeType: "ranged",
     requirement: { stat: "tech", value: 5 },
+    // Live cable burns hazard-amber down the whip's arc.
+    weaponLayer: { id: "lash", accent: "hazardAmber" },
     effects: [],
   },
   // --- Tier-2 gear (Act 2+ shops and rewards; steep prices, stiff
@@ -106,6 +112,7 @@ export const items: Item[] = [
     damage: 8,
     rangeType: "ranged",
     requirement: { stat: "reflexes", value: 6 },
+    weaponLayer: { id: "pistol" },
     effects: [],
   },
   {
@@ -118,6 +125,7 @@ export const items: Item[] = [
     damage: 8,
     rangeType: "melee",
     requirement: { stat: "body", value: 6 },
+    weaponLayer: { id: "blade" },
     effects: [],
   },
   {
@@ -130,6 +138,7 @@ export const items: Item[] = [
     damage: 7,
     rangeType: "ranged",
     requirement: { stat: "tech", value: 6 },
+    weaponLayer: { id: "rifle" },
     effects: [{ type: "stat-mod", stat: "tech", amount: 1 }],
   },
   {
