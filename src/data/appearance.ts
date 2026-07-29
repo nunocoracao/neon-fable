@@ -12,6 +12,9 @@ import {
 } from "../iso/art/layers/face";
 import { HEADWEAR_PORTRAITS } from "../iso/art/layers/headwear";
 import type { ChannelRemap, PixelGrid } from "../iso/art/pixel";
+// Type-only: erased at compile time, so no runtime cycle with the
+// character module (which imports these catalogs).
+import type { Appearance } from "../character/appearance";
 
 /**
  * Appearance catalogs: the single source of truth for every visual
@@ -416,6 +419,135 @@ export function resolveExpression(
     throw new Error(`unknown expression "${String(expression)}"`);
   }
   return { mouth: mouthGrid, brows: browsGrid };
+}
+
+/**
+ * Preset looks: authored signature appearances, two per background.
+ * The appearance step seeds its working look from the chosen
+ * background's first preset on first entry, and shows every preset as
+ * a portrait thumbnail that applies on click. Every record must
+ * validate against the catalogs above — a test enforces it.
+ */
+export interface AppearancePreset {
+  /** Stable id, unique across all presets. */
+  id: string;
+  /** Shown as the thumbnail's caption/tooltip in the preset row. */
+  label: string;
+  appearance: Appearance;
+}
+
+export const BACKGROUND_APPEARANCE_PRESETS: Readonly<
+  Record<string, readonly AppearancePreset[]>
+> = {
+  "gutter-courier": [
+    {
+      id: "courier-rooftop",
+      label: "Rooftop Sprinter",
+      appearance: {
+        skinTone: "golden-tan",
+        build: "lean",
+        hairStyle: "spikes",
+        hairColor: "auburn",
+        eyes: "narrow",
+        eyeColor: "cyan",
+        brows: "straight",
+        mouth: "smirk",
+        faceDetail: "scar",
+        headwear: "none",
+      },
+    },
+    {
+      id: "courier-underlevel",
+      label: "Underlevel Ghost",
+      appearance: {
+        skinTone: "warm-brown",
+        build: "heavy",
+        hairStyle: "locs",
+        hairColor: "raven",
+        eyes: "standard",
+        eyeColor: "amber",
+        brows: "heavy",
+        mouth: "neutral",
+        faceDetail: "none",
+        headwear: "cap",
+      },
+    },
+  ],
+  "tower-analyst": [
+    {
+      id: "analyst-spire",
+      label: "Spire Polish",
+      appearance: {
+        skinTone: "porcelain",
+        build: "lean",
+        hairStyle: "slicked",
+        hairColor: "chestnut",
+        eyes: "narrow",
+        eyeColor: "hologram-blue",
+        brows: "arched",
+        mouth: "neutral",
+        faceDetail: "none",
+        headwear: "none",
+      },
+    },
+    {
+      id: "analyst-severance",
+      label: "Severance Clause",
+      appearance: {
+        skinTone: "deep-umber",
+        build: "heavy",
+        hairStyle: "bob",
+        hairColor: "silver",
+        eyes: "standard",
+        eyeColor: "crimson",
+        brows: "arched",
+        mouth: "frown",
+        faceDetail: "brow-split",
+        headwear: "none",
+      },
+    },
+  ],
+  "grid-diver": [
+    {
+      id: "diver-phantom",
+      label: "Weave Phantom",
+      appearance: {
+        skinTone: "porcelain",
+        build: "lean",
+        hairStyle: "glyph",
+        hairColor: "synth-violet",
+        eyes: "cyber-band",
+        eyeColor: "magenta",
+        brows: "straight",
+        mouth: "neutral",
+        faceDetail: "cyber-lines",
+        headwear: "none",
+      },
+    },
+    {
+      id: "diver-archive",
+      label: "Archive Crawler",
+      appearance: {
+        skinTone: "deep-umber",
+        build: "lean",
+        hairStyle: "mohawk",
+        hairColor: "blond",
+        eyes: "wide",
+        eyeColor: "hologram-blue",
+        brows: "heavy",
+        mouth: "breather",
+        faceDetail: "circuit-ink",
+        headwear: "none",
+      },
+    },
+  ],
+};
+
+/** The authored presets for a background; empty for unknown ids. */
+export function backgroundPresets(
+  backgroundId: string,
+): readonly AppearancePreset[] {
+  return BACKGROUND_APPEARANCE_PRESETS[backgroundId] ?? [];
 }
 
 // Re-exported so catalog consumers don't reach into iso/art directly.

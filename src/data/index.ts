@@ -3,6 +3,7 @@
  * data-defined here — never hard-coded in engine code.
  */
 export {
+  BACKGROUND_APPEARANCE_PRESETS,
   BUILD_OPTIONS,
   BROWS_OPTIONS,
   EXPRESSION_IDS,
@@ -15,10 +16,12 @@ export {
   MOUTH_OPTIONS,
   SKIN_TONE_OPTIONS,
   appearanceCatalogs,
+  backgroundPresets,
   getAppearanceOption,
   resolveExpression,
   type AppearanceCategory,
   type AppearanceOption,
+  type AppearancePreset,
   type BuildOption,
   type ColorOption,
   type ExpressionId,
