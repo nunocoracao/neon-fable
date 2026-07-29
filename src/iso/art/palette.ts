@@ -22,6 +22,7 @@
  * - Dark fabric:     V W X
  * - Hazard amber:    Y Z n   (reuses amber bright as the highlight)
  * - Hologram blue:   s t u
+ * - Neon cyan:       i g h   (the cyan neon trio as a ramp)
  */
 
 export const TRANSPARENT = ".";
@@ -151,6 +152,8 @@ export const MATERIAL_RAMPS = {
   darkFabric: { shade: "V", base: "W", highlight: "X" },
   hazardAmber: { shade: "Y", base: "Z", highlight: "n" },
   hologramBlue: { shade: "s", base: "t", highlight: "u" },
+  // The cyan neon trio as a ramp — optic glow and cyberware accents.
+  neonCyan: { shade: "i", base: "g", highlight: "h" },
 } as const satisfies Readonly<Record<string, ColorRamp>>;
 
 export type MaterialName = keyof typeof MATERIAL_RAMPS;

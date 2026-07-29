@@ -121,6 +121,7 @@ describe("material ramps", () => {
         "glass",
         "hazardAmber",
         "hologramBlue",
+        "neonCyan",
       ].sort(),
     );
     for (const [name, ramp] of Object.entries(MATERIAL_RAMPS)) {

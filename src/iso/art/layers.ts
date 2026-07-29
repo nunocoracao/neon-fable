@@ -33,6 +33,7 @@ import {
   type BodyViewId,
 } from "./layers/body";
 import { bodyAnimFrames } from "./layers/bodyAnim";
+import { CYBER_GRIDS } from "./layers/cyberware";
 import { FACE_LAYERS } from "./layers/face";
 import { CRUSHED_HAIR_LAYERS, HAIR_LAYERS, hairWalkGrid } from "./layers/hair";
 import { HEADWEAR_LAYERS } from "./layers/headwear";
@@ -174,6 +175,17 @@ export function weaponChannelRemap(
   return outfitChannelRemap(undefined, accent);
 }
 
+/**
+ * Remap a cyberware layer's neon-glow pixels onto a material ramp —
+ * the same accent channel weapon energy rides (applied per layer, so
+ * the two never collide); chrome plating stays authored chrome.
+ */
+export function cyberChannelRemap(
+  accent?: MaterialName,
+): Readonly<Record<string, string>> {
+  return outfitChannelRemap(undefined, accent);
+}
+
 /** Remap the iris channel onto any palette entry. */
 export function eyeColorRemap(color: string): Readonly<Record<string, string>> {
   if (PALETTE[color] === undefined) {
@@ -238,6 +250,8 @@ const SLOT_REGISTRIES: Readonly<Partial<Record<LayerSlot, SlotRegistry>>> = {
   outfit: OUTFIT_GRIDS as SlotRegistry,
   // Keyed by weaponArtId(class, build), same per-build scheme as outfits.
   weapon: WEAPON_GRIDS as SlotRegistry,
+  // Keyed by cyberArtId(family, build) — installed enhancements.
+  cyberware: CYBER_GRIDS as SlotRegistry,
 };
 
 /** The grid a layer draws for a view, or null while its art is unregistered. */

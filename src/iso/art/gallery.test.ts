@@ -117,6 +117,9 @@ describe("gallery sections", () => {
     const drawnWeapons = items.filter(
       (i) => i.kind === "weapon" && i.weaponLayer !== undefined,
     );
+    const drawnCyber = items.filter(
+      (i) => i.kind === "enhancement" && i.cyberLayer !== undefined,
+    );
     expect(appearance.entries.length).toBe(
       HAIR_STYLE_IDS.length * HAIR_COLOR_OPTIONS.length * 4 +
         HAIR_STYLE_IDS.length * BODY_BUILD_IDS.length * 4 +
@@ -126,7 +129,8 @@ describe("gallery sections", () => {
         drawnDetails.length +
         drawnHeadwear.length * 4 +
         drawnOutfits.length * BODY_BUILD_IDS.length * 4 +
-        drawnWeapons.length * BODY_BUILD_IDS.length * 4,
+        drawnWeapons.length * BODY_BUILD_IDS.length * 4 +
+        drawnCyber.length * BODY_BUILD_IDS.length * 4,
     );
     for (const style of HAIR_STYLE_IDS) {
       for (const color of HAIR_COLOR_OPTIONS) {
@@ -284,6 +288,46 @@ describe("gallery sections", () => {
       );
     }
     expect(new Set(classLooks.values()).size).toBe(classLooks.size);
+  });
+
+  it("covers every enhancement per build and facing, each install distinct", () => {
+    const appearance = section("appearance");
+    const enhancements = items.filter(
+      (i) => i.kind === "enhancement" && i.cyberLayer !== undefined,
+    );
+    expect(enhancements.length).toBeGreaterThanOrEqual(7);
+    for (const item of enhancements) {
+      for (const build of BODY_BUILD_IDS) {
+        for (const facing of ["n", "e", "s", "w"]) {
+          expect(
+            appearance.entries.some(
+              (e) => e.id === `cyber ${item.id} ${build} ${facing}`,
+            ),
+            `cyber ${item.id} ${build} ${facing} present`,
+          ).toBe(true);
+        }
+      }
+    }
+    const frame = (id: string): string =>
+      appearance.entries.find((e) => e.id === id)?.frames[0]?.join("\n") ?? "";
+    // Items sharing a family read apart through their glow recolor:
+    // every family + accent pair is unique over the same lean base.
+    const looks = new Map<string, string>();
+    for (const item of enhancements) {
+      if (item.kind !== "enhancement" || !item.cyberLayer) continue;
+      looks.set(
+        JSON.stringify(item.cyberLayer),
+        frame(`cyber ${item.id} lean e`),
+      );
+    }
+    expect(new Set(looks.values()).size).toBe(looks.size);
+    // The pulsing optics genuinely animate across their idle frames.
+    const optics = appearance.entries.find(
+      (e) => e.id === "cyber cyb-optic-suite lean e",
+    );
+    expect(optics?.frames[0]?.join("\n")).not.toBe(
+      optics?.frames[1]?.join("\n"),
+    );
   });
 
   it("covers every drawn face detail up front, and cyber-lines glows", () => {
