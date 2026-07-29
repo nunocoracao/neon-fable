@@ -5,7 +5,12 @@ import {
   matchesQuery,
   type GallerySection,
 } from "./gallery";
-import { HAIR_COLOR_OPTIONS } from "../../data/appearance";
+import {
+  BROWS_OPTIONS,
+  EYE_COLOR_OPTIONS,
+  EYES_OPTIONS,
+  HAIR_COLOR_OPTIONS,
+} from "../../data/appearance";
 import { CHARACTER_FRAMES, ROLE_REMAPS } from "./characters";
 import { INTERACTABLE_ART } from "./interactables";
 import { BODY_BUILD_IDS } from "./layers/body";
@@ -102,7 +107,9 @@ describe("gallery sections", () => {
     const appearance = section("appearance");
     expect(appearance.entries.length).toBe(
       HAIR_STYLE_IDS.length * HAIR_COLOR_OPTIONS.length * 4 +
-        HAIR_STYLE_IDS.length * BODY_BUILD_IDS.length * 4,
+        HAIR_STYLE_IDS.length * BODY_BUILD_IDS.length * 4 +
+        EYES_OPTIONS.length * EYE_COLOR_OPTIONS.length +
+        EYES_OPTIONS.length * BROWS_OPTIONS.length,
     );
     for (const style of HAIR_STYLE_IDS) {
       for (const color of HAIR_COLOR_OPTIONS) {
@@ -135,6 +142,36 @@ describe("gallery sections", () => {
     expect(frame("hair locs lean walk e")).not.toBe(
       frame("hair locs heavy walk e"),
     );
+  });
+
+  it("covers every eye shape × eye color and eye shape × brow shape up front", () => {
+    const appearance = section("appearance");
+    for (const eyes of EYES_OPTIONS) {
+      for (const color of EYE_COLOR_OPTIONS) {
+        expect(
+          appearance.entries.some(
+            (e) => e.id === `eyes ${eyes.id} ${color.id} e`,
+          ),
+          `eyes ${eyes.id} ${color.id} present`,
+        ).toBe(true);
+      }
+      for (const brows of BROWS_OPTIONS) {
+        expect(
+          appearance.entries.some(
+            (e) => e.id === `face ${eyes.id} ${brows.id} e`,
+          ),
+          `face ${eyes.id} ${brows.id} present`,
+        ).toBe(true);
+      }
+    }
+    // Each eye color actually recolors: same shape, distinct frames.
+    const frame = (id: string): string =>
+      appearance.entries.find((e) => e.id === id)?.frames[0]?.join("\n") ?? "";
+    const looks = EYE_COLOR_OPTIONS.map((c) => frame(`eyes standard ${c.id} e`));
+    expect(new Set(looks).size).toBe(EYE_COLOR_OPTIONS.length);
+    // Brow combos really differ per brow shape.
+    const combos = BROWS_OPTIONS.map((b) => frame(`face standard ${b.id} e`));
+    expect(new Set(combos).size).toBe(BROWS_OPTIONS.length);
   });
 });
 

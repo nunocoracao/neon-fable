@@ -15,6 +15,9 @@ import {
   type MotionState,
 } from "../animation";
 import {
+  BROWS_OPTIONS,
+  EYE_COLOR_OPTIONS,
+  EYES_OPTIONS,
   HAIR_COLOR_OPTIONS,
   HAIR_STYLE_OPTIONS,
 } from "../../data/appearance";
@@ -127,9 +130,11 @@ function bodyEntries(): GalleryEntry[] {
  * style: style × catalog hair color × facing idling on the lean body,
  * then style × build × facing walking in the canonical color — so both
  * builds and the walk-only secondary motion (hair trail) are visible
- * without the full color × build × state product. Catalog styles whose
- * art has not landed yet are skipped and join automatically once their
- * registry entry exists.
+ * without the full color × build × state product. Two face sweeps on
+ * the lean body's front view (faces only exist up front): eye shape ×
+ * catalog eye color, and eye shape × brow shape in the canonical cyan.
+ * Catalog styles whose art has not landed yet are skipped and join
+ * automatically once their registry entry exists.
  */
 function appearanceEntries(): GalleryEntry[] {
   const [hairChannel = "K"] = REMAP_CHANNELS.hair;
@@ -187,7 +192,48 @@ function appearanceEntries(): GalleryEntry[] {
       ),
     ),
   );
-  return [...colorSweep, ...buildSweep];
+  const [eyeChannel = "g"] = REMAP_CHANNELS.eyes;
+  const eyesOptions = EYES_OPTIONS.filter((option) =>
+    layerArtGrid("face", option.layer, "front"),
+  );
+  const browsOptions = BROWS_OPTIONS.filter((option) =>
+    layerArtGrid("face", option.layer, "front"),
+  );
+  const faceCharacter = (
+    eyesArt: string,
+    browsArt: string | null,
+    eyeColor: string,
+  ): ComposedCharacter => ({
+    build: "lean",
+    layers: [
+      { slot: "body", art: "lean", remap: {} },
+      { slot: "face", art: eyesArt, remap: { [eyeChannel]: eyeColor } },
+      ...(browsArt === null
+        ? []
+        : [{ slot: "face", art: browsArt, remap: {} } as const]),
+    ],
+  });
+  const eyeColorSweep = eyesOptions.flatMap((eyes) =>
+    EYE_COLOR_OPTIONS.map((color) =>
+      entry(
+        `eyes ${eyes.id} ${color.id} e`,
+        faceCharacter(eyes.layer, null, color.color),
+        "e",
+        "idle",
+      ),
+    ),
+  );
+  const faceComboSweep = eyesOptions.flatMap((eyes) =>
+    browsOptions.map((brows) =>
+      entry(
+        `face ${eyes.id} ${brows.id} e`,
+        faceCharacter(eyes.layer, brows.layer, "g"),
+        "e",
+        "idle",
+      ),
+    ),
+  );
+  return [...colorSweep, ...buildSweep, ...eyeColorSweep, ...faceComboSweep];
 }
 
 /**
