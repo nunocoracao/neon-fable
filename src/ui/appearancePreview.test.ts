@@ -170,6 +170,34 @@ describe("appearance preview panel", () => {
     showcase.destroy();
   });
 
+  it("the OS reduced-motion preference freezes the clock: a static idle frame, no spin", () => {
+    preview.destroy();
+    document.body.innerHTML = "";
+    vi.spyOn(window, "matchMedia").mockReturnValue({
+      matches: true,
+    } as MediaQueryList);
+    let frame: FrameRequestCallback = () => undefined;
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      (callback: FrameRequestCallback): number => {
+        frame = callback;
+        return 0;
+      },
+    );
+    const showcase = createAppearancePreview({
+      appearance: () => look,
+      equipment: () => startingEquipment(backgrounds[0]!),
+      showcase: true,
+    });
+    document.body.append(showcase.el);
+    // The clock advancing past several holds never turns the character.
+    frame(SHOWCASE_FACING_MS);
+    frame(SHOWCASE_FACING_MS * 3);
+    expect(showcase.el.dataset.facing).toBe("s");
+    expect(showcase.el.dataset.motion).toBe("idle");
+    showcase.destroy();
+  });
+
   it("flipping options bakes one frame per look, never whole sets", () => {
     const styles = appearanceCatalogs.hairStyle.map((option) => option.id);
     const before = previewCacheStats().misses;

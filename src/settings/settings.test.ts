@@ -16,6 +16,7 @@ import {
   type SettingsStorage,
 } from "./settings";
 import { createSettingsStore } from "./store";
+import { reducedMotionActive } from "./index";
 
 function fakeStorage(
   initial: Record<string, string> = {},
@@ -251,5 +252,37 @@ describe("settings store", () => {
     const storage = fakeStorage();
     createSettingsStore(storage).update({ glow: false });
     expect(createSettingsStore(storage).get().glow).toBe(false);
+  });
+});
+
+describe("reducedMotionActive", () => {
+  const os = (matches: boolean) => ({
+    matchMedia: (query: string) => {
+      expect(query).toBe("(prefers-reduced-motion: reduce)");
+      return { matches };
+    },
+  });
+
+  it("is on when the in-game setting asks, regardless of the OS", () => {
+    const current = { ...DEFAULT_SETTINGS, reducedMotion: true };
+    expect(reducedMotionActive(current, os(false))).toBe(true);
+    expect(reducedMotionActive(current, null)).toBe(true);
+  });
+
+  it("is on when the OS preference asks, even with the setting off", () => {
+    expect(reducedMotionActive(DEFAULT_SETTINGS, os(true))).toBe(true);
+  });
+
+  it("is off when neither asks, or matchMedia is unavailable/broken", () => {
+    expect(reducedMotionActive(DEFAULT_SETTINGS, os(false))).toBe(false);
+    expect(reducedMotionActive(DEFAULT_SETTINGS, null)).toBe(false);
+    expect(reducedMotionActive(DEFAULT_SETTINGS, {})).toBe(false);
+    expect(
+      reducedMotionActive(DEFAULT_SETTINGS, {
+        matchMedia: () => {
+          throw new Error("no media queries here");
+        },
+      }),
+    ).toBe(false);
   });
 });

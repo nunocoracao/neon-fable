@@ -28,7 +28,7 @@ import { BODY_FRAME } from "../iso/art/layers/body";
 import { ART_SCALE, bakeSprite, spriteBytes } from "../iso/art/pixel";
 import { createSpriteCache, type SpriteCacheStats } from "../iso/art/spriteCache";
 import type { Sprite } from "../iso/sprites";
-import { settings } from "../settings";
+import { reducedMotionActive } from "../settings";
 import { portraitCanvas } from "./portraits";
 import {
   DEFAULT_PREVIEW_STATE,
@@ -225,7 +225,10 @@ export function createAppearancePreview(
   }
 
   const tick = (now: number): void => {
-    lastTickMs = settings.get().reducedMotion ? 0 : now;
+    // Reduced motion (in-game setting or OS preference) freezes the
+    // clock: the preview holds a static frame and the showcase spin
+    // holds its front facing instead of turning.
+    lastTickMs = reducedMotionActive() ? 0 : now;
     if (options.showcase) {
       const facing = showcaseFacing(lastTickMs);
       if (facing !== state.facing) setState({ ...state, facing });
