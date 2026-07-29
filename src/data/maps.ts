@@ -288,11 +288,11 @@ const greywaterRows = [
   "#,.Bnn....l..#",
   "#..,..,....c.#",
   "#.,...==..,..#",
-  "#..u..==....v#",
+  "#..u..==...v.#",
   "#sl.......c..#",
-  "#.p..,....,..#",
+  "#.p..,.u..,..#",
   "#..,.v...t.l.#",
-  "#,....,..u...#",
+  "#,....,......#",
   "##############",
 ];
 
@@ -393,27 +393,27 @@ const ventworksLegend: Record<string, LegendEntry> = {
   w: { tile: "quay-w" },
   B: { tile: "quay-n", prop: { propId: "barrier", blocks: true } },
   l: { tile: "pavement", prop: { propId: "streetlight", blocks: true } },
-  b: { tile: "pavement", prop: { propId: "barrier", blocks: true } },
   v: { tile: "pavement", prop: { propId: "vent-stack", blocks: true } },
   c: { tile: "pavement", prop: { propId: "crate", blocks: true } },
-  // Auric's district advertising: a corp holo ad and a canal-side
-  // billboard mast.
+  // Auric's district advertising: a corp holo ad and a billboard mast,
+  // both kept off the wall-adjacent ring so the tenement sprites in
+  // front of them do not eat half the projection.
   h: { tile: "pavement", prop: { propId: "holo-sign", blocks: true } },
   H: { tile: "pavement", prop: { propId: "holo-billboard", blocks: true } },
 };
 
 const ventworksRows = [
   "##############",
-  "#....==.eDDwH#",
+  "#....==.eDDw.#",
   "#.l..==.e~~w.#",
   "#...==...Bn..#",
-  "#..,......v.,#",
+  "#.c,......v.,#",
   "#h..rr.l...,.#",
-  "#.c.r..rrrr..#",
-  "#...r..r..l..#",
+  "#...r..rrrr..#",
+  "#.H.r..r..l..#",
   "#.,.r..r..v..#",
   "#...rrrr..c..#",
-  "#.,.....,..b.#",
+  "#.,.....,....#",
   "##############",
 ];
 
