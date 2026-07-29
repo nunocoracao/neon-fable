@@ -86,6 +86,28 @@ export function stepPreviewZoom(
   return next === undefined ? state : { ...state, zoom: next };
 }
 
+/** Largest crisp zoom on the ladder — the review step's full-size render. */
+export function maxPreviewZoom(): number {
+  return PREVIEW_ZOOM_LEVELS[PREVIEW_ZOOM_LEVELS.length - 1] ?? ART_SCALE;
+}
+
+/** How long the review showcase holds each facing before turning. */
+export const SHOWCASE_FACING_MS = 2400;
+
+/**
+ * The facing the review showcase's slow spin shows at a moment: one
+ * quarter turn clockwise through PREVIEW_FACINGS every holdMs. Pure
+ * over the clock, so a frozen clock (reduced motion) holds the front.
+ */
+export function showcaseFacing(
+  timeMs: number,
+  holdMs: number = SHOWCASE_FACING_MS,
+): Facing {
+  const index =
+    Math.floor(Math.max(0, timeMs) / holdMs) % PREVIEW_FACINGS.length;
+  return PREVIEW_FACINGS[index] ?? "s";
+}
+
 /** Zoom readout relative to the game's native on-screen scale ("×2"). */
 export function previewZoomLabel(zoom: number): string {
   const factor = clampPreviewZoom(zoom) / ART_SCALE;
