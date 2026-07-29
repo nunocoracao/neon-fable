@@ -1,4 +1,6 @@
 import type { StatKey } from "../character/stats";
+import type { OutfitLayerId } from "../iso/art/layers/outfits";
+import type { MaterialName } from "../iso/art/palette";
 
 /**
  * Item model: a discriminated union of item kinds. Items are pure typed
@@ -32,10 +34,31 @@ export interface WeaponItem extends ItemBase {
   effects: ItemEffect[];
 }
 
+/**
+ * How an outfit renders on the character sprite: which authored layer
+ * family it wears, and optional material-ramp recolors for the outfit
+ * primary (main cloth) and accent (trim) remap channels. Pure typed
+ * data — resolveLayers turns it into a layer-engine reference, so art
+ * code never switches on item ids.
+ */
+export interface OutfitLayerRef {
+  /** Outfit layer family in the outfit art registry. */
+  id: OutfitLayerId;
+  /** Recolor the main cloth channel onto this material ramp. */
+  primary?: MaterialName;
+  /** Recolor the trim channel onto this material ramp. */
+  accent?: MaterialName;
+}
+
 export interface OutfitItem extends ItemBase {
   kind: "outfit";
   /** Flat damage reduction while worn. */
   armor: number;
+  /**
+   * Sprite layer worn while equipped; items without one keep the
+   * body's base garb underlayer visible instead.
+   */
+  outfitLayer?: OutfitLayerRef;
   effects: ItemEffect[];
 }
 
