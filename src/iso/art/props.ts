@@ -3,14 +3,10 @@
  * a palette-indexed grid (some with short frame loops for window
  * flicker, neon pulses, and sign shimmer). Anchors are given in 1x art
  * pixels at the point that lands on the tile-diamond center; light is
- * top-left, so left faces read lighter than right faces.
- *
- * Street furniture (streetlight, vent stack, crate, barrier, hydrant,
- * trash heap, cable bundle) and all signage (neon sign, shop sign, holo
- * ad, holo billboard) are authored natively at the v2 resolution
- * (`native: true`); only the building still rides the legacy 2× shim
- * until its own re-authoring pass.
+ * top-left, so left faces read lighter than right faces. Every prop is
+ * authored natively at the v2 resolution and bakes as-is.
  */
+import { hash2 } from "../animation";
 import type { PropId } from "../tilemap";
 import type { GlowSource } from "./glow";
 import { remapped, type PixelGrid } from "./pixel";
@@ -24,14 +20,9 @@ export interface PropArt {
   /** Neon flicker: dropouts briefly show the last frame instead. */
   flicker: boolean;
   /**
-   * Grid is authored at the v2 native resolution and bakes as-is;
-   * legacy grids go through the nearest-neighbor 2× shim instead.
-   */
-  native: boolean;
-  /**
-   * Emissive light this prop casts in the glow pass. Offsets are in v2
-   * (1x) art pixels relative to the anchor, even for legacy-shim grids.
-   * Flicker props go dark with their dropout frame.
+   * Emissive light this prop casts in the glow pass. Offsets are in 1x
+   * art pixels relative to the anchor. Flicker props go dark with their
+   * dropout frame.
    */
   glow?: readonly GlowSource[];
 }
@@ -39,67 +30,133 @@ export interface PropArt {
 const rep = (n: number, row: string): string[] => Array<string>(n).fill(row);
 const gap = (n: number): string => ".".repeat(n);
 
-/* --- Building: roof diamond, two window walls, magenta sign strip. --- */
+/* --- Building: a full-tile tenement block, native 64×92 — a roof
+ * diamond carrying a chrome duct housing with a red service beacon,
+ * a lit west face and shaded south face banded with cornices, five
+ * floors of cyan-lit and dead glass windows, a vertical magenta
+ * tenant-sign board down the shaded face, and a concrete plinth at
+ * street level. Ground contact at (32, 76); painted per-pixel so the
+ * detail stays deterministic. --- */
 
-const wallPlain = "1" + "333333333333333" + "222222222222222" + "1";
-const wallWinA = "1" + "33gg33ii33gg333" + "222gg221122gg22" + "1";
-const wallWinB = "1" + "33ii33gg3311333" + "222ii22gg221122" + "1";
-const wallSign = "1" + "333333333333333" + "222222222jj2222" + "1";
-const wallSignDim = "1" + "333333333333333" + "222222222ll2222" + "1";
-const wallWinASign = "1" + "33gg33ii33gg333" + "222gg2211jjgg22" + "1";
-const wallWinBSign = "1" + "33ii33gg3311333" + "222ii2211jjgg22" + "1";
+const BUILDING_H = 92;
+/** Wall band rows (inclusive) between roof expansion and base taper. */
+const WALL_TOP = 32;
+const WALL_BOTTOM = 76;
+/** Window frame width and per-face column offsets (0-based in-face). */
+const WIN_W = 4;
+const LEFT_WINDOW_COLS = [3, 10, 17, 24];
+const RIGHT_WINDOW_COLS = [4, 19, 25];
+/** Window-band top rows: frame, two glass rows, then the sill. */
+const FLOOR_ROWS = [37, 44, 51, 58, 65];
+/** Sign board span on the shaded face: in-face columns and wall rows. */
+const SIGN_COLS = { from: 12, to: 15 };
+const SIGN_ROWS = { from: 40, to: 63 };
+/** Two-pixel rune strokes down the sign board, top to bottom. */
+const SIGN_RUNES =
+  "jj kj jj l1 jj jk kk jj 1l jj jj kj ll jj jk jj kk j1 jj lj jj jj".split(" ");
 
-const buildingBase: string[] = [
-  "..............5544..............",
-  "............55444444............",
-  "..........554444442244..........",
-  "........5544444444444444........",
-  "......55444422444444444444......",
-  "....554444444444444444444444....",
-  "..5544444444444444224444444444..",
-  "55444444444444444444444444444444",
-  "13" + "4444444444444444444444444444" + "21",
-  "1333" + "444444444444444444444444" + "2221",
-  "133333" + "44444444444444444444" + "222221",
-  "13333333" + "4444444444444444" + "22222221",
-  "1333333333" + "444444444444" + "2222222221",
-  "133333333333" + "44444444" + "222222222221",
-  "13333333333333" + "4444" + "22222222222221",
-  "1333333333333333" + "2222222222222221",
-  wallPlain,
-  wallPlain,
-  wallWinA,
-  wallWinA,
-  wallSign,
-  wallSign,
-  wallWinBSign,
-  wallWinBSign,
-  wallSignDim,
-  wallSignDim,
-  wallWinASign,
-  wallWinASign,
-  wallSign,
-  wallSign,
-  wallWinBSign,
-  wallWinBSign,
-  wallPlain,
-  wallPlain,
-  wallWinB,
-  wallWinB,
-  wallPlain,
-  wallPlain,
-  wallPlain,
-  ".." + "1" + "3333333333333" + "2222222222222" + "1" + "..",
-  "...." + "1" + "33333333333" + "22222222222" + "1" + "....",
-  "......" + "1" + "333333333" + "222222222" + "1" + "......",
-  "........" + "1" + "3333333" + "2222222" + "1" + "........",
-  ".........." + "1" + "33333" + "22222" + "1" + "..........",
-  "............" + "1" + "333" + "222" + "1" + "............",
-  ".............." + "1321" + "..............",
-];
+/** Roof slate with seam speckle and a lit ridge fleck here and there. */
+const roofPaint = (x: number, y: number): string => {
+  const n = hash2(x * 3 + 7, y * 5 + 1) % 19;
+  return n === 0 ? "5" : n === 1 ? "2" : "4";
+};
+
+/** The rooftop duct housing (chrome box) with its red beacon pair. */
+const ductPaint = (x: number, y: number): string | null => {
+  if (x < 26 || x > 37 || y < 6 || y > 12) return null;
+  if (y === 6 && (x === 27 || x === 28)) return "p";
+  if (y <= 8) {
+    if (x === 26 || x === 37 || y === 6) return "6";
+    return hash2(x, y * 9) % 7 === 0 ? "9" : "T";
+  }
+  return x < 32 ? "7" : "6";
+};
+
+/** One wall-face pixel: c is the in-face column (0..30), y the row. */
+const facePaint = (leftFace: boolean, c: number, y: number): string => {
+  const fill = leftFace ? "3" : "2";
+  // Sign board (shaded face only) paints over everything in its span.
+  if (
+    !leftFace &&
+    c >= SIGN_COLS.from &&
+    c <= SIGN_COLS.to &&
+    y >= SIGN_ROWS.from &&
+    y <= SIGN_ROWS.to
+  ) {
+    if (y === SIGN_ROWS.from || y === SIGN_ROWS.to) return "1";
+    if (c === SIGN_COLS.from || c === SIGN_COLS.to) return "1";
+    return SIGN_RUNES[y - SIGN_ROWS.from - 1]?.[c - SIGN_COLS.from - 1] ?? "j";
+  }
+  // Cornice lines and the street-level concrete plinth.
+  if (y === 34 || y === 70) return leftFace ? "5" : "4";
+  if (y >= 72) return leftFace ? "R" : "Q";
+  // Window bands: frame, two glass rows, sill.
+  for (const top of FLOOR_ROWS) {
+    if (y < top || y > top + 3) continue;
+    const cols = leftFace ? LEFT_WINDOW_COLS : RIGHT_WINDOW_COLS;
+    for (const [i, at] of cols.entries()) {
+      if (c < at || c >= at + WIN_W) continue;
+      if (y === top) return "1";
+      if (y === top + 3) return leftFace ? "5" : "4";
+      // Most west-face windows are lit; the shaded face is mostly dark.
+      const lit =
+        hash2(FLOOR_ROWS.indexOf(top) * 7 + i, leftFace ? 5 : 11) % 3 <
+        (leftFace ? 2 : 1);
+      const w = c - at;
+      if (y === top + 1) return lit ? (w === 0 ? "h" : "g") : w === 0 ? "f" : "U";
+      return lit ? (w === 0 || w === 3 ? "i" : "g") : w === 3 ? "f" : "U";
+    }
+  }
+  return fill;
+};
+
+const buildingBase: string[] = Array.from({ length: BUILDING_H }, (_, y) => {
+  let row = "";
+  for (let x = 0; x < 64; x++) {
+    if (y < 16) {
+      // Roof diamond, top half: lit near rim, shaded far rim.
+      const w = 4 * y + 4;
+      const pad = (64 - w) / 2;
+      if (x < pad || x >= pad + w) row += ".";
+      else if (x < pad + 2) row += "5";
+      else if (x >= pad + w - 2) row += "2";
+      else row += ductPaint(x, y) ?? roofPaint(x, y);
+    } else if (y < WALL_TOP) {
+      // Walls rise as the roof's lower half contracts.
+      const k = y - 16;
+      if (x === 0 || x === 63) row += "1";
+      else if (x <= 2 * k + 1) row += "3";
+      else if (x >= 62 - 2 * k) row += "2";
+      else if (x <= 2 * k + 3) row += "5";
+      else if (x >= 60 - 2 * k) row += "2";
+      else row += ductPaint(x, y) ?? roofPaint(x, y);
+    } else if (y <= WALL_BOTTOM) {
+      if (x === 0 || x === 63) row += "1";
+      else if (x <= 31) row += facePaint(true, x - 1, y);
+      else row += facePaint(false, x - 32, y);
+    } else {
+      // Base taper following the footprint diamond to its vertex.
+      const k = y - (WALL_BOTTOM + 1);
+      const inset = 2 * k + 2;
+      const half = 29 - 2 * k;
+      if (x < inset || x > 63 - inset) row += ".";
+      else if (x === inset || x === 63 - inset) row += "1";
+      else if (x < inset + 1 + half) row += "3";
+      else row += "2";
+    }
+  }
+  return row;
+});
 
 /** Second frame: lit windows dim / dim windows lift, sign shimmers. */
-const buildingAlt = remapped(buildingBase, { g: "i", i: "g", j: "k" });
+const buildingAlt = remapped(buildingBase, {
+  g: "i",
+  i: "g",
+  h: "f",
+  f: "h",
+  j: "k",
+  k: "j",
+});
 
 /* --- Streetlight: cyan lamp head on a slim steel pole (native).
  * The lamp casts its own light: a soft halo around the head and a
@@ -809,13 +866,12 @@ const holoBillboardOff: string[] = [...rep(42, gap(64)), ...billboardMast(false)
 export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
   building: {
     frames: [buildingBase, buildingAlt],
-    anchorX: 16,
-    anchorY: 38,
+    anchorX: 32,
+    anchorY: 76,
     frameMs: 1400,
     flicker: false,
-    native: false,
-    // Magenta wash off the mid-wall sign strips and lit windows.
-    glow: [{ color: "j", radius: 22, intensity: 0.24, offsetX: 0, offsetY: -24 }],
+    // Magenta wash off the tenant-sign board and lit windows.
+    glow: [{ color: "j", radius: 22, intensity: 0.24, offsetX: 8, offsetY: -24 }],
   },
   "vent-stack": {
     frames: ventStack,
@@ -823,7 +879,6 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     anchorY: 45,
     frameMs: 420,
     flicker: false,
-    native: true,
     // Amber seeping from the exhaust grille and wall slits.
     glow: [{ color: "m", radius: 14, intensity: 0.2, offsetX: 0, offsetY: -12 }],
   },
@@ -833,7 +888,6 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     anchorY: 20,
     frameMs: 0,
     flicker: false,
-    native: true,
   },
   barrier: {
     frames: [barrierFrame(2), barrierFrame(5)],
@@ -841,7 +895,6 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     anchorY: 25,
     frameMs: 700,
     flicker: false,
-    native: true,
   },
   streetlight: {
     frames: [streetlightOn, streetlightPulse, streetlightOff],
@@ -849,7 +902,6 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     anchorY: 84,
     frameMs: 1100,
     flicker: true,
-    native: true,
     // A halo at the lamp head plus the pooled light on the pavement.
     glow: [
       { color: "g", radius: 22, intensity: 0.42, offsetX: 0, offsetY: -80 },
@@ -862,7 +914,6 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     anchorY: 25,
     frameMs: 1300,
     flicker: false,
-    native: true,
   },
   "trash-heap": {
     frames: [trashHeap],
@@ -870,7 +921,6 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     anchorY: 20,
     frameMs: 0,
     flicker: false,
-    native: true,
   },
   "cable-bundle": {
     frames: [cableBundle, remapped(cableBundle, { m: "o", g: "h" })],
@@ -878,7 +928,6 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     anchorY: 10,
     frameMs: 800,
     flicker: false,
-    native: true,
   },
   "holo-sign": {
     frames: [holoAdA, holoAdFrame(3), glitched(holoAdA, 5, 9), holoAdOff],
@@ -886,7 +935,6 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     anchorY: 42,
     frameMs: 460,
     flicker: true,
-    native: true,
     // Hologram-blue projection haze around the floating panel.
     glow: [{ color: "t", radius: 20, intensity: 0.36, offsetX: 0, offsetY: -32 }],
   },
@@ -896,7 +944,6 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     anchorY: 84,
     frameMs: 640,
     flicker: true,
-    native: true,
     // Magenta bloom off the rune board, centered on the totem.
     glow: [{ color: "j", radius: 26, intensity: 0.46, offsetX: 0, offsetY: -62 }],
   },
@@ -911,7 +958,6 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     anchorY: 84,
     frameMs: 520,
     flicker: true,
-    native: true,
     // Wide district-ad wash high on the mast.
     glow: [{ color: "t", radius: 32, intensity: 0.34, offsetX: 0, offsetY: -69 }],
   },
@@ -921,7 +967,6 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     anchorY: 24,
     frameMs: 900,
     flicker: true,
-    native: true,
     // Amber A-frame board at street level.
     glow: [{ color: "m", radius: 15, intensity: 0.36, offsetX: 0, offsetY: -16 }],
   },

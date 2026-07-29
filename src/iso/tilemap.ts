@@ -49,6 +49,53 @@ export interface TileDef {
   walkable: boolean;
 }
 
+/**
+ * The surface a tile reads as at a glance, ignoring which edge
+ * treatment it carries. Interior trims share their floor's material and
+ * quay lips share pavement's, because a baseboard shadow or a wet
+ * concrete lip is an edge of the same surface, not a different one.
+ * Map lint uses this to check a map's dressing resolves into a few
+ * broad zones rather than per-tile confetti.
+ */
+export type TileMaterial =
+  | InteriorFloorId
+  | "pavement"
+  | "pavement-cracked"
+  | "plaza-glow"
+  | "road"
+  | "water"
+  | "foundation"
+  | "rust-floor";
+
+/** Interior floors and every trim variant report their floor material. */
+const interiorMaterials = Object.fromEntries(
+  INTERIOR_FLOOR_IDS.flatMap((floor) =>
+    [floor, ...TRIM_EDGES.map((edge) => `${floor}-${edge}` as const)].map(
+      (id) => [id, floor],
+    ),
+  ),
+) as Record<InteriorFloorId | InteriorTrimId, TileMaterial>;
+
+const TILE_MATERIALS: Readonly<Record<TileId, TileMaterial>> = {
+  ...interiorMaterials,
+  pavement: "pavement",
+  "pavement-cracked": "pavement-cracked",
+  "plaza-glow": "plaza-glow",
+  road: "road",
+  canal: "water",
+  "canal-deep": "water",
+  "quay-n": "pavement",
+  "quay-e": "pavement",
+  "quay-s": "pavement",
+  "quay-w": "pavement",
+  foundation: "foundation",
+  "rust-floor": "rust-floor",
+};
+
+export function tileMaterial(id: TileId): TileMaterial {
+  return TILE_MATERIALS[id];
+}
+
 /** Interior floors and all their trim variants are walkable room floor. */
 const interiorFloorDefs = Object.fromEntries(
   INTERIOR_FLOOR_IDS.flatMap((floor) =>

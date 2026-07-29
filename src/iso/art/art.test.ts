@@ -6,11 +6,8 @@ import { PALETTE, TRANSPARENT } from "./palette";
 import {
   ART_SCALE,
   DIAMOND_WIDTHS,
-  LEGACY_DIAMOND_WIDTHS,
   gridErrors,
-  nativeScaled,
   remapped,
-  upscaled,
   type PixelGrid,
 } from "./pixel";
 import { PROP_ART } from "./props";
@@ -201,7 +198,6 @@ describe("tile art", () => {
     DIAMOND_WIDTHS.forEach((width, r) => {
       expect(width).toBe(4 * Math.min(r, 31 - r) + 2);
     });
-    expect(LEGACY_DIAMOND_WIDTHS.length).toBe(16);
   });
 });
 
@@ -274,32 +270,6 @@ describe("diamond mask vs screenToTile", () => {
   });
 });
 
-describe("upscaled", () => {
-  it("doubles both dimensions with nearest-neighbor 2×2 blocks", () => {
-    const grid = ["ab", ".c"];
-    expect(upscaled(grid)).toEqual(["aabb", "aabb", "..cc", "..cc"]);
-  });
-
-  it("returns an empty grid unchanged", () => {
-    expect(upscaled([])).toEqual([]);
-  });
-
-  it("nativeScaled brings every registered tile to valid 64×32", () => {
-    for (const [id, art] of Object.entries(TILE_ART)) {
-      const grid = art.variants[0]?.[0] ?? [];
-      const scaled = nativeScaled(grid);
-      expect(gridErrors([...scaled]), id).toEqual([]);
-      expect(scaled.length, id).toBe(32);
-      expect(scaled[0]?.length, id).toBe(64);
-      if (grid.length === 32) {
-        expect(scaled, `${id} native grid passes through`).toBe(grid);
-      } else {
-        expect(scaled, `${id} legacy grid doubles`).toEqual(upscaled(grid));
-      }
-    }
-  });
-});
-
 describe("prop art", () => {
   it("every prop frame is valid and frames share dimensions", () => {
     for (const [id, art] of Object.entries(PROP_ART)) {
@@ -342,17 +312,13 @@ const STREET_FURNITURE = [
 ] as const;
 
 describe("street furniture (native hi-res)", () => {
-  it("is marked native and fits the v2 prop envelope", () => {
+  it("fits the v2 prop envelope", () => {
     for (const id of STREET_FURNITURE) {
       const art = PROP_ART[id];
-      expect(art.native, id).toBe(true);
       const grid = art.frames[0] ?? [];
       expect(grid[0]?.length, `${id} width`).toBeLessThanOrEqual(64);
       expect(grid.length, `${id} height`).toBeLessThanOrEqual(96);
     }
-    // The building still rides the legacy shim until its own
-    // re-authoring pass.
-    expect(PROP_ART.building.native).toBe(false);
   });
 
   it("anchors ground contact inside the tile's own lower half", () => {
@@ -411,6 +377,45 @@ describe("street furniture (native hi-res)", () => {
   });
 });
 
+describe("building (native hi-res)", () => {
+  const art = PROP_ART.building;
+  const base = art.frames[0] ?? [];
+
+  it("fills the full-tile envelope with ground contact on the diamond center", () => {
+    expect(base[0]?.length).toBe(64);
+    expect(base.length).toBeLessThanOrEqual(96);
+    expect(art.anchorX).toBe(32);
+    // At most a half tile may hang below the anchor so entities on the
+    // tile in front always cover the base cleanly.
+    expect(base.length - 1 - art.anchorY).toBeLessThanOrEqual(16);
+  });
+
+  it("keeps the lit west face lighter than the shaded south face", () => {
+    const counts = { lit: 0, shade: 0 };
+    for (const row of base.slice(32)) {
+      for (let x = 1; x < 32; x++) if (row[x] === "3") counts.lit++;
+      for (let x = 32; x < 63; x++) if (row[x] === "2") counts.shade++;
+    }
+    expect(counts.lit).toBeGreaterThan(100);
+    expect(counts.shade).toBeGreaterThan(100);
+  });
+
+  it("carries lit windows and a magenta sign board, both swapping in the alt frame", () => {
+    const joined = base.join("");
+    // Cyan-lit and dead glass windows both appear on the walls.
+    expect(joined).toMatch(/[gh]/);
+    expect(joined).toMatch(/[fU]/);
+    // The tenant-sign runes run magenta down the shaded face.
+    expect(joined).toMatch(/[jk]/);
+    // The alt frame trades lit/dead windows and shimmers the sign.
+    const alt = art.frames[1] ?? [];
+    expect(alt.join("\n")).not.toBe(base.join("\n"));
+    expect(alt).toEqual(
+      remapped(base, { g: "i", i: "g", h: "f", f: "h", j: "k", k: "j" }),
+    );
+  });
+});
+
 const SIGNAGE = ["neon-sign", "holo-sign", "holo-billboard", "shop-sign"] as const;
 const HOLO_SIGNAGE = ["holo-sign", "holo-billboard"] as const;
 
@@ -433,10 +438,9 @@ function hasHaloRing(grid: PixelGrid, cores: string, halos: string): boolean {
 }
 
 describe("signage (native hi-res)", () => {
-  it("is native, fits the prop envelope, and grounds with a soft shadow", () => {
+  it("fits the prop envelope and grounds with a soft shadow", () => {
     for (const id of SIGNAGE) {
       const art = PROP_ART[id];
-      expect(art.native, id).toBe(true);
       const grid = art.frames[0] ?? [];
       expect(grid[0]?.length, `${id} width`).toBeLessThanOrEqual(64);
       expect(grid.length, `${id} height`).toBeLessThanOrEqual(96);

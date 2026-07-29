@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  INTERIOR_FLOOR_IDS,
+  TRIM_EDGES,
   buildMapGrid,
   inBounds,
   interactableAt,
@@ -7,6 +9,7 @@ import {
   neighbors,
   requireSpawn,
   tileAt,
+  tileMaterial,
   type IsoMap,
   type LegendEntry,
 } from "./tilemap";
@@ -101,5 +104,38 @@ describe("queries", () => {
       { x: 2, y: 4 },
       { x: 2, y: 2 },
     ]);
+  });
+});
+
+describe("tileMaterial", () => {
+  it("folds every interior trim into its own floor material", () => {
+    for (const floor of INTERIOR_FLOOR_IDS) {
+      expect(tileMaterial(floor)).toBe(floor);
+      for (const edge of TRIM_EDGES) {
+        expect(tileMaterial(`${floor}-${edge}`), `${floor}-${edge}`).toBe(floor);
+      }
+    }
+  });
+
+  it("folds quay lips into pavement and both canals into water", () => {
+    for (const edge of TRIM_EDGES) {
+      expect(tileMaterial(`quay-${edge}`), `quay-${edge}`).toBe("pavement");
+    }
+    expect(tileMaterial("pavement")).toBe("pavement");
+    expect(tileMaterial("canal")).toBe("water");
+    expect(tileMaterial("canal-deep")).toBe("water");
+  });
+
+  it("keeps visually distinct surfaces apart", () => {
+    const distinct = [
+      "pavement",
+      "pavement-cracked",
+      "plaza-glow",
+      "road",
+      "rust-floor",
+      "foundation",
+    ] as const;
+    const materials = distinct.map(tileMaterial);
+    expect(new Set(materials).size).toBe(distinct.length);
   });
 });

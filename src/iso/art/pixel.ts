@@ -160,30 +160,6 @@ function paintGrid(
 }
 
 /**
- * Nearest-neighbor 2× upscale of a grid: every pixel becomes a 2×2
- * block. Interim shim while art sets are re-authored at v2 native
- * resolution — legacy 1x grids double to the new working size and
- * render pixel-identical at the doubled geometry.
- */
-export function upscaled(grid: PixelGrid): string[] {
-  const rows: string[] = [];
-  for (const row of grid) {
-    const doubled = [...row].map((ch) => ch + ch).join("");
-    rows.push(doubled, doubled);
-  }
-  return rows;
-}
-
-/**
- * Bring a tile grid to the native v2 64×32 size: grids already
- * re-authored at the hi-res resolution pass through untouched, legacy
- * 32×16 grids get the nearest-neighbor shim until their set is redone.
- */
-export function nativeScaled(grid: PixelGrid): PixelGrid {
-  return grid.length === DIAMOND_WIDTHS.length ? grid : upscaled(grid);
-}
-
-/**
  * Row widths of the 64×32 (1x) tile diamond, top to bottom. This is the
  * exact pixel-ownership mask of screenToTile sampled at each art
  * pixel's on-screen block center, so adjacent tiles tessellate with no
@@ -195,33 +171,19 @@ export const DIAMOND_WIDTHS: readonly number[] = Array.from(
 );
 
 /**
- * Row widths of the legacy 32×16 diamond, kept so tile art authored
- * before the hi-res migration still expands until it is re-authored
- * natively at 64×32.
- */
-export const LEGACY_DIAMOND_WIDTHS: readonly number[] = [
-  2, 6, 10, 14, 18, 22, 26, 30, 30, 26, 22, 18, 14, 10, 6, 2,
-];
-
-/**
  * Expand diamond-interior rows (row i exactly as wide as the diamond
- * mask row) into full-width rows padded with transparency. Accepts both
- * the native 32-row (64-wide) v2 shape and the legacy 16-row (32-wide)
- * shape. Throws on bad shapes so mis-authored tiles fail at module load.
+ * mask row) into full-width 64×32 rows padded with transparency.
+ * Throws on bad shapes so mis-authored tiles fail at module load.
  */
 export function diamond(interior: PixelGrid): string[] {
-  const widths =
-    interior.length === LEGACY_DIAMOND_WIDTHS.length
-      ? LEGACY_DIAMOND_WIDTHS
-      : DIAMOND_WIDTHS;
-  if (interior.length !== widths.length) {
+  if (interior.length !== DIAMOND_WIDTHS.length) {
     throw new Error(
-      `diamond needs ${DIAMOND_WIDTHS.length} rows (or ${LEGACY_DIAMOND_WIDTHS.length} legacy), got ${interior.length}`,
+      `diamond needs ${DIAMOND_WIDTHS.length} rows, got ${interior.length}`,
     );
   }
-  const full = widths.length * 2;
+  const full = DIAMOND_WIDTHS.length * 2;
   return interior.map((row, i) => {
-    const want = widths[i] ?? 0;
+    const want = DIAMOND_WIDTHS[i] ?? 0;
     if (row.length !== want) {
       throw new Error(`diamond row ${i} has width ${row.length}, expected ${want}`);
     }
