@@ -23,11 +23,11 @@ import {
   spawnPoint,
   type DayPhaseId,
   type Interactable,
-  type IsoExitHint,
+  type IsoFocusHint,
   type IsoScene,
 } from "../iso";
 import { settings } from "../settings";
-import { exitLabel } from "./format";
+import { interactPrompt } from "./format";
 import { runMapTransition, type MapTransitionHandle } from "./mapTransition";
 import { ambientSpriteSource, npcSpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
@@ -113,7 +113,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   let overlayLayer: HTMLElement | null = null;
   let toast: HTMLElement | null = null;
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
-  let exitHintEl: HTMLElement | null = null;
+  let promptEl: HTMLElement | null = null;
   /** The interactable whose scene is currently open, for the door beat. */
   let usedInteractable: Interactable | null = null;
   /** A map transition in flight, and whether it has already swapped. */
@@ -170,18 +170,31 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   }
 
   /**
-   * The nearby/hovered way out, named with where it leads. Driven
-   * entirely by the exits declared in map data — the scene reports
-   * which one is in focus, the shell resolves the destination's name.
+   * The prompt line for whatever the scene has in focus: an offer to
+   * act on it once in reach, and a way out's destination before that.
+   * Driven entirely by map data — the scene reports which interactable
+   * is in focus, the shell resolves the destination's name and the
+   * wording.
    */
-  function showExitHint(hint: IsoExitHint | null): void {
-    if (!exitHintEl) return;
-    if (!hint) {
-      exitHintEl.classList.remove("nf-exit-hint-visible");
+  function showFocusHint(hint: IsoFocusHint | null): void {
+    if (!promptEl) return;
+    const text = hint
+      ? interactPrompt({
+          label: hint.label,
+          spriteId: hint.spriteId,
+          kind: hint.interaction.kind,
+          inRange: hint.inRange,
+          destination: hint.exitMapId
+            ? getMap(hint.exitMapId)?.name
+            : undefined,
+        })
+      : null;
+    if (text === null) {
+      promptEl.classList.remove("nf-interact-prompt-visible");
       return;
     }
-    exitHintEl.textContent = exitLabel(hint.label, getMap(hint.mapId)?.name);
-    exitHintEl.classList.add("nf-exit-hint-visible");
+    promptEl.textContent = text;
+    promptEl.classList.add("nf-interact-prompt-visible");
   }
 
   function closeOverlay(): void {
@@ -504,9 +517,9 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       toast.className = "nf-toast";
       root.append(toast);
 
-      exitHintEl = document.createElement("div");
-      exitHintEl.className = "nf-exit-hint";
-      root.append(exitHintEl);
+      promptEl = document.createElement("div");
+      promptEl.className = "nf-interact-prompt";
+      root.append(promptEl);
 
       refreshHud();
 
@@ -524,7 +537,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
           npc: npcSpriteSource(map),
           entity: ambientSpriteSource(),
         }),
-        onExitHint: showExitHint,
+        onFocus: showFocusHint,
         onInteract(event): void {
           if (overlay) return;
           audio.play("interact");
@@ -565,13 +578,13 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       hud?.remove();
       overlayLayer?.remove();
       toast?.remove();
-      exitHintEl?.remove();
+      promptEl?.remove();
       hud = null;
       hudStatus = null;
       advanceButton = null;
       overlayLayer = null;
       toast = null;
-      exitHintEl = null;
+      promptEl = null;
       if (root) {
         root.style.pointerEvents = "";
         root = null;

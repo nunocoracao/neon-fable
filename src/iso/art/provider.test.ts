@@ -258,6 +258,35 @@ describe("createPixelArtSprites cache", () => {
     expect(sprites.cacheStats()).toMatchObject({ entries: 2, misses: 2, hits: 1 });
   });
 
+  it("bakes one outline per kind, whatever the clock or the tile", () => {
+    const sprites = createPixelArtSprites();
+    const color = "#ffd873";
+    const rim = sprites.interactableSilhouette("terminal", 3, 4, 0, color);
+    // An object's idle loop never moves a pixel in or out of its
+    // shape, so one bake serves every frame and every placement.
+    expect(sprites.interactableSilhouette("terminal", 3, 4, 900, color)).toBe(rim);
+    expect(sprites.interactableSilhouette("terminal", 9, 1, 2500, color)).toBe(rim);
+    expect(sprites.interactableSilhouette("stash", 3, 4, 0, color)).not.toBe(rim);
+    // A flat color takes no tint, so the hour never costs a re-bake.
+    sprites.setDayPhase?.("dusk");
+    expect(sprites.interactableSilhouette("terminal", 3, 4, 0, color)).toBe(rim);
+    expect(sprites.cacheStats()).toMatchObject({ entries: 2, misses: 2, hits: 3 });
+    // A different accessibility palette is its own bake, not a repaint.
+    expect(
+      sprites.interactableSilhouette("terminal", 3, 4, 0, "#33ccff"),
+    ).not.toBe(rim);
+  });
+
+  it("outlines an npc from the same frame it draws them at", () => {
+    const sprites = createPixelArtSprites();
+    const rim = sprites.interactableSilhouette("npc", 2, 2, 0, "#ffd873");
+    const sprite = sprites.interactable("npc", 2, 2, 0);
+    expect(rim).not.toBe(sprite);
+    expect(rim.anchorX).toBe(sprite.anchorX);
+    expect(rim.anchorY).toBe(sprite.anchorY);
+    expect(sprites.interactableSilhouette("npc", 2, 2, 0, "#ffd873")).toBe(rim);
+  });
+
   it("reaches zero-bake steady state on the composed player path", () => {
     const sprites = createPixelArtSprites();
     const drive = (from: number, to: number): void => {

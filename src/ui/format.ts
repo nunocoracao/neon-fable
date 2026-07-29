@@ -15,6 +15,7 @@ import type {
   Item,
 } from "../inventory/items";
 import type { CombatEvent } from "../combat/types";
+import type { InteractableSpriteId, MapInteraction } from "../iso";
 import type { Requirement } from "../narrative/types";
 import type { SaveError, SaveSlot } from "../state/save";
 
@@ -189,6 +190,67 @@ export function saveErrorMessage(error: SaveError): string {
  */
 export function exitLabel(label: string, destination?: string): string {
   return destination ? `${label} → ${destination}` : label;
+}
+
+/** The key the bottom-screen prompt tells the player to press. */
+export const INTERACT_KEY_LABEL = "Enter";
+
+/**
+ * How a prompt says what pressing the key would do, keyed by what the
+ * thing is. Kept beside the other UI copy rather than in map data: the
+ * maps declare what a thing *is*, this decides how to say it.
+ */
+const INTERACT_VERBS: Readonly<Record<InteractableSpriteId, string>> = {
+  npc: "talk to",
+  door: "open",
+  terminal: "use",
+  stash: "search",
+  exit: "take",
+};
+
+/** The verb for an interactable; anything that starts a fight is a fight. */
+export function interactVerb(
+  spriteId: InteractableSpriteId,
+  kind: MapInteraction["kind"],
+): string {
+  if (kind === "combat") return "fight";
+  return INTERACT_VERBS[spriteId];
+}
+
+/**
+ * The short name inside a label. Map labels name a person and where
+ * they are ("Vesper — Chrome Chapel"); a prompt only has room for the
+ * first half, while the floating chip keeps the whole thing.
+ */
+export function interactName(label: string): string {
+  const name = label.split(" — ")[0]?.trim() ?? "";
+  return name.length > 0 ? name : label;
+}
+
+/** What the shell knows about the interactable currently in focus. */
+export interface InteractPromptInput {
+  label: string;
+  spriteId: InteractableSpriteId;
+  kind: MapInteraction["kind"];
+  /** Whether it can be triggered from where the player stands. */
+  inRange: boolean;
+  /** Resolved destination name, on interactables that lead off the map. */
+  destination?: string;
+}
+
+/**
+ * The bottom-screen line for whatever is in focus: an offer to act on
+ * it once in reach ("Enter — talk to Vesper"), and until then just
+ * where a way out would lead. Pointing at something out of reach that
+ * goes nowhere says nothing — the floating chip already names it.
+ */
+export function interactPrompt(hint: InteractPromptInput): string | null {
+  const destination = hint.destination ? ` → ${hint.destination}` : "";
+  if (!hint.inRange) {
+    return hint.destination ? `${hint.label}${destination}` : null;
+  }
+  const verb = interactVerb(hint.spriteId, hint.kind);
+  return `${INTERACT_KEY_LABEL} — ${verb} ${interactName(hint.label)}${destination}`;
 }
 
 export function pointsLabel(amount: number): string {

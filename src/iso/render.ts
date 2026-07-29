@@ -6,6 +6,7 @@
  * every draw position snaps to whole device pixels so nothing shimmers.
  */
 import { pulse01, type Facing } from "./animation";
+import { ART_SCALE } from "./art/pixel";
 import { cameraTranslation, snapToPixelGrid, type Camera } from "./camera";
 import { TILE_H, TILE_W, worldToScreen, type TilePoint, type WorldPoint } from "./coords";
 import { compareDrawables, type Drawable } from "./depth";
@@ -33,6 +34,20 @@ export interface OpeningView {
   interactableId: string;
   /** 0 shut, 1 wide open — see ./transition.ts. */
   open01: number;
+}
+
+/**
+ * The one interactable the scene is offering this frame: outlined in
+ * its own silhouette and named by a chip floating over it. Selection is
+ * ./affordance.ts; the color comes from there too, so the accessibility
+ * palette reaches the renderer as a value rather than a branch.
+ */
+export interface FocusView {
+  interactableId: string;
+  /** Text for the floating chip — the interactable's authored label. */
+  label: string;
+  /** CSS color for the outline and the chip's border and text. */
+  color: string;
 }
 
 export interface RenderView {
@@ -70,11 +85,49 @@ export interface RenderView {
   dayPhase?: DayPhaseId;
   /** The one interactable mid-opening, if any. */
   opening?: OpeningView | null;
+  /** The one interactable in focus, outlined and named. */
+  focus?: FocusView | null;
 }
 
 interface SceneDrawable extends Drawable {
   sprite: Sprite;
+  /** Silhouette to trace an outline with, on the focused interactable. */
+  outline?: Sprite;
 }
+
+/**
+ * Offsets, in world-screen units, the silhouette is stamped at to leave
+ * a one-art-pixel rim around a sprite. All eight neighbours, so edges
+ * running diagonally (which iso art is mostly made of) come out as
+ * solid a line as vertical ones.
+ */
+const OUTLINE_OFFSETS: readonly (readonly [number, number])[] = [
+  [-ART_SCALE, 0],
+  [ART_SCALE, 0],
+  [0, -ART_SCALE],
+  [0, ART_SCALE],
+  [-ART_SCALE, -ART_SCALE],
+  [ART_SCALE, -ART_SCALE],
+  [-ART_SCALE, ART_SCALE],
+  [ART_SCALE, ART_SCALE],
+];
+
+/**
+ * The outline breathes between these alphas rather than sitting flat,
+ * starting from the bright end — reduced motion freezes the clock at
+ * zero, and an affordance held at its dimmest forever is no affordance.
+ */
+const OUTLINE_ALPHA_MIN = 0.55;
+const OUTLINE_ALPHA_MAX = 1;
+const OUTLINE_PULSE_MS = 1400;
+
+/** Floating name chip: gap above the sprite, box metrics, type. */
+const CHIP_GAP = 8;
+const CHIP_HEIGHT = 22;
+const CHIP_PAD_X = 8;
+const CHIP_BASELINE = 7;
+const CHIP_FONT = "bold 14px 'Courier New', monospace";
+const CHIP_BG = "rgba(18, 18, 31, 0.92)";
 
 export function renderScene(
   ctx: CanvasRenderingContext2D,
@@ -83,6 +136,7 @@ export function renderScene(
 ): void {
   const { map, camera, viewportW, viewportH, timeMs, dpr, zoom } = view;
   const weather = view.weather ?? null;
+  const focus = view.focus ?? null;
   const scale = dpr * zoom;
   ctx.clearRect(0, 0, viewportW / zoom, viewportH / zoom);
   ctx.imageSmoothingEnabled = false;
@@ -167,6 +221,12 @@ export function renderScene(
         timeMs,
         view.opening?.interactableId === i.id ? view.opening.open01 : 0,
       ),
+      // Only the one thing in focus is traced, and only while it is:
+      // scenery, props, and the crowd have no silhouette asked for.
+      outline:
+        focus?.interactableId === i.id
+          ? sprites.interactableSilhouette(i.spriteId, i.x, i.y, timeMs, focus.color)
+          : undefined,
     })),
     ...view.entities.map((e) => ({
       x: e.position.x,
@@ -180,7 +240,19 @@ export function renderScene(
     })),
   ];
   drawables.sort(compareDrawables);
+  const outlineAlpha =
+    OUTLINE_ALPHA_MAX -
+    (OUTLINE_ALPHA_MAX - OUTLINE_ALPHA_MIN) * pulse01(timeMs, OUTLINE_PULSE_MS);
   for (const d of drawables) {
+    // The rim is stamped first and the sprite lands on top of it, so
+    // what survives is exactly the pixels just outside the shape.
+    if (d.outline) {
+      ctx.globalAlpha = outlineAlpha;
+      for (const [dx, dy] of OUTLINE_OFFSETS) {
+        drawSprite(ctx, d.outline, d.x, d.y, scale, dx, dy);
+      }
+      ctx.globalAlpha = 1;
+    }
     drawSprite(ctx, d.sprite, d.x, d.y, scale);
   }
 
@@ -211,6 +283,18 @@ export function renderScene(
     }
   }
 
+  // The name chip rides over everything in the world, glow included:
+  // it is a caption on the scene, not a lamp in it.
+  if (focus) {
+    // The outlined drawable is the focused one, and its sprite's anchor
+    // is what says how tall the thing being named stands.
+    const drawn = drawables.find((d) => d.outline !== undefined);
+    const tile = map.interactables.find((i) => i.id === focus.interactableId);
+    if (drawn && tile) {
+      drawLabelChip(ctx, drawn.sprite, tile, focus.label, focus.color);
+    }
+  }
+
   ctx.restore();
 
   // Rain falls in front of the camera, not on the world: the curtain is
@@ -234,13 +318,42 @@ function drawSprite(
   x: number,
   y: number,
   scale: number,
+  offsetX = 0,
+  offsetY = 0,
 ): void {
   const { sx, sy } = worldToScreen(x, y);
   ctx.drawImage(
     sprite.image,
-    snapToPixelGrid(sx - sprite.anchorX, scale),
-    snapToPixelGrid(sy - sprite.anchorY, scale),
+    snapToPixelGrid(sx - sprite.anchorX, scale) + offsetX,
+    snapToPixelGrid(sy - sprite.anchorY, scale) + offsetY,
   );
+}
+
+/**
+ * The floating name chip over the focused interactable: a hard-edged
+ * box in the outline's color, sat just above the top of its sprite.
+ * Only ever one on screen — the scene picks a single focus.
+ */
+function drawLabelChip(
+  ctx: CanvasRenderingContext2D,
+  sprite: Sprite,
+  tile: TilePoint,
+  text: string,
+  color: string,
+): void {
+  const { sx, sy } = worldToScreen(tile.x, tile.y);
+  ctx.font = CHIP_FONT;
+  ctx.textAlign = "center";
+  const width = Math.round(Number(ctx.measureText(text).width)) + CHIP_PAD_X * 2;
+  const left = Math.round(sx - width / 2);
+  const top = Math.round(sy - sprite.anchorY - CHIP_GAP - CHIP_HEIGHT);
+  ctx.fillStyle = CHIP_BG;
+  ctx.fillRect(left, top, width, CHIP_HEIGHT);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(left + 1, top + 1, width - 2, CHIP_HEIGHT - 2);
+  ctx.fillStyle = color;
+  ctx.fillText(text, left + width / 2, top + CHIP_HEIGHT - CHIP_BASELINE);
 }
 
 function drawDiamond(
