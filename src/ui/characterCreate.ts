@@ -33,9 +33,17 @@ import {
   type WizardState,
   type WizardStep,
 } from "../character";
-import { backgrounds, getAppearanceOption, getItem, introArc } from "../data";
+import {
+  APPEARANCE_TABS,
+  backgrounds,
+  getAppearanceOption,
+  getItem,
+  introArc,
+  type AppearanceTabId,
+} from "../data";
 import { emptyEquipment } from "../inventory/equipment";
 import { applyNewGamePlus, createNewGame } from "../state";
+import { createAppearancePicker } from "./appearancePicker";
 import {
   characterNameError,
   formatBonuses,
@@ -59,9 +67,10 @@ import { createSession } from "./session";
  * clearly-labeled carry-over applies: bonus point-buy points and one
  * legacy item picked from the finishing character's gear.
  *
- * The appearance step is a placeholder until the visual pickers land:
- * it shows the current look (portrait plus catalog labels) with
- * stock/randomize controls, so a character can be finished end-to-end.
+ * The appearance step hosts the visual picker (./appearancePicker):
+ * category tabs of live-baked thumbnails beside a live portrait
+ * preview, plus stock/randomize shortcuts. Picks update the picker and
+ * preview in place — no step re-render — so keyboard focus survives.
  */
 export interface NewGamePlusOffer {
   /** Extra point-buy points on top of the standard pool. */
@@ -118,6 +127,8 @@ export function createCharacterCreateScreen(
   let wizard: WizardState = createWizard(initialDraft);
   /** Errors from a rejected final confirm; cleared on any edit. */
   let submitErrors: string[] = [];
+  /** Active appearance-picker tab, preserved across step re-renders. */
+  let appearanceTab: AppearanceTabId = APPEARANCE_TABS[0].id;
 
   function draft(): WizardDraft {
     return wizard.draft;
@@ -414,19 +425,42 @@ export function createCharacterCreateScreen(
   }
 
   function renderAppearance(body: HTMLElement): void {
-    const note = document.createElement("p");
-    note.className = "nf-dim";
-    note.textContent =
-      "Full visual customization is still being wired in. For now, jack " +
-      "in with the stock look or spin a random one — a stylist can " +
-      "rework it later.";
+    const columns = document.createElement("div");
+    columns.className = "nf-create-columns nf-appearance-columns";
+
+    const left = document.createElement("div");
+    left.className = "nf-create-column";
+    const right = document.createElement("div");
+    right.className = "nf-create-column";
 
     const preview = document.createElement("div");
     preview.className = "nf-appearance-preview";
-    preview.append(
-      portraitCanvas(draft().appearance, emptyEquipment()),
-      appearanceSummary(),
-    );
+    const refreshPreview = (): void => {
+      preview.replaceChildren(
+        portraitCanvas(draft().appearance, emptyEquipment()),
+        appearanceSummary(),
+      );
+    };
+    refreshPreview();
+
+    // Picks update the draft, picker, and preview in place instead of
+    // re-rendering the step, so keyboard focus stays on the grid.
+    const picker = createAppearancePicker({
+      appearance: () => draft().appearance,
+      initialTab: appearanceTab,
+      onTabChange: (tab) => {
+        appearanceTab = tab;
+      },
+      onPick: (category, id) => {
+        submitErrors = [];
+        wizard = updateDraft(wizard, {
+          appearance: { ...draft().appearance, [category]: id },
+        });
+        picker.update();
+        refreshPreview();
+        renderChrome();
+      },
+    });
 
     const controls = document.createElement("div");
     controls.className = "nf-wizard-controls";
@@ -444,7 +478,10 @@ export function createCharacterCreateScreen(
     );
     controls.append(randomize, stock);
 
-    body.append(note, preview, controls);
+    left.append(picker.el);
+    right.append(preview, controls);
+    columns.append(left, right);
+    body.append(columns);
   }
 
   function reviewSection(
