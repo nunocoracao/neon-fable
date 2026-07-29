@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createCharacter, defaultAllocation } from "../character";
 import { STAT_HARD_CAP } from "../character/stats";
-import { getBackground } from "../data/backgrounds";
+import { fixtureCharacter } from "../character/testSupport";
 import { equip, installEnhancement } from "./equipment";
 import { addItem, emptyInventory } from "./inventory";
 import type { Item, ItemResolver } from "./items";
@@ -13,11 +12,7 @@ import {
 } from "./selectors";
 
 function makeCharacter() {
-  return createCharacter({
-    name: "Vex",
-    background: getBackground("gutter-courier")!,
-    allocation: defaultAllocation(),
-  });
+  return fixtureCharacter();
 }
 
 describe("effectiveStats", () => {

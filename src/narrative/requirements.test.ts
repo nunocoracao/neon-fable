@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCharacter, defaultAllocation } from "../character";
-import { getBackground } from "../data/backgrounds";
+import { fixtureCharacter } from "../character/testSupport";
 import { addItem, installEnhancement } from "../inventory";
 import { createNewGame, type GameState } from "../state";
 import { checkRequirement, checkRequirements } from "./requirements";
@@ -11,12 +10,7 @@ import { checkRequirement, checkRequirements } from "./requirements";
  *   tower-analyst:  body 6, reflexes 6, tech 6, cool 8, intelligence 7
  */
 function makeState(backgroundId = "gutter-courier"): GameState {
-  const character = createCharacter({
-    name: "Vex",
-    background: getBackground(backgroundId)!,
-    allocation: defaultAllocation(),
-  });
-  return createNewGame({ character, seed: 1 });
+  return createNewGame({ character: fixtureCharacter({ backgroundId }), seed: 1 });
 }
 
 describe("checkRequirement", () => {

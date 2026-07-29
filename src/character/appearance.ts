@@ -230,7 +230,7 @@ export interface ResolvedLayer {
   shimmer?: readonly Readonly<Record<string, string>>[];
 }
 
-class AppearanceValidationError extends Error {
+export class AppearanceValidationError extends Error {
   constructor(errors: AppearanceError[]) {
     super(
       `invalid appearance: ${errors

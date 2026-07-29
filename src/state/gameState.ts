@@ -51,9 +51,7 @@ export interface GameState {
  * OLDEST_MIGRATABLE_VERSION before calling.
  *
  * - v6 -> v7: characters gained a layered appearance; old saves get
- *   defaultAppearance. (NG+ carry-over will later copy the finished
- *   character's appearance forward — that lands with the appearance
- *   persistence task, not here.)
+ *   defaultAppearance.
  */
 export function migrateGameState(
   state: GameState,
@@ -83,6 +81,8 @@ export function createNewGame(options: NewGameOptions = {}): GameState {
       name: options.playerName ?? "",
       background: getBackground(DEFAULT_BACKGROUND_ID)!,
       allocation: defaultAllocation(),
+      // The stock look — always catalog-valid, same as save migration.
+      appearance: defaultAppearance(),
     });
   const loadout = applyStartingGear(character, emptyInventory());
   return {

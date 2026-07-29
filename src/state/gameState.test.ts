@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCharacter, defaultAllocation } from "../character";
+import { fixtureCharacter } from "../character/testSupport";
 import { getBackground } from "../data/backgrounds";
 import { GAME_STATE_VERSION, createNewGame } from "./gameState";
 
@@ -25,11 +25,7 @@ describe("createNewGame", () => {
   });
 
   it("uses a fully created character when one is provided", () => {
-    const character = createCharacter({
-      name: "Nyx",
-      background: getBackground("grid-diver")!,
-      allocation: defaultAllocation(),
-    });
+    const character = fixtureCharacter({ name: "Nyx", backgroundId: "grid-diver" });
     const state = createNewGame({ character, seed: 9 });
     expect(state.player.name).toBe("Nyx");
     expect(state.player.backgroundId).toBe("grid-diver");

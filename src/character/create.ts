@@ -1,6 +1,10 @@
 import type { Background } from "../data/backgrounds";
 import { emptyEquipment, type EquipmentState } from "../inventory/equipment";
-import { defaultAppearance, type Appearance } from "./appearance";
+import {
+  AppearanceValidationError,
+  validateAppearance,
+  type Appearance,
+} from "./appearance";
 import { deriveAttributes, type DerivedAttributes } from "./derived";
 import {
   applyBonuses,
@@ -64,8 +68,12 @@ export interface CreateCharacterInput {
   allocation: Stats;
   /** Point pool the allocation must spend; defaults to POINT_POOL (New Game+ passes more). */
   pointPool?: number;
-  /** Visual customization; defaults to the stock defaultAppearance. */
-  appearance?: Appearance;
+  /**
+   * Visual customization. Required and validated — every character is
+   * built with a deliberate, catalog-backed look (the creation wizard
+   * always supplies one; tests go through the shared fixtures).
+   */
+  appearance: Appearance;
 }
 
 /** A valid allocation that spends the whole pool evenly (all stats at 6). */
@@ -75,12 +83,18 @@ export function defaultAllocation(): Stats {
 
 /**
  * Builds the character portion of GameState. Throws CharacterCreationError
- * if the allocation fails point-buy validation.
+ * if the allocation fails point-buy validation, and
+ * AppearanceValidationError if the appearance references unknown
+ * catalog ids — no code path builds a character with an unvalidated look.
  */
 export function createCharacter(input: CreateCharacterInput): CharacterState {
   const validation = validateAllocation(input.allocation, input.pointPool);
   if (!validation.valid) {
     throw new CharacterCreationError(validation.errors);
+  }
+  const appearanceErrors = validateAppearance(input.appearance);
+  if (appearanceErrors.length > 0) {
+    throw new AppearanceValidationError(appearanceErrors);
   }
   const stats = applyBonuses(input.allocation, input.background.statBonuses);
   const derived = deriveAttributes(stats);
@@ -92,7 +106,7 @@ export function createCharacter(input: CreateCharacterInput): CharacterState {
     hp: derived.maxHp,
     neuralLoad: 0,
     equipment: emptyEquipment(),
-    appearance: input.appearance ?? defaultAppearance(),
+    appearance: { ...input.appearance },
     tags: [...input.background.tags],
     advancement: { pointsSpent: 0, abilityIds: [] },
   };

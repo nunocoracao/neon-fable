@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCharacter, defaultAllocation } from "../../character";
+import { fixtureCharacter } from "../../character/testSupport";
 import { addItem, hasItem, installEnhancement } from "../../inventory";
 import {
   applyChoice,
@@ -8,16 +8,10 @@ import {
   validateArc,
 } from "../../narrative";
 import { createNewGame, type GameState } from "../../state";
-import { getBackground } from "../backgrounds";
 import { introArc } from "./intro";
 
 function makeState(backgroundId: string): GameState {
-  const character = createCharacter({
-    name: "Vex",
-    background: getBackground(backgroundId)!,
-    allocation: defaultAllocation(),
-  });
-  return createNewGame({ character, seed: 1 });
+  return createNewGame({ character: fixtureCharacter({ backgroundId }), seed: 1 });
 }
 
 /** Takes a choice on a node looked up by id, returning the full outcome. */

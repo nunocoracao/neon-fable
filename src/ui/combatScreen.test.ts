@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { baseStats, createCharacter } from "../character";
+import { baseStats } from "../character";
+import { fixtureCharacter } from "../character/testSupport";
 import { createCombat, takeAction } from "../combat";
-import { getBackground } from "../data";
 import { addItem, countItem, equip, installEnhancement } from "../inventory";
 import { createNewGame, type GameState } from "../state";
 import { createCombatScreen } from "./combatScreen";
@@ -63,25 +63,21 @@ function logText(): string {
 
 /** Courier with the shard knife/slicker starting gear, nothing extra. */
 function courierState(seed: number): GameState {
-  const background = getBackground("gutter-courier")!;
   const allocation = baseStats();
   allocation.body += 5;
   allocation.tech += 5;
   allocation.intelligence += 5;
-  const character = createCharacter({ name: "Vex", background, allocation });
-  return createNewGame({ character, seed });
+  return createNewGame({ character: fixtureCharacter({ allocation }), seed });
 }
 
 /** Courier armed for the arena: Stun Baton (grants Stun Strike), Myomer
  * Arms (grants Crush), and trauma patches to heal mid-fight. */
 function armedState(seed: number): GameState {
-  const background = getBackground("gutter-courier")!;
   const allocation = baseStats();
   allocation.body += 5;
   allocation.reflexes += 5;
   allocation.tech += 5;
-  const character = createCharacter({ name: "Vex", background, allocation });
-  const state = createNewGame({ character, seed });
+  const state = createNewGame({ character: fixtureCharacter({ allocation }), seed });
   let inventory = addItem(state.inventory, "wpn-stun-baton", 1);
   inventory = addItem(inventory, "cyb-myomer-arms", 1);
   inventory = addItem(inventory, "con-trauma-patch", 2);

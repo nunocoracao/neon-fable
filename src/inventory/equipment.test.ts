@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createCharacter, defaultAllocation, type Stats } from "../character";
-import { getBackground } from "../data/backgrounds";
+import { defaultAllocation, type Stats } from "../character";
+import { fixtureCharacter } from "../character/testSupport";
 import {
   UNINSTALL_TRAUMA_PER_LOAD,
   equip,
@@ -12,11 +12,7 @@ import { addItem, countItem, emptyInventory, hasItem } from "./inventory";
 import { InventoryError } from "./items";
 
 function makeCharacter(allocation: Stats = defaultAllocation()) {
-  return createCharacter({
-    name: "Vex",
-    background: getBackground("gutter-courier")!,
-    allocation,
-  });
+  return fixtureCharacter({ allocation });
 }
 
 function expectCode(fn: () => unknown, code: InventoryError["code"]) {

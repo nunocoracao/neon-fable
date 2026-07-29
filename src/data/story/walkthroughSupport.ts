@@ -1,5 +1,6 @@
-import { baseStats, createCharacter, raiseStat } from "../../character";
+import { baseStats, raiseStat } from "../../character";
 import type { StatKey } from "../../character/stats";
+import { fixtureCharacter } from "../../character/testSupport";
 import {
   abilityOptions,
   activeCombatant,
@@ -26,7 +27,6 @@ import {
 import { applyChoice, getNode } from "../../narrative";
 import type { StoryArc } from "../../narrative/types";
 import { createNewGame, type GameState } from "../../state";
-import { getBackground } from "../backgrounds";
 
 /**
  * Shared driver for scripted end-to-end walkthrough tests (used by the
@@ -165,11 +165,7 @@ export function makeState(
 ): GameState {
   const allocation = baseStats();
   bump(allocation);
-  const character = createCharacter({
-    name: "Vex",
-    background: getBackground(backgroundId)!,
-    allocation,
-  });
+  const character = fixtureCharacter({ backgroundId, allocation });
   return createNewGame({ character, seed });
 }
 
