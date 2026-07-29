@@ -5,6 +5,8 @@ import {
   validateAppearance,
 } from "../character";
 import { ENHANCEMENT_SLOTS } from "../inventory/items";
+import { PROP_ART } from "../iso/art/props";
+import { TILE_ART } from "../iso/art/tiles";
 import { findPath, findPathToAdjacent } from "../iso/path";
 import {
   inBounds,
@@ -12,6 +14,8 @@ import {
   requireSpawn,
   tileAt,
   tileMaterial,
+  type PropId,
+  type TileId,
 } from "../iso/tilemap";
 import { encounters, getEncounter } from "./encounters";
 import { getItem } from "./items";
@@ -125,6 +129,35 @@ describe.each(maps.map((m) => [m.id, m] as const))("map %s", (_id, map) => {
   });
 });
 
+/**
+ * Dead-content lint. Art ids only earn their place by appearing in real
+ * map data; an id registered in the type but placed on no map is art
+ * nobody will ever see, and it should be retired rather than carried.
+ */
+describe("every registered art id is live in map data", () => {
+  const placedTiles = new Set(maps.flatMap((map) => map.tiles.flat()));
+  const placedProps = new Set(maps.flatMap((map) => map.props.map((p) => p.propId)));
+
+  it("places every prop kind somewhere", () => {
+    const unused = (Object.keys(PROP_ART) as PropId[]).filter(
+      (id) => !placedProps.has(id),
+    );
+    expect(unused, "props with art but no placement").toEqual([]);
+  });
+
+  it("places every tile material somewhere", () => {
+    // Checked per material, not per tile id: the interior floors and
+    // their four baseboard trims are one generated family, and a map
+    // that uses a floor only through its doorway trim still makes that
+    // material live. A material no map reaches at all is dead art.
+    const live = new Set([...placedTiles].map(tileMaterial));
+    const unused = (Object.keys(TILE_ART) as TileId[])
+      .map(tileMaterial)
+      .filter((material) => !live.has(material));
+    expect([...new Set(unused)], "tile materials with art but no map").toEqual([]);
+  });
+});
+
 describe("map lint covers every registered map", () => {
   it("partitions the registry into explorable maps and arenas", () => {
     expect([...arenaMaps, ...explorableMaps].map((m) => m.id).sort()).toEqual(
@@ -223,23 +256,45 @@ describe.each(arenaMaps.map((m) => [m.id, m] as const))(
       expect(arena.interactables).toEqual([]);
     });
 
-    it("reads as a few broad material zones", () => {
-      const counts = new Map<string, number>();
-      for (const material of materials) {
-        counts.set(material, (counts.get(material) ?? 0) + 1);
-      }
+    it("draws from a small material palette", () => {
       // Interior trims and quay lips fold into their own surface, so
       // this counts surfaces a player distinguishes, not tile ids.
-      expect([...counts.keys()].sort(), "distinct materials").toHaveLength(
-        counts.size,
-      );
-      expect(counts.size, `materials: ${[...counts.keys()].join(", ")}`)
+      const distinct = new Set(materials);
+      expect(distinct.size, `materials: ${[...distinct].join(", ")}`)
         .toBeLessThanOrEqual(4);
-      // The two dominant surfaces must carry the floor; anything less
-      // and the dressing has stopped reading as zones.
-      const ranked = [...counts.values()].sort((a, b) => b - a);
-      const dominant = (ranked[0] ?? 0) + (ranked[1] ?? 0);
-      expect(dominant / tiles.length).toBeGreaterThanOrEqual(0.7);
+    });
+
+    // Palette size alone does not make a grid readable — a two-material
+    // checkerboard is the worst case and would pass it. What matters is
+    // that materials clump: measure the share of orthogonally adjacent
+    // tile pairs sharing a material. Broad zones score high, scattered
+    // one-off tiles score near zero.
+    it("clusters its materials into zones instead of speckle", () => {
+      const materialAt = (x: number, y: number): string | undefined => {
+        const id = arena.tiles[y]?.[x];
+        return id === undefined ? undefined : tileMaterial(id);
+      };
+      let pairs = 0;
+      let matching = 0;
+      for (let y = 0; y < arena.height; y++) {
+        for (let x = 0; x < arena.width; x++) {
+          for (const [nx, ny] of [
+            [x + 1, y],
+            [x, y + 1],
+          ] as const) {
+            const here = materialAt(x, y);
+            const there = materialAt(nx, ny);
+            if (here === undefined || there === undefined) continue;
+            pairs++;
+            if (here === there) matching++;
+          }
+        }
+      }
+      expect(pairs).toBeGreaterThan(0);
+      expect(
+        matching / pairs,
+        "share of neighbouring tiles sharing a material",
+      ).toBeGreaterThanOrEqual(0.55);
     });
   },
 );

@@ -648,8 +648,8 @@ const undercroftRows = [
   "w..rr...",
   "w.rrrr..",
   "w.rrrr..",
-  "w..rr...",
-  "w,.....,",
+  "w..rr..,",
+  "w,,....,",
 ];
 
 const undercroftGrid = buildMapGrid(undercroftLegend, undercroftRows);
@@ -720,11 +720,11 @@ const pumpworksLegend: Record<string, LegendEntry> = {
 const pumpworksRows = [
   "nnnnnnnnn",
   "w.rrrrr..",
-  "w.rrrrr.,",
   "w.rrrrr..",
-  "w.rrrrr.,",
   "w.rrrrr..",
-  "w,......,",
+  "w.rrrrr..",
+  "w,rrrrr..",
+  "w,,......",
 ];
 
 const pumpworksGrid = buildMapGrid(pumpworksLegend, pumpworksRows);
@@ -758,8 +758,8 @@ const relayCrownRows = [
   "w.=.=..",
   "w......",
   "w.=.=..",
-  "w......",
   "w.....,",
+  "w....,,",
 ];
 
 const relayCrownGrid = buildMapGrid(relayCrownLegend, relayCrownRows);
