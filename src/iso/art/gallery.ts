@@ -35,10 +35,12 @@ import {
   composedCharacterGrid,
   layerArtGrid,
   outfitChannelRemap,
+  weaponChannelRemap,
   type ComposedCharacter,
 } from "./layers";
 import { BODY_BUILD_IDS, bodyViewForFacing } from "./layers/body";
 import { outfitArtId } from "./layers/outfits";
+import { weaponArtId } from "./layers/weapons";
 import { BODY_ANIM } from "./layers/bodyAnim";
 import { REMAP_CHANNELS } from "./palette";
 import {
@@ -146,9 +148,10 @@ function bodyEntries(): GalleryEntry[] {
  * eyes and bob hair, applying the catalog hair/eye interaction rules
  * by hand so the gallery shows exactly what resolveLayers produces.
  * One outfit sweep per wearable item with a layer reference × build ×
- * facing, wearing the item's material remaps. Catalog styles whose art
- * has not landed yet are skipped and join automatically once their
- * registry entry exists.
+ * facing, wearing the item's material remaps, and one weapon sweep per
+ * weapon item with a class reference × build × facing, holding the
+ * item's accent recolor. Catalog styles whose art has not landed yet
+ * are skipped and join automatically once their registry entry exists.
  */
 function appearanceEntries(): GalleryEntry[] {
   const [hairChannel = "K"] = REMAP_CHANNELS.hair;
@@ -356,6 +359,32 @@ function appearanceEntries(): GalleryEntry[] {
       );
     });
   });
+  // One weapon sweep per weapon item that carries a class reference,
+  // per build and facing, holding the item's accent recolor — the exact
+  // layer + per-facing draw order resolveLayers produces when equipped.
+  const weaponSweep = items.flatMap((item) => {
+    if (item.kind !== "weapon" || !item.weaponLayer) return [];
+    const ref = item.weaponLayer;
+    const remap = weaponChannelRemap(ref.accent);
+    return BODY_BUILD_IDS.flatMap((build) => {
+      const art = weaponArtId(ref.id, build);
+      if (!layerArtGrid("weapon", art, "front")) return [];
+      return FACINGS.map((facing) =>
+        entry(
+          `weapon ${item.id} ${build} ${facing}`,
+          {
+            build,
+            layers: [
+              { slot: "body", art: build, remap: {} },
+              { slot: "weapon", art, remap },
+            ],
+          },
+          facing,
+          "idle",
+        ),
+      );
+    });
+  });
   return [
     ...colorSweep,
     ...buildSweep,
@@ -365,6 +394,7 @@ function appearanceEntries(): GalleryEntry[] {
     ...detailSweep,
     ...headwearSweep,
     ...outfitSweep,
+    ...weaponSweep,
   ];
 }
 
