@@ -185,6 +185,19 @@ export interface CharacterVisual {
 }
 
 /**
+ * The EquipmentState a CharacterVisual's gear references resolve as —
+ * how NPC visuals flow through the same sprite and portrait pipelines
+ * as player equipment.
+ */
+export function visualEquipment(visual: CharacterVisual): EquipmentState {
+  return {
+    weapon: visual.weapon ?? null,
+    outfit: visual.outfit ?? null,
+    enhancements: visual.enhancements ?? {},
+  };
+}
+
+/**
  * Compose a CharacterVisual into the layer engine's render descriptor —
  * the NPC/enemy counterpart of composeCharacter over player state.
  * Throws AppearanceValidationError on unknown appearance ids.
@@ -193,15 +206,7 @@ export function composeVisual(
   visual: CharacterVisual,
   lookupItem: ItemLookup = getItem,
 ): ComposedCharacter {
-  return composeCharacter(
-    visual.appearance,
-    {
-      weapon: visual.weapon ?? null,
-      outfit: visual.outfit ?? null,
-      enhancements: visual.enhancements ?? {},
-    },
-    lookupItem,
-  );
+  return composeCharacter(visual.appearance, visualEquipment(visual), lookupItem);
 }
 
 /**

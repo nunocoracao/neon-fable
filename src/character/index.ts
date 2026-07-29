@@ -31,6 +31,7 @@ export {
   resolveLayers,
   seededAppearance,
   validateAppearance,
+  visualEquipment,
   type Appearance,
   type AppearanceError,
   type AppearanceField,

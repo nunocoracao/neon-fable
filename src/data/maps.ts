@@ -4,34 +4,24 @@
  * buildMapGrid; interactables reference story node and encounter ids by
  * string only — the iso layer never resolves them.
  */
-import type { CharacterVisual } from "../character/appearance";
 import { buildMapGrid, type IsoMap, type LegendEntry } from "../iso/tilemap";
+import {
+  FERROW_VISUAL,
+  FLICK_VISUAL,
+  LIN_VISUAL,
+  VESPER_VISUAL,
+} from "./cast";
 
 /**
  * Authored looks for named story NPCs, rendered through the layered
- * appearance pipeline. Deliberate and role-fitting — friendly faces
- * avoid the crimson/magenta hostile-optic cue reserved for enemies
- * (the rust-runner ambusher wears it on purpose). NPC interactables
- * without a visual (crowds, ambient figures) get a stable seeded look
- * from their map position instead (character/npc.ts).
+ * appearance pipeline. Named speakers draw their look from the dialogue
+ * cast (./cast.ts) so street sprite and portrait always match; deliberate
+ * and role-fitting — friendly faces avoid the crimson/magenta
+ * hostile-optic cue reserved for enemies (the rust-runner ambusher wears
+ * it on purpose). NPC interactables without a visual (crowds, ambient
+ * figures) get a stable seeded look from their map position instead
+ * (character/npc.ts).
  */
-
-// Flick appears on two maps; one look, one const.
-const FLICK_VISUAL: CharacterVisual = {
-  appearance: {
-    skinTone: "golden-tan",
-    build: "lean",
-    hairStyle: "spikes",
-    hairColor: "synth-violet",
-    eyes: "wide",
-    eyeColor: "cyan",
-    brows: "arched",
-    mouth: "smirk",
-    faceDetail: "none",
-    headwear: "none",
-  },
-  outfit: "out-courier-slicker",
-};
 
 /**
  * Cinder Row plaza — the hub. A neon-lit square between tenement
@@ -130,23 +120,7 @@ const cinderPlaza: IsoMap = {
       label: "Vesper — Chrome Chapel",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "chapel-door" },
-      // The stylist is their own best advertisement: dyed glyph cut,
-      // circuit ink, a mantle worn like vestments. Friendly optics.
-      visual: {
-        appearance: {
-          skinTone: "warm-brown",
-          build: "lean",
-          hairStyle: "glyph",
-          hairColor: "synth-violet",
-          eyes: "standard",
-          eyeColor: "hologram-blue",
-          brows: "arched",
-          mouth: "smirk",
-          faceDetail: "circuit-ink",
-          headwear: "none",
-        },
-        outfit: "out-ghostline-mantle",
-      },
+      visual: VESPER_VISUAL,
     },
     {
       id: "plaza-terminal",
@@ -305,22 +279,7 @@ const greywaterSteps: IsoMap = {
       label: "Matron Ferrow",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "a1-ferrow" },
-      // The Steps' matriarch: silver tail, work harness, set jaw.
-      visual: {
-        appearance: {
-          skinTone: "warm-brown",
-          build: "heavy",
-          hairStyle: "ponytail",
-          hairColor: "silver",
-          eyes: "standard",
-          eyeColor: "amber",
-          brows: "straight",
-          mouth: "frown",
-          faceDetail: "none",
-          headwear: "none",
-        },
-        outfit: "out-diver-harness",
-      },
+      visual: FERROW_VISUAL,
     },
     {
       id: "patch-den",
@@ -552,22 +511,7 @@ const auricSpire: IsoMap = {
       label: "Auditor's Booth",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "a3-lin" },
-      // Lin: registry auditor in spire dress, circuit-inked, precise.
-      visual: {
-        appearance: {
-          skinTone: "porcelain",
-          build: "lean",
-          hairStyle: "bob",
-          hairColor: "raven",
-          eyes: "narrow",
-          eyeColor: "hologram-blue",
-          brows: "straight",
-          mouth: "neutral",
-          faceDetail: "circuit-ink",
-          headwear: "none",
-        },
-        outfit: "out-spire-suit",
-      },
+      visual: LIN_VISUAL,
     },
     {
       id: "muster-crowd",
