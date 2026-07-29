@@ -20,6 +20,11 @@
  * Pure and canvas-free: the tables are unit-testable, and "night" is
  * the identity grade, so an undeclared map bakes byte-for-byte what the
  * art was authored as.
+ *
+ * Scope is the scene. The DOM-side bakes — dialogue portraits, the
+ * appearance pickers and preview, the dev gallery — keep the master
+ * palette, so a look is always judged as it was authored rather than
+ * through whatever hour the player happens to be standing in.
  */
 import { EMISSIVE_COLORS, PALETTE, SKIN_RAMPS } from "./palette";
 import type { DayPhaseId } from "../tilemap";
