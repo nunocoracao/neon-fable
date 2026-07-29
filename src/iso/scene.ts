@@ -5,6 +5,11 @@
  */
 import { audio } from "../audio";
 import { settings, stepZoom, type ZoomLevel } from "../settings";
+import {
+  focusInteractable,
+  outlineColor,
+  type FocusedInteractable,
+} from "./affordance";
 import { createCrowd, crowdEntities, stepCrowd, type AmbientCrowd } from "./ambient";
 import { facingFromDelta, type Facing } from "./animation";
 import { hasOpeningArt } from "./art/interactables";
@@ -27,8 +32,8 @@ import {
 } from "./coords";
 import { resolveDayPhase } from "./dayPhase";
 import type {
-  IsoExitHint,
-  IsoExitHintHandler,
+  IsoFocusHint,
+  IsoFocusHintHandler,
   IsoInteractionHandler,
 } from "./events";
 import { findPath, findPathToAdjacent } from "./path";
@@ -52,11 +57,12 @@ export interface IsoSceneOptions {
   spawnId: string;
   onInteract: IsoInteractionHandler;
   /**
-   * Called when the exit under the cursor — or the one the player is
-   * stood beside — changes, and with null when none is in focus. The
-   * shell turns it into the on-screen label naming the destination.
+   * Called when the interactable under the cursor — or the nearest one
+   * within reach — changes, and with null when none is in focus. The
+   * shell turns it into the bottom-screen prompt line; the scene draws
+   * the outline and floating name itself.
    */
-  onExitHint?: IsoExitHintHandler;
+  onFocus?: IsoFocusHintHandler;
   sprites?: SpriteProvider;
   /**
    * Populate the map's declared ambient crowd (default true). Off gives
@@ -93,6 +99,8 @@ export interface IsoScene {
 const WALK_SPEED = 3.5;
 /** Pointer travel in px beyond which a press becomes a camera pan. */
 const PAN_THRESHOLD = 5;
+/** Keys that trigger whatever the scene has in focus. */
+const INTERACT_KEYS = new Set(["Enter", "e", "E"]);
 
 export function createIsoScene(
   canvas: HTMLCanvasElement,
@@ -125,8 +133,10 @@ export function createIsoScene(
    * the scene uses rather than the wall.
    */
   let opening: { target: Interactable; startedAt: number | null } | null = null;
-  /** Last exit reported to the shell, so the label only changes on change. */
-  let exitHint: IsoExitHint | null = null;
+  /** The interactable being offered this frame; see ./affordance.ts. */
+  let focus: FocusedInteractable | null = null;
+  /** Last focus reported to the shell, so the prompt only changes on change. */
+  let focusHintSent: IsoFocusHint | null = null;
   /** Ambient pedestrians dressing the map; scenery only, never clicked. */
   let crowd: AmbientCrowd =
     options.ambient === false ? { pedestrians: [], zones: new Map() } : createCrowd(map);
@@ -318,6 +328,11 @@ export function createIsoScene(
       applyZoom(stepZoom(zoom, 1));
     } else if (event.key === "-" || event.key === "_") {
       applyZoom(stepZoom(zoom, -1));
+    } else if (INTERACT_KEYS.has(event.key)) {
+      // Whatever is outlined is what the key acts on, so the prompt and
+      // the keystroke can never disagree. The shell decides whether it
+      // is listening — an open overlay drops the interaction there.
+      interactWithFocus();
     }
   }
 
@@ -371,41 +386,44 @@ export function createIsoScene(
     };
   }
 
-  /** The exit the cursor is on, else the one the player is stood beside. */
-  function focusedExit(): IsoExitHint | null {
-    const hovered = hoverTile
-      ? interactableAt(map, hoverTile.x, hoverTile.y)
-      : undefined;
-    if (hovered?.exit) {
-      return {
-        interactableId: hovered.id,
-        label: hovered.label,
-        mapId: hovered.exit.mapId,
-        reason: "hover",
-      };
-    }
-    const beside = map.interactables.find(
-      (i) => i.exit !== undefined && tileDistance(playerTile, i) === 1,
-    );
-    if (beside?.exit) {
-      return {
-        interactableId: beside.id,
-        label: beside.label,
-        mapId: beside.exit.mapId,
-        reason: "nearby",
-      };
-    }
-    return null;
+  /**
+   * The interactable the cursor is on, else the nearest one in reach.
+   * Ambient pedestrians and scenery props are not interactables at all,
+   * so neither can ever end up here.
+   */
+  function resolveFocus(): void {
+    focus = focusInteractable(map, { playerTile, hoverTile });
+    const next = focus ? focusHint(focus) : null;
+    const same =
+      next?.interactableId === focusHintSent?.interactableId &&
+      next?.reason === focusHintSent?.reason &&
+      next?.inRange === focusHintSent?.inRange;
+    if (same) return;
+    focusHintSent = next;
+    options.onFocus?.(next);
   }
 
-  function reportExitHint(): void {
-    const next = focusedExit();
-    const same =
-      next?.interactableId === exitHint?.interactableId &&
-      next?.reason === exitHint?.reason;
-    if (same) return;
-    exitHint = next;
-    options.onExitHint?.(next);
+  function focusHint(target: FocusedInteractable): IsoFocusHint {
+    const { interactable, reason, inRange } = target;
+    return {
+      interactableId: interactable.id,
+      label: interactable.label,
+      spriteId: interactable.spriteId,
+      interaction: interactable.interaction,
+      reason,
+      inRange,
+      exitMapId: interactable.exit?.mapId,
+    };
+  }
+
+  /** Trigger whatever is in focus, if it is close enough to reach. */
+  function interactWithFocus(): void {
+    if (walkQueue.length > 0 || !focus?.inRange) return;
+    const { interactable } = focus;
+    onInteract({
+      interactableId: interactable.id,
+      interaction: interactable.interaction,
+    });
   }
 
   let rafId = 0;
@@ -414,7 +432,7 @@ export function createIsoScene(
     const dt = lastTime === null ? 0 : Math.min((time - lastTime) / 1000, 0.1);
     lastTime = time;
     stepWalk(dt);
-    reportExitHint();
+    resolveFocus();
     const reducedMotion = settings.get().reducedMotion;
     // Reduced motion stills the crowd along with the rest of the
     // ambient clock: the player's own movement is the only motion the
@@ -452,6 +470,16 @@ export function createIsoScene(
       weather,
       dayPhase,
       opening: stepOpening(time, reducedMotion),
+      // The outline color is a value, not a branch: the later
+      // colorblind-friendly setting picks a palette id here and nothing
+      // downstream changes (see ./affordance.ts).
+      focus: focus
+        ? {
+            interactableId: focus.interactable.id,
+            label: focus.interactable.label,
+            color: outlineColor(),
+          }
+        : null,
     };
     renderScene(ctx!, sprites, view);
     rafId = requestAnimationFrame(frame);

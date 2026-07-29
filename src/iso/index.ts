@@ -16,12 +16,25 @@ export {
 } from "./coords";
 export { compareDrawables, depthOf, sortDrawables, type DrawLayer, type Drawable } from "./depth";
 export {
-  type IsoExitHint,
-  type IsoExitHintHandler,
+  type IsoFocusHint,
+  type IsoFocusHintHandler,
   type IsoInteractionEvent,
   type IsoInteractionHandler,
   type MapInteraction,
 } from "./events";
+export {
+  DEFAULT_OUTLINE_PALETTE,
+  INTERACT_RANGE,
+  OUTLINE_COLORS,
+  focusInteractable,
+  interactablesInRange,
+  nearestInteractable,
+  outlineColor,
+  type FocusQuery,
+  type FocusReason,
+  type FocusedInteractable,
+  type OutlinePaletteId,
+} from "./affordance";
 export { findPath, findPathToAdjacent } from "./path";
 export {
   MAX_AMBIENT_PER_MAP,
@@ -97,7 +110,12 @@ export {
   type WeatherView,
 } from "./weather";
 export { createIsoScene, type IsoScene, type IsoSceneOptions } from "./scene";
-export { type OpeningView, type RenderView, type SceneEntity } from "./render";
+export {
+  type FocusView,
+  type OpeningView,
+  type RenderView,
+  type SceneEntity,
+} from "./render";
 export {
   DOOR_TIMING,
   TRANSITION_CUT,

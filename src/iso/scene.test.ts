@@ -6,7 +6,8 @@ import { createIsoScene, type IsoScene } from "./scene";
 import type { EntityPose, Sprite, SpriteProvider } from "./sprites";
 import { DOOR_TIMING, doorCycleMs } from "./transition";
 import { buildMapGrid, type IsoMap } from "./tilemap";
-import type { IsoExitHint } from "./events";
+import type { IsoFocusHint, IsoInteractionEvent } from "./events";
+import { outlineColor } from "./affordance";
 
 /**
  * The scene's doorway and arrival behaviour, driven frame by frame
@@ -24,18 +25,33 @@ interface InteractableCall {
   open: number;
 }
 
+/** Outline silhouettes the scene asked for, by interactable sprite id. */
+interface OutlineCall {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+}
+
 const BLANK: Sprite = {
   image: {} as CanvasImageSource,
   anchorX: 0,
   anchorY: 0,
 };
 
-function recordingSprites(calls: InteractableCall[]): SpriteProvider {
+function recordingSprites(
+  calls: InteractableCall[],
+  outlines: OutlineCall[] = [],
+): SpriteProvider {
   return {
     tile: () => BLANK,
     prop: () => BLANK,
     interactable: (id, x, y, _timeMs, open = 0) => {
       calls.push({ id, x, y, open });
+      return BLANK;
+    },
+    interactableSilhouette: (id, x, y, _timeMs, color) => {
+      outlines.push({ id, x, y, color });
       return BLANK;
     },
     entity: (_id: string, _pose: EntityPose) => BLANK,
@@ -52,6 +68,8 @@ function recordingContext(translates: Array<[number, number]>): unknown {
     translate(tx: number, ty: number): void {
       translates.push([tx, ty]);
     },
+    // The floating name chip sizes itself off the text it holds.
+    measureText: (text: string) => ({ width: text.length * 8 }),
   };
   return new Proxy(target, {
     get: (t, prop) =>
@@ -214,20 +232,24 @@ describe("doorway openings", () => {
   });
 });
 
-describe("exit hints", () => {
-  function mount(spawnId: string, onExitHint: (h: IsoExitHint | null) => void) {
+describe("focus hints", () => {
+  function mount(
+    spawnId: string,
+    onFocus: (h: IsoFocusHint | null) => void,
+    outlines: OutlineCall[] = [],
+  ) {
     scene = createIsoScene(canvas, {
       map: testMap(),
       spawnId,
       onInteract: () => {},
-      onExitHint,
-      sprites: recordingSprites(calls),
+      onFocus,
+      sprites: recordingSprites(calls, outlines),
       ambient: false,
     });
   }
 
-  it("names the exit the player is stood beside", () => {
-    const hints: Array<IsoExitHint | null> = [];
+  it("names what the player is stood beside, and says it is in reach", () => {
+    const hints: Array<IsoFocusHint | null> = [];
     // player-start (16, 16) is the tile directly below the door.
     mount("player-start", (hint) => hints.push(hint));
     frame(0);
@@ -235,9 +257,21 @@ describe("exit hints", () => {
       {
         interactableId: "side-door",
         label: "Side Door",
-        mapId: "elsewhere",
+        spriteId: "door",
+        interaction: { kind: "dialogue", nodeId: "n1" },
         reason: "nearby",
+        inRange: true,
+        exitMapId: "elsewhere",
       },
+    ]);
+  });
+
+  it("outlines only the thing in focus, in the accessibility color", () => {
+    const outlines: OutlineCall[] = [];
+    mount("player-start", () => {}, outlines);
+    frame(0);
+    expect(outlines).toEqual([
+      { id: "door", x: 16, y: 15, color: outlineColor() },
     ]);
   });
 
@@ -253,13 +287,60 @@ describe("exit hints", () => {
     expect(calls.filter((c) => c.id === "exit")).toHaveLength(1);
   });
 
-  it("stays quiet away from any exit, and reports only on change", () => {
-    const hints: Array<IsoExitHint | null> = [];
-    mount("back-alley", (hint) => hints.push(hint));
+  it("stays quiet away from everything, and reports only on change", () => {
+    const hints: Array<IsoFocusHint | null> = [];
+    const outlines: OutlineCall[] = [];
+    // back-alley (0, 4) is nowhere near either interactable.
+    mount("back-alley", (hint) => hints.push(hint), outlines);
     frame(0);
     frame(16);
     frame(32);
     expect(hints).toEqual([]);
+    expect(outlines).toEqual([]);
+  });
+});
+
+describe("keyboard interaction", () => {
+  function press(key: string): void {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key }));
+  }
+
+  function mountAt(spawnId: string, events: IsoInteractionEvent[]): void {
+    scene = createIsoScene(canvas, {
+      map: testMap(),
+      spawnId,
+      onInteract: (event) => events.push(event),
+      sprites: recordingSprites(calls),
+      ambient: false,
+    });
+  }
+
+  it("triggers whatever is highlighted", () => {
+    const events: IsoInteractionEvent[] = [];
+    mountAt("player-start", events);
+    frame(0);
+    press("Enter");
+    press("e");
+    expect(events).toEqual([
+      { interactableId: "side-door", interaction: { kind: "dialogue", nodeId: "n1" } },
+      { interactableId: "side-door", interaction: { kind: "dialogue", nodeId: "n1" } },
+    ]);
+  });
+
+  it("does nothing with nothing in reach", () => {
+    const events: IsoInteractionEvent[] = [];
+    mountAt("back-alley", events);
+    frame(0);
+    press("Enter");
+    press("E");
+    expect(events).toEqual([]);
+  });
+
+  it("does nothing before the first frame has picked a target", () => {
+    const events: IsoInteractionEvent[] = [];
+    mountAt("player-start", events);
+    press("Enter");
+    expect(events).toEqual([]);
   });
 });
 
