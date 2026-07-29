@@ -39,6 +39,33 @@ function defaultStorage(): SettingsStorage | null {
  */
 export const settings: SettingsStore = createSettingsStore(defaultStorage());
 
+/** The matchMedia surface reducedMotionActive probes; window satisfies it. */
+export interface MotionMediaQuerier {
+  matchMedia?: (query: string) => { matches: boolean };
+}
+
+/**
+ * Whether motion should be stilled right now: the in-game setting or
+ * the OS-level prefers-reduced-motion preference, whichever asks first.
+ * CSS animations honor the OS preference via a media query; canvas
+ * animation loops call this so they honor it too.
+ */
+export function reducedMotionActive(
+  current: Settings = settings.get(),
+  win: MotionMediaQuerier | null = typeof window !== "undefined"
+    ? window
+    : null,
+): boolean {
+  if (current.reducedMotion) return true;
+  try {
+    return (
+      win?.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** Mirrors reduced motion onto the root element for the CSS kill switch. */
 export function applyMotionPreference(
   current: Settings,

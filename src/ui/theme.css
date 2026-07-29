@@ -227,6 +227,19 @@ body::after {
   font-size: 0.85rem;
 }
 
+/* Visually hidden but read by screen readers (live regions, labels). */
+.nf-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .nf-input {
   width: 100%;
   padding: 0.5rem 0.75rem;
@@ -786,6 +799,26 @@ body::after {
 
 .nf-review-legacy {
   color: var(--nf-glow-amber);
+}
+
+/* Narrow windows (~≤960px): the creation columns stack, with the live
+   preview above the pickers, so the wizard stays usable down to ~900px
+   without any horizontal scrolling. */
+@media (max-width: 960px) {
+  .nf-create-columns {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  /* Appearance step: the preview column (DOM-second) moves on top. */
+  .nf-appearance-columns > .nf-create-column:last-child {
+    order: -1;
+  }
+
+  /* Review: the showcase figure no longer needs a tall stage. */
+  .nf-review-figure .nf-preview-stage {
+    min-height: 0;
+  }
 }
 
 /* --- Inventory --- */
@@ -1399,6 +1432,7 @@ body::after {
 .nf-bg-card:focus-visible,
 .nf-thumb:focus-visible,
 .nf-swatch:focus-visible,
+.nf-wizard-step:focus-visible,
 .nf-input:focus-visible,
 .nf-setting-row input[type="range"]:focus-visible {
   outline: 2px solid var(--nf-glow-cyan);

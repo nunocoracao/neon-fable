@@ -11,9 +11,10 @@
  * descriptor keys. Only the active tab's grids are built, so the step
  * opens without baking every catalog.
  *
- * Keyboard: arrow keys move within a grid, Tab cycles the category
- * tabs. Full a11y polish (roving tabindex, tablist semantics) is a
- * later task; this keeps the picker operable.
+ * Keyboard and screen readers: the tab strip is a tablist and every
+ * grid is a radiogroup of radios labelled from catalog data, each a
+ * single tab stop with a roving tabindex — arrow keys move inside,
+ * Enter/Space picks, Tab moves to the next group (see ./focus).
  */
 import {
   composeCharacter,
@@ -24,12 +25,12 @@ import {
 import {
   APPEARANCE_TABS,
   appearanceCatalogs,
-  moveInGrid,
   swatchChips,
   type AppearanceTabId,
   type SwatchCategoryConfig,
   type ThumbCategoryConfig,
 } from "../data";
+import { installRovingGrid } from "./focus";
 import { emptyEquipment } from "../inventory/equipment";
 import {
   composedCharacterGrid,
@@ -104,41 +105,58 @@ export function createAppearancePicker(
 
   const tabsRow = document.createElement("div");
   tabsRow.className = "nf-appearance-tabs";
+  tabsRow.setAttribute("role", "tablist");
+  tabsRow.setAttribute("aria-label", "Appearance category");
 
   const caption = document.createElement("p");
   caption.className = "nf-thumb-caption";
 
   const body = document.createElement("div");
   body.className = "nf-appearance-tab-body";
+  body.id = "nf-appearance-tabpanel";
+  body.setAttribute("role", "tabpanel");
 
   el.append(tabsRow, caption, body);
 
-  function setTab(tab: AppearanceTabId, focusGrid: boolean): void {
+  function setTab(tab: AppearanceTabId): void {
     if (tab !== active) {
       active = tab;
       options.onTabChange?.(tab);
     }
     render();
-    if (focusGrid) {
-      body
-        .querySelector<HTMLButtonElement>("button.nf-thumb, button.nf-swatch")
-        ?.focus();
-    }
   }
 
+  // One tab stop for the strip; Left/Right arrows walk the tabs.
+  const tabsRoving = installRovingGrid(tabsRow, {
+    itemSelector: "button.nf-appearance-tab",
+    primary: (items) =>
+      items.find((item) => item.getAttribute("aria-selected") === "true"),
+  });
+
   function renderTabs(): void {
+    // Rebuilding replaces a focused tab button; put focus back on the
+    // active one so keyboard tab switching doesn't dump focus on <body>.
+    const hadFocus = tabsRow.contains(document.activeElement);
     tabsRow.replaceChildren(
       ...APPEARANCE_TABS.map((tab) => {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "nf-button nf-button-small nf-appearance-tab";
         if (tab.id === active) button.classList.add("nf-selected");
-        button.setAttribute("aria-pressed", String(tab.id === active));
+        button.setAttribute("role", "tab");
+        button.setAttribute("aria-selected", String(tab.id === active));
+        button.setAttribute("aria-controls", body.id);
         button.textContent = tab.label;
-        button.addEventListener("click", () => setTab(tab.id, false));
+        button.addEventListener("click", () => setTab(tab.id));
         return button;
       }),
     );
+    tabsRoving.sync();
+    if (hadFocus) {
+      tabsRow
+        .querySelector<HTMLButtonElement>('[aria-selected="true"]')
+        ?.focus();
+    }
   }
 
   function thumbCanvas(
@@ -165,6 +183,8 @@ export function createAppearancePicker(
     const grid = document.createElement("div");
     grid.className = "nf-thumb-grid";
     grid.style.gridTemplateColumns = `repeat(${config.columns}, max-content)`;
+    grid.setAttribute("role", "radiogroup");
+    grid.setAttribute("aria-label", config.label);
 
     for (const option of appearanceCatalogs[config.category]) {
       const button = document.createElement("button");
@@ -172,7 +192,8 @@ export function createAppearancePicker(
       button.className = "nf-thumb";
       const selected = look[config.category] === option.id;
       if (selected) button.classList.add("nf-selected");
-      button.setAttribute("aria-pressed", String(selected));
+      button.setAttribute("role", "radio");
+      button.setAttribute("aria-checked", String(selected));
       button.dataset.category = config.category;
       button.dataset.id = option.id;
       button.title = option.label;
@@ -184,26 +205,12 @@ export function createAppearancePicker(
       grid.append(button);
     }
 
-    // Arrow keys move within this grid; swallowed here so the wizard's
-    // list navigation doesn't also walk the focus linearly.
-    grid.addEventListener("keydown", (event: KeyboardEvent) => {
-      if (
-        event.key !== "ArrowRight" &&
-        event.key !== "ArrowLeft" &&
-        event.key !== "ArrowDown" &&
-        event.key !== "ArrowUp"
-      ) {
-        return;
-      }
-      const thumbs = [
-        ...grid.querySelectorAll<HTMLButtonElement>("button.nf-thumb"),
-      ];
-      const index = thumbs.indexOf(document.activeElement as HTMLButtonElement);
-      if (index === -1) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const next = moveInGrid(index, thumbs.length, config.columns, event.key);
-      if (next !== null) thumbs[next]?.focus();
+    // One tab stop, entering on the selection; arrows move inside.
+    installRovingGrid(grid, {
+      itemSelector: "button.nf-thumb",
+      columns: () => config.columns,
+      primary: (items) =>
+        items.find((item) => item.getAttribute("aria-checked") === "true"),
     });
 
     wrap.append(heading, grid);
@@ -226,6 +233,8 @@ export function createAppearancePicker(
 
     const row = document.createElement("div");
     row.className = "nf-swatch-row";
+    row.setAttribute("role", "radiogroup");
+    row.setAttribute("aria-label", config.label);
 
     for (const chip of swatchChips(config.category)) {
       const button = document.createElement("button");
@@ -234,7 +243,8 @@ export function createAppearancePicker(
       button.style.background = chip.color;
       const selected = look[config.category] === chip.id;
       if (selected) button.classList.add("nf-selected");
-      button.setAttribute("aria-pressed", String(selected));
+      button.setAttribute("role", "radio");
+      button.setAttribute("aria-checked", String(selected));
       button.dataset.category = config.category;
       button.dataset.id = chip.id;
       button.title = chip.label;
@@ -245,19 +255,11 @@ export function createAppearancePicker(
       row.append(button);
     }
 
-    // Left/right walk the single-row strip (columns = count makes
-    // up/down off-grid moves); swallowed like the thumb grids' keys.
-    row.addEventListener("keydown", (event: KeyboardEvent) => {
-      if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
-      const chips = [
-        ...row.querySelectorAll<HTMLButtonElement>("button.nf-swatch"),
-      ];
-      const index = chips.indexOf(document.activeElement as HTMLButtonElement);
-      if (index === -1) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const next = moveInGrid(index, chips.length, chips.length, event.key);
-      if (next !== null) chips[next]?.focus();
+    // Single-row roving strip: left/right move, up/down stay put.
+    installRovingGrid(row, {
+      itemSelector: "button.nf-swatch",
+      primary: (items) =>
+        items.find((item) => item.getAttribute("aria-checked") === "true"),
     });
 
     wrap.append(heading, row);
@@ -266,6 +268,7 @@ export function createAppearancePicker(
 
   function renderBody(): void {
     const tab = APPEARANCE_TABS.find((t) => t.id === active) ?? APPEARANCE_TABS[0];
+    body.setAttribute("aria-label", tab.label);
     const look = options.appearance();
     // Rebuilding replaces a focused thumb; put focus back on its
     // successor so keyboard picking doesn't dump focus on <body>.
@@ -297,19 +300,6 @@ export function createAppearancePicker(
     renderTabs();
     renderBody();
   }
-
-  // Tab cycles the category tabs while the picker holds focus (basic
-  // keyboard operability; roving-tabindex a11y comes later).
-  el.addEventListener("keydown", (event: KeyboardEvent) => {
-    if (event.key !== "Tab") return;
-    event.preventDefault();
-    event.stopPropagation();
-    const index = APPEARANCE_TABS.findIndex((tab) => tab.id === active);
-    const count = APPEARANCE_TABS.length;
-    const next =
-      APPEARANCE_TABS[(index + (event.shiftKey ? -1 : 1) + count) % count];
-    if (next) setTab(next.id, true);
-  });
 
   // Hovering or focusing a thumb or chip surfaces its label in the
   // caption bar.

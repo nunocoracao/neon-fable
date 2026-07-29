@@ -127,7 +127,7 @@ describe("appearance picker", () => {
       b.classList.contains("nf-selected"),
     );
     expect(selected?.dataset.id).toBe(look.mouth);
-    expect(selected?.getAttribute("aria-pressed")).toBe("true");
+    expect(selected?.getAttribute("aria-checked")).toBe("true");
   });
 
   it("clicking a thumb reports the pick and the selection follows", () => {
@@ -170,19 +170,50 @@ describe("appearance picker", () => {
     expect(active.classList.contains("nf-selected")).toBe(true);
   });
 
-  it("Tab cycles the category tabs and moves focus into the new grid", () => {
-    thumbs("build")[0]?.focus();
-    picker.el.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Tab", bubbles: true }),
+  it("the tab strip is a roving tablist: arrows move, Enter activates", () => {
+    const strip = document.querySelector(".nf-appearance-tabs");
+    expect(strip?.getAttribute("role")).toBe("tablist");
+    const body = tabButton("Body");
+    expect(body.getAttribute("role")).toBe("tab");
+    expect(body.getAttribute("aria-selected")).toBe("true");
+    // Only the active tab is in the tab order.
+    expect(body.tabIndex).toBe(0);
+    expect(tabButton("Hair").tabIndex).toBe(-1);
+    body.focus();
+    body.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
     );
-    expect(tabButton("Hair").classList.contains("nf-selected")).toBe(true);
+    // Focus moved without activating; the panel still shows Body.
+    const hair = tabButton("Hair");
+    expect(document.activeElement).toBe(hair);
+    expect(body.getAttribute("aria-selected")).toBe("true");
+    expect(thumbs("build").length).toBeGreaterThan(0);
+    // Activation (a click, as Enter/Space produce on a button) switches
+    // the panel and keeps focus on the now-active tab.
+    hair.click();
+    const active = document.activeElement as HTMLButtonElement;
+    expect(active.textContent).toBe("Hair");
+    expect(active.getAttribute("aria-selected")).toBe("true");
+    expect(thumbs("hairStyle").length).toBeGreaterThan(0);
+  });
+
+  it("grids are labelled radiogroups with one roving tab stop", () => {
+    tabButton("Hair").click();
+    const grid = thumbs("hairStyle")[0]?.parentElement;
+    expect(grid?.getAttribute("role")).toBe("radiogroup");
+    expect(grid?.getAttribute("aria-label")).toBe("Style");
+    for (const thumb of thumbs("hairStyle")) {
+      expect(thumb.getAttribute("role")).toBe("radio");
+    }
+    // The selected thumb is the single tab stop.
+    const stops = thumbs("hairStyle").filter((b) => b.tabIndex === 0);
+    expect(stops.map((b) => b.dataset.id)).toEqual([look.hairStyle]);
+    const row = swatches("hairColor")[0]?.parentElement;
+    expect(row?.getAttribute("role")).toBe("radiogroup");
+    expect(row?.getAttribute("aria-label")).toBe("Color");
     expect(
-      (document.activeElement as HTMLElement | null)?.dataset.category,
-    ).toBe("hairStyle");
-    picker.el.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true }),
-    );
-    expect(tabButton("Body").classList.contains("nf-selected")).toBe(true);
+      swatches("hairColor").filter((b) => b.tabIndex === 0),
+    ).toHaveLength(1);
   });
 
   it("hovering or focusing a thumb or chip shows its label in the caption", () => {
@@ -224,7 +255,7 @@ describe("appearance picker", () => {
       b.classList.contains("nf-selected"),
     );
     expect(selected?.dataset.id).toBe(look.skinTone);
-    expect(selected?.getAttribute("aria-pressed")).toBe("true");
+    expect(selected?.getAttribute("aria-checked")).toBe("true");
   });
 
   it("clicking a chip round-trips the pick into the appearance record", () => {

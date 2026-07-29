@@ -60,7 +60,13 @@ import {
   pointBuyErrorMessage,
   statLabel,
 } from "./format";
-import { focusFirst, installListNav } from "./focus";
+import {
+  captureFocus,
+  focusFirst,
+  installListNav,
+  installRovingGrid,
+  restoreFocus,
+} from "./focus";
 import { APPEARANCE_LABELS, reviewModel } from "./reviewModel";
 import { createGameScreen } from "./gameScreen";
 import { createMainMenuScreen } from "./mainMenu";
@@ -114,6 +120,8 @@ export function createCharacterCreateScreen(
   let backButton: HTMLButtonElement | null = null;
   let nextButton: HTMLButtonElement | null = null;
   let exitConfirm: HTMLElement | null = null;
+  /** Visually hidden polite live region announcing selection changes. */
+  let liveRegion: HTMLElement | null = null;
 
   const ngPlus = options.ngPlus ?? null;
   // Drop legacy ids with no content behind them (future-proofing).
@@ -176,12 +184,28 @@ export function createCharacterCreateScreen(
     }
   }
 
-  /** Draft edit: re-render the active step in place (no focus move). */
+  /**
+   * Polite screen-reader announcement ("Hair Style: Mohawk"). Repeats
+   * of the same text get a trailing no-break space so live regions see
+   * a change and re-announce.
+   */
+  function announce(text: string): void {
+    if (!liveRegion) return;
+    liveRegion.textContent =
+      liveRegion.textContent === text ? `${text} ` : text;
+  }
+
+  /**
+   * Draft edit: re-render the active step in place, keeping keyboard
+   * focus on the control that made the edit (or its successor).
+   */
   function patchDraft(patch: Partial<WizardDraft>): void {
     submitErrors = [];
     wizard = updateDraft(wizard, patch);
+    const snapshot = stepBody ? captureFocus(stepBody) : null;
     renderStep();
     renderChrome();
+    if (stepBody) restoreFocus(stepBody, snapshot);
   }
 
   /** Step change: render the new step and move focus into it. */
@@ -200,6 +224,10 @@ export function createCharacterCreateScreen(
     if (wizard.step === "review") returnToReview = false;
     renderStep();
     renderChrome();
+    announce(
+      `Step ${WIZARD_STEPS.indexOf(wizard.step) + 1} of ` +
+        `${WIZARD_STEPS.length}: ${WIZARD_STEP_LABELS[wizard.step]}`,
+    );
     if (stepBody) focusFirst(stepBody);
   }
 
@@ -278,12 +306,16 @@ export function createCharacterCreateScreen(
     heading.textContent = "Background";
     const list = document.createElement("div");
     list.className = "nf-bg-list";
+    list.setAttribute("role", "radiogroup");
+    list.setAttribute("aria-label", "Background");
     for (const background of backgrounds) {
       const button = document.createElement("button");
       button.className = "nf-bg-card";
-      if (background.id === draft().backgroundId) {
-        button.classList.add("nf-selected");
-      }
+      const selected = background.id === draft().backgroundId;
+      if (selected) button.classList.add("nf-selected");
+      button.setAttribute("role", "radio");
+      button.setAttribute("aria-checked", String(selected));
+      button.dataset.focusKey = `bg:${background.id}`;
       const title = document.createElement("div");
       title.className = "nf-bg-name";
       title.textContent = background.name;
@@ -291,11 +323,18 @@ export function createCharacterCreateScreen(
       bonuses.className = "nf-bg-bonuses";
       bonuses.textContent = formatBonuses(background.statBonuses);
       button.append(title, bonuses);
-      button.addEventListener("click", () =>
-        patchDraft({ backgroundId: background.id }),
-      );
+      button.addEventListener("click", () => {
+        announce(`Background: ${background.name}`);
+        patchDraft({ backgroundId: background.id });
+      });
       list.append(button);
     }
+    installRovingGrid(list, {
+      itemSelector: ".nf-bg-card",
+      columns: () => 1,
+      primary: (items) =>
+        items.find((item) => item.getAttribute("aria-checked") === "true"),
+    });
     left.append(heading, list);
 
     const right = document.createElement("div");
@@ -328,6 +367,8 @@ export function createCharacterCreateScreen(
         "One piece of your last runner's gear comes along.";
       const legacyList = document.createElement("div");
       legacyList.className = "nf-bg-list";
+      legacyList.setAttribute("role", "radiogroup");
+      legacyList.setAttribute("aria-label", "Legacy carry-over");
       const picks: Array<[string | null, string, string]> = legacyChoices.map(
         (id) => {
           const item = getItem(id)!;
@@ -342,7 +383,11 @@ export function createCharacterCreateScreen(
       for (const [id, title, detail] of picks) {
         const button = document.createElement("button");
         button.className = "nf-bg-card";
-        if (id === draft().legacyItemId) button.classList.add("nf-selected");
+        const selected = id === draft().legacyItemId;
+        if (selected) button.classList.add("nf-selected");
+        button.setAttribute("role", "radio");
+        button.setAttribute("aria-checked", String(selected));
+        button.dataset.focusKey = `legacy:${id ?? "none"}`;
         const nameEl = document.createElement("div");
         nameEl.className = "nf-bg-name";
         nameEl.textContent = title;
@@ -350,11 +395,18 @@ export function createCharacterCreateScreen(
         detailEl.className = "nf-bg-bonuses";
         detailEl.textContent = detail;
         button.append(nameEl, detailEl);
-        button.addEventListener("click", () =>
-          patchDraft({ legacyItemId: id }),
-        );
+        button.addEventListener("click", () => {
+          announce(`Legacy carry-over: ${title}`);
+          patchDraft({ legacyItemId: id });
+        });
         legacyList.append(button);
       }
+      installRovingGrid(legacyList, {
+        itemSelector: ".nf-bg-card",
+        columns: () => 1,
+        primary: (items) =>
+          items.find((item) => item.getAttribute("aria-checked") === "true"),
+      });
       right.append(legacyHeading, legacyNote, legacyList);
     }
 
@@ -421,6 +473,8 @@ export function createCharacterCreateScreen(
       const minus = document.createElement("button");
       minus.className = "nf-button nf-button-small";
       minus.textContent = "−";
+      minus.setAttribute("aria-label", `Decrease ${statLabel(key)}`);
+      minus.dataset.focusKey = `stat:${key}:minus`;
       minus.disabled = allocation[key] <= STAT_MIN;
       minus.addEventListener("click", () => setStat(allocation[key] - 1));
 
@@ -431,6 +485,8 @@ export function createCharacterCreateScreen(
       const plus = document.createElement("button");
       plus.className = "nf-button nf-button-small";
       plus.textContent = "+";
+      plus.setAttribute("aria-label", `Increase ${statLabel(key)}`);
+      plus.dataset.focusKey = `stat:${key}:plus`;
       plus.disabled = allocation[key] >= STAT_MAX || validation.remaining <= 0;
       plus.addEventListener("click", () => setStat(allocation[key] + 1));
 
@@ -497,7 +553,9 @@ export function createCharacterCreateScreen(
 
     const presetsHost = document.createElement("div");
     const refreshPresets = (): void => {
+      const snapshot = captureFocus(presetsHost);
       presetsHost.replaceChildren(presetSection());
+      restoreFocus(presetsHost, snapshot);
     };
 
     /**
@@ -523,8 +581,13 @@ export function createCharacterCreateScreen(
       onTabChange: (tab) => {
         appearanceTab = tab;
       },
-      onPick: (category, id) =>
-        applyLook({ ...draft().appearance, [category]: id }),
+      onPick: (category, id) => {
+        announce(
+          `${APPEARANCE_LABELS[category]}: ` +
+            (getAppearanceOption(category, id)?.label ?? id),
+        );
+        applyLook({ ...draft().appearance, [category]: id });
+      },
     });
 
     /**
@@ -543,6 +606,8 @@ export function createCharacterCreateScreen(
       row.className = "nf-thumb-grid";
       const presets = backgroundPresets(draft().backgroundId);
       row.style.gridTemplateColumns = `repeat(${Math.max(presets.length, 1)}, max-content)`;
+      row.setAttribute("role", "radiogroup");
+      row.setAttribute("aria-label", "Preset looks");
       for (const preset of presets) {
         const button = document.createElement("button");
         button.type = "button";
@@ -551,15 +616,23 @@ export function createCharacterCreateScreen(
           (field) => draft().appearance[field] === preset.appearance[field],
         );
         if (selected) button.classList.add("nf-selected");
-        button.setAttribute("aria-pressed", String(selected));
+        button.setAttribute("role", "radio");
+        button.setAttribute("aria-checked", String(selected));
+        button.dataset.focusKey = `preset:${preset.label}`;
         button.title = preset.label;
         button.setAttribute("aria-label", `Preset: ${preset.label}`);
         button.append(portraitCanvas(preset.appearance, previewEquipment()));
-        button.addEventListener("click", () =>
-          applyLook({ ...preset.appearance }),
-        );
+        button.addEventListener("click", () => {
+          announce(`Preset applied: ${preset.label}`);
+          applyLook({ ...preset.appearance });
+        });
         row.append(button);
       }
+      installRovingGrid(row, {
+        itemSelector: "button.nf-thumb",
+        primary: (items) =>
+          items.find((item) => item.getAttribute("aria-checked") === "true"),
+      });
       wrap.append(heading, row);
       return wrap;
     }
@@ -610,12 +683,16 @@ export function createCharacterCreateScreen(
     surprise.addEventListener("click", () => {
       const roll = randomizeUnlocked(draft().appearance, locks, surpriseRng);
       surpriseRng = roll.state;
+      announce("Randomized look applied");
       applyLook(roll.value);
     });
     const stock = document.createElement("button");
     stock.className = "nf-button";
     stock.textContent = "Stock Look";
-    stock.addEventListener("click", () => applyLook(defaultAppearance()));
+    stock.addEventListener("click", () => {
+      announce("Stock look applied");
+      applyLook(defaultAppearance());
+    });
     controls.append(surprise, stock);
 
     left.append(picker.el);
@@ -788,8 +865,12 @@ export function createCharacterCreateScreen(
     WIZARD_STEPS.forEach((step, index) => {
       const chip = document.createElement("button");
       chip.className = "nf-wizard-step";
-      if (step === wizard.step) chip.classList.add("nf-current");
-      else if (stepValid(draft(), step, context)) chip.classList.add("nf-done");
+      if (step === wizard.step) {
+        chip.classList.add("nf-current");
+        chip.setAttribute("aria-current", "step");
+      } else if (stepValid(draft(), step, context)) {
+        chip.classList.add("nf-done");
+      }
       chip.disabled =
         step === wizard.step || !canJumpTo(wizard, step, context);
       const num = document.createElement("span");
@@ -965,8 +1046,14 @@ export function createCharacterCreateScreen(
       menuButton.addEventListener("click", requestExit);
       header.append(title, menuButton);
 
-      progressEl = document.createElement("div");
+      progressEl = document.createElement("nav");
       progressEl.className = "nf-wizard-steps";
+      progressEl.setAttribute("aria-label", "Creation steps");
+
+      liveRegion = document.createElement("div");
+      liveRegion.className = "nf-sr-only";
+      liveRegion.setAttribute("role", "status");
+      liveRegion.setAttribute("aria-live", "polite");
 
       stepBody = document.createElement("div");
       stepBody.className = "nf-wizard-body";
@@ -988,7 +1075,7 @@ export function createCharacterCreateScreen(
       });
       nav.append(backButton, navHint, nextButton);
 
-      panel.append(header, progressEl, stepBody, nav);
+      panel.append(header, progressEl, liveRegion, stepBody, nav);
       container.append(panel);
       root.append(container);
 
@@ -1007,6 +1094,7 @@ export function createCharacterCreateScreen(
       container = null;
       stepBody = null;
       progressEl = null;
+      liveRegion = null;
       navHint = null;
       backButton = null;
       nextButton = null;
