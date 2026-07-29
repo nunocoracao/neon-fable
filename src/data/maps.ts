@@ -32,8 +32,10 @@ import {
  * wall (quay lips both banks, capped with a barrier fence where it
  * meets the square), and the wet-market corner in the south-east
  * (A-frame sign, crate stacks, trash, cabling). A glow-ring plaza
- * anchors the center under the district holo-billboard, and a curbed
- * street runs the full south edge.
+ * anchors the center under the district holo-billboard, and a curbed,
+ * lamp-lit street runs full-bleed along the open south edge — the
+ * tenement walls frame north, east, and west only, so the street stays
+ * visible instead of hiding behind the wall sprites.
  */
 const hubLegend: Record<string, LegendEntry> = {
   "#": { tile: "foundation", prop: { propId: "building", blocks: true } },
@@ -49,6 +51,7 @@ const hubLegend: Record<string, LegendEntry> = {
   r: { tile: "road" },
   // Curb: the sidewalk's quay lip stepping down to the street.
   "-": { tile: "quay-s" },
+  L: { tile: "quay-s", prop: { propId: "streetlight", blocks: true } },
   "~": { tile: "canal" },
   D: { tile: "canal-deep" },
   e: { tile: "quay-e" },
@@ -71,17 +74,17 @@ const hubLegend: Record<string, LegendEntry> = {
 const hubRows = [
   "####d###########",
   "#.....N..h.eDDw#",
-  "#.l..u....ve~~w#",
-  "#N...====..e~~w#",
+  "#.l..u..,.ve~~w#",
+  "#N..,====..e~~w#",
   "#q...====..nBBn#",
-  "#....====..,.l.#",
-  "#.l..====.H...u#",
-  "#y........,...c#",
-  "#.l.......s...c#",
-  "#,....u....u..t#",
-  "#--------------#",
-  "#rrrrrrrrrrrrrr#",
-  "################",
+  "#..,.====..,.l.#",
+  "#.l..====.H..u.#",
+  "#y........,..c.#",
+  "#.l........s.c.#",
+  "#,....u....u.t.#",
+  "#---L------L---#",
+  "rrrrrrrrrrrrrrrr",
+  "rrrrrrrrrrrrrrrr",
 ];
 
 const hubGrid = buildMapGrid(hubLegend, hubRows);
@@ -106,6 +109,7 @@ const cinderPlaza: IsoMap = {
       id: "market-vendor",
       x: 12,
       y: 8,
+      // Working the stall row between the A-frame sign and the crates.
       label: "Wet-market vendor",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "wet-market" },
@@ -128,8 +132,10 @@ const cinderPlaza: IsoMap = {
     },
     {
       id: "chrome-chapel",
-      x: 1,
-      y: 5,
+      // Beside the chapel threshold, clear of the wall and lamp sprites
+      // so the stylist reads at a glance.
+      x: 2,
+      y: 4,
       label: "Vesper — Chrome Chapel",
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "chapel-door" },
@@ -228,7 +234,7 @@ const cinderPlaza: IsoMap = {
   ],
   spawns: [
     { id: "player-start", x: 7, y: 10 },
-    { id: "south-road", x: 7, y: 11 },
+    { id: "south-road", x: 7, y: 12 },
   ],
 };
 
