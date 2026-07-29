@@ -11,13 +11,7 @@ import {
 } from "./layers";
 import { BODY_BUILD_IDS, BODY_FRAME } from "./layers/body";
 import { BODY_ANIM } from "./layers/bodyAnim";
-import {
-  bakeSilhouette,
-  bakeSprite,
-  mirrored,
-  nativeScaled,
-  upscaled,
-} from "./pixel";
+import { bakeSilhouette, bakeSprite, mirrored } from "./pixel";
 import { PROP_ART } from "./props";
 import { TILE_ART } from "./tiles";
 
@@ -25,7 +19,7 @@ import { TILE_ART } from "./tiles";
  * Micro-benchmark guarding compose+bake cost: bakes every registered
  * grid through the same transform chains the provider uses. The stub
  * context makes fillRect free, so what's measured is the JS work we own
- * — grid transforms (upscale, remap, mirror) and the run-collapsing
+ * — grid transforms (compose, remap, mirror) and the run-collapsing
  * paint loop — which is exactly what a scene pays on a cache miss.
  * The full current set (~320 sprites) bakes in ~9ms on a dev machine;
  * the budget leaves room for slower CI and severalfold art growth while
@@ -48,13 +42,12 @@ afterEach(() => {
 
 /** Bake the full current art set once; returns the number of bakes. */
 function bakeEverything(): number {
-  const SHIM = 2;
   let baked = 0;
 
   for (const art of Object.values(TILE_ART)) {
     for (const frames of art.variants) {
       for (const frame of frames) {
-        bakeSprite(nativeScaled(frame), 32, 16);
+        bakeSprite(frame, 32, 16);
         baked++;
       }
     }
@@ -62,8 +55,7 @@ function bakeEverything(): number {
 
   for (const art of Object.values(PROP_ART)) {
     for (const frame of art.frames) {
-      if (art.native) bakeSprite(frame, art.anchorX, art.anchorY);
-      else bakeSprite(upscaled(frame), art.anchorX * SHIM, art.anchorY * SHIM);
+      bakeSprite(frame, art.anchorX, art.anchorY);
       baked++;
     }
   }

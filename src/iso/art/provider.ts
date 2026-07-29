@@ -29,13 +29,7 @@ import {
   type ComposedCharacter,
 } from "./layers";
 import { bakeGlow } from "./glow";
-import {
-  bakeSilhouette,
-  bakeSprite,
-  nativeScaled,
-  spriteBytes,
-  upscaled,
-} from "./pixel";
+import { bakeSilhouette, bakeSprite, spriteBytes } from "./pixel";
 import { PROP_ART } from "./props";
 import {
   createSpriteCache,
@@ -46,17 +40,6 @@ import { TILE_ART } from "./tiles";
 /** Tile-diamond center in 1x art pixels (v2 geometry: 64×32 tiles). */
 const TILE_ANCHOR_X = 32;
 const TILE_ANCHOR_Y = 16;
-
-/**
- * Interim hi-res shim: the props not yet marked native are still
- * authored at the legacy 1x sizes, so those grids are nearest-neighbor
- * doubled (and their authored anchors doubled to match) at bake time.
- * Removed per prop as each is re-authored natively at the v2
- * resolution; tile grids already route through nativeScaled, native
- * props and all interactables bake as-is, and every character —
- * player, NPC, enemy — composes from the hi-res layer pipeline.
- */
-const SHIM_SCALE = 2;
 
 const FLASH_COLOR = "#ffffff";
 
@@ -184,11 +167,7 @@ export function createPixelArtSprites(
         frame = frameAt(timeMs + tilePhaseMs(x, y, art.frameMs), art.frameMs, frames.length);
       }
       return cached(`tile:${id}:${variant}:${frame}`, () =>
-        bakeSprite(
-          nativeScaled(frames[frame] ?? []),
-          TILE_ANCHOR_X,
-          TILE_ANCHOR_Y,
-        ),
+        bakeSprite(frames[frame] ?? [], TILE_ANCHOR_X, TILE_ANCHOR_Y),
       );
     },
 
@@ -203,13 +182,7 @@ export function createPixelArtSprites(
         timeMs,
       );
       return cached(`prop:${id}:${frame}`, () =>
-        art.native
-          ? bakeSprite(art.frames[frame] ?? [], art.anchorX, art.anchorY)
-          : bakeSprite(
-              upscaled(art.frames[frame] ?? []),
-              art.anchorX * SHIM_SCALE,
-              art.anchorY * SHIM_SCALE,
-            ),
+        bakeSprite(art.frames[frame] ?? [], art.anchorX, art.anchorY),
       );
     },
 

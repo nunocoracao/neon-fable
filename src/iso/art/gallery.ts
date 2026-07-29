@@ -2,7 +2,7 @@
  * Dev art-gallery registry: flattens every registered piece of art —
  * tile variants, props, interactables, the composed NPC/enemy cast,
  * and hi-res body animations — into uniform display entries. Grids
- * pass through the same compose/remap/mirror shims the sprite provider
+ * pass through the same compose/remap/mirror steps the sprite provider
  * applies, so the gallery shows exactly what renders in-game. This
  * module is pure data + filtering (no canvas); baking happens in the
  * gallery screen. Future art systems (appearance layer combinations,
@@ -48,12 +48,7 @@ import { outfitArtId } from "./layers/outfits";
 import { weaponArtId } from "./layers/weapons";
 import { BODY_ANIM } from "./layers/bodyAnim";
 import { REMAP_CHANNELS } from "./palette";
-import {
-  mirrored,
-  nativeScaled,
-  upscaled,
-  type PixelGrid,
-} from "./pixel";
+import { mirrored, type PixelGrid } from "./pixel";
 import { PROP_ART } from "./props";
 import { TILE_ART } from "./tiles";
 
@@ -61,7 +56,7 @@ import { TILE_ART } from "./tiles";
 export interface GalleryEntry {
   /** Unique within its section; the filter box matches on this. */
   id: string;
-  /** Display-ready frames (shims already applied); always 1+. */
+  /** Display-ready frames (compose/mirror already applied); always 1+. */
   frames: readonly PixelGrid[];
   /** Per-frame duration in ms; 0 = static. */
   frameMs: number;
@@ -80,7 +75,7 @@ function tileEntries(): GalleryEntry[] {
   return Object.entries(TILE_ART).flatMap(([id, art]) =>
     art.variants.map((frames, v) => ({
       id: art.variants.length > 1 ? `${id} v${v}` : id,
-      frames: frames.map(nativeScaled),
+      frames,
       frameMs: frames.length > 1 ? art.frameMs : 0,
     })),
   );
@@ -89,7 +84,7 @@ function tileEntries(): GalleryEntry[] {
 function propEntries(): GalleryEntry[] {
   return Object.entries(PROP_ART).map(([id, art]) => ({
     id,
-    frames: art.native ? art.frames : art.frames.map(upscaled),
+    frames: art.frames,
     frameMs: art.frames.length > 1 ? art.frameMs : 0,
   }));
 }
