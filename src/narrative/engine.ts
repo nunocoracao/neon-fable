@@ -80,6 +80,9 @@ export interface ChoiceOutcome {
   encounterId: string | null;
   /** Map to move to before showing the next node, if any. */
   travelTo: string | null;
+  /** True when an open-stylist effect fired: the UI shows the re-style
+   * screen, then resumes dialogue at nextNodeId. */
+  stylist: boolean;
   /** True when an end marker fired. */
   ended: boolean;
   /** Ending id from the end marker, when it carried one. */
@@ -116,11 +119,13 @@ export function applyChoice(
   let nextNodeId: string | null = choice.target ?? null;
   let encounterId: string | null = null;
   let travelTo: string | null = null;
+  let stylist = false;
   let ended = false;
   let endingId: string | undefined;
   for (const effect of choice.effects ?? []) {
     if (effect.type === "start-combat") encounterId = effect.encounterId;
     if (effect.type === "travel") travelTo = effect.mapId;
+    if (effect.type === "open-stylist") stylist = true;
     if (effect.type === "goto") nextNodeId = effect.nodeId;
     if (effect.type === "end") {
       ended = true;
@@ -129,5 +134,13 @@ export function applyChoice(
     }
   }
 
-  return { state: nextState, nextNodeId, encounterId, travelTo, ended, endingId };
+  return {
+    state: nextState,
+    nextNodeId,
+    encounterId,
+    travelTo,
+    stylist,
+    ended,
+    endingId,
+  };
 }
