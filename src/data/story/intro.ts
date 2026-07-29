@@ -239,6 +239,7 @@ export const introArc: StoryArc = {
     {
       id: "sable-warm",
       speaker: "Sable",
+      expression: "smile",
       text:
         "\"Standard rates, no surprises — I do like a professional.\" Sable " +
         "slides a credit chit across the table. \"Advance, like the terms " +
@@ -256,6 +257,7 @@ export const introArc: StoryArc = {
     {
       id: "sable-cold",
       speaker: "Sable",
+      expression: "grim",
       text:
         "\"No reply, no terms. Bold.\" Sable's smile doesn't reach their " +
         "eyes, and no chit crosses the table. \"Then you work this one on " +

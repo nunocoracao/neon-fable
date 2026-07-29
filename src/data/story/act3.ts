@@ -103,6 +103,7 @@ export const act3Arc: StoryArc = {
     {
       id: "a3-charter-summons",
       speaker: "Steps Runner",
+      expression: "shocked",
       text:
         "The runner has traded cistern damp for session ink — the " +
         "Charter's mark, still wet on her sleeve. \"Mid-vote. " +
@@ -128,6 +129,7 @@ export const act3Arc: StoryArc = {
     {
       id: "a3-charter-what",
       speaker: "Steps Runner",
+      expression: "grim",
       text:
         "\"Not Halex. Not the directors — half of them look as " +
         "flattened as we do.\" She glances at the dead screens and " +
@@ -315,6 +317,7 @@ export const act3Arc: StoryArc = {
     {
       id: "a3-voss-drafts",
       speaker: "Director Voss",
+      expression: "grim",
       text:
         "\"No.\" The honesty lands like a dropped glass. \"The Locus " +
         "predates my drafts, Halex's corrections, the Combine's whole " +

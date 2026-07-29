@@ -588,6 +588,7 @@ export const act1Arc: StoryArc = {
     {
       id: "a1-patch-street",
       speaker: "Patch",
+      expression: "smile",
       text:
         "Patch's head comes up at the knock, and twenty years fall off " +
         "their face. \"Underlevels crew. Ha!\" They press a trauma patch " +
