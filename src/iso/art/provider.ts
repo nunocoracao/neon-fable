@@ -43,6 +43,7 @@ import {
 } from "./spriteCache";
 import { phasePalette } from "./tint";
 import { TILE_ART } from "./tiles";
+import { doorFrameIndex } from "../transition";
 import {
   RAIN_STREAK_ART,
   SPLASH_ANCHOR_X,
@@ -233,6 +234,7 @@ export function createPixelArtSprites(
       x: number,
       y: number,
       timeMs: number,
+      open = 0,
     ): Sprite {
       if (id === "npc") {
         // Idle facing the camera; the position hash de-syncs breathing.
@@ -244,6 +246,15 @@ export function createPixelArtSprites(
         });
       }
       const art = INTERACTABLE_ART[id];
+      // A door mid-swing leaves the idle loop entirely: the opening
+      // sequence is its own strip, keyed by how far open it is.
+      const opening = art.openFrames;
+      if (open > 0 && opening) {
+        const index = doorFrameIndex(open, opening.length);
+        return cached(`interactable:${id}:open:${index}`, () =>
+          bakeSprite(opening[index] ?? [], art.anchorX, art.anchorY, palette),
+        );
+      }
       const phase = (hash2(x, y) % 5) * 120;
       const frame = frameAt(timeMs + phase, art.frameMs, art.frames.length);
       return cached(`interactable:${id}:${frame}`, () =>

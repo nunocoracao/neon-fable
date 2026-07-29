@@ -18,6 +18,13 @@ export interface InteractableArt {
   anchorY: number;
   frameMs: number;
   /**
+   * The way-opening sequence, shut (frame 0, pixel-identical to the
+   * idle base) through wide open (last frame). Played forward to open
+   * and backward to close, so one sequence covers both directions.
+   * Absent for interactables nothing passes through.
+   */
+  openFrames?: readonly PixelGrid[];
+  /**
    * Emissive light this interactable casts in the glow pass; offsets
    * are in 1x art pixels relative to the anchor.
    */
@@ -28,7 +35,9 @@ const rep = (n: number, row: string): string[] => Array<string>(n).fill(row);
 const gap = (n: number): string => ".".repeat(n);
 
 /* --- Door: framed security slab, 48×59. A status lamp in the lintel
- * and the glowing center seam pulse from bright to dim. --- */
+ * and the glowing center seam pulse from bright to dim. The slab is
+ * two leaves that slide apart into the posts when the door is used;
+ * the lit seam rides the leading edge of each leaf out with it. --- */
 
 const doorPost = (inner: string): string => "..0" + "554" + inner + "433" + "0..";
 const doorSlab = "1" + "2".repeat(16) + "gg" + "2".repeat(16) + "1";
@@ -37,21 +46,39 @@ const doorHandle = "1" + "2".repeat(12) + "788" + "2" + "gg" + "2".repeat(16) + 
 const doorKick = "1" + "6".repeat(16) + "gg" + "6".repeat(16) + "1";
 const doorLamp = "0hggggh0";
 
-const doorBright: string[] = [
+/** The dark of the room behind, revealed between the parted leaves. */
+const DOORWAY = "1";
+
+/**
+ * A slab row with each leaf retracted `slide` pixels into its post,
+ * baring the threshold between them. 0 leaves the row untouched, which
+ * is what keeps the shut frame identical to the idle art.
+ */
+const parted = (inner: string, slide: number): string => {
+  if (slide <= 0) return inner;
+  const half = inner.length / 2;
+  return (
+    inner.slice(slide, half) +
+    DOORWAY.repeat(slide * 2) +
+    inner.slice(half, inner.length - slide)
+  );
+};
+
+const doorBody = (slide: number): string[] => [
   ".." + "0".repeat(44) + "..",
   ...rep(2, "..0" + "5".repeat(42) + "0.."),
   ...rep(2, "..0" + "4".repeat(17) + doorLamp + "4".repeat(17) + "0.."),
   "..0" + "3".repeat(42) + "0..",
-  doorPost(doorLine),
-  ...rep(11, doorPost(doorSlab)),
-  doorPost(doorLine),
-  ...rep(9, doorPost(doorSlab)),
-  ...rep(3, doorPost(doorHandle)),
-  ...rep(8, doorPost(doorSlab)),
-  doorPost(doorLine),
-  ...rep(9, doorPost(doorSlab)),
-  ...rep(3, doorPost(doorKick)),
-  doorPost(doorLine),
+  doorPost(parted(doorLine, slide)),
+  ...rep(11, doorPost(parted(doorSlab, slide))),
+  doorPost(parted(doorLine, slide)),
+  ...rep(9, doorPost(parted(doorSlab, slide))),
+  ...rep(3, doorPost(parted(doorHandle, slide))),
+  ...rep(8, doorPost(parted(doorSlab, slide))),
+  doorPost(parted(doorLine, slide)),
+  ...rep(9, doorPost(parted(doorSlab, slide))),
+  ...rep(3, doorPost(parted(doorKick, slide))),
+  doorPost(parted(doorLine, slide)),
   "..0" + "3".repeat(42) + "0..",
   "0" + "5".repeat(46) + "0",
   "0" + "4".repeat(46) + "0",
@@ -60,7 +87,12 @@ const doorBright: string[] = [
   "...." + "z".repeat(40) + "....",
 ];
 
+const doorBright: string[] = doorBody(0);
+
 const doorDim = remapped(doorBright, { h: "g", g: "i" });
+
+/** Shut through wide open: each leaf slides four pixels a step. */
+const doorOpening = [0, 4, 8, 12, 16].map(doorBody);
 
 /* --- Terminal: kiosk on a pedestal, 32×43. The glass screen runs a
  * three-frame loop: a scanline sweeps down while the prompt cursor
@@ -177,21 +209,43 @@ const chevronAt = (x: number, r: number): boolean => {
   return false;
 };
 
-const exitFrame = (phase: number, chevron: string): string[] =>
+/** Width of the ring's open middle on a diamond row; 0 outside it. */
+const exitInnerWidth = (r: number): number => {
+  const inner = r - EXIT_RING;
+  const span = 31 - 2 * EXIT_RING;
+  return inner >= 0 && inner <= span ? 4 * Math.min(inner, span - inner) + 2 : 0;
+};
+
+/**
+ * Distance from the tile's center in diamond units: 0 dead center, 1 at
+ * the tile's edge. The iris grows along it, so the light opens as a
+ * diamond in step with the tile rather than as a circle across it.
+ */
+const exitRadius = (x: number, r: number): number =>
+  Math.abs(x - 32) / 32 + Math.abs(r - 15.5) / 16;
+
+/**
+ * One exit-marker frame. `phase` marches the strip lights around the
+ * ring; `iris` (0..1) is how far the way has opened — at 0 the middle
+ * holds the resting chevrons, and light floods out from the center as
+ * it climbs.
+ */
+const exitFrame = (phase: number, chevron: string, iris = 0): string[] =>
   DIAMOND_WIDTHS.map((w, r) => {
     const pad = (64 - w) / 2;
-    const inner = r - EXIT_RING;
-    const innerW =
-      inner >= 0 && inner <= 31 - 2 * EXIT_RING
-        ? 4 * Math.min(inner, 31 - 2 * EXIT_RING - inner) + 2
-        : 0;
+    const innerW = exitInnerWidth(r);
     const innerPad = (64 - innerW) / 2;
     let row = "";
     for (let x = 0; x < 64; x++) {
       if (x < pad || x >= pad + w) {
         row += ".";
       } else if (innerW > 0 && x >= innerPad && x < innerPad + innerW) {
-        row += chevronAt(x, r) ? chevron : ".";
+        const radius = exitRadius(x, r);
+        if (radius <= iris) {
+          row += radius <= iris * 0.4 ? "h" : radius <= iris * 0.75 ? "g" : "i";
+        } else {
+          row += chevronAt(x, r) ? chevron : ".";
+        }
       } else {
         const step = (Math.floor((x + 2 * r) / 4) + phase) % 4;
         row += step === 0 ? "g" : step === 1 ? "i" : "3";
@@ -199,6 +253,14 @@ const exitFrame = (phase: number, chevron: string): string[] =>
     }
     return row;
   });
+
+/**
+ * Shut through wide open: the iris of a way opening under the player's
+ * feet, which is what a stair or a tram arch does instead of swinging.
+ */
+const exitOpening = [0, 0.25, 0.5, 0.75, 1].map((iris) =>
+  exitFrame(0, "i", iris),
+);
 
 /**
  * Native hi-res art for every drawn interactable sprite; the npc id
@@ -211,6 +273,7 @@ export const INTERACTABLE_ART: Readonly<
 > = {
   door: {
     frames: [doorBright, doorDim],
+    openFrames: doorOpening,
     anchorX: 24,
     anchorY: 56,
     frameMs: 800,
@@ -234,6 +297,7 @@ export const INTERACTABLE_ART: Readonly<
   },
   exit: {
     frames: [exitFrame(0, "i"), exitFrame(1, "g"), exitFrame(2, "h")],
+    openFrames: exitOpening,
     anchorX: 32,
     anchorY: 16,
     frameMs: 420,
@@ -241,3 +305,19 @@ export const INTERACTABLE_ART: Readonly<
     glow: [{ color: "g", radius: 18, intensity: 0.2, offsetX: 0, offsetY: 0 }],
   },
 };
+
+/**
+ * The way-opening sequence for a sprite kind, or undefined for the ones
+ * nothing passes through (terminals, stashes, and NPCs, whose art comes
+ * from the character pipeline instead).
+ */
+export function openingFrames(
+  id: InteractableSpriteId,
+): readonly PixelGrid[] | undefined {
+  return id === "npc" ? undefined : INTERACTABLE_ART[id].openFrames;
+}
+
+/** True if using this kind of interactable has an opening to play. */
+export function hasOpeningArt(id: InteractableSpriteId): boolean {
+  return openingFrames(id) !== undefined;
+}

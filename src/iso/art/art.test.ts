@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { TILE_H, TILE_W, screenToTile, worldToScreen } from "../coords";
 import { INTERIOR_FLOOR_IDS, TRIM_EDGES } from "../tilemap";
-import { INTERACTABLE_ART } from "./interactables";
+import {
+  INTERACTABLE_ART,
+  hasOpeningArt,
+  openingFrames,
+} from "./interactables";
 import { PALETTE, TRANSPARENT } from "./palette";
 import {
   ART_SCALE,
@@ -669,6 +673,125 @@ describe("interactable art (native hi-res)", () => {
     const frames = INTERACTABLE_ART.exit.frames;
     expect(frames.length).toBe(3);
     expect(new Set(frames.map((g) => g.join("\n"))).size).toBe(3);
+  });
+});
+
+/**
+ * Way-opening art. Doors and exits are the only interactables anything
+ * passes through, so they are the only ones carrying an opening strip.
+ * The strip is played forward to open and backward to close, which is
+ * what pins frame 0 to the resting look: a door that shuts to something
+ * other than its idle art would pop at the end of every cycle.
+ */
+describe("opening sequences", () => {
+  const OPENABLE = ["door", "exit"] as const;
+
+  it("gives a sequence to the things you pass through and nothing else", () => {
+    for (const id of INTERACTABLE_IDS) {
+      const opens = OPENABLE.includes(id as (typeof OPENABLE)[number]);
+      expect(hasOpeningArt(id), id).toBe(opens);
+      expect(openingFrames(id) !== undefined, id).toBe(opens);
+    }
+    // NPCs come from the character pipeline; they have no art here.
+    expect(hasOpeningArt("npc")).toBe(false);
+  });
+
+  it("keeps every opening frame valid and the size of the idle art", () => {
+    for (const id of OPENABLE) {
+      const art = INTERACTABLE_ART[id];
+      const frames = art.openFrames ?? [];
+      expect(frames.length, id).toBeGreaterThanOrEqual(3);
+      const base = art.frames[0] ?? [];
+      frames.forEach((grid, f) => {
+        expectValid(grid, `${id} open frame ${f}`);
+        expect(grid.length, `${id} open ${f} height`).toBe(base.length);
+        expect(grid[0]?.length, `${id} open ${f} width`).toBe(base[0]?.length);
+      });
+    }
+  });
+
+  it("shuts to exactly the idle look, so a closed door never pops", () => {
+    for (const id of OPENABLE) {
+      const art = INTERACTABLE_ART[id];
+      expect(art.openFrames?.[0], id).toEqual(art.frames[0]);
+    }
+  });
+
+  it("opens steadily — every frame bares more of the way than the last", () => {
+    // "Open" is measured as how much of the tile the way is not
+    // blocking: the door's leaves retreating into their posts, the
+    // exit's ring flooding with light.
+    const doorLeaf = (grid: PixelGrid): number =>
+      grid.reduce((total, row) => total + [...row].filter((c) => c === "2").length, 0);
+    const doorFrames = INTERACTABLE_ART.door.openFrames ?? [];
+    doorFrames.forEach((grid, f) => {
+      if (f === 0) return;
+      expect(doorLeaf(grid), `door frame ${f} slab`).toBeLessThan(
+        doorLeaf(doorFrames[f - 1] ?? []),
+      );
+    });
+
+    const irisLight = (grid: PixelGrid): number =>
+      grid.reduce(
+        (total, row) => total + [...row].filter((c) => c === "h" || c === "g").length,
+        0,
+      );
+    const exitFrames = INTERACTABLE_ART.exit.openFrames ?? [];
+    exitFrames.forEach((grid, f) => {
+      if (f === 0) return;
+      expect(irisLight(grid), `exit frame ${f} light`).toBeGreaterThan(
+        irisLight(exitFrames[f - 1] ?? []),
+      );
+    });
+  });
+
+  it("parts the door's leaves symmetrically into their own frame", () => {
+    const frames = INTERACTABLE_ART.door.openFrames ?? [];
+    const open = frames[frames.length - 1] ?? [];
+    // A slab row: posts either side, threshold dark down the middle.
+    const row = open[12] ?? "";
+    expect(row.length).toBe(48);
+    expect(row.startsWith("..0554")).toBe(true);
+    expect(row.endsWith("4330..")).toBe(true);
+    // The doorway is bared symmetrically, and the frame itself is not
+    // painted over — a leaf that slid past its post would show as a
+    // shortened row rather than an open door.
+    const threshold = row.slice(6, 42);
+    expect(threshold.slice(0, 2)).toBe(threshold.slice(-2).split("").reverse().join(""));
+    expect(threshold).toContain("1".repeat(32));
+  });
+
+  it("keeps the exit's iris inside its own tile diamond", () => {
+    // Ground art spilling past the diamond would break the tessellation
+    // the whole ground pass depends on.
+    for (const grid of INTERACTABLE_ART.exit.openFrames ?? []) {
+      grid.forEach((row, r) => {
+        for (let x = 0; x < row.length; x++) {
+          if (row[x] !== TRANSPARENT) {
+            expect(maskOwns(x, r), `iris pixel (${x}, ${r}) outside its tile`).toBe(
+              true,
+            );
+          }
+        }
+      });
+    }
+  });
+
+  it("fully opens: the way is unmistakably clear at the last frame", () => {
+    const door = INTERACTABLE_ART.door.openFrames ?? [];
+    const shut = door[0]?.join("") ?? "";
+    const open = door[door.length - 1]?.join("") ?? "";
+    // Most of the slab is gone once the leaves are home.
+    const slabShut = [...shut].filter((c) => c === "2").length;
+    const slabOpen = [...open].filter((c) => c === "2").length;
+    expect(slabOpen).toBeLessThan(slabShut * 0.2);
+
+    const exit = INTERACTABLE_ART.exit.openFrames ?? [];
+    const chevronOnly = exit[0]?.join("") ?? "";
+    const flooded = exit[exit.length - 1]?.join("") ?? "";
+    expect([...flooded].filter((c) => c === "h").length).toBeGreaterThan(
+      [...chevronOnly].filter((c) => c === "h").length + 20,
+    );
   });
 });
 

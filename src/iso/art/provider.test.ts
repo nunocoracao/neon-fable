@@ -202,6 +202,34 @@ describe("createPixelArtSprites cache", () => {
     expect(sprites.interactable("npc", 9, 9, 0)).toBe(fallback);
   });
 
+  it("swaps a door to its opening strip only while it is being opened", () => {
+    const sprites = createPixelArtSprites();
+    const shut = sprites.interactable("door", 3, 4, 0);
+    // The resting value never leaves the idle loop, and the opening's
+    // own frame 0 is the same art — so a shut door is one bake, not two.
+    expect(sprites.interactable("door", 3, 4, 0, 0)).toBe(shut);
+    const opening = INTERACTABLE_ART.door.openFrames ?? [];
+    expect(opening.length).toBeGreaterThan(1);
+
+    const wide = sprites.interactable("door", 3, 4, 0, 1);
+    expect(wide).not.toBe(shut);
+    // Cached per opening frame, and shared by every door on the map:
+    // the strip does not depend on where the door stands.
+    expect(sprites.interactable("door", 3, 4, 0, 1)).toBe(wide);
+    expect(sprites.interactable("door", 9, 1, 0, 1)).toBe(wide);
+    expect(sprites.interactable("door", 3, 4, 0, 0.5)).not.toBe(wide);
+    expect((wide.image as HTMLCanvasElement).width).toBe(48 * ART_SCALE);
+  });
+
+  it("ignores an open request for kinds with nothing to open", () => {
+    const sprites = createPixelArtSprites();
+    // A terminal has no opening art; asking for one must not fall
+    // through to a blank bake.
+    const idle = sprites.interactable("terminal", 1, 1, 0);
+    expect(sprites.interactable("terminal", 1, 1, 0, 1)).toBe(idle);
+    expect((idle.image as HTMLCanvasElement).width).toBeGreaterThan(0);
+  });
+
   it("rebakes when the injected player descriptor changes", () => {
     let current: ComposedCharacter = {
       build: "lean",
