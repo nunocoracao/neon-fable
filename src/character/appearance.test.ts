@@ -14,6 +14,7 @@ import {
   HAIR_STYLE_OPTIONS,
   SKIN_TONE_OPTIONS,
 } from "../data/appearance";
+import { items } from "../data/items";
 import { emptyEquipment } from "../inventory/equipment";
 import {
   composedCharacterGrid,
@@ -123,16 +124,13 @@ describe("resolveLayers", () => {
     expect(layers.some((l) => l.art === "none")).toBe(false);
   });
 
-  it("stubs equipment-driven slots with the equipped item ids", () => {
+  it("stubs weapon and cyberware slots with the equipped item ids", () => {
     const layers = resolveLayers(defaultAppearance(), {
       weapon: "wpn-shard-knife",
-      outfit: "out-courier-slicker",
+      outfit: null,
       enhancements: { neural: "enh-neural-jack", arms: "enh-chrome-arm" },
     });
     expect(layers.find((l) => l.slot === "weapon")?.art).toBe("wpn-shard-knife");
-    expect(layers.find((l) => l.slot === "outfit")?.art).toBe(
-      "out-courier-slicker",
-    );
     // Cyberware follows the fixed slot order, not insertion order.
     expect(layers.filter((l) => l.slot === "cyberware").map((l) => l.art)).toEqual(
       ["enh-chrome-arm", "enh-neural-jack"],
@@ -187,6 +185,90 @@ describe("resolveLayers", () => {
         emptyEquipment(),
       ),
     ).toThrow(/eyes="laser"/);
+  });
+});
+
+describe("equipped outfit resolution", () => {
+  const wearing = (outfit: string | null, build = "lean") =>
+    resolveLayers(
+      { ...defaultAppearance(), build },
+      { ...emptyEquipment(), outfit },
+    );
+
+  it("swaps the outfit layer to the item's family, keyed per build", () => {
+    expect(wearing("out-courier-slicker").find((l) => l.slot === "outfit"))
+      .toEqual({ slot: "outfit", art: "slicker@lean", remap: {} });
+    expect(
+      wearing("out-courier-slicker", "heavy").find((l) => l.slot === "outfit")
+        ?.art,
+    ).toBe("slicker@heavy");
+  });
+
+  it("applies the item's data-driven material remaps per channel", () => {
+    const plate = wearing("out-cordon-plate").find((l) => l.slot === "outfit");
+    expect(plate).toEqual({
+      slot: "outfit",
+      art: "plate@lean",
+      // Primary cloth onto brushed chrome, accent onto hazard amber.
+      remap: { V: "6", W: "T", X: "9", l: "Y", j: "Z", k: "n" },
+    });
+    const harness = wearing("out-diver-harness").find(
+      (l) => l.slot === "outfit",
+    );
+    expect(harness?.remap).toEqual({ l: "Y", j: "Z", k: "n" });
+  });
+
+  it("sits between the body and the face layers", () => {
+    const layers = wearing("out-spire-suit");
+    const slots = layers.map((l) => l.slot);
+    expect(slots.indexOf("outfit")).toBe(slots.indexOf("body") + 1);
+    expect(slots.indexOf("outfit")).toBeLessThan(slots.indexOf("face"));
+  });
+
+  it("falls back to the base garb for unknown ids and layerless items", () => {
+    expect(wearing(null).some((l) => l.slot === "outfit")).toBe(false);
+    expect(wearing("out-no-such-item").some((l) => l.slot === "outfit")).toBe(
+      false,
+    );
+    // An injected fixture without an outfitLayer draws nothing either.
+    const layers = resolveLayers(defaultAppearance(), {
+      ...emptyEquipment(),
+      outfit: "fixture-vest",
+    }, () => ({
+      id: "fixture-vest",
+      kind: "outfit",
+      name: "Fixture Vest",
+      description: "test-only",
+      armor: 1,
+      effects: [],
+    }));
+    expect(layers.some((l) => l.slot === "outfit")).toBe(false);
+  });
+
+  it("every wearable item and the bare look have distinct descriptor keys", () => {
+    const outfits = items.filter((i) => i.kind === "outfit").map((i) => i.id);
+    expect(outfits.length).toBeGreaterThanOrEqual(5);
+    const keys = [null, ...outfits].map((outfit) =>
+      composedCharacterKey(
+        composeCharacter(defaultAppearance(), {
+          ...emptyEquipment(),
+          outfit,
+        }),
+      ),
+    );
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("equipping and unequipping changes the composed grid immediately", () => {
+    const grid = (outfit: string | null): string =>
+      composedCharacterGrid(
+        composeCharacter(defaultAppearance(), { ...emptyEquipment(), outfit }),
+        "e",
+        "idle",
+        0,
+      ).join("\n");
+    expect(grid("out-courier-slicker")).not.toBe(grid(null));
+    expect(grid("out-cordon-plate")).not.toBe(grid("out-courier-slicker"));
   });
 });
 

@@ -24,6 +24,7 @@ import {
   HEADWEAR_OPTIONS,
   MOUTH_OPTIONS,
 } from "../../data/appearance";
+import { items } from "../../data/items";
 import {
   CHARACTER_FRAMES,
   ROLE_REMAPS,
@@ -33,9 +34,11 @@ import { INTERACTABLE_ART } from "./interactables";
 import {
   composedCharacterGrid,
   layerArtGrid,
+  outfitChannelRemap,
   type ComposedCharacter,
 } from "./layers";
 import { BODY_BUILD_IDS, bodyViewForFacing } from "./layers/body";
+import { outfitArtId } from "./layers/outfits";
 import { BODY_ANIM } from "./layers/bodyAnim";
 import { REMAP_CHANNELS } from "./palette";
 import {
@@ -142,8 +145,10 @@ function bodyEntries(): GalleryEntry[] {
  * shimmer). One headwear sweep per drawn option × facing over standard
  * eyes and bob hair, applying the catalog hair/eye interaction rules
  * by hand so the gallery shows exactly what resolveLayers produces.
- * Catalog styles whose art has not landed yet are skipped and join
- * automatically once their registry entry exists.
+ * One outfit sweep per wearable item with a layer reference × build ×
+ * facing, wearing the item's material remaps. Catalog styles whose art
+ * has not landed yet are skipped and join automatically once their
+ * registry entry exists.
  */
 function appearanceEntries(): GalleryEntry[] {
   const [hairChannel = "K"] = REMAP_CHANNELS.hair;
@@ -325,6 +330,32 @@ function appearanceEntries(): GalleryEntry[] {
       ),
     );
   });
+  // One outfit sweep per wearable item that carries a layer reference,
+  // per build and facing, wearing the item's own material remaps — the
+  // exact layer + recolor resolveLayers produces for the equipped item.
+  const outfitSweep = items.flatMap((item) => {
+    if (item.kind !== "outfit" || !item.outfitLayer) return [];
+    const ref = item.outfitLayer;
+    const remap = outfitChannelRemap(ref.primary, ref.accent);
+    return BODY_BUILD_IDS.flatMap((build) => {
+      const art = outfitArtId(ref.id, build);
+      if (!layerArtGrid("outfit", art, "front")) return [];
+      return FACINGS.map((facing) =>
+        entry(
+          `outfit ${item.id} ${build} ${facing}`,
+          {
+            build,
+            layers: [
+              { slot: "body", art: build, remap: {} },
+              { slot: "outfit", art, remap },
+            ],
+          },
+          facing,
+          "idle",
+        ),
+      );
+    });
+  });
   return [
     ...colorSweep,
     ...buildSweep,
@@ -333,6 +364,7 @@ function appearanceEntries(): GalleryEntry[] {
     ...mouthSweep,
     ...detailSweep,
     ...headwearSweep,
+    ...outfitSweep,
   ];
 }
 

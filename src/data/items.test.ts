@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { InventoryError } from "../inventory/items";
+import { layerArtGrid } from "../iso/art/layers";
+import { BODY_BUILD_IDS, BODY_VIEW_IDS } from "../iso/art/layers/body";
+import { outfitArtId } from "../iso/art/layers/outfits";
+import { MATERIAL_RAMPS } from "../iso/art/palette";
 import { backgrounds } from "./backgrounds";
 import { getItem, items, requireItem } from "./items";
 
@@ -65,6 +69,39 @@ describe("item content", () => {
       if (item?.kind !== "enhancement") continue;
       expect(item.neuralCost).toBeGreaterThanOrEqual(3);
     }
+  });
+
+  it("gives every wearable outfit a layer that resolves for both builds and views", () => {
+    const outfits = items.filter((i) => i.kind === "outfit");
+    for (const item of outfits) {
+      if (item.kind !== "outfit") continue;
+      const ref = item.outfitLayer;
+      // Schema-wise the layer is optional (absent items fall back to
+      // the base garb underlayer); every shipped wearable carries one.
+      expect(ref, `${item.id} needs an outfitLayer`).toBeDefined();
+      if (!ref) continue;
+      for (const build of BODY_BUILD_IDS) {
+        for (const view of BODY_VIEW_IDS) {
+          expect(
+            layerArtGrid("outfit", outfitArtId(ref.id, build), view),
+            `${item.id} -> ${ref.id} ${build} ${view}`,
+          ).not.toBeNull();
+        }
+      }
+      for (const material of [ref.primary, ref.accent]) {
+        if (material !== undefined) {
+          expect(
+            MATERIAL_RAMPS[material],
+            `${item.id} material ${material}`,
+          ).toBeDefined();
+        }
+      }
+    }
+    // Every wearable reads distinct: no two share family + recolors.
+    const looks = outfits.map((i) =>
+      i.kind === "outfit" ? JSON.stringify(i.outfitLayer) : "",
+    );
+    expect(new Set(looks).size).toBe(outfits.length);
   });
 
   it("resolves every background starting-gear id to a real item", () => {

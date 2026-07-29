@@ -51,6 +51,8 @@ export const items: Item[] = [
       "A rain-shedding wrap with kevlar thread through the seams. Made " +
       "for running the underlevels without snagging.",
     armor: 2,
+    // Authored channels: dark fabric with the magenta courier closure.
+    outfitLayer: { id: "slicker" },
     effects: [{ type: "stat-mod", stat: "reflexes", amount: 1 }],
   },
   {
@@ -61,6 +63,8 @@ export const items: Item[] = [
       "Tailored tower formalwear with a ballistic weave liner. Opens " +
       "doors in rooms where a gun would close them.",
     armor: 1,
+    // Chrome trim: the lapel line and tie pin read corp-polished.
+    outfitLayer: { id: "suit", accent: "brushedChrome" },
     effects: [
       { type: "stat-mod", stat: "cool", amount: 1 },
       { type: "unlock-dialogue", tag: "corp-formal" },
@@ -74,6 +78,8 @@ export const items: Item[] = [
       "A rig harness studded with jack points and cable spools. Ugly, " +
       "padded, and wired for the Weave.",
     armor: 1,
+    // Hazard-amber clips and jack points over the base garb.
+    outfitLayer: { id: "harness", accent: "hazardAmber" },
     effects: [{ type: "stat-mod", stat: "tech", amount: 1 }],
   },
   {
@@ -134,6 +140,8 @@ export const items: Item[] = [
       "Auric checkpoint plate with the insignia ground off. Heavy enough " +
       "to stop what checkpoints stop, and to slow what checkpoints slow.",
     armor: 4,
+    // Worn chrome plating with hazard-striped pauldrons.
+    outfitLayer: { id: "plate", primary: "brushedChrome", accent: "hazardAmber" },
     effects: [{ type: "stat-mod", stat: "reflexes", amount: -1 }],
   },
   {
@@ -144,6 +152,8 @@ export const items: Item[] = [
       "A courier-guild longcoat threaded with signal-eating mesh and " +
       "ballistic weave. Rooms remember someone was there, never who.",
     armor: 3,
+    // Hologram-blue signal threads down the coat edges.
+    outfitLayer: { id: "longcoat", accent: "hologramBlue" },
     effects: [{ type: "stat-mod", stat: "cool", amount: 1 }],
   },
   {

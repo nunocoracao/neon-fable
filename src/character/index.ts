@@ -29,6 +29,7 @@ export {
   type Appearance,
   type AppearanceError,
   type AppearanceField,
+  type ItemLookup,
   type ResolvedLayer,
 } from "./appearance";
 export {

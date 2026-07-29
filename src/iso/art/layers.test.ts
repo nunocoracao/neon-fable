@@ -9,6 +9,7 @@ import {
   layerArtGrid,
   layerOrderFor,
   orderedLayerParts,
+  outfitChannelRemap,
   skinToneRemap,
   type ComposedCharacter,
   type LayerPart,
@@ -160,6 +161,28 @@ describe("channel remaps", () => {
     expect(() => eyeColorRemap("?")).toThrow(/not a palette entry/);
     expect(() => eyeColorRemap(".")).toThrow(/not a palette entry/);
   });
+
+  it("maps the outfit channels onto material ramps, per channel", () => {
+    expect(outfitChannelRemap()).toEqual({});
+    expect(outfitChannelRemap("brushedChrome")).toEqual({
+      V: "6",
+      W: "T",
+      X: "9",
+    });
+    expect(outfitChannelRemap(undefined, "hazardAmber")).toEqual({
+      l: "Y",
+      j: "Z",
+      k: "n",
+    });
+    expect(outfitChannelRemap("brushedChrome", "hazardAmber")).toEqual({
+      V: "6",
+      W: "T",
+      X: "9",
+      l: "Y",
+      j: "Z",
+      k: "n",
+    });
+  });
 });
 
 describe("layer art registries", () => {
@@ -177,9 +200,14 @@ describe("layer art registries", () => {
     expect(layerArtGrid("headwear", "rebreather", "back")).not.toBeNull();
   });
 
+  it("resolves registered outfit art by per-build id", () => {
+    expect(layerArtGrid("outfit", "slicker@lean", "front")).not.toBeNull();
+    expect(layerArtGrid("outfit", "plate@heavy", "back")).not.toBeNull();
+  });
+
   it("returns null for unregistered slots and unknown art ids", () => {
-    // Gear registries land in later tasks; their catalog ids resolve
-    // to nothing until then (same for unknown hair/headwear ids).
+    // The weapon registry lands in a later gear task; its item ids
+    // resolve to nothing until then (same for unknown hair/headwear ids).
     expect(layerArtGrid("hair", "mullet", "front")).toBeNull();
     expect(layerArtGrid("headwear", "crown", "front")).toBeNull();
     expect(layerArtGrid("weapon", "wpn-rail-spitter", "front")).toBeNull();
