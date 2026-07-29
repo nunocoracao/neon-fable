@@ -341,9 +341,9 @@ body::after {
   opacity: 1;
 }
 
-/* Exit affordance: what the way out in front of you is, and where it
-   goes. Sits just above the toast lane so the two never overlap. */
-.nf-exit-hint {
+/* Interact affordance: what is in front of you and which key acts on
+   it. Sits just above the toast lane so the two never overlap. */
+.nf-interact-prompt {
   position: fixed;
   bottom: 4rem;
   left: 50%;
@@ -361,7 +361,7 @@ body::after {
   pointer-events: none;
 }
 
-.nf-exit-hint-visible {
+.nf-interact-prompt-visible {
   opacity: 1;
 }
 

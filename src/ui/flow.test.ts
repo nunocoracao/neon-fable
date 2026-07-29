@@ -904,9 +904,12 @@ describe("act 1 chapter flow", () => {
     expect(buttonByText("New Game")).toBeDefined();
   });
 
-  it("labels the way out with where it leads", () => {
-    // The Ventworks tram gate stands directly above the map's entry
-    // spawn, so the player arrives already stood beside it.
+  /**
+   * Arrives on the Ventworks entry spawn, which stands directly below
+   * the tram gate, and runs one frame so the scene has picked what it
+   * is offering. Returns the captured frame callbacks.
+   */
+  function arriveBesideTheTramGate(): FrameRequestCallback[] {
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
       frames.push(cb);
@@ -917,14 +920,32 @@ describe("act 1 chapter flow", () => {
       location: "exchange-ventworks",
     };
     showScreen(createGameScreen({ session: createSession(state) }));
+    return frames;
+  }
+
+  it("offers the way out by name, with where it leads and the key", () => {
+    const frames = arriveBesideTheTramGate();
 
     // Nothing is claimed before the scene has run a frame.
-    const hint = document.querySelector(".nf-exit-hint");
-    expect(hint?.classList.contains("nf-exit-hint-visible")).toBe(false);
+    const hint = document.querySelector(".nf-interact-prompt");
+    expect(hint?.classList.contains("nf-interact-prompt-visible")).toBe(false);
 
     frames[0]?.(0);
-    expect(hint?.textContent).toBe("Tram Gate → Cinder Row Plaza");
-    expect(hint?.classList.contains("nf-exit-hint-visible")).toBe(true);
+    expect(hint?.textContent).toBe("Enter — take Tram Gate → Cinder Row Plaza");
+    expect(hint?.classList.contains("nf-interact-prompt-visible")).toBe(true);
+  });
+
+  it("the interact key acts on what the prompt is offering", () => {
+    const frames = arriveBesideTheTramGate();
+    frames[0]?.(0);
+    expect(document.querySelector(".nf-dialogue")).toBeNull();
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    // The tram gate's dialogue is open; the same key inside dialogue
+    // now belongs to the overlay, not to the scene.
+    expect(document.querySelector(".nf-dialogue")).not.toBeNull();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(document.querySelectorAll(".nf-dialogue")).toHaveLength(1);
   });
 
   it("chapter endings open the chapter-end screen, not a toast", () => {

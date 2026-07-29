@@ -10,6 +10,8 @@ import {
   combatantDisplayNames,
   formatBonuses,
   formatTimestamp,
+  interactName,
+  interactPrompt,
   percentLabel,
   pointsLabel,
   itemEffectLabels,
@@ -217,6 +219,79 @@ describe("misc labels", () => {
     // shown to the player as a raw content id.
     expect(exitLabel("Tram Gate")).toBe("Tram Gate");
     expect(exitLabel("Tram Gate", "")).toBe("Tram Gate");
+  });
+
+  it("names the thing in front of you and the key that acts on it", () => {
+    expect(
+      interactPrompt({
+        label: "Vesper — Chrome Chapel",
+        spriteId: "npc",
+        kind: "dialogue",
+        inRange: true,
+      }),
+    ).toBe("Enter — talk to Vesper");
+
+    // Each kind of thing gets its own verb, and anything that starts a
+    // fight says so whatever it looks like.
+    expect(
+      interactPrompt({
+        label: "Notice Board",
+        spriteId: "terminal",
+        kind: "dialogue",
+        inRange: true,
+      }),
+    ).toBe("Enter — use Notice Board");
+    expect(
+      interactPrompt({
+        label: "Coolant Vault",
+        spriteId: "stash",
+        kind: "dialogue",
+        inRange: true,
+      }),
+    ).toBe("Enter — search Coolant Vault");
+    expect(
+      interactPrompt({
+        label: "Vent-crew pen",
+        spriteId: "npc",
+        kind: "combat",
+        inRange: true,
+      }),
+    ).toBe("Enter — fight Vent-crew pen");
+  });
+
+  it("adds where a way out leads, and offers the key only in reach", () => {
+    const gate = {
+      label: "Tram Gate",
+      spriteId: "exit" as const,
+      kind: "dialogue" as const,
+      destination: "Cinder Row Plaza",
+    };
+    expect(interactPrompt({ ...gate, inRange: true })).toBe(
+      "Enter — take Tram Gate → Cinder Row Plaza",
+    );
+    // Pointed at from across the map: still says where it goes, but
+    // does not offer a key that would do nothing.
+    expect(interactPrompt({ ...gate, inRange: false })).toBe(
+      "Tram Gate → Cinder Row Plaza",
+    );
+    // Something out of reach that goes nowhere needs no line at all —
+    // the floating chip over it already names it.
+    expect(
+      interactPrompt({
+        label: "Notice Board",
+        spriteId: "terminal",
+        kind: "dialogue",
+        inRange: false,
+      }),
+    ).toBeNull();
+  });
+
+  it("takes the name out of a label that also names a place", () => {
+    expect(interactName("Vesper — Chrome Chapel")).toBe("Vesper");
+    expect(interactName("Notice Board")).toBe("Notice Board");
+    // A label that is nothing but a separator keeps its own text
+    // rather than collapsing to an empty prompt.
+    expect(interactName(" — ")).toBe(" — ");
   });
 
   it("names save slots", () => {
