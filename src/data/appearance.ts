@@ -1,5 +1,13 @@
 import { BODY_BUILD_IDS, type BodyBuildId } from "../iso/art/layers/body";
-import { BROW_PORTRAITS, EYE_PORTRAITS } from "../iso/art/layers/face";
+import {
+  BROW_EXPRESSION_PORTRAITS,
+  BROW_PORTRAITS,
+  EXPRESSION_IDS,
+  EYE_PORTRAITS,
+  MOUTH_EXPRESSION_PORTRAITS,
+  MOUTH_PORTRAITS,
+  type ExpressionId,
+} from "../iso/art/layers/face";
 import type { PixelGrid } from "../iso/art/pixel";
 
 /**
@@ -52,6 +60,17 @@ export interface StyleOption extends AppearanceOption {
 export interface FaceStyleOption extends StyleOption {
   layer: string;
   portrait: PixelGrid;
+}
+
+/**
+ * A face style pick that can emote (mouth, brows): additionally carries
+ * one portrait-resolution variant grid per expression state, with the
+ * "neutral" variant equal to the resting portrait. Sprites always
+ * render the resting layer — expressions exist only at portrait
+ * resolution, resolved per mouth+brow combination by resolveExpression.
+ */
+export interface ExpressiveFaceStyleOption extends FaceStyleOption {
+  expressions: Readonly<Record<ExpressionId, PixelGrid>>;
 }
 
 /** A color pick: references a palette character to remap a channel onto. */
@@ -130,31 +149,61 @@ export const EYE_COLOR_OPTIONS: readonly ColorOption[] = [
   { id: "crimson", label: "Crimson", color: "p" },
 ];
 
-export const BROWS_OPTIONS: readonly FaceStyleOption[] = [
+export const BROWS_OPTIONS: readonly ExpressiveFaceStyleOption[] = [
   {
     id: "straight",
     label: "Straight",
     layer: "straight",
     portrait: BROW_PORTRAITS.straight,
+    expressions: BROW_EXPRESSION_PORTRAITS.straight,
   },
   {
     id: "arched",
     label: "Arched",
     layer: "arched",
     portrait: BROW_PORTRAITS.arched,
+    expressions: BROW_EXPRESSION_PORTRAITS.arched,
   },
   {
     id: "heavy",
     label: "Heavy",
     layer: "heavy",
     portrait: BROW_PORTRAITS.heavy,
+    expressions: BROW_EXPRESSION_PORTRAITS.heavy,
   },
 ];
 
-export const MOUTH_OPTIONS: readonly StyleOption[] = [
-  { id: "neutral", label: "Neutral", layer: "neutral" },
-  { id: "smirk", label: "Smirk", layer: "smirk" },
-  { id: "frown", label: "Frown", layer: "frown" },
+export const MOUTH_OPTIONS: readonly ExpressiveFaceStyleOption[] = [
+  {
+    id: "neutral",
+    label: "Neutral Line",
+    layer: "neutral",
+    portrait: MOUTH_PORTRAITS.neutral,
+    expressions: MOUTH_EXPRESSION_PORTRAITS.neutral,
+  },
+  {
+    id: "smirk",
+    label: "Slight Smirk",
+    layer: "smirk",
+    portrait: MOUTH_PORTRAITS.smirk,
+    expressions: MOUTH_EXPRESSION_PORTRAITS.smirk,
+  },
+  // "frown" keeps its persisted id from the schema task; the authored
+  // style reads as a hard-set, pressed line.
+  {
+    id: "frown",
+    label: "Hard Set",
+    layer: "frown",
+    portrait: MOUTH_PORTRAITS.frown,
+    expressions: MOUTH_EXPRESSION_PORTRAITS.frown,
+  },
+  {
+    id: "breather",
+    label: "Breather Mask",
+    layer: "breather",
+    portrait: MOUTH_PORTRAITS.breather,
+    expressions: MOUTH_EXPRESSION_PORTRAITS.breather,
+  },
 ];
 
 export const FACE_DETAIL_OPTIONS: readonly StyleOption[] = [
@@ -198,5 +247,41 @@ export function getAppearanceOption<C extends AppearanceCategory>(
   return appearanceCatalogs[category].find((option) => option.id === id);
 }
 
+/**
+ * The portrait overlay pair an expression resolves to for one
+ * mouth+brow combination. Grids come straight off the catalog entries'
+ * expression records; the portrait renderer stamps them over the
+ * resting face (mouth on the centerline, brows mirrored like their
+ * resting portraits).
+ */
+export interface ExpressionOverlays {
+  mouth: PixelGrid;
+  brows: PixelGrid;
+}
+
+/**
+ * Resolve an expression state for a mouth+brow combination to its
+ * portrait overlay grids. Pure and total over the catalogs: every
+ * catalog mouth id × brow id × ExpressionId resolves; unknown ids
+ * throw. Dialogue lines request expressions through this in a later
+ * task — nothing here touches GameState.
+ */
+export function resolveExpression(
+  mouthId: string,
+  browId: string,
+  expression: ExpressionId,
+): ExpressionOverlays {
+  const mouth = getAppearanceOption("mouth", mouthId);
+  if (!mouth) throw new Error(`unknown mouth id "${mouthId}"`);
+  const brows = getAppearanceOption("brows", browId);
+  if (!brows) throw new Error(`unknown brows id "${browId}"`);
+  const mouthGrid = mouth.expressions[expression];
+  const browsGrid = brows.expressions[expression];
+  if (!mouthGrid || !browsGrid) {
+    throw new Error(`unknown expression "${String(expression)}"`);
+  }
+  return { mouth: mouthGrid, brows: browsGrid };
+}
+
 // Re-exported so catalog consumers don't reach into iso/art directly.
-export { BODY_BUILD_IDS };
+export { BODY_BUILD_IDS, EXPRESSION_IDS, type ExpressionId };

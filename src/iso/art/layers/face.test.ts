@@ -5,16 +5,21 @@ import { REMAP_CHANNELS } from "../palette";
 import { gridErrors, remapped } from "../pixel";
 import { BODY_FRAME } from "./body";
 import {
+  BROW_EXPRESSION_PORTRAITS,
   BROW_PORTRAITS,
+  EXPRESSION_IDS,
   EYE_PORTRAITS,
   FACE_LAYERS,
   FACE_PART_IDS,
+  MOUTH_EXPRESSION_PORTRAITS,
+  MOUTH_PORTRAITS,
 } from "./face";
 
 const ALLOWED = new Set<string>([
   ...REMAP_CHANNELS.skin,
   ...REMAP_CHANNELS.hair,
   ...REMAP_CHANNELS.eyes,
+  ...REMAP_CHANNELS.cyberChrome,
 ]);
 
 describe("face layers", () => {
@@ -33,7 +38,7 @@ describe("face layers", () => {
     }
   });
 
-  it("uses only the skin, hair, and eye remap channels", () => {
+  it("uses only the skin, hair, eye, and cyber-chrome remap channels", () => {
     for (const [id, views] of Object.entries(FACE_LAYERS)) {
       for (const [view, grid] of Object.entries(views)) {
         for (const row of grid) {
@@ -82,10 +87,31 @@ describe("face layers", () => {
     }
   });
 
-  it("every eye shape and every brow shape has distinct front art", () => {
-    for (const ids of [FACE_PART_IDS.eyes, FACE_PART_IDS.brows]) {
+  it("every eye, brow, and mouth shape has distinct front art", () => {
+    for (const ids of [
+      FACE_PART_IDS.eyes,
+      FACE_PART_IDS.brows,
+      FACE_PART_IDS.mouth,
+    ]) {
       const fronts = ids.map((id) => FACE_LAYERS[id].front.join("\n"));
       expect(new Set(fronts).size).toBe(ids.length);
+    }
+  });
+
+  it("mouths draw in skin shade; the breather mask in cyber-chrome", () => {
+    const chrome = new Set<string>(REMAP_CHANNELS.cyberChrome);
+    const [skinShade] = REMAP_CHANNELS.skin;
+    for (const id of FACE_PART_IDS.mouth) {
+      for (const row of FACE_LAYERS[id].front) {
+        for (const ch of row) {
+          if (ch === ".") continue;
+          if (id === "breather") {
+            expect(chrome.has(ch), `${id} uses "${ch}"`).toBe(true);
+          } else {
+            expect(ch, id).toBe(skinShade);
+          }
+        }
+      }
     }
   });
 
@@ -116,12 +142,15 @@ describe("face layers", () => {
 const PORTRAIT_ALLOWED = new Set<string>([...ALLOWED, "0", "1", "9"]);
 
 describe("face portrait grids", () => {
-  it("covers every declared eye and brow id", () => {
+  it("covers every declared eye, brow, and mouth id", () => {
     expect(Object.keys(EYE_PORTRAITS).sort()).toEqual(
       [...FACE_PART_IDS.eyes].sort(),
     );
     expect(Object.keys(BROW_PORTRAITS).sort()).toEqual(
       [...FACE_PART_IDS.brows].sort(),
+    );
+    expect(Object.keys(MOUTH_PORTRAITS).sort()).toEqual(
+      [...FACE_PART_IDS.mouth].sort(),
     );
   });
 
@@ -129,6 +158,7 @@ describe("face portrait grids", () => {
     for (const [id, grid] of [
       ...Object.entries(EYE_PORTRAITS),
       ...Object.entries(BROW_PORTRAITS),
+      ...Object.entries(MOUTH_PORTRAITS),
     ]) {
       expect(gridErrors(grid), id).toEqual([]);
       expect(grid.length, `${id} rows`).toBeGreaterThan(0);
@@ -136,7 +166,7 @@ describe("face portrait grids", () => {
   });
 
   it("uses only face channels plus structural inks, and stays distinct", () => {
-    for (const portraits of [EYE_PORTRAITS, BROW_PORTRAITS]) {
+    for (const portraits of [EYE_PORTRAITS, BROW_PORTRAITS, MOUTH_PORTRAITS]) {
       for (const [id, grid] of Object.entries(portraits)) {
         for (const row of grid) {
           for (const ch of row) {
@@ -170,6 +200,67 @@ describe("face portrait grids", () => {
         ),
         `${id} strokes only in the hair channel`,
       ).toBe(true);
+    }
+  });
+});
+
+describe("expression portrait variants", () => {
+  it("carries a variant for every part id × expression", () => {
+    expect(Object.keys(MOUTH_EXPRESSION_PORTRAITS).sort()).toEqual(
+      [...FACE_PART_IDS.mouth].sort(),
+    );
+    expect(Object.keys(BROW_EXPRESSION_PORTRAITS).sort()).toEqual(
+      [...FACE_PART_IDS.brows].sort(),
+    );
+    for (const [id, variants] of [
+      ...Object.entries(MOUTH_EXPRESSION_PORTRAITS),
+      ...Object.entries(BROW_EXPRESSION_PORTRAITS),
+    ]) {
+      expect(Object.keys(variants).sort(), id).toEqual(
+        [...EXPRESSION_IDS].sort(),
+      );
+    }
+  });
+
+  it("every variant is a valid grid in the portrait channels", () => {
+    for (const [id, variants] of [
+      ...Object.entries(MOUTH_EXPRESSION_PORTRAITS),
+      ...Object.entries(BROW_EXPRESSION_PORTRAITS),
+    ]) {
+      for (const [expression, grid] of Object.entries(variants)) {
+        const label = `${id} ${expression}`;
+        expect(gridErrors(grid), label).toEqual([]);
+        let drawn = 0;
+        for (const row of grid) {
+          for (const ch of row) {
+            if (ch === ".") continue;
+            drawn++;
+            expect(PORTRAIT_ALLOWED.has(ch), `${label} uses "${ch}"`).toBe(true);
+          }
+        }
+        expect(drawn, `${label} draws something`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("the neutral variant is the resting portrait; the rest read differently", () => {
+    for (const [id, variants] of Object.entries(MOUTH_EXPRESSION_PORTRAITS)) {
+      expect(variants.neutral, id).toBe(
+        MOUTH_PORTRAITS[id as keyof typeof MOUTH_PORTRAITS],
+      );
+      const looks = EXPRESSION_IDS.map((e) => variants[e].join("\n"));
+      expect(new Set(looks).size, `${id} expressions distinct`).toBe(
+        EXPRESSION_IDS.length,
+      );
+    }
+    for (const [id, variants] of Object.entries(BROW_EXPRESSION_PORTRAITS)) {
+      expect(variants.neutral, id).toBe(
+        BROW_PORTRAITS[id as keyof typeof BROW_PORTRAITS],
+      );
+      const looks = EXPRESSION_IDS.map((e) => variants[e].join("\n"));
+      expect(new Set(looks).size, `${id} expressions distinct`).toBe(
+        EXPRESSION_IDS.length,
+      );
     }
   });
 });

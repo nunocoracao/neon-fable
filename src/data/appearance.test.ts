@@ -2,16 +2,20 @@ import { describe, expect, it } from "vitest";
 import {
   appearanceCatalogs,
   getAppearanceOption,
+  resolveExpression,
   BROWS_OPTIONS,
+  EXPRESSION_IDS,
   EYE_COLOR_OPTIONS,
   EYES_OPTIONS,
   FACE_DETAIL_OPTIONS,
   HAIR_COLOR_OPTIONS,
   HAIR_STYLE_OPTIONS,
   HEADWEAR_OPTIONS,
+  MOUTH_OPTIONS,
   BUILD_OPTIONS,
   SKIN_TONE_OPTIONS,
   type AppearanceCategory,
+  type ExpressionId,
 } from "./appearance";
 import { BODY_BUILD_IDS } from "../iso/art/layers/body";
 import { FACE_LAYERS, FACE_PART_IDS } from "../iso/art/layers/face";
@@ -76,8 +80,8 @@ describe("appearance catalogs", () => {
     }
   });
 
-  it("every eyes/brows option carries both sprite and portrait art", () => {
-    for (const option of [...EYES_OPTIONS, ...BROWS_OPTIONS]) {
+  it("every eyes/brows/mouth option carries both sprite and portrait art", () => {
+    for (const option of [...EYES_OPTIONS, ...BROWS_OPTIONS, ...MOUTH_OPTIONS]) {
       // Sprite ref: a registered face layer grid.
       expect(
         FACE_LAYERS[option.layer as keyof typeof FACE_LAYERS],
@@ -87,17 +91,71 @@ describe("appearance catalogs", () => {
       expect(option.portrait.length, `${option.id} portrait`).toBeGreaterThan(0);
       expect(gridErrors(option.portrait), `${option.id} portrait`).toEqual([]);
     }
-    // The catalogs cover every declared eye/brow shape, and vice versa.
+    // The catalogs cover every declared face shape, and vice versa.
     expect(EYES_OPTIONS.map((o) => o.layer).sort()).toEqual(
       [...FACE_PART_IDS.eyes].sort(),
     );
     expect(BROWS_OPTIONS.map((o) => o.layer).sort()).toEqual(
       [...FACE_PART_IDS.brows].sort(),
     );
+    expect(MOUTH_OPTIONS.map((o) => o.layer).sort()).toEqual(
+      [...FACE_PART_IDS.mouth].sort(),
+    );
   });
 
   it("getAppearanceOption finds by id and misses unknowns", () => {
     expect(getAppearanceOption("skinTone", "porcelain")?.ramp).toBe(0);
     expect(getAppearanceOption("hairStyle", "mullet")).toBeUndefined();
+  });
+});
+
+describe("resolveExpression", () => {
+  it("resolves every mouth × brow × expression to valid overlay grids", () => {
+    for (const mouth of MOUTH_OPTIONS) {
+      for (const brows of BROWS_OPTIONS) {
+        for (const expression of EXPRESSION_IDS) {
+          const overlays = resolveExpression(mouth.id, brows.id, expression);
+          const label = `${mouth.id}+${brows.id} ${expression}`;
+          expect(gridErrors(overlays.mouth), `${label} mouth`).toEqual([]);
+          expect(gridErrors(overlays.brows), `${label} brows`).toEqual([]);
+        }
+      }
+    }
+  });
+
+  it("neutral resolves to the resting portraits", () => {
+    for (const mouth of MOUTH_OPTIONS) {
+      for (const brows of BROWS_OPTIONS) {
+        const overlays = resolveExpression(mouth.id, brows.id, "neutral");
+        expect(overlays.mouth, mouth.id).toBe(mouth.portrait);
+        expect(overlays.brows, brows.id).toBe(brows.portrait);
+      }
+    }
+  });
+
+  it("expressions actually change the overlay pair", () => {
+    for (const mouth of MOUTH_OPTIONS) {
+      for (const brows of BROWS_OPTIONS) {
+        const pairs = EXPRESSION_IDS.map((expression) => {
+          const o = resolveExpression(mouth.id, brows.id, expression);
+          return `${o.mouth.join("\n")}::${o.brows.join("\n")}`;
+        });
+        expect(new Set(pairs).size, `${mouth.id}+${brows.id}`).toBe(
+          EXPRESSION_IDS.length,
+        );
+      }
+    }
+  });
+
+  it("throws on unknown mouth, brow, or expression ids", () => {
+    expect(() => resolveExpression("grille", "straight", "neutral")).toThrow(
+      /unknown mouth/,
+    );
+    expect(() => resolveExpression("neutral", "unibrow", "neutral")).toThrow(
+      /unknown brows/,
+    );
+    expect(() =>
+      resolveExpression("neutral", "straight", "sneer" as ExpressionId),
+    ).toThrow(/unknown expression/);
   });
 });
