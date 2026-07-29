@@ -1,8 +1,16 @@
 /**
- * Isometric map content: the Cinder Row hub plaza and the Rustyard
- * combat arena. Maps are authored as character rows expanded through
+ * Isometric map content: four explorable maps (the Cinder Row hub, the
+ * Greywater Steps settlement, the Exchange ventworks, and the Auric
+ * Spire concourse) and the seven combat arenas the encounters fight
+ * on. Maps are authored as character rows expanded through
  * buildMapGrid; interactables reference story node and encounter ids by
  * string only — the iso layer never resolves them.
+ *
+ * Every map is dressed from the native hi-res tile and prop
+ * vocabulary, and each carries its own material identity: the hub is
+ * neon and lived-in, Greywater is damp and salvaged, the Ventworks is
+ * swept industrial-corporate, the Spire concourse is sterile. Arenas
+ * stay deliberately quiet — see the arena section's note.
  */
 import { buildMapGrid, type IsoMap, type LegendEntry } from "../iso/tilemap";
 import {
@@ -240,10 +248,14 @@ const cinderPlaza: IsoMap = {
 
 /**
  * Greywater Steps — the Undercroft settlement where most of Act 1 plays
- * out. Lantern-lit terraces above a black cistern pool (north-west), the
- * Cistern Court's glow-lit forecourt at the center, and the pump-deck
- * gate in the south wall. Reached via travel effects from the story, not
- * from the hub's interactables.
+ * out, dressed damp and hand-me-down: the black cistern pool in the
+ * north-west wears quay lips on every bank with a barrier where the
+ * walk meets the water, cracked slabs and draped cable bundles run
+ * between the lantern posts, refuse mounds pile against the tenement
+ * walls, and pump steam vents near the south gate. The Cistern Court's
+ * glow-lit forecourt holds the center; Patch's Den keeps its glyph
+ * board and scrubbed threshold in the west wall. Reached via travel
+ * effects from the story, not from the hub's interactables.
  */
 const greywaterLegend: Record<string, LegendEntry> = {
   "#": { tile: "foundation", prop: { propId: "building", blocks: true } },
@@ -257,9 +269,11 @@ const greywaterLegend: Record<string, LegendEntry> = {
   w: { tile: "quay-w" },
   B: { tile: "quay-n", prop: { propId: "barrier", blocks: true } },
   l: { tile: "pavement", prop: { propId: "streetlight", blocks: true } },
-  b: { tile: "pavement", prop: { propId: "barrier", blocks: true } },
   v: { tile: "pavement", prop: { propId: "vent-stack", blocks: true } },
   c: { tile: "pavement", prop: { propId: "crate", blocks: true } },
+  t: { tile: "pavement", prop: { propId: "trash-heap", blocks: true } },
+  // Ground clutter, not an obstacle — residents step over the cables.
+  u: { tile: "pavement", prop: { propId: "cable-bundle", blocks: false } },
   // Patch's Den hangs a small glyph board out on the walk.
   s: { tile: "pavement", prop: { propId: "shop-sign", blocks: true } },
   // Patch's Den doorway: a scrubbed clinical-tile threshold under the
@@ -269,16 +283,16 @@ const greywaterLegend: Record<string, LegendEntry> = {
 
 const greywaterRows = [
   "##############",
-  "#.eDDDw.,....#",
-  "#.e~~~w......#",
-  "#..Bnn...l...#",
-  "#............#",
-  "#.,...==.....#",
-  "#.....==...v.#",
+  "#.eDDDw..,.t.#",
+  "#.e~~~w.u....#",
+  "#,.Bnn....l..#",
+  "#..,..,....c.#",
+  "#.,...==..,..#",
+  "#..u..==....v#",
   "#sl.......c..#",
-  "#.p...,......#",
-  "#..........l.#",
-  "#,...........#",
+  "#.p..,....,..#",
+  "#..,.v...t.l.#",
+  "#,....,..u...#",
   "##############",
 ];
 
@@ -357,7 +371,12 @@ const greywaterSteps: IsoMap = {
 /**
  * Meridian Exchange — Ventworks. Auric's district utility floor topside:
  * the cycler galleries that breathe for the Undercroft, coolant mains
- * along the east wall, and the Cordon core rising at the center. Act 2's
+ * along the east wall, and the Cordon core rising at the center. The
+ * floor reads industrial-corporate: a glow strip feeds the core, rusted
+ * deck-plate service lanes ring the cycler machinery, barriers fence
+ * the coolant canal, vent stacks bleed steam over the plates, and the
+ * district's holo advertising looms over sparse, squared-away supply
+ * pallets — no litter here; Auric keeps the floor swept. Act 2's
  * converging spine plays out here; reached via travel effects from the
  * story branches.
  */
@@ -366,6 +385,7 @@ const ventworksLegend: Record<string, LegendEntry> = {
   ".": { tile: "pavement" },
   ",": { tile: "pavement-cracked" },
   "=": { tile: "plaza-glow" },
+  r: { tile: "rust-floor" },
   "~": { tile: "canal" },
   D: { tile: "canal-deep" },
   n: { tile: "quay-n" },
@@ -386,14 +406,14 @@ const ventworksRows = [
   "##############",
   "#....==.eDDwH#",
   "#.l..==.e~~w.#",
-  "#....==..Bn..#",
-  "#..,......v..#",
-  "#h....l......#",
-  "#.c........,.#",
-  "#....,....l..#",
-  "#..v.........#",
-  "#.,........c.#",
-  "#............#",
+  "#...==...Bn..#",
+  "#..,......v.,#",
+  "#h..rr.l...,.#",
+  "#.c.r..rrrr..#",
+  "#...r..r..l..#",
+  "#.,.r..r..v..#",
+  "#...rrrr..c..#",
+  "#.,.....,..b.#",
   "##############",
 ];
 
@@ -455,38 +475,44 @@ const exchangeVentworks: IsoMap = {
  * Auric Spire — Crown Concourse. The Combine's headquarters tower on the
  * night of the Succession: registry gate at the north face, the crown
  * lift doors behind it, the muster crowd and ledger terminals in the
- * atrium. Act 3's converging spine plays out here; reached via travel
- * effects from the finale's openings.
+ * atrium. Dressed to read sterile — the opposite of every other map in
+ * the game. Corporate carpet baseboard-trimmed along all four walls, a
+ * scrubbed clinic-tile apron under the crown lift and the auditor's
+ * booth, a glow channel running the atrium's full length as the light
+ * spine, stanchion lines marshalling the registry queue, light columns
+ * instead of street lamps, and one corp holo ad. Nothing is broken,
+ * nothing is discarded, nothing leaks. Act 3's converging spine plays
+ * out here; reached via travel effects from the finale's openings.
  */
 const spireLegend: Record<string, LegendEntry> = {
   "#": { tile: "foundation", prop: { propId: "building", blocks: true } },
-  // The concourse is an interior atrium: corporate carpet throughout,
-  // with baseboard-shadow trims along the north and west wall bases and
-  // under the tram gate in the south wall.
   ".": { tile: "office-floor" },
   n: { tile: "office-floor-n" },
-  w: { tile: "office-floor-w" },
+  e: { tile: "office-floor-e" },
   s: { tile: "office-floor-s" },
+  w: { tile: "office-floor-w" },
+  // Polished security apron at the lift doors and the auditor's booth.
+  C: { tile: "clinic-floor" },
+  N: { tile: "clinic-floor-n" },
   "=": { tile: "plaza-glow" },
+  // Atrium light columns and the registry queue's stanchion lines.
   l: { tile: "office-floor", prop: { propId: "streetlight", blocks: true } },
   b: { tile: "office-floor", prop: { propId: "barrier", blocks: true } },
-  v: { tile: "office-floor", prop: { propId: "vent-stack", blocks: true } },
-  c: { tile: "office-floor", prop: { propId: "crate", blocks: true } },
   h: { tile: "office-floor", prop: { propId: "holo-sign", blocks: true } },
 };
 
 const spireRows = [
   "##############",
-  "#nn==nnnnnlnn#",
-  "#w.==........#",
-  "#w....b......#",
-  "#w.l......h..#",
-  "#w...........#",
-  "#w.....v.....#",
-  "#w...........#",
-  "#w.c......l..#",
-  "#w...........#",
-  "#w.....s.....#",
+  "#nNNNNnnnnnnn#",
+  "#wCCCC.=....e#",
+  "#w.CC.b=b...e#",
+  "#w.l...=..h.e#",
+  "#w.....=....e#",
+  "#w..b..=..b.e#",
+  "#w.....=....e#",
+  "#wCC...=..l.e#",
+  "#w.....=....e#",
+  "#wsssssssssss#",
   "##############",
 ];
 
@@ -561,24 +587,33 @@ const auricSpire: IsoMap = {
  * Dimensions must match the owning encounter's grid; positions are tile
  * coordinates. Each arena keeps a "player-start" spawn mirroring the
  * encounter's playerStart so generic map tooling has a valid anchor.
+ *
+ * Arenas are dressed with the tile vocabulary alone — no props, and no
+ * per-tile speckling. Each reads as a small number of broad material
+ * zones (a deck inside an apron, a lit ring around a core, a trimmed
+ * room), because the grid has to stay legible under the movement and
+ * range overlays a fight paints over it. Identity comes from which
+ * materials meet and where their edges fall, not from clutter.
  */
 
 /**
- * Rustyard arena — a cleared scrap-yard floor (enc-rustyard-ambush, 7x7).
+ * Rustyard arena — a cleared scrap-yard floor (enc-rustyard-ambush,
+ * 7x7): corroded deck plates inside a cracked-concrete apron where the
+ * yard meets its fence line.
  */
 const rustyardLegend: Record<string, LegendEntry> = {
-  ".": { tile: "rust-floor" },
+  r: { tile: "rust-floor" },
   ",": { tile: "pavement-cracked" },
 };
 
 const rustyardRows = [
-  ".......",
-  "..,....",
-  "....,..",
-  ".......",
-  "..,....",
-  ".....,.",
-  ".......",
+  ",,,,,,,",
+  ",rrrrr,",
+  ",rrrrr,",
+  ",rrrrr,",
+  ",rrrrr,",
+  ",rrrrr,",
+  ",,,,,,,",
 ];
 
 const rustyardGrid = buildMapGrid(rustyardLegend, rustyardRows);
@@ -596,21 +631,25 @@ const rustyardArena: IsoMap = {
 
 /**
  * Undercroft junction — flooded service level around the dead drop
- * (enc-auric-scout, 8x6).
+ * (enc-auric-scout, 8x6). Wet quay lips run the north and west edges
+ * where the standing water sits off-grid; a rust service walkway
+ * crosses the middle, concrete either side.
  */
 const undercroftLegend: Record<string, LegendEntry> = {
   ".": { tile: "pavement" },
   ",": { tile: "pavement-cracked" },
   r: { tile: "rust-floor" },
+  n: { tile: "quay-n" },
+  w: { tile: "quay-w" },
 };
 
 const undercroftRows = [
-  ",..rr...",
-  "........",
-  "..,...r.",
-  ".r......",
-  "....,...",
-  "...r..,.",
+  "nnnnnnnn",
+  "w..rr...",
+  "w.rrrr..",
+  "w.rrrr..",
+  "w..rr...",
+  "w,.....,",
 ];
 
 const undercroftGrid = buildMapGrid(undercroftLegend, undercroftRows);
@@ -631,21 +670,24 @@ const undercroftArena: IsoMap = {
  * (enc-vault-guardian, 8x6).
  */
 const vaultLegend: Record<string, LegendEntry> = {
-  // Polished clinical tile with baseboard trims along the unseen north
-  // and west walls; the glow strips light the vault door.
+  // Polished clinical tile, baseboard-trimmed on all four walls so the
+  // antechamber reads as a sealed room; two glow runways flank the
+  // approach and light the vault door.
   ".": { tile: "clinic-floor" },
   n: { tile: "clinic-floor-n" },
+  e: { tile: "clinic-floor-e" },
+  s: { tile: "clinic-floor-s" },
   w: { tile: "clinic-floor-w" },
   "=": { tile: "plaza-glow" },
 };
 
 const vaultRows = [
   "nnnnnnnn",
-  "w.====..",
-  "w.====..",
-  "w.====..",
-  "w.====..",
-  "w.......",
+  "w.=..=.e",
+  "w.=..=.e",
+  "w.=..=.e",
+  "w.=..=.e",
+  "wsssssss",
 ];
 
 const vaultGrid = buildMapGrid(vaultLegend, vaultRows);
@@ -663,22 +705,26 @@ const vaultArena: IsoMap = {
 
 /**
  * Pumpworks deck — the Undertow manifold hall under Greywater Steps.
- * Shared by the three chapter-climax encounters (9x7).
+ * Shared by the three chapter-climax encounters (9x7). The manifold's
+ * rust deck runs the length of the hall between concrete margins, with
+ * a wet quay lip along the sump edges at north and west.
  */
 const pumpworksLegend: Record<string, LegendEntry> = {
   ".": { tile: "pavement" },
   ",": { tile: "pavement-cracked" },
   r: { tile: "rust-floor" },
+  n: { tile: "quay-n" },
+  w: { tile: "quay-w" },
 };
 
 const pumpworksRows = [
-  ".,.......",
-  "...r.....",
-  ".....,...",
-  "...r.....",
-  ".,.......",
-  ".....r...",
-  "........,",
+  "nnnnnnnnn",
+  "w.rrrrr..",
+  "w.rrrrr.,",
+  "w.rrrrr..",
+  "w.rrrrr.,",
+  "w.rrrrr..",
+  "w,......,",
 ];
 
 const pumpworksGrid = buildMapGrid(pumpworksLegend, pumpworksRows);
@@ -696,20 +742,24 @@ const pumpworksArena: IsoMap = {
 
 /**
  * Relay Crown — the antenna platform above Cinder Row (enc-relay-crown,
- * 7x6). Glow strips mark the mast anchors.
+ * 7x6). Four lit pads mark the mast anchors; the platform's parapet
+ * runs the north and west edges as a concrete lip.
  */
 const relayCrownLegend: Record<string, LegendEntry> = {
   ".": { tile: "pavement" },
+  ",": { tile: "pavement-cracked" },
   "=": { tile: "plaza-glow" },
+  n: { tile: "quay-n" },
+  w: { tile: "quay-w" },
 };
 
 const relayCrownRows = [
-  ".......",
-  "..=.=..",
-  "...=...",
-  "..=.=..",
-  ".......",
-  ".......",
+  "nnnnnnn",
+  "w.=.=..",
+  "w......",
+  "w.=.=..",
+  "w......",
+  "w.....,",
 ];
 
 const relayCrownGrid = buildMapGrid(relayCrownLegend, relayCrownRows);
@@ -728,22 +778,23 @@ const relayCrownArena: IsoMap = {
 /**
  * Exchange cycler floor — the Cordon core ring and the coolant vault den
  * beneath it. Shared by the vent-crawler fight and the three Act 2
- * climax variants (9x7).
+ * climax variants (9x7). The core's machine deck sits at the center in
+ * corroded plate, four glow arcs marking the ring's quadrant lights,
+ * with a swept concrete walkway all round.
  */
 const cyclerFloorLegend: Record<string, LegendEntry> = {
   ".": { tile: "pavement" },
-  ",": { tile: "pavement-cracked" },
   "=": { tile: "plaza-glow" },
   r: { tile: "rust-floor" },
 };
 
 const cyclerFloorRows = [
   ".........",
-  "..=...=..",
-  "....,....",
-  ".=.....=.",
-  "....r....",
-  "..=...=..",
+  ".==...==.",
+  ".=rrrrr=.",
+  "..rrrrr..",
+  ".=rrrrr=.",
+  ".==...==.",
   ".........",
 ];
 
@@ -765,22 +816,25 @@ const cyclerFloorArena: IsoMap = {
  * the three finale climax variants (9x7). Glow strips trace the ring.
  */
 const spireCrownLegend: Record<string, LegendEntry> = {
-  // The Locus's chamber: corporate carpet under the glow ring, with
-  // baseboard trims along the unseen north and west walls.
+  // The Locus's chamber: corporate carpet baseboard-trimmed on all four
+  // walls — the sealed room at the top of the tower — with six glow
+  // points tracing the ring the Locus stands in.
   ".": { tile: "office-floor" },
   n: { tile: "office-floor-n" },
+  e: { tile: "office-floor-e" },
+  s: { tile: "office-floor-s" },
   w: { tile: "office-floor-w" },
   "=": { tile: "plaza-glow" },
 };
 
 const spireCrownRows = [
   "nnnnnnnnn",
-  "w.=...=..",
-  "w........",
-  "w=..=..=.",
-  "w........",
-  "w.=...=..",
-  "w........",
+  "w..=.=..e",
+  "w.......e",
+  "w=.....=e",
+  "w.......e",
+  "w..=.=..e",
+  "wssssssss",
 ];
 
 const spireCrownGrid = buildMapGrid(spireCrownLegend, spireCrownRows);

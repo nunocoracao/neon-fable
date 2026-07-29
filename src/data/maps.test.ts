@@ -5,12 +5,27 @@ import {
   validateAppearance,
 } from "../character";
 import { ENHANCEMENT_SLOTS } from "../inventory/items";
-import { findPathToAdjacent } from "../iso/path";
-import { inBounds, isWalkable, requireSpawn, tileAt } from "../iso/tilemap";
+import { findPath, findPathToAdjacent } from "../iso/path";
+import {
+  inBounds,
+  isWalkable,
+  requireSpawn,
+  tileAt,
+  tileMaterial,
+} from "../iso/tilemap";
 import { encounters, getEncounter } from "./encounters";
 import { getItem } from "./items";
 import { HUB_MAP_ID, getMap, maps, requireMap } from "./maps";
 import { findArcByNode } from "./story";
+
+/**
+ * Arenas are the maps some encounter fights on; everything else is an
+ * explorable map. Derived rather than hand-listed so a new map cannot
+ * slip past the lint by not being added to a literal.
+ */
+const ARENA_MAP_IDS = new Set(encounters.map((e) => e.arenaMapId));
+const arenaMaps = maps.filter((map) => ARENA_MAP_IDS.has(map.id));
+const explorableMaps = maps.filter((map) => !ARENA_MAP_IDS.has(map.id));
 
 describe("map registry", () => {
   it("exposes the hub, settlement, and arena maps", () => {
@@ -91,17 +106,43 @@ describe.each(maps.map((m) => [m.id, m] as const))("map %s", (_id, map) => {
       }
     }
   });
+
+  // The core reachability lint: dressing a map is the easiest way to
+  // wall a pocket of floor off by accident (a prop line closing a gap,
+  // a quay lip boxing a tile in). Every walkable tile must be standable
+  // from the player spawn — orphaned ground is always a dressing bug.
+  it("leaves no walkable ground orphaned from the player spawn", () => {
+    const start = requireSpawn(map, "player-start");
+    const orphans: string[] = [];
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (isWalkable(map, x, y) && findPath(map, start, { x, y }) === null) {
+          orphans.push(`(${x}, ${y})`);
+        }
+      }
+    }
+    expect(orphans, "walkable tiles unreachable from player-start").toEqual([]);
+  });
 });
 
-describe.each([
-  ["cinder-plaza"],
-  ["greywater-steps"],
-  ["exchange-ventworks"],
-  ["auric-spire"],
-])(
+describe("map lint covers every registered map", () => {
+  it("partitions the registry into explorable maps and arenas", () => {
+    expect([...arenaMaps, ...explorableMaps].map((m) => m.id).sort()).toEqual(
+      maps.map((m) => m.id).sort(),
+    );
+    expect(explorableMaps.map((m) => m.id)).toEqual([
+      "cinder-plaza",
+      "greywater-steps",
+      "exchange-ventworks",
+      "auric-spire",
+    ]);
+    expect(arenaMaps.length).toBe(maps.length - explorableMaps.length);
+  });
+});
+
+describe.each(explorableMaps.map((m) => [m.id, m] as const))(
   "explorable map %s",
-  (mapId) => {
-    const map = requireMap(mapId);
+  (_mapId, map) => {
     const start = requireSpawn(map, "player-start");
 
     it("can reach every interactable from the player spawn", () => {
@@ -160,6 +201,45 @@ describe.each(encounters.map((e) => [e.id, e] as const))(
       expect(requireSpawn(arena, "player-start")).toMatchObject(
         encounter.playerStart,
       );
+    });
+  },
+);
+
+/**
+ * Combat readability lint. A fight paints movement and range overlays
+ * over the arena grid, so arena dressing has to stay quiet: nothing
+ * standing on the floor to occlude a tile, and a ground surface that
+ * resolves into a few broad material zones a player can read through
+ * the overlay rather than a speckle of one-off tiles.
+ */
+describe.each(arenaMaps.map((m) => [m.id, m] as const))(
+  "arena %s stays legible",
+  (_id, arena) => {
+    const tiles = arena.tiles.flat();
+    const materials = tiles.map(tileMaterial);
+
+    it("stands nothing on the floor", () => {
+      expect(arena.props).toEqual([]);
+      expect(arena.interactables).toEqual([]);
+    });
+
+    it("reads as a few broad material zones", () => {
+      const counts = new Map<string, number>();
+      for (const material of materials) {
+        counts.set(material, (counts.get(material) ?? 0) + 1);
+      }
+      // Interior trims and quay lips fold into their own surface, so
+      // this counts surfaces a player distinguishes, not tile ids.
+      expect([...counts.keys()].sort(), "distinct materials").toHaveLength(
+        counts.size,
+      );
+      expect(counts.size, `materials: ${[...counts.keys()].join(", ")}`)
+        .toBeLessThanOrEqual(4);
+      // The two dominant surfaces must carry the floor; anything less
+      // and the dressing has stopped reading as zones.
+      const ranked = [...counts.values()].sort((a, b) => b - a);
+      const dominant = (ranked[0] ?? 0) + (ranked[1] ?? 0);
+      expect(dominant / tiles.length).toBeGreaterThanOrEqual(0.7);
     });
   },
 );
