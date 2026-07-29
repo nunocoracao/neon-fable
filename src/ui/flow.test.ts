@@ -355,6 +355,10 @@ describe("inventory overlay", () => {
     expect(document.querySelector(".nf-inventory")).toBeTruthy();
     expect(textOf(".nf-neural")).toMatch(/Neural load 0\//);
     expect(textOf(".nf-inventory")).toMatch(/Shard Knife/);
+    // The header shows the player portrait baked from appearance data.
+    expect(
+      document.querySelector(".nf-inventory-identity canvas.nf-portrait"),
+    ).toBeTruthy();
     pressKey("Escape");
     expect(document.querySelector(".nf-inventory")).toBeNull();
   });

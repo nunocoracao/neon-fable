@@ -33,6 +33,12 @@ export {
   type ResolvedLayer,
 } from "./appearance";
 export {
+  composePortrait,
+  portraitKey,
+  resolvePortraitParts,
+  type PortraitPart,
+} from "./portrait";
+export {
   deriveAttributes,
   initiative,
   maxHp,
