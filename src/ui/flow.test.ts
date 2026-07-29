@@ -1,7 +1,13 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { baseStats, createCharacter } from "../character";
-import { getBackground } from "../data";
+import {
+  baseStats,
+  createCharacter,
+  presetAppearanceFor,
+  randomizeUnlocked,
+} from "../character";
+import { backgroundPresets, getAppearanceOption, getBackground } from "../data";
+import { createRng } from "../state/rng";
 import { DEFAULT_SETTINGS, SETTINGS_KEY, settings } from "../settings";
 import { createNewGame, type GameState } from "../state";
 import { createCharacterCreateScreen } from "./characterCreate";
@@ -75,7 +81,7 @@ function bumpStat(row: number, times: number): void {
 /** New game -> named character with body/tech/intelligence maxed out and
  * reflexes/cool left at minimum, so stat gates fail visibly later.
  * Walks the whole wizard: identity -> background (default) -> stats ->
- * appearance (stock look) -> review -> Jack In. */
+ * appearance (background preset look) -> review -> Jack In. */
 function createTestCharacter(): void {
   click("New Game");
   setName("Vex");
@@ -302,11 +308,11 @@ describe("character creation wizard", () => {
     bumpStat(2, 5);
     bumpStat(4, 5);
     click("Next");
-    // Appearance placeholder: portrait preview plus stock/random controls.
+    // Appearance step: portrait preview plus stock/random controls.
     expect(
       document.querySelector(".nf-appearance-preview canvas.nf-portrait"),
     ).toBeTruthy();
-    expect(buttonByText("Randomize Look")).toBeTruthy();
+    expect(buttonByText("Surprise Me")).toBeTruthy();
     click("Next");
     expect(textOf(".nf-wizard-body")).toMatch(/Vex/);
     expect(textOf(".nf-wizard-body")).toMatch(/Max HP: 39/);
@@ -318,6 +324,105 @@ describe("character creation wizard", () => {
     // Number-row hotkey jumps straight back to review.
     pressKey("5");
     expect(buttonByText("Jack In")).toBeTruthy();
+  });
+
+  it("seeds the appearance step from the chosen background's first preset", () => {
+    click("New Game");
+    setName("Vex");
+    click("Next");
+    // Pick tower-analyst (second card) so the seed provably follows the
+    // chosen background, not the default.
+    (
+      document.querySelectorAll(".nf-bg-card")[1] as HTMLButtonElement
+    ).click();
+    click("Next");
+    bumpStat(0, 5);
+    bumpStat(2, 5);
+    bumpStat(4, 5);
+    click("Next"); // appearance
+    const [first, second] = backgroundPresets("tower-analyst");
+    expect(textOf(".nf-appearance-summary")).toContain(
+      getAppearanceOption("hairStyle", first!.appearance.hairStyle)!.label,
+    );
+    expect(textOf(".nf-appearance-summary")).toContain(
+      getAppearanceOption("mouth", first!.appearance.mouth)!.label,
+    );
+    // Both presets show as portrait thumbs; the seeded one is selected,
+    // and clicking the other applies it wholesale.
+    const thumbs = document.querySelectorAll<HTMLButtonElement>(
+      ".nf-preset-row button.nf-thumb",
+    );
+    expect(thumbs).toHaveLength(2);
+    expect(thumbs[0]?.classList.contains("nf-selected")).toBe(true);
+    thumbs[1]!.click();
+    expect(textOf(".nf-appearance-summary")).toContain(
+      getAppearanceOption("hairStyle", second!.appearance.hairStyle)!.label,
+    );
+    // Leaving and returning never re-seeds over the player's pick.
+    click("Back");
+    click("Next");
+    expect(
+      document
+        .querySelectorAll<HTMLButtonElement>(
+          ".nf-preset-row button.nf-thumb",
+        )[1]
+        ?.classList.contains("nf-selected"),
+    ).toBe(true);
+  });
+
+  it("Surprise Me rolls the injected rng deterministically and honors locks", () => {
+    showScreen(createCharacterCreateScreen({ appearanceRng: createRng(99) }));
+    setName("Vex");
+    click("Next");
+    click("Next");
+    bumpStat(0, 5);
+    bumpStat(2, 5);
+    bumpStat(4, 5);
+    click("Next"); // appearance, seeded from gutter-courier's first preset
+    const seeded = presetAppearanceFor("gutter-courier");
+
+    // Lock hair style; the roll must leave it alone.
+    const lock = document.querySelector<HTMLButtonElement>(
+      '.nf-lock-row button[data-field="hairStyle"]',
+    );
+    lock!.click();
+    expect(lock!.getAttribute("aria-pressed")).toBe("true");
+
+    const expected = randomizeUnlocked(
+      seeded,
+      { hairStyle: true },
+      createRng(99),
+    );
+    click("Surprise Me");
+    const summary = textOf(".nf-appearance-summary");
+    expect(summary).toContain(
+      `Hair: ${getAppearanceOption("hairStyle", seeded.hairStyle)!.label}`,
+    );
+    expect(summary).toContain(
+      `Skin tone: ${
+        getAppearanceOption("skinTone", expected.value.skinTone)!.label
+      }`,
+    );
+    expect(summary).toContain(
+      `Eyes: ${getAppearanceOption("eyes", expected.value.eyes)!.label}`,
+    );
+    expect(summary).toContain(
+      `Mouth: ${getAppearanceOption("mouth", expected.value.mouth)!.label}`,
+    );
+
+    // A second click continues the same deterministic sequence.
+    const next = randomizeUnlocked(
+      expected.value,
+      { hairStyle: true },
+      expected.state,
+    );
+    click("Surprise Me");
+    expect(textOf(".nf-appearance-summary")).toContain(
+      `Mouth: ${getAppearanceOption("mouth", next.value.mouth)!.label}`,
+    );
+    expect(textOf(".nf-appearance-summary")).toContain(
+      `Hair: ${getAppearanceOption("hairStyle", seeded.hairStyle)!.label}`,
+    );
   });
 
   it("escape leaves a clean draft silently and confirms a dirty one", () => {
