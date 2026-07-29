@@ -130,7 +130,7 @@ describe("material ramps", () => {
 });
 
 describe("remap channels", () => {
-  it("declares the six reserved layered-character channels", () => {
+  it("declares the seven reserved layered-character channels", () => {
     expect(Object.keys(REMAP_CHANNELS).sort()).toEqual(
       [
         "cyberChrome",
@@ -139,6 +139,7 @@ describe("remap channels", () => {
         "outfitAccent",
         "outfitPrimary",
         "skin",
+        "tattooInk",
       ].sort(),
     );
   });
@@ -155,6 +156,15 @@ describe("remap channels", () => {
   it("channels are mutually disjoint so layers can carry several at once", () => {
     const all = Object.values(REMAP_CHANNELS).flat();
     expect(new Set(all).size).toBe(all.length);
+  });
+
+  it("tattoo ink rides the hologram-blue ramp in ramp order", () => {
+    const holo = MATERIAL_RAMPS.hologramBlue;
+    expect(REMAP_CHANNELS.tattooInk).toEqual([
+      holo.shade,
+      holo.base,
+      holo.highlight,
+    ]);
   });
 
   it("skin channel is skin ramp 0 in shade/base/highlight order", () => {

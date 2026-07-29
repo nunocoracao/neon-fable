@@ -1,7 +1,7 @@
 /**
- * Face part layers: eyes, brows, and mouth grids registered under the
- * ids the appearance catalogs reference, so composed characters resolve
- * a face straight from catalog data. Every part is authored per catalog
+ * Face part layers: eyes, brows, mouth, and face-detail grids
+ * registered under the ids the appearance catalogs reference, so
+ * composed characters resolve a face straight from catalog data. Every part is authored per catalog
  * id — at 32×48 they are 1–2px strokes that must read from silhouette
  * and shade alone. Pixels sit inside the head interior of the shared
  * 32×48 frame (see the contract in ./body), shifted toward the
@@ -42,7 +42,7 @@
  * for a mouth+brow combination; dialogue wiring consumes that helper
  * in a later task.
  */
-import type { PixelGrid } from "../pixel";
+import type { ChannelRemap, PixelGrid } from "../pixel";
 import { BODY_FRAME, type BodyViewId } from "./body";
 
 /** Face part ids grouped by the appearance catalog that picks them. */
@@ -52,11 +52,15 @@ export const FACE_PART_IDS = {
   // "neutral"/"smirk"/"frown" keep their persisted ids from the schema
   // task; the catalog labels them Neutral Line / Slight Smirk / Hard Set.
   mouth: ["neutral", "smirk", "frown", "breather"],
+  // "scar"/"tattoo" keep their persisted ids from the schema task; the
+  // catalog labels them Cheek Scar / Geometric Tattoo.
+  faceDetail: ["scar", "brow-split", "tattoo", "cyber-lines", "circuit-ink"],
 } as const;
 
 export type EyeShapeId = (typeof FACE_PART_IDS)["eyes"][number];
 export type BrowShapeId = (typeof FACE_PART_IDS)["brows"][number];
 export type MouthStyleId = (typeof FACE_PART_IDS)["mouth"][number];
+export type FaceDetailId = (typeof FACE_PART_IDS)["faceDetail"][number];
 
 /** Expression states a portrait can render; sprites stay resting. */
 export const EXPRESSION_IDS = ["neutral", "smile", "grim", "shocked"] as const;
@@ -134,6 +138,80 @@ const MOUTH_FRONTS: Readonly<Record<MouthStyleId, PixelGrid>> = {
   ]),
 };
 
+/* --- Face details: an overlay stacked above the other face parts and
+ * below hair (resolveLayers pushes it last among the face entries).
+ * Scars ("scar" = cheek scar, "brow-split") draw in the skin channel —
+ * pale "A" scar tissue with an "r" shaded tail — so they recolor with
+ * the skin tone. Inked details ("tattoo", "circuit-ink") draw in the
+ * tattoo-ink channel (hologram-blue ramp) so later dye options arrive
+ * by remap. "cyber-lines" is subdermal hardware in the cyber-chrome
+ * channel; its sprite glow comes from CYBER_LINES_SHIMMER below. --- */
+
+const FACE_DETAIL_FRONTS: Readonly<Record<FaceDetailId, PixelGrid>> = {
+  // A pale slash down the screen-right cheek, past the eye corner.
+  scar: faceGrid([
+    [9, 20, "A"],
+    [10, 20, "A"],
+    [11, 19, "Ar"],
+    [12, 19, "A"],
+  ]),
+  // A notch splitting the screen-right brow, nicking the eye corner.
+  "brow-split": faceGrid([
+    [5, 18, "A"],
+    [6, 18, "A"],
+    [7, 18, "A"],
+    [8, 19, "r"],
+  ]),
+  // A zigzag chevron inked down the screen-left temple and cheek.
+  tattoo: faceGrid([
+    [4, 12, "s"],
+    [5, 11, "t"],
+    [6, 11, "tt"],
+    [7, 12, "t"],
+    [8, 11, "t"],
+    [9, 12, "t"],
+    [10, 11, "t"],
+    [11, 12, "s"],
+  ]),
+  // Faint subdermal traces down both temples with under-eye nodes.
+  // Row 4 stays inside cols 13–19: the skull narrows at the crown and
+  // its outline pixels sit at cols 11/20 there.
+  "cyber-lines": faceGrid([
+    [4, 13, "6.....6"],
+    [5, 12, "T.......T"],
+    [6, 11, "T........T"],
+    [10, 12, "6.......6"],
+    [11, 13, "T"],
+    [12, 19, "T"],
+  ]),
+  // Full-face circuit ink: rails framing the face, node taps, chin bus.
+  "circuit-ink": faceGrid([
+    [4, 12, "t.t..t.t"],
+    [5, 11, "s...t...s"],
+    [6, 11, "t........t"],
+    [7, 11, "s........s"],
+    [8, 11, "t........t"],
+    [9, 11, "t........t"],
+    [10, 11, "st......ts"],
+    [11, 12, "u......u"],
+    [12, 13, "t.....t"],
+    [13, 14, "t.t.t"],
+  ]),
+};
+
+/**
+ * 2-frame sprite shimmer for the subdermal cyber-lines: per-frame
+ * channel remaps the layer engine applies on top of the layer's own
+ * remap, cycling by animation frame. Frame 0 sinks the chrome traces
+ * to dim cyan; frame 1 flares the trace runs to full neon while the
+ * node pixels stay dim. The catalog attaches this to the cyber-lines
+ * entry, so the glow stays data-driven — no engine special case.
+ */
+export const CYBER_LINES_SHIMMER: readonly ChannelRemap[] = [
+  { "6": "i", T: "i" },
+  { "6": "i", T: "g" },
+];
+
 const BACK: PixelGrid = rep(BODY_FRAME.height, BLANK);
 
 function registered(
@@ -151,6 +229,7 @@ export const FACE_LAYERS: Readonly<
   ...registered(EYE_FRONTS),
   ...registered(BROW_FRONTS),
   ...registered(MOUTH_FRONTS),
+  ...registered(FACE_DETAIL_FRONTS),
 ]) as Record<FaceLayerId, Readonly<Record<BodyViewId, PixelGrid>>>;
 
 /* --- Portrait grids: one screen-left eye/brow each (see the module
@@ -240,6 +319,92 @@ export const MOUTH_PORTRAITS: Readonly<Record<MouthStyleId, PixelGrid>> = {
     "16TTTT61",
     "16T66T61",
     ".116611.",
+  ],
+};
+
+/* --- Face-detail portraits: a whole-face overlay per detail id (not
+ * mirrored), authored 16 wide on the portrait face box — brow line at
+ * the top rows, chin at the bottom — and stamped over the composed
+ * resting face by the portrait renderer. Scars stay in the skin
+ * channel, ink in the tattoo-ink channel, cyber-lines in cyber-chrome
+ * (with a "9" specular; portraits render the resting chrome — the
+ * shimmer is sprite-only). --- */
+
+export const FACE_DETAIL_PORTRAITS: Readonly<Record<FaceDetailId, PixelGrid>> = {
+  // A pale healed slash down the screen-right cheek.
+  scar: [
+    "................",
+    "................",
+    "................",
+    "............A...",
+    "............Ar..",
+    "...........Ar...",
+    "...........A....",
+    "..........Ar....",
+    "..........A.....",
+    "................",
+    "................",
+    "................",
+  ],
+  // A vertical notch splitting the screen-right brow line.
+  "brow-split": [
+    "................",
+    "...........A....",
+    "...........A....",
+    "...........A....",
+    "...........A....",
+    "............r...",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+  ],
+  // Chevrons inked down the screen-left temple and cheek.
+  tattoo: [
+    "................",
+    "..t.............",
+    "..tt............",
+    "...tt...........",
+    "....t...........",
+    "...tt...........",
+    "..tt............",
+    "..t.............",
+    "...s............",
+    "................",
+    "................",
+    "................",
+  ],
+  // Subdermal trace rails down both temples with under-eye nodes.
+  "cyber-lines": [
+    ".6...........6..",
+    ".T...........T..",
+    ".T...........T..",
+    ".9...........9..",
+    ".T...........T..",
+    ".6...........6..",
+    "..T.........T...",
+    "................",
+    "..6.........6...",
+    "................",
+    "................",
+    "................",
+  ],
+  // Full-face circuit ink: rails, node taps, and a chin bus.
+  "circuit-ink": [
+    "..t.t..tt..t.t..",
+    ".s....t..t....s.",
+    ".t............t.",
+    ".t.....u......t.",
+    ".t............t.",
+    ".s............s.",
+    ".t............t.",
+    ".ts..........st.",
+    "..t..........t..",
+    "..u..........u..",
+    "...t...tt...t...",
+    "......t..t......",
   ],
 };
 

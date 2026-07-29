@@ -8,7 +8,11 @@ import {
   validateAppearance,
   type Appearance,
 } from "./appearance";
-import { BUILD_OPTIONS, SKIN_TONE_OPTIONS } from "../data/appearance";
+import {
+  BUILD_OPTIONS,
+  FACE_DETAIL_OPTIONS,
+  SKIN_TONE_OPTIONS,
+} from "../data/appearance";
 import { emptyEquipment } from "../inventory/equipment";
 import {
   composedCharacterGrid,
@@ -134,6 +138,28 @@ describe("resolveLayers", () => {
     );
   });
 
+  it("wires the cyber-lines catalog shimmer onto its face layer only", () => {
+    const layers = resolveLayers(
+      { ...defaultAppearance(), faceDetail: "cyber-lines" },
+      emptyEquipment(),
+    );
+    const detail = layers.find((l) => l.art === "cyber-lines");
+    expect(detail?.shimmer).toBe(
+      FACE_DETAIL_OPTIONS.find((o) => o.id === "cyber-lines")?.shimmer,
+    );
+    for (const layer of layers) {
+      if (layer.art !== "cyber-lines") {
+        expect(layer.shimmer, layer.art).toBeUndefined();
+      }
+    }
+    // Static details resolve without any shimmer at all.
+    const inked = resolveLayers(
+      { ...defaultAppearance(), faceDetail: "circuit-ink" },
+      emptyEquipment(),
+    );
+    expect(inked.every((l) => l.shimmer === undefined)).toBe(true);
+  });
+
   it("keeps base z-order: body, then face parts, hair, headwear on top", () => {
     const layers = resolveLayers(
       { ...defaultAppearance(), headwear: "hood", faceDetail: "scar" },
@@ -197,6 +223,8 @@ describe("composeCharacter", () => {
       { ...defaultAppearance(), eyeColor: "amber" },
       { ...defaultAppearance(), hairStyle: "none" },
       { ...defaultAppearance(), mouth: "smirk" },
+      { ...defaultAppearance(), faceDetail: "scar" },
+      { ...defaultAppearance(), faceDetail: "cyber-lines" },
     ];
     expect(new Set(variants.map(key)).size).toBe(variants.length);
   });

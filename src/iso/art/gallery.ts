@@ -18,6 +18,7 @@ import {
   BROWS_OPTIONS,
   EYE_COLOR_OPTIONS,
   EYES_OPTIONS,
+  FACE_DETAIL_OPTIONS,
   HAIR_COLOR_OPTIONS,
   HAIR_STYLE_OPTIONS,
   MOUTH_OPTIONS,
@@ -131,13 +132,14 @@ function bodyEntries(): GalleryEntry[] {
  * style: style × catalog hair color × facing idling on the lean body,
  * then style × build × facing walking in the canonical color — so both
  * builds and the walk-only secondary motion (hair trail) are visible
- * without the full color × build × state product. Three face sweeps on
+ * without the full color × build × state product. Four face sweeps on
  * the lean body's front view (faces only exist up front): eye shape ×
- * catalog eye color, eye shape × brow shape in the canonical cyan, and
- * one entry per mouth style (sprites always wear the resting mouth —
- * expressions are portrait-only). Catalog styles whose art has not
- * landed yet are skipped and join automatically once their registry
- * entry exists.
+ * catalog eye color, eye shape × brow shape in the canonical cyan, one
+ * entry per mouth style (sprites always wear the resting mouth —
+ * expressions are portrait-only), and one entry per face detail over
+ * the full default face (the cyber-lines entry animates its catalog
+ * shimmer). Catalog styles whose art has not landed yet are skipped
+ * and join automatically once their registry entry exists.
  */
 function appearanceEntries(): GalleryEntry[] {
   const [hairChannel = "K"] = REMAP_CHANNELS.hair;
@@ -252,12 +254,42 @@ function appearanceEntries(): GalleryEntry[] {
       "idle",
     ),
   );
+  // Face details composed over the full default face, so scars split
+  // brows and ink frames the eyes exactly as in-game; the cyber-lines
+  // entry carries its catalog shimmer, so the gallery loop shows the
+  // glow cycling.
+  const detailSweep = FACE_DETAIL_OPTIONS.filter(
+    (option) =>
+      option.layer !== null && layerArtGrid("face", option.layer, "front"),
+  ).map((detail) =>
+    entry(
+      `detail ${detail.id} e`,
+      {
+        build: "lean",
+        layers: [
+          { slot: "body", art: "lean", remap: {} },
+          { slot: "face", art: "standard", remap: {} },
+          { slot: "face", art: "straight", remap: {} },
+          { slot: "face", art: "neutral", remap: {} },
+          {
+            slot: "face",
+            art: detail.layer ?? "",
+            remap: {},
+            ...(detail.shimmer ? { shimmer: detail.shimmer } : {}),
+          },
+        ],
+      },
+      "e",
+      "idle",
+    ),
+  );
   return [
     ...colorSweep,
     ...buildSweep,
     ...eyeColorSweep,
     ...faceComboSweep,
     ...mouthSweep,
+    ...detailSweep,
   ];
 }
 

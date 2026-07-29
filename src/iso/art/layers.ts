@@ -155,6 +155,13 @@ export interface ComposedLayer {
    */
   readonly art: string;
   readonly remap: Readonly<Record<string, string>>;
+  /**
+   * Optional per-frame channel remaps (e.g. the cyber-lines glow),
+   * applied on top of `remap` and cycled by animation frame index —
+   * frame f uses shimmer[f % shimmer.length]. Sourced from catalog
+   * data; an absent or empty list means the layer is static.
+   */
+  readonly shimmer?: readonly Readonly<Record<string, string>>[];
 }
 
 /**
@@ -206,9 +213,17 @@ function remapKey(remap: Readonly<Record<string, string>>): string {
  * share a cache key no matter how the objects were built — and any
  * appearance difference yields a different key.
  */
+function shimmerKey(
+  shimmer?: readonly Readonly<Record<string, string>>[],
+): string {
+  if (!shimmer || shimmer.length === 0) return "";
+  return `~${shimmer.map((frame) => remapKey(frame)).join("~")}`;
+}
+
 export function composedCharacterKey(character: ComposedCharacter): string {
   const layers = character.layers.map(
-    (layer) => `${layer.slot}=${layer.art}${remapKey(layer.remap)}`,
+    (layer) =>
+      `${layer.slot}=${layer.art}${remapKey(layer.remap)}${shimmerKey(layer.shimmer)}`,
   );
   return [character.build as string, ...layers].join("|");
 }
@@ -250,7 +265,13 @@ export function composedCharacterGrid(
         layer.slot === "hair" && state === "walk"
           ? hairWalkGrid(layer.art, grid)
           : grid;
-      return [{ grid: posed, remap: layer.remap }];
+      // Shimmering layers cycle their per-frame remap with the frame.
+      const phase =
+        layer.shimmer && layer.shimmer.length > 0
+          ? layer.shimmer[frame % layer.shimmer.length]
+          : undefined;
+      const remap = phase ? { ...layer.remap, ...phase } : layer.remap;
+      return [{ grid: posed, remap }];
     });
   if (parts.length === 0) {
     throw new Error(

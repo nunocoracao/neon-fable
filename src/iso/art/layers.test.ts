@@ -119,6 +119,18 @@ describe("per-facing layer order", () => {
     }
   });
 
+  it("keeps face above the body and below hair for every facing", () => {
+    for (const facing of FACINGS) {
+      const order = layerOrderFor(facing);
+      expect(order.indexOf("face"), facing).toBeGreaterThan(
+        order.indexOf("body"),
+      );
+      expect(order.indexOf("face"), facing).toBeLessThan(
+        order.indexOf("hair"),
+      );
+    }
+  });
+
   it("orders parts per facing and skips absent slots", () => {
     const parts: Partial<Record<LayerSlot, LayerPart>> = {
       weapon: { grid: frameGrid([[3, 30, "9"]]) },
@@ -309,6 +321,83 @@ describe("composedCharacterGrid", () => {
   it("throws on an out-of-range frame index", () => {
     expect(() => composedCharacterGrid(CHARACTER, "e", "idle", 99)).toThrow(
       /no idle frame 99/,
+    );
+  });
+});
+
+describe("layer shimmer", () => {
+  const SHIMMER: readonly Readonly<Record<string, string>>[] = [
+    { T: "i", "6": "i" },
+    { T: "g", "6": "i" },
+  ];
+  const withDetail = (
+    shimmer?: readonly Readonly<Record<string, string>>[],
+  ): ComposedCharacter => ({
+    build: "lean",
+    layers: [
+      { slot: "body", art: "lean", remap: {} },
+      {
+        slot: "face",
+        art: "cyber-lines",
+        remap: {},
+        ...(shimmer ? { shimmer } : {}),
+      },
+    ],
+  });
+
+  it("cycles the per-frame remap with the animation frame", () => {
+    const shimmering = withDetail(SHIMMER);
+    // Frame 0 remaps every trace to dim cyan; frame 1 lights T to "g".
+    const f0 = composedCharacterGrid(shimmering, "e", "idle", 0);
+    const f1 = composedCharacterGrid(shimmering, "e", "idle", 1);
+    expect(countChar(f0, "i")).toBeGreaterThan(0);
+    expect(countChar(f0, "g")).toBe(0);
+    expect(countChar(f1, "g")).toBeGreaterThan(0);
+    // Two-frame cycle: frame 2 wears frame 0's phase again.
+    const f2 = composedCharacterGrid(shimmering, "e", "idle", 2);
+    expect(countChar(f2, "g")).toBe(0);
+  });
+
+  it("leaves the authored channels untouched without shimmer", () => {
+    const still = withDetail();
+    for (let f = 0; f < BODY_TIMING.idle.frameCount; f++) {
+      const grid = composedCharacterGrid(still, "e", "idle", f);
+      expect(countChar(grid, "g"), `frame ${f}`).toBe(0);
+      expect(countChar(grid, "i"), `frame ${f}`).toBe(0);
+      expect(countChar(grid, "T"), `frame ${f}`).toBeGreaterThan(0);
+    }
+  });
+
+  it("shimmer applies on top of the layer's own remap", () => {
+    const tinted: ComposedCharacter = {
+      build: "lean",
+      layers: [
+        { slot: "body", art: "lean", remap: {} },
+        {
+          slot: "face",
+          art: "cyber-lines",
+          remap: { "6": "p" },
+          shimmer: [{ T: "g" }],
+        },
+      ],
+    };
+    const grid = composedCharacterGrid(tinted, "e", "idle", 0);
+    // The layer's own node recolor survives while the trace lights up.
+    expect(countChar(grid, "p")).toBeGreaterThan(0);
+    expect(countChar(grid, "g")).toBeGreaterThan(0);
+    expect(countChar(grid, "T")).toBe(0);
+  });
+
+  it("distinguishes descriptor keys by shimmer data", () => {
+    const keys = [
+      withDetail(),
+      withDetail(SHIMMER),
+      withDetail([{ T: "h" }]),
+    ].map(composedCharacterKey);
+    expect(new Set(keys).size).toBe(keys.length);
+    // Equal shimmer data still shares a key.
+    expect(composedCharacterKey(withDetail(SHIMMER))).toBe(
+      composedCharacterKey(withDetail([...SHIMMER])),
     );
   });
 });

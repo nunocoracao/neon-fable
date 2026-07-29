@@ -129,6 +129,12 @@ export interface ResolvedLayer {
    */
   art: string;
   remap: Readonly<Record<string, string>>;
+  /**
+   * Per-frame channel remaps carried straight off a shimmering catalog
+   * entry (the cyber-lines face detail); the layer engine cycles them
+   * by animation frame. Absent on static layers.
+   */
+  shimmer?: readonly Readonly<Record<string, string>>[];
 }
 
 class AppearanceValidationError extends Error {
@@ -195,7 +201,16 @@ export function resolveLayers(
   ): void => {
     const option = requireOption(field, appearance[field]);
     if (option.layer !== null) {
-      layers.push({ slot: "face", art: option.layer, remap });
+      const shimmer =
+        "shimmer" in option && option.shimmer !== undefined
+          ? option.shimmer
+          : undefined;
+      layers.push({
+        slot: "face",
+        art: option.layer,
+        remap,
+        ...(shimmer ? { shimmer } : {}),
+      });
     }
   };
   facePart("eyes", { ...skin, ...eyeRemap });

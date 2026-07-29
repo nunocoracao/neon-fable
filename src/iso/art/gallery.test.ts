@@ -9,6 +9,7 @@ import {
   BROWS_OPTIONS,
   EYE_COLOR_OPTIONS,
   EYES_OPTIONS,
+  FACE_DETAIL_OPTIONS,
   HAIR_COLOR_OPTIONS,
   MOUTH_OPTIONS,
 } from "../../data/appearance";
@@ -106,12 +107,14 @@ describe("gallery sections", () => {
 
   it("covers every registered hair style × hair color × facing, plus a walk sweep per build", () => {
     const appearance = section("appearance");
+    const drawnDetails = FACE_DETAIL_OPTIONS.filter((o) => o.layer !== null);
     expect(appearance.entries.length).toBe(
       HAIR_STYLE_IDS.length * HAIR_COLOR_OPTIONS.length * 4 +
         HAIR_STYLE_IDS.length * BODY_BUILD_IDS.length * 4 +
         EYES_OPTIONS.length * EYE_COLOR_OPTIONS.length +
         EYES_OPTIONS.length * BROWS_OPTIONS.length +
-        MOUTH_OPTIONS.length,
+        MOUTH_OPTIONS.length +
+        drawnDetails.length,
     );
     for (const style of HAIR_STYLE_IDS) {
       for (const color of HAIR_COLOR_OPTIONS) {
@@ -188,6 +191,28 @@ describe("gallery sections", () => {
       appearance.entries.find((e) => e.id === id)?.frames[0]?.join("\n") ?? "";
     const looks = MOUTH_OPTIONS.map((m) => frame(`mouth ${m.id} e`));
     expect(new Set(looks).size).toBe(MOUTH_OPTIONS.length);
+  });
+
+  it("covers every drawn face detail up front, and cyber-lines glows", () => {
+    const appearance = section("appearance");
+    const drawn = FACE_DETAIL_OPTIONS.filter((o) => o.layer !== null);
+    for (const detail of drawn) {
+      expect(
+        appearance.entries.some((e) => e.id === `detail ${detail.id} e`),
+        `detail ${detail.id} present`,
+      ).toBe(true);
+    }
+    const frame = (id: string, f = 0): string =>
+      appearance.entries.find((e) => e.id === id)?.frames[f]?.join("\n") ?? "";
+    // Every detail reads differently over the same default face.
+    const looks = drawn.map((d) => frame(`detail ${d.id} e`));
+    expect(new Set(looks).size).toBe(drawn.length);
+    // The shimmer cycles: frame 0 sits dim, frame 1 lights neon cyan
+    // trace pixels beyond the standard eyes' four iris pixels.
+    const count = (f: number, ch: string): number =>
+      [...frame("detail cyber-lines e", f)].filter((c) => c === ch).length;
+    expect(count(0, "i")).toBeGreaterThan(0);
+    expect(count(1, "g")).toBeGreaterThan(count(0, "g"));
   });
 });
 

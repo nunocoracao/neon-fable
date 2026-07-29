@@ -177,6 +177,12 @@ export const REMAP_CHANNELS = {
   outfitAccent: ["l", "j", "k"],
   /** Cyberware plating: the brushed-chrome ramp. */
   cyberChrome: ["6", "T", "9"],
+  /**
+   * Tattoo / face-ink pigment: authored in the hologram-blue ramp
+   * (unused by any other channel), so later ink-dye options recolor
+   * tattoos by remap without touching skin, hair, or gear channels.
+   */
+  tattooInk: ["s", "t", "u"],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
 export type RemapChannelName = keyof typeof REMAP_CHANNELS;
