@@ -3,11 +3,17 @@ import {
   getAppearanceOption,
   type AppearanceCategory,
 } from "../data/appearance";
-import { eyeColorRemap, skinToneRemap } from "../iso/art/layers";
+import {
+  eyeColorRemap,
+  outfitChannelRemap,
+  skinToneRemap,
+} from "../iso/art/layers";
 import type { ComposedCharacter, LayerSlot } from "../iso/art/layers";
+import { outfitArtId } from "../iso/art/layers/outfits";
 import { REMAP_CHANNELS } from "../iso/art/palette";
-import { ENHANCEMENT_SLOTS } from "../inventory/items";
+import { ENHANCEMENT_SLOTS, type Item } from "../inventory/items";
 import type { EquipmentState } from "../inventory/equipment";
+import { getItem } from "../data/items";
 import { nextInt, type RngResult, type RngState } from "../state/rng";
 
 /**
@@ -122,10 +128,11 @@ export function randomAppearance(rng: RngState): RngResult<Appearance> {
 export interface ResolvedLayer {
   slot: LayerSlot;
   /**
-   * Art reference: a layer id from the appearance catalogs, or — for
-   * the equipment-driven outfit/weapon/cyberware slots — the equipped
-   * item id (the gear-visibility tasks map item ids to authored gear
-   * layers; until then providers fall back per slot).
+   * Art reference: a layer id from the appearance catalogs; for the
+   * outfit slot, the equipped item's layer family keyed per build
+   * (outfitArtId); for the still-stubbed weapon/cyberware slots, the
+   * equipped item id (their gear-visibility tasks map item ids to
+   * authored layers; until then those ids resolve to nothing).
    */
   art: string;
   remap: Readonly<Record<string, string>>;
@@ -160,15 +167,29 @@ function requireOption<C extends AppearanceCategory>(
 }
 
 /**
+ * Item lookup resolveLayers reads equipped gear through. Unlike the
+ * inventory's throwing ItemResolver this one returns undefined for
+ * unknown ids — missing content degrades to the base garb underlayer,
+ * never crashes a render. Injectable so tests can feed fixture items.
+ */
+export type ItemLookup = (id: string) => Item | undefined;
+
+/**
  * Resolve an appearance (plus equipped gear) into the layer engine's
  * composition descriptor, in base bottom-to-top z-order. Pure and
  * deterministic; throws AppearanceValidationError on unknown ids.
  * Facing-specific draw order (weapon behind the body when facing away)
  * stays in the engine's layerOrderFor.
+ *
+ * The equipped outfit resolves through item data: an item carrying an
+ * outfitLayer reference swaps the outfit layer to its family's grid for
+ * the character's build, recolored by the item's material remaps; items
+ * without one (and unknown ids) keep the body's base garb underlayer.
  */
 export function resolveLayers(
   appearance: Appearance,
   equipment: EquipmentState,
+  lookupItem: ItemLookup = getItem,
 ): ResolvedLayer[] {
   const errors = validateAppearance(appearance);
   if (errors.length > 0) throw new AppearanceValidationError(errors);
@@ -183,16 +204,19 @@ export function resolveLayers(
     requireOption("eyeColor", appearance.eyeColor).color,
   );
 
-  const layers: ResolvedLayer[] = [
-    {
-      slot: "body",
-      art: requireOption("build", appearance.build).build,
-      remap: skin,
-    },
-  ];
+  const build = requireOption("build", appearance.build).build;
+  const layers: ResolvedLayer[] = [{ slot: "body", art: build, remap: skin }];
 
   if (equipment.outfit !== null) {
-    layers.push({ slot: "outfit", art: equipment.outfit, remap: {} });
+    const item = lookupItem(equipment.outfit);
+    const ref = item?.kind === "outfit" ? item.outfitLayer : undefined;
+    if (ref) {
+      layers.push({
+        slot: "outfit",
+        art: outfitArtId(ref.id, build),
+        remap: outfitChannelRemap(ref.primary, ref.accent),
+      });
+    }
   }
 
   const headwear = requireOption("headwear", appearance.headwear);
@@ -268,9 +292,10 @@ export function resolveLayers(
 export function composeCharacter(
   appearance: Appearance,
   equipment: EquipmentState,
+  lookupItem: ItemLookup = getItem,
 ): ComposedCharacter {
   return {
     build: requireOption("build", appearance.build).build,
-    layers: resolveLayers(appearance, equipment),
+    layers: resolveLayers(appearance, equipment, lookupItem),
   };
 }
