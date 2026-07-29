@@ -255,6 +255,51 @@ const glyphBack = hairGrid([
   [10, 14, K(4)],
 ]);
 
+/* --- Crushed under-cap variants: what hair looks like flattened by
+ * headwear whose catalog rule is "crushes" (knit cap, rebreather
+ * straps). One shared variant per style group rather than one per
+ * style: "crushed-short" for the cropped styles (buzz, slicked,
+ * spikes, mohawk) — a fringe and sideburns below the brim line — and
+ * "crushed-long" for the falling styles (bob, locs, ponytail) —
+ * pressed curtains to the chin. Both start on row 7 so the crown stays
+ * clear for the headwear itself; the glyph maps to its own layer
+ * (scalp dye has no volume to crush) and shaved to nothing. The
+ * mapping lives on each catalog entry's `crushed` field. --- */
+
+const crushedShortFront = hairGrid([
+  [7, 10, "KK........KK"],
+  [8, 10, "K..........K"],
+  [9, 10, "K..........K"],
+  [10, 10, "K..........K"],
+]);
+
+const crushedShortBack = hairGrid([
+  ...span(7, 11, 10, K(12)),
+  [12, 11, K(10)],
+  [13, 12, K(8)],
+]);
+
+const crushedLongFront = hairGrid([
+  ...span(7, 13, 9, "KK..........KK"),
+  [14, 10, "K..........K"],
+]);
+
+const crushedLongBack = hairGrid([
+  ...span(7, 13, 9, K(14)),
+  [14, 10, K(12)],
+]);
+
+export const CRUSHED_HAIR_IDS = ["crushed-short", "crushed-long"] as const;
+export type CrushedHairId = (typeof CRUSHED_HAIR_IDS)[number];
+
+/** The shared flattened variants, registered beside the styles. */
+export const CRUSHED_HAIR_LAYERS: Readonly<
+  Record<CrushedHairId, Readonly<Record<BodyViewId, PixelGrid>>>
+> = {
+  "crushed-short": { front: crushedShortFront, back: crushedShortBack },
+  "crushed-long": { front: crushedLongFront, back: crushedLongBack },
+};
+
 /** The authored hair grids per style and view, all exactly 32×48. */
 export const HAIR_LAYERS: Readonly<
   Record<HairStyleId, Readonly<Record<BodyViewId, PixelGrid>>>

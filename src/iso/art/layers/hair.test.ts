@@ -10,6 +10,8 @@ import { HAIR_COLORS, REMAP_CHANNELS } from "../palette";
 import { gridErrors, remapped, type PixelGrid } from "../pixel";
 import { BODY_FRAME, BODY_VIEW_IDS } from "./body";
 import {
+  CRUSHED_HAIR_IDS,
+  CRUSHED_HAIR_LAYERS,
   HAIR_LAYERS,
   HAIR_REGION,
   HAIR_STYLE_IDS,
@@ -201,6 +203,99 @@ describe("frame bounds", () => {
     ];
     for (const [x, y] of facePixels) {
       expect(front[y]?.[x], `col ${x} row ${y}`).toBe(".");
+    }
+  });
+});
+
+describe("crushed under-cap variants", () => {
+  const CRUSHED_GRIDS = CRUSHED_HAIR_IDS.flatMap((id) =>
+    BODY_VIEW_IDS.map((view) => ({
+      label: `${id} ${view}`,
+      grid: CRUSHED_HAIR_LAYERS[id][view],
+    })),
+  );
+
+  it("every variant and view is a valid hair-channel frame grid", () => {
+    for (const { label, grid } of CRUSHED_GRIDS) {
+      expect(gridErrors(grid), label).toEqual([]);
+      expect(grid.length, label).toBe(BODY_FRAME.height);
+      const chars = new Set(grid.join("").replace(/\./g, ""));
+      expect([...chars], label).toEqual([HAIR_CHANNEL]);
+      expect(pixelCells(grid, HAIR_CHANNEL).length, label).toBeGreaterThan(5);
+    }
+  });
+
+  it("stays inside the head region with the crown rows clear for headwear", () => {
+    for (const { label, grid } of CRUSHED_GRIDS) {
+      for (const [x, y] of pixelCells(grid, HAIR_CHANNEL)) {
+        // Flattened hair starts below the brim line (row 7), so the
+        // crushing headwear itself owns rows 3-6.
+        expect(y, `${label} row ${y}`).toBeGreaterThanOrEqual(7);
+        expect(y, `${label} row ${y}`).toBeLessThanOrEqual(HAIR_REGION.bottom);
+        expect(x, `${label} col ${x}`).toBeGreaterThanOrEqual(HAIR_REGION.left);
+        expect(x, `${label} col ${x}`).toBeLessThanOrEqual(HAIR_REGION.right);
+      }
+    }
+  });
+
+  it("variants are distinct from each other and from every resting style", () => {
+    const keys = [...GRIDS, ...CRUSHED_GRIDS].map(({ grid }) => grid.join("\n"));
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("registers under the hair slot beside the styles, without trailing", () => {
+    for (const id of CRUSHED_HAIR_IDS) {
+      for (const view of BODY_VIEW_IDS) {
+        expect(layerArtGrid("hair", id, view), `${id} ${view}`).toEqual(
+          CRUSHED_HAIR_LAYERS[id][view],
+        );
+        // Pressed under headwear: no walk-trail secondary motion.
+        expect(
+          hairWalkGrid(id, CRUSHED_HAIR_LAYERS[id][view]),
+          `${id} ${view}`,
+        ).toEqual(CRUSHED_HAIR_LAYERS[id][view]);
+      }
+    }
+  });
+
+  it("every catalog style's crushed ref resolves to a registered hair layer", () => {
+    for (const option of HAIR_STYLE_OPTIONS) {
+      if (option.crushed === null) {
+        // Only the shaved style has nothing to draw when crushed.
+        expect(option.layer, option.id).toBeNull();
+        continue;
+      }
+      for (const view of BODY_VIEW_IDS) {
+        expect(
+          layerArtGrid("hair", option.crushed, view),
+          `${option.id} crushed ${view}`,
+        ).not.toBeNull();
+      }
+    }
+    // The shared variants are actually shared: style groups, not 1:1.
+    const refs = HAIR_STYLE_OPTIONS.map((o) => o.crushed).filter(
+      (c): c is string => c !== null,
+    );
+    expect(new Set(refs).size).toBeLessThan(refs.length);
+  });
+
+  it("rides the idle head bob through the composed pipeline", () => {
+    for (const id of CRUSHED_HAIR_IDS) {
+      const character = hairCharacter(id, MARKER);
+      const authored = pixelCells(
+        CRUSHED_HAIR_LAYERS[id].front,
+        HAIR_CHANNEL,
+      ).length;
+      const neutral = pixelCells(
+        composedCharacterGrid(character, "e", "idle", 0),
+        MARKER,
+      );
+      const lifted = pixelCells(
+        composedCharacterGrid(character, "e", "idle", 2),
+        MARKER,
+      );
+      expect(neutral.length, id).toBe(authored);
+      expect(lifted, id).toEqual(neutral.map(([x, y]) => [x, y - 1]));
     }
   });
 });

@@ -32,7 +32,8 @@ import {
 } from "./layers/body";
 import { bodyAnimFrames } from "./layers/bodyAnim";
 import { FACE_LAYERS } from "./layers/face";
-import { HAIR_LAYERS, hairWalkGrid } from "./layers/hair";
+import { CRUSHED_HAIR_LAYERS, HAIR_LAYERS, hairWalkGrid } from "./layers/hair";
+import { HEADWEAR_LAYERS } from "./layers/headwear";
 
 /** Layer slots in base (toward-camera) z-order, bottom to top. */
 export const LAYER_SLOTS = [
@@ -180,15 +181,17 @@ type SlotRegistry = Readonly<
 
 /**
  * Per-slot art registries. A slot absent here has no authored grids
- * yet; its layers are skipped at compose time. Later art tasks (hair,
- * headwear, gear overlays) plug their registries in here and every
- * catalog id that references them starts rendering with no other
- * wiring.
+ * yet; its layers are skipped at compose time. Later art tasks (gear
+ * overlays) plug their registries in here and every catalog id that
+ * references them starts rendering with no other wiring. The hair
+ * registry carries the styles plus the shared crushed under-cap
+ * variants headwear's "crushes" rule swaps in.
  */
 const SLOT_REGISTRIES: Readonly<Partial<Record<LayerSlot, SlotRegistry>>> = {
   body: BODY_GRIDS as SlotRegistry,
   face: FACE_LAYERS as SlotRegistry,
-  hair: HAIR_LAYERS as SlotRegistry,
+  hair: { ...HAIR_LAYERS, ...CRUSHED_HAIR_LAYERS } as SlotRegistry,
+  headwear: HEADWEAR_LAYERS as SlotRegistry,
 };
 
 /** The grid a layer draws for a view, or null while its art is unregistered. */
