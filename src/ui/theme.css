@@ -341,6 +341,81 @@ body::after {
   opacity: 1;
 }
 
+/* Exit affordance: what the way out in front of you is, and where it
+   goes. Sits just above the toast lane so the two never overlap. */
+.nf-exit-hint {
+  position: fixed;
+  bottom: 4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.35rem 0.9rem;
+  font-family: var(--nf-font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  color: var(--nf-glow-cyan);
+  background: rgba(18, 18, 31, 0.92);
+  border: 2px solid var(--nf-glow-cyan);
+  box-shadow: var(--nf-shadow-hard);
+  opacity: 0;
+  transition: opacity 160ms ease;
+  pointer-events: none;
+}
+
+.nf-exit-hint-visible {
+  opacity: 1;
+}
+
+/* --- Map transitions --- */
+
+/* Covers everything, screens included: the screen underneath is
+   replaced half-way through the sequence. */
+.nf-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nf-transition-cover {
+  position: absolute;
+  inset: 0;
+  background: var(--nf-bg-deep);
+  opacity: 0;
+}
+
+.nf-transition-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.nf-transition-visible {
+  opacity: 1;
+}
+
+.nf-transition-kicker {
+  font-family: var(--nf-font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--nf-ink-dim);
+}
+
+.nf-transition-name {
+  font-family: var(--nf-font-display);
+  font-size: 1.4rem;
+  letter-spacing: 0.12em;
+  color: var(--nf-glow-cyan);
+  text-shadow: var(--nf-shadow-hard);
+}
+
 /* --- Dialogue --- */
 
 .nf-dialogue {

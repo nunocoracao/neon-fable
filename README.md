@@ -37,7 +37,9 @@ entry that drops you on the hub map without a character).
   background-specific dialogue options later.
 - **Exploring** — click a tile to walk there; drag to pan the camera.
   Tiles with a soft amber marker are interactable (people, terminals):
-  click one to walk over and trigger its dialogue or fight.
+  click one to walk over and trigger its dialogue or fight. Ways out of
+  the map carry a lit ring and a label naming where they lead; taking
+  one plays the door open and fades through the destination's name.
 - **Dialogue** — click a choice, press its number key (1–9), or press
   Enter to take the focused choice. Greyed-out choices show the
   requirement you're missing in brackets, e.g. `[Tech 6]`. Choices have
@@ -149,6 +151,18 @@ Maps are authored as compact character rows plus a legend
 rows). A map lists `interactables` — tiles that trigger `dialogue`
 (a node id) or `combat` (an encounter id) — and named spawn points.
 Hub-style maps need a `player-start` spawn.
+
+An interactable that leads off the map declares an `exit`
+(`{ mapId, entryId? }`). That one field drives the whole affordance:
+the shared lit ring is laid in its tile, a label names the destination
+whenever the cursor is on it or the player is stood beside it, and when
+the scene it opens ends in a `travel` effect, the way plays its opening
+(a door's leaves parting, a stair's iris flaring) before the screen
+fades through black to the destination. Arrivals land on the exit's
+`entryId` — default `player-start` — facing into the map; a spawn can
+author its own `facing` where the map's shape gets it wrong.
+`maps.test.ts` lints exits: the destination and its entry spawn must
+exist, and the arrival must look inward.
 
 An explorable map can also declare an `ambient` crowd: a `count` of
 pedestrians plus the `zones` (rectangles) they are dealt across

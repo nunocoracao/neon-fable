@@ -17,11 +17,18 @@ import {
   recordCompletionToStorage,
 } from "../state";
 import {
+  ENTRY_SPAWN_ID,
   createIsoScene,
   createPixelArtSprites,
+  spawnPoint,
   type DayPhaseId,
+  type Interactable,
+  type IsoExitHint,
   type IsoScene,
 } from "../iso";
+import { settings } from "../settings";
+import { exitLabel } from "./format";
+import { runMapTransition, type MapTransitionHandle } from "./mapTransition";
 import { ambientSpriteSource, npcSpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
 import { createAdvancementOverlay } from "./advancementOverlay";
@@ -48,6 +55,11 @@ export interface GameScreenOptions {
   session: Session;
   /** Open dialogue at this node immediately (new-game intro, post-combat resume). */
   dialogueNodeId?: string | null;
+  /**
+   * Spawn point to arrive on — the entry an exit declared. Unknown or
+   * absent lands on the map's own entry spawn.
+   */
+  spawnId?: string;
 }
 
 type OverlayKind =
@@ -101,6 +113,12 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   let overlayLayer: HTMLElement | null = null;
   let toast: HTMLElement | null = null;
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
+  let exitHintEl: HTMLElement | null = null;
+  /** The interactable whose scene is currently open, for the door beat. */
+  let usedInteractable: Interactable | null = null;
+  /** A map transition in flight, and whether it has already swapped. */
+  let transition: MapTransitionHandle | null = null;
+  let transitionSwapped = false;
   let overlay: { kind: OverlayKind; handle: OverlayHandle } | null = null;
   let advanceButton: HTMLButtonElement | null = null;
   /**
@@ -151,6 +169,21 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     );
   }
 
+  /**
+   * The nearby/hovered way out, named with where it leads. Driven
+   * entirely by the exits declared in map data — the scene reports
+   * which one is in focus, the shell resolves the destination's name.
+   */
+  function showExitHint(hint: IsoExitHint | null): void {
+    if (!exitHintEl) return;
+    if (!hint) {
+      exitHintEl.classList.remove("nf-exit-hint-visible");
+      return;
+    }
+    exitHintEl.textContent = exitLabel(hint.label, getMap(hint.mapId)?.name);
+    exitHintEl.classList.add("nf-exit-hint-visible");
+  }
+
   function closeOverlay(): void {
     overlay?.handle.destroy();
     overlay = null;
@@ -193,11 +226,34 @@ export function createGameScreen(options: GameScreenOptions): Screen {
             }),
           );
         },
-        onTravel(_mapId, nextNodeId) {
-          // The travel effect already set session.state.location; remount
-          // the game screen on the new map and continue any target node.
+        onTravel(targetMapId, nextNodeId) {
+          // The travel effect already set session.state.location. The
+          // screen is remounted on the new map behind the cover, so the
+          // swap itself is never seen; the interactable that opened
+          // this scene plays its door first, if it has one.
           closeOverlay();
-          showScreen(createGameScreen({ session, dialogueNodeId: nextNodeId }));
+          const leaving = usedInteractable;
+          const entryId =
+            leaving?.exit?.mapId === targetMapId
+              ? leaving.exit.entryId
+              : undefined;
+          transition = runMapTransition({
+            destinationName: getMap(targetMapId)?.name ?? targetMapId,
+            reducedMotion: settings.get().reducedMotion,
+            openDoor: leaving
+              ? () => scene?.playOpening(leaving.id) === true
+              : undefined,
+            onSwap() {
+              transitionSwapped = true;
+              showScreen(
+                createGameScreen({
+                  session,
+                  dialogueNodeId: nextNodeId,
+                  spawnId: entryId,
+                }),
+              );
+            },
+          });
         },
         onStylist(resumeNodeId) {
           // The re-style screen replaces the dialogue; closing it
@@ -448,20 +504,32 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       toast.className = "nf-toast";
       root.append(toast);
 
+      exitHintEl = document.createElement("div");
+      exitHintEl.className = "nf-exit-hint";
+      root.append(exitHintEl);
+
       refreshHud();
+
+      const arrival =
+        options.spawnId && spawnPoint(map, options.spawnId)
+          ? options.spawnId
+          : ENTRY_SPAWN_ID;
 
       scene = createIsoScene(canvas, {
         map,
-        spawnId: "player-start",
+        spawnId: arrival,
         dayPhase: storyPhase,
         sprites: createPixelArtSprites({
           player: playerSpriteSource(session),
           npc: npcSpriteSource(map),
           entity: ambientSpriteSource(),
         }),
+        onExitHint: showExitHint,
         onInteract(event): void {
           if (overlay) return;
           audio.play("interact");
+          usedInteractable =
+            map.interactables.find((i) => i.id === event.interactableId) ?? null;
           if (event.interaction.kind === "dialogue") {
             openDialogue(event.interaction.nodeId);
           } else {
@@ -487,16 +555,23 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       window.removeEventListener("keydown", onKeyDown);
       closeOverlay();
       if (toastTimer) clearTimeout(toastTimer);
+      // A transition that has already swapped is now covering the new
+      // screen and must be left to finish; one that has not (a load, a
+      // quit) never happens at all.
+      if (!transitionSwapped) transition?.cancel();
+      transition = null;
       scene?.destroy();
       scene = null;
       hud?.remove();
       overlayLayer?.remove();
       toast?.remove();
+      exitHintEl?.remove();
       hud = null;
       hudStatus = null;
       advanceButton = null;
       overlayLayer = null;
       toast = null;
+      exitHintEl = null;
       if (root) {
         root.style.pointerEvents = "";
         root = null;

@@ -182,6 +182,15 @@ export function saveErrorMessage(error: SaveError): string {
 }
 
 /** Advancement points with their unit, e.g. "1 point", "3 points". */
+/**
+ * The label on a way out of the map: what it is, then where it goes —
+ * "Chainwell Stair → Cinder Row Plaza". A destination the shell cannot
+ * resolve is dropped rather than shown as a raw id.
+ */
+export function exitLabel(label: string, destination?: string): string {
+  return destination ? `${label} → ${destination}` : label;
+}
+
 export function pointsLabel(amount: number): string {
   return `${amount} ${amount === 1 ? "point" : "points"}`;
 }

@@ -6,6 +6,7 @@ import type { CombatEvent } from "../combat/types";
 import {
   characterNameError,
   combatEventText,
+  exitLabel,
   combatantDisplayNames,
   formatBonuses,
   formatTimestamp,
@@ -206,6 +207,16 @@ describe("misc labels", () => {
     expect(characterNameError("   ")).toBe("Enter a name");
     expect(characterNameError("a".repeat(25))).toMatch(/24/);
     expect(characterNameError("Vex")).toBeNull();
+  });
+
+  it("names a way out by what it is and where it goes", () => {
+    expect(exitLabel("Chainwell Stair", "Cinder Row Plaza")).toBe(
+      "Chainwell Stair → Cinder Row Plaza",
+    );
+    // A destination the shell could not resolve is dropped rather than
+    // shown to the player as a raw content id.
+    expect(exitLabel("Tram Gate")).toBe("Tram Gate");
+    expect(exitLabel("Tram Gate", "")).toBe("Tram Gate");
   });
 
   it("names save slots", () => {
