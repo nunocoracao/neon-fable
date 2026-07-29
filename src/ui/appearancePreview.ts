@@ -33,8 +33,10 @@ import { portraitCanvas } from "./portraits";
 import {
   DEFAULT_PREVIEW_STATE,
   facingLabel,
+  maxPreviewZoom,
   previewZoomLabel,
   rotateFacing,
+  showcaseFacing,
   stepPreviewZoom,
   toggleMotion,
   type PreviewState,
@@ -67,6 +69,13 @@ export interface AppearancePreviewOptions {
   initialState?: PreviewState;
   /** Fired on every rotate/toggle/zoom so the caller can persist it. */
   onStateChange?: (state: PreviewState) => void;
+  /**
+   * Showcase mode for the review step: the largest crisp zoom, no
+   * controls or hint, and a slow automatic facing cycle over the idle
+   * loop (held front-facing under reduced motion) — a display case
+   * rather than an editor.
+   */
+  showcase?: boolean;
 }
 
 export interface AppearancePreview {
@@ -86,7 +95,9 @@ export interface AppearancePreview {
 export function createAppearancePreview(
   options: AppearancePreviewOptions,
 ): AppearancePreview {
-  let state = options.initialState ?? DEFAULT_PREVIEW_STATE;
+  let state = options.showcase
+    ? { ...DEFAULT_PREVIEW_STATE, zoom: maxPreviewZoom() }
+    : (options.initialState ?? DEFAULT_PREVIEW_STATE);
   let composed = resolveComposed();
   let lastPaintedKey: string | null = null;
   let lastTickMs = 0;
@@ -103,6 +114,7 @@ export function createAppearancePreview(
 
   const el = document.createElement("div");
   el.className = "nf-appearance-preview nf-preview";
+  if (options.showcase) el.classList.add("nf-preview-showcase");
 
   const stage = document.createElement("div");
   stage.className = "nf-preview-stage";
@@ -150,7 +162,8 @@ export function createAppearancePreview(
   hint.className = "nf-dim nf-preview-hint";
   hint.textContent = "Q/E rotate · W walk · +/− zoom";
 
-  el.append(stage, controls, hint);
+  el.append(stage);
+  if (!options.showcase) el.append(controls, hint);
 
   function paint(timeMs: number): void {
     const frame = bodyFrameAt(state.motion, timeMs);
@@ -213,6 +226,10 @@ export function createAppearancePreview(
 
   const tick = (now: number): void => {
     lastTickMs = settings.get().reducedMotion ? 0 : now;
+    if (options.showcase) {
+      const facing = showcaseFacing(lastTickMs);
+      if (facing !== state.facing) setState({ ...state, facing });
+    }
     paint(lastTickMs);
     rafId = requestAnimationFrame(tick);
   };

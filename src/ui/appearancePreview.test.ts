@@ -9,7 +9,12 @@ import {
   previewCacheStats,
   type AppearancePreview,
 } from "./appearancePreview";
-import { DEFAULT_PREVIEW_STATE, type PreviewState } from "./previewState";
+import {
+  DEFAULT_PREVIEW_STATE,
+  SHOWCASE_FACING_MS,
+  maxPreviewZoom,
+  type PreviewState,
+} from "./previewState";
 
 /**
  * Drives the preview panel in happy-dom with the canvas 2D context
@@ -128,6 +133,41 @@ describe("appearance preview panel", () => {
     );
     expect(after).toBeTruthy();
     expect(after).not.toBe(before);
+  });
+
+  it("showcase mode drops controls, zooms full size, and spins itself", () => {
+    preview.destroy();
+    document.body.innerHTML = "";
+    let frame: FrameRequestCallback = () => undefined;
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      (callback: FrameRequestCallback): number => {
+        frame = callback;
+        return 0;
+      },
+    );
+    const showcase = createAppearancePreview({
+      appearance: () => look,
+      equipment: () => startingEquipment(backgrounds[0]!),
+      showcase: true,
+    });
+    document.body.append(showcase.el);
+
+    expect(showcase.el.classList.contains("nf-preview-showcase")).toBe(true);
+    expect(showcase.el.querySelector("button")).toBeNull();
+    expect(showcase.el.dataset.zoom).toBe(String(maxPreviewZoom()));
+    expect(showcase.el.dataset.motion).toBe("idle");
+    expect(
+      showcase.el.querySelector(".nf-preview-portrait canvas.nf-portrait"),
+    ).toBeTruthy();
+
+    // The animation clock alone turns the character, one quarter each hold.
+    expect(showcase.el.dataset.facing).toBe("s");
+    frame(SHOWCASE_FACING_MS);
+    expect(showcase.el.dataset.facing).toBe("w");
+    frame(SHOWCASE_FACING_MS * 2);
+    expect(showcase.el.dataset.facing).toBe("n");
+    showcase.destroy();
   });
 
   it("flipping options bakes one frame per look, never whole sets", () => {

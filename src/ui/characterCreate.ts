@@ -27,7 +27,6 @@ import {
   updateDraft,
   validateAllocation,
   type Appearance,
-  type AppearanceField,
   type AppearanceLocks,
   type DerivedAttributes,
   type Stats,
@@ -62,6 +61,7 @@ import {
   statLabel,
 } from "./format";
 import { focusFirst, installListNav } from "./focus";
+import { APPEARANCE_LABELS, reviewModel } from "./reviewModel";
 import { createGameScreen } from "./gameScreen";
 import { createMainMenuScreen } from "./mainMenu";
 import { portraitCanvas } from "./portraits";
@@ -104,19 +104,6 @@ export interface CharacterCreateOptions {
   appearanceRng?: RngState;
 }
 
-const APPEARANCE_LABELS: Record<AppearanceField, string> = {
-  skinTone: "Skin tone",
-  build: "Build",
-  hairStyle: "Hair",
-  hairColor: "Hair color",
-  eyes: "Eyes",
-  eyeColor: "Eye color",
-  brows: "Brows",
-  mouth: "Mouth",
-  faceDetail: "Face detail",
-  headwear: "Headwear",
-};
-
 export function createCharacterCreateScreen(
   options: CharacterCreateOptions = {},
 ): Screen {
@@ -156,6 +143,8 @@ export function createCharacterCreateScreen(
   let preview: AppearancePreview | null = null;
   /** First entry to the appearance step seeds from the background preset. */
   let appearanceSeeded = false;
+  /** Set by a review Edit link: finishing that step returns to review. */
+  let returnToReview = false;
   /** Per-category locks; locked categories survive Surprise Me. */
   let locks: AppearanceLocks = {};
   /** Advancing RNG behind Surprise Me — each click rolls a new look. */
@@ -208,6 +197,7 @@ export function createCharacterCreateScreen(
       });
     }
     wizard = next;
+    if (wizard.step === "review") returnToReview = false;
     renderStep();
     renderChrome();
     if (stepBody) focusFirst(stepBody);
@@ -649,9 +639,10 @@ export function createCharacterCreateScreen(
     edit.className = "nf-button nf-button-small nf-review-edit";
     edit.textContent = "Edit";
     edit.setAttribute("aria-label", `Edit ${title.toLowerCase()}`);
-    edit.addEventListener("click", () =>
-      navigate(jumpTo(wizard, step, context)),
-    );
+    edit.addEventListener("click", () => {
+      returnToReview = true;
+      navigate(jumpTo(wizard, step, context));
+    });
     header.append(heading, edit);
     section.append(header);
     for (const piece of content) {
@@ -667,62 +658,88 @@ export function createCharacterCreateScreen(
     return section;
   }
 
+  /**
+   * The review step as a character sheet: the full-size showcase render
+   * (largest crisp zoom, slow facing spin, portrait card on the stage)
+   * on the left; on the right the whole draft in words via the pure
+   * reviewModel selector, each section with an Edit link that jumps to
+   * its step and returns here afterward.
+   */
   function renderReview(body: HTMLElement): void {
-    const current = draft();
-    const background = selectedBackground();
-    const finalStats = background
-      ? applyBonuses(current.allocation, background.statBonuses)
-      : current.allocation;
+    const model = reviewModel(draft(), ngPlus);
 
-    body.append(
-      reviewSection("Identity", "identity", current.name.trim() || "—"),
+    const columns = document.createElement("div");
+    columns.className = "nf-create-columns nf-review-columns";
+
+    const left = document.createElement("div");
+    left.className = "nf-create-column nf-review-figure";
+    const panel = createAppearancePreview({
+      appearance: () => draft().appearance,
+      equipment: previewEquipment,
+      showcase: true,
+    });
+    preview = panel;
+    left.append(panel.el);
+
+    const right = document.createElement("div");
+    right.className = "nf-create-column nf-review-sheet";
+
+    right.append(
+      reviewSection("Identity", "identity", model.name || "—"),
     );
 
-    const backgroundLines: string[] = [];
-    if (background) {
-      const bonuses = formatBonuses(background.statBonuses);
+    const backgroundLines: (HTMLElement | string)[] = [];
+    if (model.background) {
       backgroundLines.push(
-        bonuses ? `${background.name} (${bonuses})` : background.name,
-        "Starting gear: " +
-          background.startingGearIds
-            .map((id) => getItem(id)?.name ?? id)
-            .join(", "),
+        model.background.bonuses
+          ? `${model.background.name} (${model.background.bonuses})`
+          : model.background.name,
       );
+      const blurb = document.createElement("p");
+      blurb.className = "nf-review-line nf-dim";
+      blurb.textContent = model.background.blurb;
+      backgroundLines.push(blurb);
     }
-    body.append(
+    if (model.gear.length > 0) {
+      backgroundLines.push("Starting gear:");
+      const gear = document.createElement("ul");
+      gear.className = "nf-review-gear";
+      for (const name of model.gear) {
+        const item = document.createElement("li");
+        item.textContent = name;
+        gear.append(item);
+      }
+      backgroundLines.push(gear);
+    }
+    right.append(
       reviewSection("Background", "background", ...backgroundLines),
     );
 
-    const statLine = STAT_KEYS.map(
-      (key) => `${statLabel(key)} ${finalStats[key]}`,
-    ).join(" · ");
-    body.append(
+    right.append(
       reviewSection(
         "Stats",
         "stats",
-        statLine,
-        derivedPreview(deriveAttributes(finalStats)),
+        model.statLine,
+        derivedPreview(model.derived),
       ),
     );
 
     const look = document.createElement("div");
-    look.className = "nf-appearance-preview";
-    look.append(
-      portraitCanvas(current.appearance, previewEquipment()),
-      appearanceSummary(),
-    );
-    body.append(reviewSection("Appearance", "appearance", look));
+    look.className = "nf-review-appearance";
+    for (const line of model.appearance) {
+      const row = document.createElement("div");
+      row.className = "nf-review-line";
+      row.textContent = `${line.label}: ${line.value}`;
+      look.append(row);
+    }
+    right.append(reviewSection("Appearance", "appearance", look));
 
-    if (ngPlus) {
-      const pick = current.legacyItemId
-        ? (getItem(current.legacyItemId)?.name ?? current.legacyItemId)
-        : "Travel light";
-      body.append(
-        reviewSection(
-          "Legacy carry-over",
-          "background",
-          `${pick} · +${ngPlus.bonusPoints} bonus point-buy points`,
-        ),
+    if (model.legacy) {
+      const legacyLine = document.createElement("p");
+      legacyLine.className = "nf-review-line nf-review-legacy";
+      legacyLine.textContent = model.legacy.line;
+      right.append(
+        reviewSection("Legacy carry-over", "background", legacyLine),
       );
     }
 
@@ -733,7 +750,10 @@ export function createCharacterCreateScreen(
       line.textContent = error;
       errors.append(line);
     }
-    body.append(errors);
+    right.append(errors);
+
+    columns.append(left, right);
+    body.append(columns);
   }
 
   function renderStep(): void {
@@ -790,6 +810,11 @@ export function createCharacterCreateScreen(
     if (wizard.step === "review") {
       nextButton.textContent = "Jack In";
       nextButton.disabled = !stepValid(draft(), "review", context);
+    } else if (returnToReview) {
+      // Entered from a review Edit link: finishing the step goes back
+      // to review, under the same validity gate as advancing there.
+      nextButton.textContent = "Done";
+      nextButton.disabled = !canJumpTo(wizard, "review", context);
     } else {
       nextButton.textContent = "Next";
       nextButton.disabled = !canAdvance(wizard, context);
@@ -847,6 +872,9 @@ export function createCharacterCreateScreen(
   function onKeyDown(event: KeyboardEvent): void {
     if (event.key === "Escape") {
       if (exitConfirm) closeExitConfirm();
+      // Review is a summary, not an edit surface: Escape steps back to
+      // the appearance step instead of threatening to abandon the draft.
+      else if (wizard.step === "review") navigate(goBack(wizard));
       else requestExit();
       return;
     }
@@ -955,6 +983,7 @@ export function createCharacterCreateScreen(
       nextButton.className = "nf-button nf-button-primary";
       nextButton.addEventListener("click", () => {
         if (wizard.step === "review") confirmCreate();
+        else if (returnToReview) navigate(jumpTo(wizard, "review", context));
         else navigate(advance(wizard, context));
       });
       nav.append(backButton, navHint, nextButton);

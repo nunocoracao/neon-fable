@@ -754,6 +754,40 @@ body::after {
   font-size: 0.9rem;
 }
 
+/* Review character sheet: showcase figure left, worded summary right. */
+.nf-review-columns {
+  grid-template-columns: minmax(18rem, 2fr) 3fr;
+  align-items: start;
+}
+
+.nf-review-figure .nf-preview-stage {
+  min-height: 24rem;
+}
+
+.nf-review-sheet .nf-review-section:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.nf-review-gear {
+  margin: 0.2rem 0 0.3rem;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+}
+
+.nf-review-gear li {
+  margin: 0.15rem 0;
+}
+
+.nf-review-appearance {
+  columns: 2;
+  column-gap: 1.5rem;
+}
+
+.nf-review-legacy {
+  color: var(--nf-glow-amber);
+}
+
 /* --- Inventory --- */
 
 .nf-inventory {

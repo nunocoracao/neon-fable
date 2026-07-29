@@ -316,6 +316,18 @@ describe("character creation wizard", () => {
     click("Next");
     expect(textOf(".nf-wizard-body")).toMatch(/Vex/);
     expect(textOf(".nf-wizard-body")).toMatch(/Max HP: 39/);
+    // The character sheet: full-size showcase render, gear names, and
+    // the look in words from catalog labels.
+    expect(document.querySelector(".nf-preview-showcase")).toBeTruthy();
+    expect(
+      document.querySelector(".nf-preview-showcase canvas.nf-portrait"),
+    ).toBeTruthy();
+    expect(textOf(".nf-review-gear")).toMatch(/Shard Knife/);
+    expect(textOf(".nf-review-gear")).toMatch(/Courier Slicker/);
+    const preset = backgroundPresets("gutter-courier")[0]!;
+    expect(textOf(".nf-review-appearance")).toContain(
+      getAppearanceOption("hairStyle", preset.appearance.hairStyle)!.label,
+    );
     // The stats section's edit link jumps back to the stats step.
     document
       .querySelectorAll<HTMLButtonElement>(".nf-review-edit")[2]
@@ -324,6 +336,34 @@ describe("character creation wizard", () => {
     // Number-row hotkey jumps straight back to review.
     pressKey("5");
     expect(buttonByText("Jack In")).toBeTruthy();
+  });
+
+  it("review edit links return to review via Done; Escape steps back", () => {
+    click("New Game");
+    setName("Vex");
+    click("Next");
+    click("Next");
+    bumpStat(0, 5);
+    bumpStat(2, 5);
+    bumpStat(4, 5);
+    click("Next");
+    click("Next"); // review
+    // Edit identity -> the identity step with a Done button back.
+    document
+      .querySelectorAll<HTMLButtonElement>(".nf-review-edit")[0]
+      ?.click();
+    expect(document.getElementById("nf-name-input")).toBeTruthy();
+    setName("Nyx");
+    click("Done");
+    expect(buttonByText("Jack In")).toBeTruthy();
+    expect(textOf(".nf-wizard-body")).toMatch(/Nyx/);
+    // Escape on review returns to the appearance step, not the exit
+    // confirm — the draft survives untouched.
+    pressKey("Escape");
+    expect(buttonByText("Surprise Me")).toBeTruthy();
+    expect(document.querySelector(".nf-wizard-confirm")).toBeNull();
+    // Plain navigation forward shows Next again, not Done.
+    expect(buttonByText("Next")).toBeTruthy();
   });
 
   it("seeds the appearance step from the chosen background's first preset", () => {

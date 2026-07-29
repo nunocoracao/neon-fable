@@ -4,10 +4,13 @@ import {
   DEFAULT_PREVIEW_STATE,
   PREVIEW_FACINGS,
   PREVIEW_ZOOM_LEVELS,
+  SHOWCASE_FACING_MS,
   clampPreviewZoom,
   facingLabel,
+  maxPreviewZoom,
   previewZoomLabel,
   rotateFacing,
+  showcaseFacing,
   stepPreviewZoom,
   toggleMotion,
 } from "./previewState";
@@ -42,6 +45,25 @@ describe("preview facings", () => {
   it("labels every facing distinctly", () => {
     const labels = PREVIEW_FACINGS.map(facingLabel);
     expect(new Set(labels).size).toBe(PREVIEW_FACINGS.length);
+  });
+});
+
+describe("showcase spin", () => {
+  it("holds each facing for the interval, cycling clockwise", () => {
+    expect(showcaseFacing(0)).toBe("s");
+    expect(showcaseFacing(SHOWCASE_FACING_MS - 1)).toBe("s");
+    expect(showcaseFacing(SHOWCASE_FACING_MS)).toBe("w");
+    expect(showcaseFacing(SHOWCASE_FACING_MS * 2)).toBe("n");
+    expect(showcaseFacing(SHOWCASE_FACING_MS * 3)).toBe("e");
+    expect(showcaseFacing(SHOWCASE_FACING_MS * 4)).toBe("s");
+  });
+
+  it("a frozen clock (reduced motion) holds the front facing", () => {
+    expect(showcaseFacing(0)).toBe(DEFAULT_PREVIEW_STATE.facing);
+  });
+
+  it("full size is the top of the crisp zoom ladder", () => {
+    expect(maxPreviewZoom()).toBe(PREVIEW_ZOOM_LEVELS.at(-1));
   });
 });
 
