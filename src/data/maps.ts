@@ -1,18 +1,26 @@
 /**
- * Isometric map content: six explorable maps (the Cinder Row hub, the
- * Greywater Steps settlement, the Exchange ventworks, the Auric Spire
- * concourse, the Vertical Market, and the Flooded Quays) and the combat
- * arenas the encounters fight on. Maps are authored as character rows
- * expanded through buildMapGrid; interactables reference story node and
- * encounter ids by string only — the iso layer never resolves them.
+ * Isometric map content: seven explorable maps (the Cinder Row hub, the
+ * Greywater Steps settlement, the Exchange ventworks, the Auric Spire's
+ * concourse and executive floor, the Vertical Market, and the Flooded
+ * Quays) and the combat arenas the encounters fight on. Maps are
+ * authored as character rows expanded through buildMapGrid;
+ * interactables reference story node and encounter ids by string only —
+ * the iso layer never resolves them.
  *
  * Every map is dressed from the native hi-res tile and prop
  * vocabulary, and each carries its own material identity: the hub is
  * neon and lived-in, Greywater is damp and salvaged, the Ventworks is
- * swept industrial-corporate, the Spire concourse is sterile, the
- * Vertical Market is crowded scaffold and lamplight, and the Flooded
- * Quays are plate walkways over black water. Arenas stay deliberately
- * quiet — see the arena section's note.
+ * swept industrial-corporate, the Vertical Market is crowded scaffold
+ * and lamplight, the Flooded Quays are plate walkways over black water,
+ * and the Spire's two interior floors are polished stone behind a glass
+ * curtain wall. Arenas stay deliberately quiet — see the arena
+ * section's note.
+ *
+ * Interiors differ from districts in two data-visible ways: they are
+ * drawn without the tenement wall prop (the far faces are glazing, the
+ * near two edges are left open) and they declare their own weather and
+ * hour, because a sealed floor's light does not care what the sky is
+ * doing.
  */
 import { buildMapGrid, type IsoMap, type LegendEntry } from "../iso/tilemap";
 import {
@@ -22,6 +30,7 @@ import {
   LIN_VISUAL,
   MARROW_VISUAL,
   QUILL_VISUAL,
+  SPIRE_SECURITY_VISUAL,
   VESPER_VISUAL,
 } from "./cast";
 
@@ -550,46 +559,59 @@ const exchangeVentworks: IsoMap = {
 
 /**
  * Auric Spire — Crown Concourse. The Combine's headquarters tower on the
- * night of the Succession: registry gate at the north face, the crown
- * lift doors behind it, the muster crowd and ledger terminals in the
- * atrium. Dressed to read sterile — the opposite of every other map in
- * the game. Corporate carpet baseboard-trimmed along all four walls, a
- * scrubbed clinic-tile apron under the crown lift and the auditor's
- * booth, a glow channel running the atrium's full length as the light
- * spine, stanchion lines marshalling the registry queue, light columns
- * instead of street lamps, and one corp holo ad. Nothing is broken,
- * nothing is discarded, nothing leaks. Act 3's converging spine plays
- * out here; reached via travel effects from the finale's openings.
+ * night of the Succession, and the first true interior in the game: the
+ * atrium at its foot, with the registry gate on the light spine, the
+ * riser doors set into the north wall, and the muster crowd pressing in
+ * off the plaza. Dressed to read sterile — the opposite of every other
+ * map in the game. Polished stone flags with a brass inlay run, a glass
+ * curtain wall closing the north and west faces (the near two edges are
+ * left open, the way an interior is drawn, so nothing hides behind a
+ * wall sprite), service columns where a district would stand a lamp,
+ * planters nobody is allowed to touch, and a glazed screen marshalling
+ * the registry queue. Nothing is broken, nothing is discarded, nothing
+ * leaks.
+ *
+ * The map id predates the interior set and is deliberately kept: saves
+ * written before this floor was re-dressed name it, and a save that
+ * names a map that no longer exists is a save that loads into the hub.
+ *
+ * Act 3's converging spine plays out here; reached via travel effects
+ * from the finale's openings, and connected upward to the executive
+ * floor by the riser beside the crown lift.
  */
 const spireLegend: Record<string, LegendEntry> = {
-  "#": { tile: "foundation", prop: { propId: "building", blocks: true } },
-  ".": { tile: "office-floor" },
-  n: { tile: "office-floor-n" },
-  e: { tile: "office-floor-e" },
-  s: { tile: "office-floor-s" },
-  w: { tile: "office-floor-w" },
-  // Polished security apron at the lift doors and the auditor's booth.
-  C: { tile: "clinic-floor" },
-  N: { tile: "clinic-floor-n" },
+  // Structural core: the near edges of the room, left as dark fill so a
+  // wall sprite never stands between the camera and the floor.
+  "#": { tile: "foundation" },
+  // The curtain wall: the tower's glass skin, closing the far faces —
+  // panes along the north face, and the same pane turned onto the other
+  // axis down the west one.
+  G: { tile: "foundation", prop: { propId: "glass-partition-x", blocks: true } },
+  H: { tile: "foundation", prop: { propId: "glass-partition-y", blocks: true } },
+  ".": { tile: "atrium-floor" },
+  n: { tile: "atrium-floor-n" },
+  e: { tile: "atrium-floor-e" },
+  s: { tile: "atrium-floor-s" },
+  w: { tile: "atrium-floor-w" },
   "=": { tile: "plaza-glow" },
-  // Atrium light columns and the registry queue's stanchion lines.
-  l: { tile: "office-floor", prop: { propId: "streetlight", blocks: true } },
-  b: { tile: "office-floor", prop: { propId: "barrier", blocks: true } },
-  h: { tile: "office-floor", prop: { propId: "holo-sign", blocks: true } },
+  R: { tile: "atrium-floor", prop: { propId: "reception-desk", blocks: true } },
+  S: { tile: "atrium-floor", prop: { propId: "server-column", blocks: true } },
+  P: { tile: "atrium-floor", prop: { propId: "planter-column", blocks: true } },
+  g: { tile: "atrium-floor", prop: { propId: "glass-partition-x", blocks: true } },
 };
 
 const spireRows = [
-  "##############",
-  "#nNNNNnnnnnnn#",
-  "#wCCCC.=....e#",
-  "#w.CC.b=b...e#",
-  "#w.l...=..h.e#",
-  "#w.....=....e#",
-  "#w..b..=..b.e#",
-  "#w.....=....e#",
-  "#wCC...=..l.e#",
-  "#w.....=....e#",
-  "#wsssssssssss#",
+  "GGGGGGGGGGGGGG",
+  "Hnnnnnnnnnnnn#",
+  "HwP..R.=...Pe#",
+  "Hw.....=....e#",
+  "Hw.ggg.=....e#",
+  "HwS....=....e#",
+  "Hw.....=....e#",
+  "HwS....=....e#",
+  "Hw..........e#",
+  "Hw.........Pe#",
+  "Hssssssssssss#",
   "##############",
 ];
 
@@ -614,6 +636,18 @@ const auricSpire: IsoMap = {
       minimap: true,
     },
     {
+      id: "exec-lift",
+      // The second riser in the north wall — the one with no call
+      // button on the concourse side, because it does not answer to
+      // the concourse.
+      x: 9,
+      y: 1,
+      label: "Executive Riser",
+      spriteId: "door",
+      interaction: { kind: "dialogue", nodeId: "a3-exec-lift" },
+      exit: { mapId: "auric-executive" },
+    },
+    {
       id: "registry-gate",
       x: 7,
       y: 3,
@@ -622,6 +656,17 @@ const auricSpire: IsoMap = {
       interaction: { kind: "dialogue", nodeId: "a3-gate" },
       // A door the story sends you through: worth a minimap pip.
       minimap: true,
+    },
+    {
+      id: "spire-security",
+      // Standing off the gate's queue, where the tower can see you and
+      // you can see it deciding.
+      x: 8,
+      y: 4,
+      label: "Spire Security",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "a3-security" },
+      visual: SPIRE_SECURITY_VISUAL,
     },
     {
       id: "ledger-terminal",
@@ -666,9 +711,124 @@ const auricSpire: IsoMap = {
     count: 5,
     zones: [{ id: "atrium", x: 1, y: 4, width: 9, height: 4 }],
   },
-  // The climb happens in the small hours, against a deadline at dawn.
-  // The concourse runs cold and dark and its own signage is the only
-  // thing burning — the hour the whole act has been walking toward.
+  // Interiors declare their own sky and their own hour. The concourse
+  // is sealed behind the curtain wall, so no weather reaches it, and it
+  // runs at the cold small-hours light the whole act walks toward
+  // whatever the story has staged on the street outside.
+  weather: "clear",
+  dayPhase: "late",
+};
+
+/**
+ * Auric Spire — Executive Floor. The second of the tower's two
+ * interiors and the other end of the riser: the directors' own level,
+ * ninety floors up, where the Succession was voted through by people
+ * who then went home. Black stone polished until the light on it is the
+ * only texture, glazed cells partitioning the plan into offices nobody
+ * is sitting in tonight, timber desks with their ledger panes still
+ * lit, a service column keeping the floor's registers alive, and one
+ * planter kept alive by contract.
+ *
+ * The floor is optional, and deliberately so: the finale's spine runs
+ * through the concourse and the crown, and this is what a player who
+ * pushes on a door finds — the tower's own paperwork, a checkpoint that
+ * can be talked past or fought through, and a safe.
+ *
+ * Interiors declare their own hour. Ninety floors of curtain wall face
+ * the same dark the concourse does, and the building's light does not
+ * care what the sky is doing, so both floors play at the same late hour
+ * whatever the story has staged outside.
+ */
+const executiveLegend: Record<string, LegendEntry> = {
+  "#": { tile: "foundation" },
+  G: { tile: "foundation", prop: { propId: "glass-partition-x", blocks: true } },
+  H: { tile: "foundation", prop: { propId: "glass-partition-y", blocks: true } },
+  ".": { tile: "exec-floor" },
+  n: { tile: "exec-floor-n" },
+  s: { tile: "exec-floor-s" },
+  w: { tile: "exec-floor-w" },
+  D: { tile: "exec-floor", prop: { propId: "exec-desk", blocks: true } },
+  S: { tile: "exec-floor", prop: { propId: "server-column", blocks: true } },
+  P: { tile: "exec-floor", prop: { propId: "planter-column", blocks: true } },
+  g: { tile: "exec-floor", prop: { propId: "glass-partition-x", blocks: true } },
+};
+
+const executiveRows = [
+  "GGGGGGGGGGGGG",
+  "Hnnnnnnnnnnn#",
+  "Hw.D.ggg.D..#",
+  "Hw..........#",
+  "HwS.......P.#",
+  "Hw..........#",
+  "Hwgg....gg..#",
+  "Hw..........#",
+  "Hw..........#",
+  "#sssssssssss#",
+  "#############",
+];
+
+const executiveGrid = buildMapGrid(executiveLegend, executiveRows);
+
+const auricExecutive: IsoMap = {
+  id: "auric-executive",
+  name: "Auric Spire — Executive Floor",
+  width: executiveGrid.width,
+  height: executiveGrid.height,
+  tiles: executiveGrid.tiles,
+  props: executiveGrid.props,
+  interactables: [
+    {
+      id: "director-desk",
+      // The corner station, its ledger pane still open on the night's
+      // business.
+      x: 9,
+      y: 3,
+      label: "Director's station",
+      spriteId: "terminal",
+      interaction: { kind: "dialogue", nodeId: "a3-exec-desk" },
+    },
+    {
+      id: "exec-security",
+      // Posted between the riser and the offices, which is the whole
+      // job.
+      x: 4,
+      y: 7,
+      label: "Floor Security",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "a3-exec-checkpoint" },
+      visual: SPIRE_SECURITY_VISUAL,
+    },
+    {
+      id: "exec-safe",
+      x: 2,
+      y: 8,
+      label: "Executive lockbox",
+      spriteId: "stash",
+      interaction: { kind: "dialogue", nodeId: "a3-exec-cache" },
+    },
+    {
+      id: "exec-lift-down",
+      // The riser doors, on the lobby the lift opens onto.
+      x: 6,
+      y: 8,
+      label: "Executive Riser",
+      spriteId: "door",
+      interaction: { kind: "dialogue", nodeId: "a3-exec-descend" },
+      exit: { mapId: "auric-spire" },
+    },
+  ],
+  // The riser puts you down on the lift lobby's own apron, facing in.
+  spawns: [{ id: "player-start", x: 6, y: 9 }],
+  // Two people still on the floor at this hour: the analysts nobody
+  // sent home. Fewer than anywhere else in the game bar the quays.
+  ambient: {
+    count: 2,
+    zones: [{ id: "floor", x: 1, y: 6, width: 10, height: 3 }],
+  },
+  // Interiors declare their own sky and their own hour: no weather
+  // reaches ninety floors up behind sealed glass, and the building
+  // keeps the same cold light whatever the story stages outside.
+  weather: "clear",
   dayPhase: "late",
 };
 
@@ -1231,6 +1391,46 @@ const spireCrownArena: IsoMap = {
 };
 
 /**
+ * Executive Floor — the directors' own plan cleared for a fight
+ * (enc-exec-security, 9x7). The tower's arena: black stone the width of
+ * the room, trimmed to the wall on all four sides because a sealed
+ * floor is exactly what it is, with the two light channels the offices
+ * are lit by running across it. The quietest arena in the game, which
+ * is the point — up here nothing is improvised, including the violence.
+ */
+const execArenaLegend: Record<string, LegendEntry> = {
+  ".": { tile: "exec-floor" },
+  n: { tile: "exec-floor-n" },
+  e: { tile: "exec-floor-e" },
+  s: { tile: "exec-floor-s" },
+  w: { tile: "exec-floor-w" },
+  "=": { tile: "plaza-glow" },
+};
+
+const execArenaRows = [
+  "nnnnnnnnn",
+  "w..===..e",
+  "w.......e",
+  "w.......e",
+  "w.......e",
+  "w..===..e",
+  "wssssssss",
+];
+
+const execArenaGrid = buildMapGrid(execArenaLegend, execArenaRows);
+
+const execFloorArena: IsoMap = {
+  id: "exec-floor-arena",
+  name: "The Executive Floor",
+  width: execArenaGrid.width,
+  height: execArenaGrid.height,
+  tiles: execArenaGrid.tiles,
+  props: execArenaGrid.props,
+  interactables: [],
+  spawns: [{ id: "player-start", x: 1, y: 3 }],
+};
+
+/**
  * Scaffold Row — a cleared stretch of the Vertical Market's walkways
  * (enc-market-scaffold, 9x7). The market's own arena: scaffold decking
  * runs the outer ring where the stalls and boards crowd in, a band of
@@ -1311,6 +1511,7 @@ export const maps: readonly IsoMap[] = [
   greywaterSteps,
   exchangeVentworks,
   auricSpire,
+  auricExecutive,
   verticalMarket,
   floodedQuays,
   rustyardArena,
@@ -1320,6 +1521,7 @@ export const maps: readonly IsoMap[] = [
   relayCrownArena,
   cyclerFloorArena,
   spireCrownArena,
+  execFloorArena,
   marketScaffoldArena,
   quaysWalkwayArena,
 ];

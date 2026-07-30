@@ -37,6 +37,7 @@ import {
   requireSpawn,
   tileAt,
   tileMaterial,
+  type Interactable,
   type IsoMap,
   type PropId,
   type TileId,
@@ -50,6 +51,7 @@ import {
 } from "../iso/weather";
 import { encounters, getEncounter } from "./encounters";
 import { getItem } from "./items";
+import { SPIRE_SECURITY_VISUAL } from "./cast";
 import { HUB_MAP_ID, getMap, maps, requireMap } from "./maps";
 import { findArcByNode } from "./story";
 
@@ -69,6 +71,7 @@ describe("map registry", () => {
       "greywater-steps",
       "exchange-ventworks",
       "auric-spire",
+      "auric-executive",
       "vertical-market",
       "flooded-quays",
       "rustyard-arena",
@@ -78,6 +81,7 @@ describe("map registry", () => {
       "relay-crown-arena",
       "cycler-floor-arena",
       "spire-crown-arena",
+      "exec-floor-arena",
       "market-scaffold-arena",
       "quays-walkway-arena",
     ]);
@@ -203,6 +207,7 @@ describe("map lint covers every registered map", () => {
       "greywater-steps",
       "exchange-ventworks",
       "auric-spire",
+      "auric-executive",
       "vertical-market",
       "flooded-quays",
     ]);
@@ -545,6 +550,121 @@ describe("the Flooded Quays", () => {
 });
 
 /**
+ * The Auric Spire's two interior floors. The generic lint above proves
+ * both are walkable and wired; what is pinned here is what makes them
+ * interiors rather than another street — their own furniture, their own
+ * hour and sky whatever the story stages outside, no tenement wall
+ * sprites standing in a room, and a riser joining them both ways.
+ */
+describe("the corp tower interiors", () => {
+  const lobby = requireMap("auric-spire");
+  const executive = requireMap("auric-executive");
+  const floors = [lobby, executive];
+  const CORP_PROPS: readonly PropId[] = [
+    "glass-partition-x",
+    "glass-partition-y",
+    "reception-desk",
+    "server-column",
+    "planter-column",
+    "exec-desk",
+  ];
+
+  it("furnishes both floors from a vocabulary the street never sees", () => {
+    const here = floors.flatMap((map) => map.props.map((prop) => prop.propId));
+    for (const id of CORP_PROPS) {
+      expect(here.filter((prop) => prop === id).length, id).toBeGreaterThan(0);
+    }
+    const elsewhere = maps
+      .filter((map) => !floors.includes(map))
+      .flatMap((map) => map.props.map((prop) => prop.propId));
+    for (const id of CORP_PROPS) {
+      expect(elsewhere, `${id} leaked out of the tower`).not.toContain(id);
+    }
+  });
+
+  it("lays each floor in its own polished stone", () => {
+    const materials = (map: IsoMap): Set<string> =>
+      new Set(map.tiles.flat().map(tileMaterial));
+    expect(materials(lobby).has("atrium-floor")).toBe(true);
+    expect(materials(executive).has("exec-floor")).toBe(true);
+    // Neither floor borrows the other's, and no street surface is laid
+    // indoors: the only outdoor id either uses is the glow channel.
+    expect(materials(lobby).has("exec-floor")).toBe(false);
+    expect(materials(executive).has("atrium-floor")).toBe(false);
+    for (const map of floors) {
+      for (const material of materials(map)) {
+        expect(
+          ["atrium-floor", "exec-floor", "plaza-glow", "foundation"],
+          `${map.id} lays ${material} indoors`,
+        ).toContain(material);
+      }
+    }
+  });
+
+  it("stands no tenement wall inside a room", () => {
+    // Interiors are drawn the way interiors are drawn: the far faces
+    // are curtain wall, the near two edges are left open so nothing
+    // hides behind a 92-pixel building sprite.
+    for (const map of floors) {
+      const kinds = map.props.map((prop) => prop.propId);
+      expect(kinds, `${map.id} stands a building indoors`).not.toContain(
+        "building",
+      );
+      const glazing = map.props.filter((p) =>
+        p.propId.startsWith("glass-partition"),
+      );
+      expect(glazing.length, `${map.id} glazing`).toBeGreaterThan(4);
+      for (const pane of glazing) {
+        expect(pane.blocks, `${map.id} glazing at ${pane.x},${pane.y}`).toBe(
+          true,
+        );
+      }
+    }
+  });
+
+  it("declares its own hour and its own sky, indoors", () => {
+    for (const map of floors) {
+      expect(map.dayPhase, `${map.id} hour`).toBe("late");
+      expect(map.weather, `${map.id} sky`).toBe("clear");
+    }
+  });
+
+  it("joins the two floors by one riser, both ways", () => {
+    const riser = (map: IsoMap, id: string): Interactable => {
+      const found = map.interactables.find((i) => i.id === id);
+      if (!found) throw new Error(`${map.id} has no ${id}`);
+      return found;
+    };
+    const up = riser(lobby, "exec-lift");
+    const down = riser(executive, "exec-lift-down");
+    expect(up.exit?.mapId).toBe(executive.id);
+    expect(down.exit?.mapId).toBe(lobby.id);
+    // Both are doors, so both play the door-then-fade transition.
+    expect(up.spriteId).toBe("door");
+    expect(down.spriteId).toBe("door");
+  });
+
+  it("posts the tower's own security on both floors, in the house look", () => {
+    const guards = floors.flatMap((map) =>
+      map.interactables.filter((i) => i.visual === SPIRE_SECURITY_VISUAL),
+    );
+    expect(guards.map((g) => g.id)).toEqual(["spire-security", "exec-security"]);
+    // The house look wears the hostile optic every enemy archetype
+    // wears: these are people a player can end up fighting.
+    expect(["crimson", "magenta"]).toContain(
+      SPIRE_SECURITY_VISUAL.appearance.eyeColor,
+    );
+  });
+
+  it("keeps a fight staged on the floor the story can start one on", () => {
+    const fight = encounters.find((e) => e.id === "enc-exec-security");
+    expect(fight?.arenaMapId).toBe("exec-floor-arena");
+    const arena = requireMap("exec-floor-arena");
+    expect(arena.tiles.flat().map(tileMaterial)).toContain("exec-floor");
+  });
+});
+
+/**
  * Exit lint. An exit is the one piece of map data that points at
  * another map, so it is the one that can rot silently: a destination
  * that was renamed, an entry spawn that was moved. Both would show up
@@ -563,7 +683,10 @@ describe("map exits", () => {
       "cinder-plaza/market-gate",
       "greywater-steps/chainwell-stair",
       "exchange-ventworks/tram-gate",
+      // The tower's two interior floors, joined by the executive riser.
+      "auric-spire/exec-lift",
       "auric-spire/spire-tram",
+      "auric-executive/exec-lift-down",
       "vertical-market/market-stair",
       "flooded-quays/quays-lock",
     ]);
@@ -706,6 +829,7 @@ describe("NPC visuals", () => {
       "auditor-booth",
       "chrome-chapel",
       "crown-watcher",
+      "exec-security",
       "flick",
       "flick-steps",
       "market-fixer",
@@ -713,6 +837,7 @@ describe("NPC visuals", () => {
       "matron-ferrow",
       "quays-diver",
       "rust-runner",
+      "spire-security",
       "stall-broker",
       "tram-messenger",
     ]);
@@ -804,6 +929,9 @@ describe("ambient crowds", () => {
       ["greywater-steps", 4],
       ["exchange-ventworks", 3],
       ["auric-spire", 5],
+      // Ninety floors up at three in the morning: two analysts nobody
+      // sent home, and nobody else.
+      ["auric-executive", 2],
       // The bazaar is the busiest map in the game, by design.
       ["vertical-market", MAX_AMBIENT_PER_MAP],
       // The quays are the emptiest: nobody lives out on the water.
@@ -828,7 +956,10 @@ describe("weather", () => {
       // quay lips, standing puddles. It is where rain is shown off.
       ["greywater-steps", "rain"],
       ["exchange-ventworks", "clear"],
+      // Both of the tower's floors are sealed behind curtain wall: an
+      // interior declares its own sky, and its sky is no sky.
       ["auric-spire", "clear"],
+      ["auric-executive", "clear"],
       // The market is roofed by the levels stacked above it.
       ["vertical-market", "clear"],
       // The quays are open canal under an open shaft: the map where
@@ -899,6 +1030,9 @@ describe("day phase", () => {
       ["exchange-ventworks", "night"],
       // ...and the climb happens against a deadline at dawn.
       ["auric-spire", "late"],
+      // ...and the tower's interiors keep that hour of their own accord,
+      // whatever the story stages on the street outside.
+      ["auric-executive", "late"],
       // The bazaar only trades after dark.
       ["vertical-market", "night"],
       // ...and the quays are only ever visited in the small hours.
