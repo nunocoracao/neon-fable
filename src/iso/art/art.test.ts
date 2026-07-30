@@ -483,6 +483,109 @@ describe("market furniture (native hi-res)", () => {
   });
 });
 
+/**
+ * Corp tower dressing. The Auric Spire's furniture is held to the same
+ * envelope as the street's, and to two rules of its own: it is lit in
+ * the tower's palette (chrome, glass, hologram blue) rather than the
+ * street's neon, and the pieces that carry light carry it steadily —
+ * nothing in this building flickers.
+ */
+const CORP_FURNITURE = [
+  "glass-partition-x",
+  "glass-partition-y",
+  "reception-desk",
+  "server-column",
+  "planter-column",
+  "exec-desk",
+] as const;
+
+describe("corp tower furniture (native hi-res)", () => {
+  it("fits the v2 prop envelope and anchors inside the tile's lower half", () => {
+    for (const id of CORP_FURNITURE) {
+      const art = PROP_ART[id];
+      const grid = art.frames[0] ?? [];
+      expect(grid[0]?.length, `${id} width`).toBeLessThanOrEqual(64);
+      expect(grid.length, `${id} height`).toBeLessThanOrEqual(96);
+      expect(art.anchorX, `${id} anchorX`).toBeLessThan(grid[0]?.length ?? 0);
+      expect(art.anchorY, `${id} anchorY`).toBeLessThan(grid.length);
+      expect(
+        grid.length - 1 - art.anchorY,
+        `${id} rows below anchor`,
+      ).toBeLessThanOrEqual(16);
+    }
+  });
+
+  it("grounds every piece with a soft z shadow", () => {
+    for (const id of CORP_FURNITURE) {
+      expect(PROP_ART[id].frames[0]?.join("").includes("z"), id).toBe(true);
+    }
+  });
+
+  it("lights the tower in its own colors, and never flickers", () => {
+    for (const id of CORP_FURNITURE) {
+      expect(PROP_ART[id].flicker, `${id} flickers`).toBe(false);
+    }
+    // What glows here glows in hologram blue (signage, ledger panes) or
+    // status cyan (the service column) — never the street's magenta or
+    // amber, which is what makes the interiors read as another world.
+    for (const id of ["reception-desk", "server-column", "exec-desk"] as const) {
+      const glow = PROP_ART[id].glow ?? [];
+      expect(glow.length, `${id} glow`).toBeGreaterThan(0);
+      for (const source of glow) {
+        expect(["t", "g"], `${id} glow color`).toContain(source.color);
+      }
+    }
+    // The glazing and the planter are lit by the room, not by themselves.
+    expect(PROP_ART["glass-partition-x"].glow).toBeUndefined();
+    expect(PROP_ART["glass-partition-y"].glow).toBeUndefined();
+    expect(PROP_ART["planter-column"].glow).toBeUndefined();
+  });
+
+  it("glazes with a slanted pane that follows the iso grid", () => {
+    // The partition is a wall segment, so its head has to lie along an
+    // iso axis: one row of drop for every two columns across, which is
+    // the tile diamond's own slope.
+    const grid = PROP_ART["glass-partition-x"].frames[0] ?? [];
+    const topAt = (column: number): number =>
+      grid.findIndex((row) => (row[column] ?? ".") !== ".");
+    expect(topAt(4)).toBe(2);
+    expect(topAt(32)).toBe(16);
+    expect(topAt(60)).toBe(30);
+    // The y pane is that pane turned onto the other axis: mirrored art,
+    // and an anchor mirrored with it, so a run stands on its own tiles.
+    const turned = PROP_ART["glass-partition-y"];
+    expect(turned.frames[0]).toEqual(
+      (PROP_ART["glass-partition-x"].frames[0] ?? []).map((row) =>
+        [...row].reverse().join(""),
+      ),
+    );
+    expect(turned.anchorX).toBe(
+      (grid[0]?.length ?? 0) - 1 - PROP_ART["glass-partition-x"].anchorX,
+    );
+    // And it is glass: the pane is woven from the glass ramp.
+    const body = grid.join("");
+    expect(body.includes("U")).toBe(true);
+    expect(body.includes("f")).toBe(true);
+  });
+
+  it("keeps the working pieces looping and the still ones still", () => {
+    for (const id of ["reception-desk", "server-column", "exec-desk"] as const) {
+      const art = PROP_ART[id];
+      expect(art.frameMs, id).toBeGreaterThan(0);
+      const unique = new Set(art.frames.map((grid) => grid.join("\n")));
+      expect(unique.size, `${id} distinct frames`).toBe(art.frames.length);
+    }
+    for (const id of [
+      "glass-partition-x",
+      "glass-partition-y",
+      "planter-column",
+    ] as const) {
+      expect(PROP_ART[id].frameMs, id).toBe(0);
+      expect(PROP_ART[id].frames, id).toHaveLength(1);
+    }
+  });
+});
+
 describe("isoBox", () => {
   const INK = { top: "b", rim: "c", left: "4", right: "3", ink: "1" };
 

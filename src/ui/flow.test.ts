@@ -1162,6 +1162,92 @@ describe("the Flooded Quays round trip", () => {
   });
 });
 
+/**
+ * The Auric Spire's two floors, driven through the real screens: the
+ * executive riser up off the concourse and back down again. Same shape
+ * as the districts' round trips, and worth its own pass because this is
+ * the first transition in the game that stays *inside* one building —
+ * the map behind the fade is another interior, and the late-act scenes
+ * on it have to come up with it.
+ */
+describe("the corp tower round trip", () => {
+  function mountOn(location: string, dialogueNodeId?: string): void {
+    const state: GameState = { ...testCharacterState(1), location };
+    showScreen(
+      createGameScreen({ session: createSession(state), dialogueNodeId }),
+    );
+  }
+
+  /** Runs one scene frame so the interact prompt has picked its target. */
+  function firstFrame(location: string): void {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return 1;
+    });
+    mountOn(location);
+    frames[0]?.(0);
+  }
+
+  it("rides the executive riser up off the concourse", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    mountOn("auric-spire", "a3-exec-lift");
+    expect(textOf(".nf-hud-status")).toMatch(/Crown Concourse/);
+
+    click("Put a hand on the plate");
+    vi.advanceTimersByTime(transitionSwapMs(TRANSITION_TIMING));
+    expect(textOf(".nf-transition-card")).toMatch(/Executive Floor/);
+    expect(textOf(".nf-hud-status")).toMatch(/Executive Floor/);
+
+    vi.advanceTimersByTime(transitionDurationMs(TRANSITION_TIMING));
+    expect(document.querySelector(".nf-transition")).toBeNull();
+    // Travel carried the arrival beat up with it, and the whole floor is
+    // offered by name from it.
+    expect(textOf(".nf-dialogue")).toMatch(/left rather than closed/);
+    expect(buttonByText("Read the corner station")).toBeDefined();
+    expect(buttonByText("Deal with the floor detail")).toBeDefined();
+  });
+
+  it("works the directors' floor and takes the riser back down", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    mountOn("auric-executive", "a3-exec-floor");
+    expect(textOf(".nf-hud-status")).toMatch(/Executive Floor/);
+
+    // The desk pays out without clearing the detail; its own paperwork
+    // does not (that gate is pinned in act3.test).
+    click("Read the corner station");
+    expect(textOf(".nf-dialogue")).toMatch(/nobody logged\s+out/);
+    click("Pocket what the drawer");
+    expect(textOf(".nf-dialogue")).toMatch(/left rather than closed/);
+
+    click("Take the riser back down");
+    click("Ride back down to the concourse");
+    vi.advanceTimersByTime(transitionSwapMs(TRANSITION_TIMING));
+    expect(textOf(".nf-hud-status")).toMatch(/Crown Concourse/);
+    vi.advanceTimersByTime(transitionDurationMs(TRANSITION_TIMING));
+    expect(document.querySelector(".nf-transition")).toBeNull();
+    // ...and the concourse's own junction beat comes up with the map.
+    expect(textOf(".nf-dialogue")).toMatch(/cliff of dead glass/);
+  });
+
+  it("lands you at the riser doors, and says where they go", () => {
+    firstFrame("auric-executive");
+    const hint = document.querySelector(".nf-interact-prompt");
+    expect(hint?.textContent).toBe(
+      "Enter — open Executive Riser → Auric Spire — Crown Concourse",
+    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(textOf(".nf-dialogue")).toMatch(/holding its car for you/);
+  });
+
+  it("posts the tower's security where you can walk up to them", () => {
+    mountOn("auric-spire", "a3-security");
+    expect(textOf(".nf-dialogue")).toMatch(/two square meters of/);
+    // They are on the cast list, so the line comes with a face.
+    expect(document.querySelector("canvas.nf-portrait")).not.toBeNull();
+  });
+});
+
 describe("save/load", () => {
   function reachHubIdle(): void {
     createTestCharacter();

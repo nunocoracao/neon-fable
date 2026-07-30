@@ -2,8 +2,9 @@
  * Ground tile pixel art, authored as diamond interior rows (see
  * diamond()) — every set is now native v2 64×32. The street and water
  * families are hand-authored grids; the industrial/interior floors
- * (rust plates, foundation, plaza glow, and the bar/clinic/office
- * interior materials) are synthesized deterministically from
+ * (rust plates, foundation, plaza glow, and the bar/clinic/office/
+ * atrium/executive interior materials) are synthesized deterministically
+ * from
  * hash2-seeded paint functions whose seam geometry lives in the shared
  * diagonal-lattice coordinates, so plank runs, tile grout, and plate
  * seams continue across tile boundaries. Walkable tiles get 3+ texture
@@ -834,6 +835,48 @@ function officeCarpetFloor(seed: number): string[] {
   });
 }
 
+/** Polished atrium stone: broad pale slabs on a 64-unit lattice with
+    thin joint grooves, a brass inlay run beside every second joint, and
+    long specular streaks catching the light on the lit half — a lobby
+    floor that has been buffed every night since the tower opened. */
+function atriumStoneFloor(seed: number): string[] {
+  return floorDiamond({ lit: "7", shade: "4", dark: "3" }, (x, r) => {
+    const { a, b } = isoCoords(x, r);
+    if (a % 32 < 1 || b % 32 < 1) return "3";
+    // Brass inlay: a dashed strip laid alongside every second joint.
+    if (a % 64 >= 2 && a % 64 < 4) return b % 8 < 5 ? "Z" : "Y";
+    // The stone's own figure, in patches rather than per-pixel noise.
+    const figure = hash2(Math.floor(a / 8) + seed * 3, Math.floor(b / 8) * 5 + seed) % 9;
+    // A broad sheen lies along the light, brightest down its core: the
+    // polish, and the reason this floor reads as buffed rather than laid.
+    const sheen = (a + 2 * b) % 64;
+    if (sheen < 10) return figure === 0 ? "7" : "6";
+    if (sheen < 22) return figure === 0 ? "6" : "5";
+    return figure === 0 ? "5" : "4";
+  });
+}
+
+/** Executive black stone: near-black slabs four tiles across, polished
+    until the light on them is the whole texture — long soft reflection
+    bands lying along the diagonal, a rare cold glint in their cores, and
+    nothing else. Deliberately the quietest floor in the game: it is the
+    one room where the furniture is supposed to be what you look at. */
+function execStoneFloor(seed: number): string[] {
+  return floorDiamond({ lit: "4", shade: "2", dark: "1" }, (x, r) => {
+    const { a, b } = isoCoords(x, r);
+    // Slabs the size of four tiles, so the joint grid never lines up
+    // with the tile grid the way a lobby's smaller flags do.
+    if (a % 128 < 1 || b % 128 < 1) return "1";
+    const figure = hash2(Math.floor(a / 16) + seed * 5, Math.floor(b / 16) * 3 + seed) % 13;
+    // The reflection band, laid along the light. Its period divides the
+    // 64-unit step between tiles, so it runs on across the seams.
+    const sheen = (a + 2 * b) % 64;
+    if (sheen < 9) return figure === 0 ? "6" : "4";
+    if (sheen < 20) return figure === 0 ? "4" : "3";
+    return figure === 0 ? "3" : "2";
+  });
+}
+
 /* --- Baseboard trims: interior floor tiles whose wall-facing diamond
    edge carries a dark baseboard-shadow row — an ink line under the
    wall base feathering into the material's shade — so floor-to-wall
@@ -1031,6 +1074,14 @@ const INTERIOR_FLOORS: Readonly<Record<InteriorFloorId, InteriorFloorSet>> = {
   "office-floor": {
     variants: INTERIOR_FLOOR_SEEDS.map(officeCarpetFloor),
     trimShade: "V",
+  },
+  "atrium-floor": {
+    variants: INTERIOR_FLOOR_SEEDS.map(atriumStoneFloor),
+    trimShade: "4",
+  },
+  "exec-floor": {
+    variants: INTERIOR_FLOOR_SEEDS.map(execStoneFloor),
+    trimShade: "2",
   },
 };
 

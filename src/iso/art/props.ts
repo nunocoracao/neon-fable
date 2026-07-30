@@ -9,7 +9,7 @@
 import { hash2 } from "../animation";
 import type { PropId } from "../tilemap";
 import type { GlowSource } from "./glow";
-import { remapped, type PixelGrid } from "./pixel";
+import { mirrored, remapped, type PixelGrid } from "./pixel";
 
 export interface PropArt {
   frames: readonly PixelGrid[];
@@ -1511,6 +1511,246 @@ const bargeFrame = (phase: number): string[] => {
   return grid;
 };
 
+/* --- Corp tower dressing. The Auric Spire's two interior floors are
+ * furnished from one vocabulary, and it is the opposite of the street's:
+ * nothing rusts, nothing leans, nothing is improvised. Glazed screens
+ * divide the plans, a reception counter faces whoever comes through the
+ * doors, service columns stand where a district would stand a lamp, and
+ * the directors' floor is dressed in black timber. Light is still
+ * top-left; the accents are chrome, hologram blue, and the brass the
+ * atrium's inlay is laid in.
+ *
+ * All five stand on the boxy painters (isoBox/stamped/blank) rather than
+ * hand-laid rows, so counters, cabinets, and planters keep their facing
+ * shades and footprints in agreement with the market's furniture. --- */
+
+/** The tower's chrome-and-glass frame ink, used by every fixed piece. */
+const SPIRE_CHROME: BoxInk = {
+  top: "7",
+  rim: "9",
+  left: "6",
+  right: "4",
+  ink: "1",
+};
+
+/* --- Glass partition: a floor-to-ceiling glazed screen in a chrome
+ * frame. A pane is a wall segment, so it lies along one of the two iso
+ * axes and its head slopes with that axis; the pane is exactly one tile
+ * step wide (64px), so panes laid along a row butt into one another and
+ * a run of them reads as one unbroken wall. The x variant slopes away
+ * to the right and the y variant is its mirror, which is all the
+ * difference there is between a north curtain wall and a west one.
+ * Privacy frit bands the glass at eye height and one cold glint runs
+ * each pane. 64×80, ground contact at (32, 64). --- */
+
+const PARTITION_W = 64;
+/** Pane height in rows, before the panel's iso slant is added. */
+const PARTITION_PANE_H = 48;
+/** Chrome mullion width at each end of the run. */
+const PARTITION_POST = 3;
+
+const glassPartition: string[] = ((): string[] => {
+  const height = 80;
+  const grid: string[][] = Array.from({ length: height }, () =>
+    Array<string>(PARTITION_W).fill("."),
+  );
+  for (let c = 0; c < PARTITION_W; c++) {
+    const slant = Math.floor(c / 2);
+    const post = c < PARTITION_POST || c >= PARTITION_W - PARTITION_POST;
+    for (let k = 0; k < PARTITION_PANE_H; k++) {
+      const row = grid[slant + k];
+      if (!row) continue;
+      let ch: string;
+      if (post) ch = k === 0 ? "9" : c < PARTITION_POST ? "T" : "6";
+      else if (k < 2) ch = k === 0 ? "9" : "T";
+      else if (k >= PARTITION_PANE_H - 2) ch = "6";
+      // Privacy frit: an etched band at eye height across the pane.
+      else if (k >= 20 && k <= 25) ch = (c + k) % 2 === 0 ? "8" : "7";
+      else ch = (c + k) % 2 === 0 ? "U" : "f";
+      // One cold glint down each pane, on the lit side of its mullion.
+      if (!post && k > 3 && k < PARTITION_PANE_H - 3 && c % 20 === 7) {
+        ch = k % 4 === 0 ? "U" : "h";
+      }
+      row[c] = ch;
+    }
+    const foot = grid[slant + PARTITION_PANE_H];
+    if (foot) foot[c] = "z";
+    const spill = grid[slant + PARTITION_PANE_H + 1];
+    if (spill && c >= PARTITION_POST && c < PARTITION_W - PARTITION_POST) {
+      spill[c] = "z";
+    }
+  }
+  return grid.map((row) => row.join(""));
+})();
+
+/* --- Reception desk: a stone counter faced in polished slab with a
+ * lit service strip along its front and the tower's mark hanging over
+ * it in hologram blue. 56×44, ground contact at (28, 30). --- */
+
+/** The hanging mark: a logo block and two lines of civic type, blocked
+    out two pixels thick so the panel's dither cannot eat the strokes. */
+const RECEPTION_SIGN: readonly string[] = [
+  "------------------------",
+  "--####--##############--",
+  "--####--##############--",
+  "--####------------------",
+  "--####--##########------",
+  "--####--##########------",
+  "------------------------",
+];
+
+const receptionCounter = isoBox(48, 14, {
+  top: "S",
+  rim: "9",
+  left: "R",
+  right: "Q",
+  ink: "1",
+  grain: "7",
+});
+
+/** Service strip along the counter's front face, lit hologram blue. */
+const receptionStrip = (phase: number): string[] =>
+  Array.from({ length: 2 }, (_, k) =>
+    Array.from({ length: 34 }, (_, i) =>
+      (i + phase + k) % 5 === 0 ? "u" : "t",
+    ).join(""),
+  );
+
+const receptionFrame = (phase: number): string[] => {
+  let grid = blank(56, 44);
+  // The ground shadow spreads either side of the counter's near corner,
+  // laid down first so the plinth stands on top of it.
+  grid = stamped(grid, [gap(6) + "z".repeat(44) + gap(6)], 0, 38);
+  grid = stamped(grid, [gap(12) + "z".repeat(32) + gap(12)], 0, 40);
+  grid = stamped(grid, receptionCounter, 4, 4);
+  grid = stamped(grid, receptionStrip(phase), 11, 26);
+  grid = stamped(grid, holoPanel(RECEPTION_SIGN, phase), 16, 0);
+  return grid;
+};
+
+/* --- Service column: a chrome data cabinet running floor to ceiling,
+ * its status ladder blinking cyan down the lit face. The atrium stands
+ * these where a district stands a lamp post. 28×58, ground contact at
+ * (14, 47). --- */
+
+const serverCabinet = isoBox(20, 40, SPIRE_CHROME);
+
+/** Status ladder: a rung of lamps every four rows down the lit face. */
+const serverLamps = (frame: number): string[] =>
+  Array.from({ length: 32 }, (_, k) => {
+    if (k % 4 !== 0) return gap(10);
+    return Array.from({ length: 10 }, (_, i) => {
+      const lit = hash2(k * 7 + i, frame + 1) % 3;
+      if (i > 6) return ".";
+      return lit === 0 ? "g" : lit === 1 ? "i" : "m";
+    }).join("");
+  });
+
+const serverColumn = (frame: number): string[] => {
+  let grid = blank(28, 58);
+  grid = stamped(grid, [gap(3) + "z".repeat(22) + gap(3)], 0, 52);
+  grid = stamped(grid, [gap(8) + "z".repeat(12) + gap(8)], 0, 54);
+  grid = stamped(grid, serverCabinet, 4, 2);
+  grid = stamped(grid, serverLamps(frame), 7, 16);
+  return grid;
+};
+
+/* --- Planter column: a stone tub of salt-plants, the only living thing
+ * in the building and, like everything else here, kept. 28×44, ground
+ * contact at (14, 35). --- */
+
+const planterTub = isoBox(20, 12, {
+  top: "R",
+  rim: "S",
+  left: "R",
+  right: "Q",
+  ink: "1",
+});
+
+const PLANTER_W = 28;
+/** Where the blades root, in art columns: the tub's own center. */
+const PLANTER_STEM = 13;
+
+/**
+ * One salt-plant blade: a stroke that leaves the tub upright and falls
+ * away as it climbs, thick at the root, tipped in cyan. `spread` is how
+ * far the tip leans (negative to the left), `length` its rows.
+ */
+const saltBlade = (spread: number, length: number): string[] =>
+  Array.from({ length }, (_, k) => {
+    // t runs 1 at the tip to 0 at the root; squaring it makes the lean
+    // gather toward the tip so the blade reads as curved, not straight.
+    const t = 1 - k / (length - 1);
+    const x = Math.max(0, PLANTER_STEM + Math.round(spread * t * t));
+    const ch = k === 0 ? "h" : k < 3 ? "i" : k < length - 5 ? "O" : "7";
+    const width = k < 2 ? 1 : 2;
+    return (
+      gap(x) + ch.repeat(width) + gap(Math.max(0, PLANTER_W - x - width))
+    );
+  });
+
+const planterColumn: string[] = ((): string[] => {
+  let grid = blank(PLANTER_W, 44);
+  grid = stamped(grid, [gap(3) + "z".repeat(22) + gap(3)], 0, 40);
+  grid = stamped(grid, [gap(8) + "z".repeat(12) + gap(8)], 0, 42);
+  // Blades first, all rooted at the same row, so the tub's rim closes
+  // over the roots when it is stamped on top of them.
+  for (const [spread, length] of [
+    [-9, 12],
+    [-4, 16],
+    [0, 18],
+    [5, 15],
+    [10, 11],
+  ] as const) {
+    grid = stamped(grid, saltBlade(spread, length), 0, 24 - length);
+  }
+  return stamped(grid, planterTub, 4, 18);
+})();
+
+/* --- Executive desk: a slab of black timber on a chrome frame with a
+ * ledger terminal glowing on it and the director's chair standing
+ * behind. 52×40, ground contact at (26, 27). --- */
+
+const execSlab = isoBox(36, 12, {
+  top: "a",
+  rim: "b",
+  left: "a",
+  right: "1",
+  ink: "1",
+  grain: "b",
+});
+
+/** The chair back, a padded fabric slab behind the desk. */
+const execChair: readonly string[] = [
+  gap(1) + "1".repeat(10) + gap(1),
+  ...rep(6, "1" + "X" + "W".repeat(8) + "V" + "1"),
+  "1" + "X" + "W".repeat(8) + "V" + "1",
+  gap(1) + "1".repeat(10) + gap(1),
+  gap(4) + "16" + "61" + gap(4),
+];
+
+/** The desk terminal: a small pane of ledger, on and idling. */
+const execScreen = (bright: boolean): string[] => [
+  "0" + "6".repeat(12) + "0",
+  ...["-###--##--###-", "-#--#-#---#---", "-###--##--###-", "-#----#-----#-"].map(
+    (row) =>
+      [...row]
+        .map((ch) => (ch === "#" ? (bright ? "u" : "t") : bright ? "t" : "s"))
+        .join(""),
+  ),
+  "0" + "6".repeat(12) + "0",
+];
+
+const execDesk = (bright: boolean): string[] => {
+  let grid = blank(52, 40);
+  grid = stamped(grid, [gap(5) + "z".repeat(42) + gap(5)], 0, 33);
+  grid = stamped(grid, [gap(11) + "z".repeat(30) + gap(11)], 0, 35);
+  grid = stamped(grid, execChair, 32, 3);
+  grid = stamped(grid, execSlab, 8, 6);
+  grid = stamped(grid, execScreen(bright), 13, 8);
+  return grid;
+};
+
 export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
   building: {
     frames: [buildingBase, buildingAlt],
@@ -1678,5 +1918,56 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     // The riding lamp on the masthead — the one light out on the water,
     // and what the quays' reflections are drawn from.
     glow: [{ color: "m", radius: 20, intensity: 0.4, offsetX: -8, offsetY: -66 }],
+  },
+  "glass-partition-x": {
+    frames: [glassPartition],
+    anchorX: 32,
+    anchorY: 64,
+    frameMs: 0,
+    flicker: false,
+  },
+  "glass-partition-y": {
+    // The same pane turned onto the other axis. Mirroring moves the
+    // contact column one to the left of center, which is where the
+    // mirrored anchor has to land for the run to stand on its tiles.
+    frames: [mirrored(glassPartition)],
+    anchorX: PARTITION_W - 1 - 32,
+    anchorY: 64,
+    frameMs: 0,
+    flicker: false,
+  },
+  "reception-desk": {
+    frames: [receptionFrame(0), receptionFrame(2), receptionFrame(4)],
+    anchorX: 28,
+    anchorY: 30,
+    frameMs: 520,
+    flicker: false,
+    // The hanging mark and the counter's service strip, hologram blue.
+    glow: [{ color: "t", radius: 18, intensity: 0.32, offsetX: 0, offsetY: -26 }],
+  },
+  "server-column": {
+    frames: [serverColumn(0), serverColumn(1), serverColumn(2)],
+    anchorX: 14,
+    anchorY: 47,
+    frameMs: 600,
+    flicker: false,
+    // Status light off the cabinet's face, at head height.
+    glow: [{ color: "g", radius: 14, intensity: 0.22, offsetX: 0, offsetY: -26 }],
+  },
+  "planter-column": {
+    frames: [planterColumn],
+    anchorX: 14,
+    anchorY: 35,
+    frameMs: 0,
+    flicker: false,
+  },
+  "exec-desk": {
+    frames: [execDesk(true), execDesk(false)],
+    anchorX: 26,
+    anchorY: 27,
+    frameMs: 940,
+    flicker: false,
+    // The ledger pane, lighting whoever is reading it.
+    glow: [{ color: "t", radius: 12, intensity: 0.26, offsetX: -8, offsetY: -20 }],
   },
 };

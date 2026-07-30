@@ -162,6 +162,95 @@ describe("act3 arc shape", () => {
     );
   });
 
+  it("opens the tower's own floors off the concourse, both ways", () => {
+    const arrival = act3Arc.nodes.find((n) => n.id === "a3-spire-arrival")!;
+    expect(arrival.choices.map((c) => c.target)).toContain("a3-exec-lift");
+    const up = act3Arc.nodes.find((n) => n.id === "a3-exec-lift")!;
+    const rides = up.choices.filter((c) =>
+      (c.effects ?? []).some(
+        (e) => e.type === "travel" && e.mapId === "auric-executive",
+      ),
+    );
+    // Two ways up — the chair's own override, and simply trying it.
+    expect(rides).toHaveLength(2);
+    for (const ride of rides) expect(ride.target).toBe("a3-exec-floor");
+    const down = act3Arc.nodes.find((n) => n.id === "a3-exec-descend")!;
+    expect(
+      down.choices.flatMap((c) =>
+        (c.effects ?? []).flatMap((e) => (e.type === "travel" ? [e.mapId] : [])),
+      ),
+    ).toEqual(["auric-spire"]);
+  });
+
+  it("gives the floor detail three ways past, one of them the tower's fight", () => {
+    const post = act3Arc.nodes.find((n) => n.id === "a3-exec-checkpoint")!;
+    const past = post.choices.filter((c) =>
+      (c.effects ?? []).some(
+        (e) => e.type === "set-flag" && e.key === "exec-cleared",
+      ),
+    );
+    expect(past.map((c) => c.id)).toEqual(["override", "talk", "fight"]);
+    const battles = past.flatMap((c) =>
+      (c.effects ?? []).flatMap((e) =>
+        e.type === "start-combat" ? [e.encounterId] : [],
+      ),
+    );
+    expect(battles).toEqual(["enc-exec-security"]);
+  });
+
+  it("keeps the directors' own paperwork behind getting past them", () => {
+    const desk = act3Arc.nodes.find((n) => n.id === "a3-exec-desk")!;
+    const sheet = desk.choices.find((c) => c.target === "a3-exec-sheet")!;
+    expect(sheet.requirements).toContainEqual({
+      type: "flag-equals",
+      key: "exec-cleared",
+      value: true,
+    });
+    expect(sheet.requirements).toContainEqual({
+      type: "stat",
+      stat: "tech",
+      value: 6,
+    });
+  });
+
+  it("stays optional: the floor changes what you know, not what you can do", () => {
+    // Everything up the riser is a side trip off the finale's spine, so
+    // nothing outside it may gate on having been there. The one thing
+    // the floor hands the rest of the act is what the directors wrote
+    // down about the engine — which opens a scene, never a route.
+    const floorNodes = new Set([
+      "a3-exec-lift",
+      "a3-exec-floor",
+      "a3-exec-checkpoint",
+      "a3-exec-cleared",
+      "a3-exec-desk",
+      "a3-exec-sheet",
+      "a3-exec-minutes",
+      "a3-exec-cache",
+      "a3-exec-descend",
+      "a3-security",
+      "a3-security-risers",
+    ]);
+    const setUpstairs = new Set(
+      allChoices
+        .filter(({ nodeId }) => floorNodes.has(nodeId))
+        .flatMap(({ choice }) =>
+          (choice.effects ?? []).flatMap((e) =>
+            e.type === "set-flag" ? [e.key] : [],
+          ),
+        ),
+    );
+    expect(setUpstairs).toContain("exec-cleared");
+    const readDownstairs = allChoices
+      .filter(({ nodeId }) => !floorNodes.has(nodeId))
+      .flatMap(({ choice }) =>
+        (choice.requirements ?? []).flatMap((r) =>
+          r.type === "flag-equals" && setUpstairs.has(r.key) ? [r.key] : [],
+        ),
+      );
+    expect([...new Set(readDownstairs)]).toEqual(["locus-known"]);
+  });
+
   it("uses every gate variety somewhere in the finale", () => {
     const kinds = new Set(allRequirements.map((r) => r.type));
     for (const kind of [

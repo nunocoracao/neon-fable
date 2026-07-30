@@ -8,8 +8,18 @@ import { facingFromDelta, type Facing } from "./animation";
 import type { TilePoint } from "./coords";
 import type { MapInteraction } from "./events";
 
-/** Interior floor materials: barroom planks, clinical tile, corp carpet. */
-export type InteriorFloorId = "bar-floor" | "clinic-floor" | "office-floor";
+/**
+ * Interior floor materials: barroom planks, clinical tile, corp carpet,
+ * and the two polished stones the Auric Spire's floors are laid in —
+ * the atrium's pale slabs downstairs and the directors' black marble up
+ * top.
+ */
+export type InteriorFloorId =
+  | "bar-floor"
+  | "clinic-floor"
+  | "office-floor"
+  | "atrium-floor"
+  | "exec-floor";
 
 /** Diamond edge a floor trim's baseboard shadow runs along. */
 export type TrimEdge = "n" | "e" | "s" | "w";
@@ -25,6 +35,8 @@ export const INTERIOR_FLOOR_IDS: readonly InteriorFloorId[] = [
   "bar-floor",
   "clinic-floor",
   "office-floor",
+  "atrium-floor",
+  "exec-floor",
 ];
 
 export const TRIM_EDGES: readonly TrimEdge[] = ["n", "e", "s", "w"];
@@ -144,7 +156,16 @@ export type PropId =
   // barge is the game's first prop whose bulk needs a footprint.
   | "mooring-post"
   | "salvage-tarp"
-  | "sunken-barge";
+  | "sunken-barge"
+  // Corp tower dressing: the Auric Spire's two interior floors. The
+  // glazing comes in two orientations because a pane is a wall segment
+  // and a wall runs along one of the two iso axes.
+  | "glass-partition-x"
+  | "glass-partition-y"
+  | "reception-desk"
+  | "server-column"
+  | "planter-column"
+  | "exec-desk";
 
 /** A static decoration on a tile. Blocking props make the tile unwalkable. */
 export interface PropPlacement {

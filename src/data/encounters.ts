@@ -323,6 +323,24 @@ export const encounters: Encounter[] = [
     },
   },
   {
+    // The executive floor's own fight: the house detail that works the
+    // directors' level, called when a claimant declines to leave it.
+    id: "enc-exec-security",
+    name: "Executive Floor Detail",
+    grid: { width: 9, height: 7 },
+    arenaMapId: "exec-floor-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [
+      { enemyId: "nme-auric-warden", position: { x: 7, y: 2 } },
+      { enemyId: "nme-cordon-enforcer", position: { x: 7, y: 4 } },
+      { enemyId: "nme-static-drone", position: { x: 6, y: 5 } },
+    ],
+    rewards: {
+      credits: 90,
+      items: [{ itemId: "con-trauma-patch", quantity: 2 }],
+    },
+  },
+  {
     id: "enc-crown-court",
     name: "The Crown Ring — Sappers' Breach",
     grid: { width: 9, height: 7 },

@@ -141,6 +141,28 @@ export const DREDGE_VISUAL: CharacterVisual = {
   enhancements: { dermal: "cyb-silt-gills" },
 };
 
+// The Auric Spire's house security, standing on both interior floors.
+// Auric's uniform is the same interdiction plate the Cordon's enforcers
+// wear, worn here by people paid to be immovable rather than to fight —
+// so the look carries the crimson optic the enemy archetypes wear, as a
+// warning. Whether it stays a warning is up to the player.
+export const SPIRE_SECURITY_VISUAL: CharacterVisual = {
+  appearance: {
+    skinTone: "golden-tan",
+    build: "heavy",
+    hairStyle: "buzz",
+    hairColor: "chestnut",
+    eyes: "narrow",
+    eyeColor: "crimson",
+    brows: "heavy",
+    mouth: "neutral",
+    faceDetail: "none",
+    headwear: "cap",
+  },
+  outfit: "out-cordon-plate",
+  weapon: "wpn-stun-baton",
+};
+
 /** Every named story speaker's authored look, keyed by display name. */
 export const cast: Readonly<Record<string, CharacterVisual>> = {
   Flick: FLICK_VISUAL,
@@ -150,6 +172,7 @@ export const cast: Readonly<Record<string, CharacterVisual>> = {
   Quill: QUILL_VISUAL,
   Marrow: MARROW_VISUAL,
   Dredge: DREDGE_VISUAL,
+  "Spire Security": SPIRE_SECURITY_VISUAL,
   // The fixer at the Filament's corner table: groomed, amused, and
   // never quite warm — the smile stops below the eyes.
   Sable: {
