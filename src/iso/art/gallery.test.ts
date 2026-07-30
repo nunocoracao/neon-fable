@@ -15,6 +15,12 @@ import {
   MOUTH_OPTIONS,
 } from "../../data/appearance";
 import { ATTACK_CLASS_IDS, attackFrameCount } from "../attack";
+import {
+  EFFECT_SPRITE_IDS,
+  EFFECT_TIMING,
+  effectKind,
+  type EffectSpriteId,
+} from "../impact";
 import { REACTION_KINDS, reactionFrameCount } from "../reaction";
 import { enemies } from "../../data/enemies";
 import { items } from "../../data/items";
@@ -53,6 +59,7 @@ describe("gallery sections", () => {
       "bodies",
       "attacks",
       "reactions",
+      "effects",
       "appearance",
     ]);
     for (const s of sections) {
@@ -191,6 +198,20 @@ describe("gallery sections", () => {
     expect(frame("react collapse lean e away1", 3)).not.toBe(
       frame("react sparkout lean e away1", 3),
     );
+  });
+
+  it("covers every combat effect at its authored frame count and hold", () => {
+    const effects = section("effects");
+    expect(effects.entries.map((e) => e.id)).toEqual([...EFFECT_SPRITE_IDS]);
+    for (const entry of effects.entries) {
+      const timing = EFFECT_TIMING[effectKind(entry.id as EffectSpriteId)];
+      expect(entry.frames.length, `${entry.id} frames`).toBe(timing.frameCount);
+      // Multi-frame effects play at their own hold; a tracer is one
+      // picture the travel math moves, so it is static here.
+      expect(entry.frameMs, `${entry.id} cadence`).toBe(
+        timing.frameCount > 1 ? timing.frameMs : 0,
+      );
+    }
   });
 
   it("covers every registered hair style × hair color × facing, plus a walk sweep per build", () => {
