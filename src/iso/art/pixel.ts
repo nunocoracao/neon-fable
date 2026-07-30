@@ -55,6 +55,21 @@ export function remapped(
 }
 
 /**
+ * Enlarge a grid a whole number of times, each art pixel becoming a
+ * factor×factor block. The way anything in this art is drawn larger —
+ * a bigger picture is the same picture with bigger pixels, never a
+ * second set of drawings. Factors below 2 return the grid unchanged.
+ */
+export function upscaled(grid: PixelGrid, factor: number): string[] {
+  const steps = Math.trunc(factor);
+  if (steps <= 1) return [...grid];
+  return grid.flatMap((row) => {
+    const wide = [...row].map((ch) => ch.repeat(steps)).join("");
+    return Array<string>(steps).fill(wide);
+  });
+}
+
+/**
  * Shift rows top..bottom (inclusive) horizontally by dx pixels, leaving
  * every other row untouched. Pixels shifted past either edge are lost —
  * callers keep shifted art clear of the frame border. Secondary motion
