@@ -1,22 +1,25 @@
 /**
- * Isometric map content: four explorable maps (the Cinder Row hub, the
- * Greywater Steps settlement, the Exchange ventworks, and the Auric
- * Spire concourse) and the seven combat arenas the encounters fight
- * on. Maps are authored as character rows expanded through
- * buildMapGrid; interactables reference story node and encounter ids by
- * string only — the iso layer never resolves them.
+ * Isometric map content: five explorable maps (the Cinder Row hub, the
+ * Greywater Steps settlement, the Exchange ventworks, the Auric Spire
+ * concourse, and the Vertical Market) and the combat arenas the
+ * encounters fight on. Maps are authored as character rows expanded
+ * through buildMapGrid; interactables reference story node and
+ * encounter ids by string only — the iso layer never resolves them.
  *
  * Every map is dressed from the native hi-res tile and prop
  * vocabulary, and each carries its own material identity: the hub is
  * neon and lived-in, Greywater is damp and salvaged, the Ventworks is
- * swept industrial-corporate, the Spire concourse is sterile. Arenas
- * stay deliberately quiet — see the arena section's note.
+ * swept industrial-corporate, the Spire concourse is sterile, the
+ * Vertical Market is crowded scaffold and lamplight. Arenas stay
+ * deliberately quiet — see the arena section's note.
  */
 import { buildMapGrid, type IsoMap, type LegendEntry } from "../iso/tilemap";
 import {
   FERROW_VISUAL,
   FLICK_VISUAL,
   LIN_VISUAL,
+  MARROW_VISUAL,
+  QUILL_VISUAL,
   VESPER_VISUAL,
 } from "./cast";
 
@@ -216,6 +219,17 @@ const cinderPlaza: IsoMap = {
         },
         outfit: "out-courier-slicker",
       },
+    },
+    {
+      id: "market-gate",
+      // The gantry stair out of the wet-market corner, on the curb
+      // beside the stall row — the way up into the Vertical Market.
+      x: 12,
+      y: 9,
+      label: "Market Gate",
+      spriteId: "exit",
+      interaction: { kind: "dialogue", nodeId: "vm-gate" },
+      exit: { mapId: "vertical-market" },
     },
     {
       id: "crown-watcher",
@@ -645,6 +659,128 @@ const auricSpire: IsoMap = {
 };
 
 /**
+ * The Vertical Market — a bazaar stacked into a light well off Cinder
+ * Row's wet-market corner, and the densest street in the game. Scaffold
+ * decking (rust plate) runs the north gallery and the south landing
+ * where the stair comes up; between them two stall rows face each other
+ * across a lantern court of glow tile, strung with caged lamps. The
+ * aisles are dressed with awnings, crate stacks, and a noodle counter
+ * working the west wall; signage hangs over the north gallery. Reached
+ * both ways on foot — the hub's market gate up, the market's stair back
+ * down — so it is the first district the player can simply visit.
+ */
+const marketLegend: Record<string, LegendEntry> = {
+  "#": { tile: "foundation", prop: { propId: "building", blocks: true } },
+  ".": { tile: "pavement" },
+  ",": { tile: "pavement-cracked" },
+  // Scaffold decking: the market's walkways are laid over plate.
+  r: { tile: "rust-floor" },
+  // The lantern court at the crossing of the two aisles.
+  "=": { tile: "plaza-glow" },
+  A: { tile: "pavement", prop: { propId: "stall-awning", blocks: true } },
+  a: { tile: "rust-floor", prop: { propId: "stall-awning", blocks: true } },
+  K: { tile: "pavement", prop: { propId: "crate-stack", blocks: true } },
+  U: { tile: "pavement", prop: { propId: "noodle-counter", blocks: true } },
+  // Caged lamps hang off the scaffolding — walk under them.
+  C: { tile: "pavement", prop: { propId: "cage-lamp", blocks: false } },
+  R: { tile: "rust-floor", prop: { propId: "cage-lamp", blocks: false } },
+  u: { tile: "pavement", prop: { propId: "cable-bundle", blocks: false } },
+  s: { tile: "pavement", prop: { propId: "shop-sign", blocks: true } },
+  N: { tile: "pavement", prop: { propId: "neon-sign", blocks: true } },
+  h: { tile: "pavement", prop: { propId: "holo-sign", blocks: true } },
+  x: { tile: "pavement", prop: { propId: "crate", blocks: true } },
+  l: { tile: "pavement", prop: { propId: "streetlight", blocks: true } },
+};
+
+const marketRows = [
+  "##################",
+  "#arrRr.N..s.rRrra#",
+  "#rrrrr,....,rrrrr#",
+  "#.,.....u...,....#",
+  "#A.K.A.h...A.K.A.#",
+  "#...,....,.......#",
+  "#U...C.===.C...x.#",
+  "#..,..===........#",
+  "#....C.===.C....,#",
+  "#A.K.A..u..A.K.A.#",
+  "#.,........,.....#",
+  "#rrr,........,rrr#",
+  "#rr..l......l..rr#",
+  "##################",
+];
+
+const marketGrid = buildMapGrid(marketLegend, marketRows);
+
+const verticalMarket: IsoMap = {
+  id: "vertical-market",
+  name: "The Vertical Market",
+  width: marketGrid.width,
+  height: marketGrid.height,
+  tiles: marketGrid.tiles,
+  props: marketGrid.props,
+  interactables: [
+    {
+      id: "market-consignment",
+      x: 14,
+      y: 2,
+      label: "Consignment locker",
+      spriteId: "stash",
+      interaction: { kind: "dialogue", nodeId: "vm-stash" },
+    },
+    {
+      id: "stall-broker",
+      // Working the north stall row, one aisle in from her awning.
+      x: 4,
+      y: 5,
+      label: "Quill — stall broker",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "vm-broker" },
+      visual: QUILL_VISUAL,
+    },
+    {
+      id: "market-fixer",
+      // Holding court at the noodle counter, back to the wall.
+      x: 2,
+      y: 7,
+      label: "Marrow",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "vm-fixer" },
+      visual: MARROW_VISUAL,
+    },
+    {
+      id: "market-stair",
+      x: 8,
+      y: 11,
+      label: "Cinderway Stair",
+      spriteId: "exit",
+      interaction: { kind: "dialogue", nodeId: "vm-stair" },
+      // Back down to the plaza the way you came: out on the road under
+      // the curb, looking up into Cinder Row.
+      exit: { mapId: "cinder-plaza", entryId: "south-road" },
+    },
+  ],
+  // The stair lands you on the south deck, facing up the aisle.
+  spawns: [{ id: "player-start", x: 8, y: 12 }],
+  // The busiest street in the game, and the reason to build it: four
+  // zones of foot traffic — the north gallery, both stall rows, and the
+  // landing — dealt round-robin so the market never reads empty
+  // anywhere the player is standing.
+  ambient: {
+    count: 12,
+    zones: [
+      { id: "gallery", x: 2, y: 2, width: 11, height: 2 },
+      { id: "north-stalls", x: 2, y: 5, width: 12, height: 2 },
+      { id: "lantern-court", x: 5, y: 7, width: 8, height: 2 },
+      { id: "landing", x: 2, y: 10, width: 12, height: 2 },
+    ],
+  },
+  // Trading hours: the market only comes alive after dark, and it is
+  // roofed by the levels above it — no weather reaches the boards.
+  weather: "clear",
+  dayPhase: "night",
+};
+
+/**
  * Combat arenas. Every tile of an arena is open floor: the combat engine
  * has no obstacle rules (movement is bounds + occupancy only), so arena
  * maps must not place blocking props or unwalkable tiles inside the grid
@@ -924,6 +1060,7 @@ export const maps: readonly IsoMap[] = [
   greywaterSteps,
   exchangeVentworks,
   auricSpire,
+  verticalMarket,
   rustyardArena,
   undercroftArena,
   vaultArena,

@@ -863,6 +863,373 @@ const holoBillboardFrame = (scanPhase: number): string[] => [
 const holoBillboardA = holoBillboardFrame(0);
 const holoBillboardOff: string[] = [...rep(42, gap(64)), ...billboardMast(false)];
 
+/* --- Market dressing. The Vertical Market's aisles are built out of
+ * four pieces of stall furniture: the striped awning a broker trades
+ * under, the caged lamps strung over the walkways, lashed crate stacks
+ * waiting on the boards, and a hot noodle counter steaming into the
+ * night. All four are native hi-res and share the street's light —
+ * top-left, amber at street level, chrome where the scaffold shows.
+ *
+ * The boxy pieces are built from one isometric-box painter rather than
+ * hand-laid rows: a stall's counter and a food bar are the same solid
+ * seen at different sizes, and a shared painter keeps their edges,
+ * facing shades, and footprints in agreement. --- */
+
+/** Ink colors an isometric box is painted in, lit from the top left. */
+export interface BoxInk {
+  /** The top face. */
+  top: string;
+  /** Lit rim along the top face's upper-left edge. */
+  rim: string;
+  /** The lit (left) wall face. */
+  left: string;
+  /** The shaded (right) wall face. */
+  right: string;
+  /** Silhouette outline. */
+  ink: string;
+  /** Plank/plate seams across the top face, along the iso grain. */
+  grain?: string;
+}
+
+/**
+ * An isometric box: a `w`-wide lid diamond (w must be a multiple of 4)
+ * over `wallH` rows of wall, tapering back to the footprint diamond's
+ * bottom vertex. Rows are `w` wide and the grid is `w / 2 + wallH`
+ * tall; the footprint's center — the point that lands on the tile
+ * diamond's center — sits at row `wallH + w / 4`.
+ */
+export const isoBox = (w: number, wallH: number, ink: BoxInk): string[] => {
+  const lidH = w / 2;
+  /** Horizontal span [from, to) of a lid diamond at row r, if any. */
+  const lidSpan = (r: number): readonly [number, number] | null => {
+    if (r < 0 || r >= lidH) return null;
+    const width = 4 * Math.min(r, lidH - 1 - r) + 4;
+    return [(w - width) / 2, (w + width) / 2] as const;
+  };
+  return Array.from({ length: lidH + wallH }, (_, y) => {
+    const top = lidSpan(y);
+    const foot = lidSpan(y - wallH);
+    let from = w;
+    let to = 0;
+    for (const span of [top, foot]) {
+      if (!span) continue;
+      from = Math.min(from, span[0]);
+      to = Math.max(to, span[1]);
+    }
+    // Between the two diamonds' waists the side walls run full width.
+    if (y >= lidH / 2 - 1 && y <= wallH + lidH / 2) {
+      from = 0;
+      to = w;
+    }
+    let row = "";
+    for (let x = 0; x < w; x++) {
+      if (x < from || x >= to) {
+        row += ".";
+      } else if (x === from || x === to - 1) {
+        row += ink.ink;
+      } else if (top && x >= top[0] && x < top[1]) {
+        // Top face: lit along its upper-left rim, shaded on the far one,
+        // with seams running along one axis of the iso grain.
+        const seam = ink.grain !== undefined && (x - 2 * y + 4 * w) % 10 === 0;
+        row +=
+          x < top[0] + 2
+            ? ink.rim
+            : x >= top[1] - 2
+              ? ink.left
+              : seam
+                ? ink.grain ?? ink.top
+                : ink.top;
+      } else {
+        row += x < w / 2 ? ink.left : ink.right;
+      }
+    }
+    return row;
+  });
+};
+
+/** Stamp `art` onto a copy of `base` at (x, y); transparency shows through. */
+const stamped = (
+  base: readonly string[],
+  art: readonly string[],
+  x: number,
+  y: number,
+): string[] =>
+  base.map((row, r) => {
+    const source = art[r - y];
+    if (source === undefined) return row;
+    const cells = [...row];
+    for (let i = 0; i < source.length; i++) {
+      const ch = source[i] ?? ".";
+      if (ch !== "." && x + i >= 0 && x + i < cells.length) cells[x + i] = ch;
+    }
+    return cells.join("");
+  });
+
+/** A transparent canvas to stamp onto. */
+const blank = (w: number, h: number): string[] => rep(h, gap(w));
+
+/* --- Stall awning: a striped canopy on chrome poles over a plank
+ * counter of goods, an amber strip lamp burning under the fabric.
+ * 56×64, ground contact at (28, 50). --- */
+
+const AWNING_W = 56;
+/** Awning stripe ramps, shade -> base -> highlight, alternating bands. */
+const AWNING_BANDS = [
+  ["Y", "Z", "n"],
+  ["V", "W", "X"],
+] as const;
+
+/** Canopy pixel: band by column, brightness by facet (top-left is lit). */
+const canopyPaint = (x: number, lit: boolean): string => {
+  const band = AWNING_BANDS[Math.floor(x / 7) % 2] ?? AWNING_BANDS[0];
+  const step = (lit ? 1 : 0) + (x < AWNING_W / 2 ? 1 : 0);
+  return band[step] ?? band[1];
+};
+
+const awningCanopy: string[] = Array.from({ length: 21 }, (_, y) => {
+  // Rows 0-13 are the canopy's sloping half; 14-18 its front skirt;
+  // 19-20 the scalloped fringe hanging off it.
+  const width = y < 14 ? 4 * y + 4 : AWNING_W;
+  const pad = (AWNING_W - width) / 2;
+  let row = "";
+  for (let x = 0; x < AWNING_W; x++) {
+    if (x < pad || x >= pad + width) row += ".";
+    else if (y >= 19 && Math.floor(x / 4) % 2 === 1) row += ".";
+    else if (x === pad || x === pad + width - 1) row += "1";
+    else if (y === 14) row += "1";
+    else if (y === 17) row += x % 6 === 0 ? "m" : "o";
+    else row += canopyPaint(x, y < 14);
+  }
+  return row;
+});
+
+/** A crate of goods on the counter: a small iso box in its own ramp. */
+const awningGoods = (ink: BoxInk): string[] => isoBox(12, 5, ink);
+
+/** The strip lamp under the canopy, chasing by frame phase. */
+const awningStrip = (phase: number): string[] => [
+  "1".repeat(30),
+  Array.from({ length: 30 }, (_, i) => (i % 5 === phase ? "m" : "o")).join(""),
+];
+
+/** The stall without its canopy: poles, counter, goods, strip lamp. */
+const awningStall = (phase: number): string[] => {
+  let grid = blank(AWNING_W, 64);
+  // Poles first, so the canopy laps over their tops and the counter
+  // stands in front of them.
+  grid = stamped(grid, rep(39, "0761"), 5, 14);
+  grid = stamped(grid, rep(39, "0761"), 47, 14);
+  grid = stamped(
+    grid,
+    isoBox(40, 14, {
+      top: "b",
+      rim: "c",
+      left: "b",
+      right: "a",
+      ink: "1",
+      grain: "a",
+    }),
+    8,
+    26,
+  );
+  grid = stamped(
+    grid,
+    awningGoods({ top: "4", rim: "5", left: "4", right: "3", ink: "1" }),
+    14,
+    28,
+  );
+  grid = stamped(
+    grid,
+    awningGoods({ top: "b", rim: "c", left: "b", right: "a", ink: "1" }),
+    30,
+    30,
+  );
+  // A lantern jar burning on the counter's shaded end.
+  grid = stamped(
+    grid,
+    ["..00..", ".0mn0.", "0mnnm0", "0omoo0", ".0oo0.", "..00.."],
+    38,
+    34,
+  );
+  grid = stamped(grid, awningStrip(phase), 13, 46);
+  // Ground shadow under the counter and the poles.
+  return stamped(
+    grid,
+    [
+      gap(5) + "z".repeat(14) + gap(18) + "z".repeat(14) + gap(5),
+      gap(8) + "z".repeat(9) + gap(22) + "z".repeat(9) + gap(8),
+    ],
+    0,
+    60,
+  );
+};
+
+const stallAwning: string[] = stamped(awningStall(0), awningCanopy, 0, 0);
+/** Alternate frame: the strip lamp chases and the lantern jar pulses. */
+const stallAwningAlt = remapped(
+  stamped(awningStall(2), awningCanopy, 0, 0),
+  { n: "m", m: "n" },
+);
+
+/* --- Cage lamp: a caged amber bulb strung from the scaffolding over a
+ * walkway, pooling light on the boards below. Nothing of it touches the
+ * ground, so the pool is its only ground contact. 20×64, anchor
+ * (10, 60). Walkable clutter — characters pass underneath. --- */
+
+const cageCable = gap(9) + "76" + gap(9);
+
+const cageLampLit: string[] = [
+  ...rep(8, cageCable),
+  gap(7) + "0TT99TT0" + gap(5),
+  gap(7) + "0T6666T0" + gap(5),
+  gap(6) + "0T999999T0" + gap(4),
+  gap(4) + "0TT9" + "6".repeat(6) + "9TT0" + gap(2),
+  gap(4) + "0T" + "6".repeat(10) + "T0" + gap(2),
+  gap(4) + "06" + "o".repeat(10) + "60" + gap(2),
+  gap(4) + "06o" + "m".repeat(3) + "nn" + "m".repeat(3) + "o60" + gap(2),
+  gap(4) + "T6o" + "m".repeat(2) + "nnnn" + "m".repeat(2) + "o6T" + gap(2),
+  gap(4) + "96o" + "mnnnnnn" + "m" + "o69" + gap(2),
+  gap(4) + "96o" + "mnnnnnn" + "m" + "o69" + gap(2),
+  gap(4) + "T6o" + "m".repeat(2) + "nnnn" + "m".repeat(2) + "o6T" + gap(2),
+  gap(4) + "06o" + "m".repeat(3) + "nn" + "m".repeat(3) + "o60" + gap(2),
+  gap(4) + "06" + "o".repeat(10) + "60" + gap(2),
+  gap(4) + "0T" + "6".repeat(10) + "T0" + gap(2),
+  gap(5) + "0T" + "6666" + "9" + "6".repeat(2) + "T0" + gap(4),
+  gap(6) + "0T6666T0" + gap(6),
+  gap(8) + "0oo0" + gap(8),
+  ...rep(33, gap(20)),
+  gap(6) + "oo".repeat(4) + gap(6),
+  gap(4) + "o.o.o.o.o.o." + gap(4),
+  gap(3) + "o.o.o.o.o.o.o." + gap(3),
+  gap(4) + "o.o.o.o.o.o." + gap(4),
+  gap(6) + "o.o.o.o." + gap(6),
+  gap(20),
+];
+
+/** Soft pulse: the filament relaxes and the pool dims with it. */
+const cageLampDim = remapped(cageLampLit, { n: "m", m: "o" });
+/** Flicker dropout: dead glass, and the boards below go dark. */
+const cageLampDead: string[] = remapped(cageLampLit, {
+  n: "o",
+  m: "o",
+  o: "1",
+}).map((row, y) => (y >= 40 ? gap(20) : row));
+
+/* --- Crate stack: freight lashed three high on the boards — a street
+ * crate on the bottom, a steel case above it, a tarped bundle on top,
+ * with the crate's own chrome strap carried up the front of the whole
+ * stack. 48×44, anchor (24, 34). Static. --- */
+
+const crateStack: string[] = stamped(
+  stamped(
+    stamped(
+      stamped(blank(48, 44), crate, 8, 14),
+      // A steel case above it, set back off the crate's near corner.
+      isoBox(24, 10, { top: "4", rim: "5", left: "4", right: "3", ink: "1" }),
+      9,
+      6,
+    ),
+    // Topped by a tarped bundle.
+    isoBox(16, 7, { top: "W", rim: "X", left: "W", right: "V", ink: "1" }),
+    13,
+    1,
+  ),
+  // The lashing strap, carried up the front from the crate's own.
+  rep(23, "T6"),
+  23,
+  6,
+);
+
+/* --- Noodle counter: a hot bar with a chrome pot steaming over its
+ * burner, bowls set out along the boards, and an amber service strip
+ * down the front. 56×58, anchor (28, 46). --- */
+
+const NOODLE_W = 56;
+
+const noodlePot: string[] = [
+  gap(4) + "0TT99TT0" + gap(4),
+  gap(3) + "0T999999T0" + gap(3),
+  gap(2) + "0T99" + "8".repeat(4) + "99T0" + gap(2),
+  gap(2) + "09" + "8".repeat(10) + "90" + gap(2),
+  gap(1) + "0T9" + "8".repeat(10) + "9T0" + gap(1),
+  "0TT9" + "8".repeat(12) + "9TT0",
+  "0T99" + "8".repeat(12) + "99T0",
+  "0T96" + "6".repeat(12) + "69T0",
+  "0T96" + "6".repeat(12) + "69T0",
+  "0T96" + "m".repeat(12) + "69T0",
+  "0T96" + "o".repeat(12) + "69T0",
+  ".0T6" + "6".repeat(12) + "6T0.",
+  "..0T" + "6".repeat(12) + "T0..",
+  "...0" + "m".repeat(12) + "0...",
+  "....0" + "o".repeat(10) + "0....",
+  gap(5) + "z".repeat(10) + gap(5),
+];
+
+/** A bowl set out on the boards: pale rim, dark broth, chopsticks. */
+const noodleBowl: string[] = [
+  gap(3) + "99" + gap(3),
+  gap(1) + "0T9999T0",
+  "0T99aa99T0",
+  "0T9aaaa9T0",
+  ".0T9aa9T0.",
+  "..0TTTT0..",
+  "...zzzz...",
+];
+
+/** Steam wisp column drifting up off the pot, phase by frame. */
+const noodleSteam = (phase: number): string[] =>
+  Array.from({ length: 16 }, (_, y) => {
+    const drift = Math.round(Math.sin((y + phase * 2) / 3) * 3);
+    const x = 26 + drift + Math.floor((16 - y) / 4);
+    if ((y + phase) % 3 === 2) return gap(NOODLE_W);
+    const ch = y < 5 ? "8" : y < 10 ? "7" : "8";
+    return gap(x) + ch + ch + gap(NOODLE_W - x - 2);
+  });
+
+/** The bar itself: shadow, counter, pot, bowls, service strip. */
+const noodleBar = ((): string[] => {
+  let grid = blank(NOODLE_W, 60);
+  // Ground shadow, hugging the counter's near vertex.
+  grid = stamped(
+    grid,
+    [gap(19) + "z".repeat(18) + gap(19), gap(24) + "z".repeat(8) + gap(24)],
+    0,
+    57,
+  );
+  grid = stamped(
+    grid,
+    isoBox(48, 12, {
+      top: "b",
+      rim: "c",
+      left: "b",
+      right: "a",
+      ink: "1",
+      grain: "a",
+    }),
+    4,
+    22,
+  );
+  grid = stamped(grid, noodlePot, 18, 16);
+  grid = stamped(grid, noodleBowl, 12, 36);
+  grid = stamped(grid, noodleBowl, 34, 38);
+  return grid;
+})();
+
+/** The service strip down the counter's front, chasing by frame phase. */
+const noodleStrip = (phase: number): string[] => [
+  "1".repeat(34),
+  Array.from({ length: 34 }, (_, i) => (i % 6 === phase * 2 ? "m" : "o")).join(""),
+  "1".repeat(34),
+];
+
+const noodleFrame = (phase: number): string[] =>
+  stamped(
+    stamped(noodleBar, noodleStrip(phase), 11, 44),
+    noodleSteam(phase),
+    0,
+    0,
+  );
+
 export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
   building: {
     frames: [buildingBase, buildingAlt],
@@ -969,5 +1336,42 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     flicker: true,
     // Amber A-frame board at street level.
     glow: [{ color: "m", radius: 15, intensity: 0.36, offsetX: 0, offsetY: -16 }],
+  },
+  "stall-awning": {
+    frames: [stallAwning, stallAwningAlt],
+    anchorX: 28,
+    anchorY: 50,
+    frameMs: 780,
+    flicker: false,
+    // The strip lamp under the canopy, washing the goods below it.
+    glow: [{ color: "m", radius: 18, intensity: 0.3, offsetX: 0, offsetY: -6 }],
+  },
+  "cage-lamp": {
+    frames: [cageLampLit, cageLampDim, cageLampDead],
+    anchorX: 10,
+    anchorY: 60,
+    frameMs: 820,
+    flicker: true,
+    // A caged bulb burning over the walkway, pooling on the boards.
+    glow: [
+      { color: "m", radius: 20, intensity: 0.46, offsetX: 0, offsetY: -44 },
+      { color: "m", radius: 14, intensity: 0.16, offsetX: 0, offsetY: 0 },
+    ],
+  },
+  "crate-stack": {
+    frames: [crateStack],
+    anchorX: 24,
+    anchorY: 34,
+    frameMs: 0,
+    flicker: false,
+  },
+  "noodle-counter": {
+    frames: [noodleFrame(0), noodleFrame(1), noodleFrame(2)],
+    anchorX: 28,
+    anchorY: 46,
+    frameMs: 440,
+    flicker: false,
+    // Burner and service strip, amber through the steam.
+    glow: [{ color: "m", radius: 18, intensity: 0.32, offsetX: 0, offsetY: -14 }],
   },
 };

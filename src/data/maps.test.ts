@@ -60,6 +60,7 @@ describe("map registry", () => {
       "greywater-steps",
       "exchange-ventworks",
       "auric-spire",
+      "vertical-market",
       "rustyard-arena",
       "undercroft-arena",
       "vault-arena",
@@ -190,6 +191,7 @@ describe("map lint covers every registered map", () => {
       "greywater-steps",
       "exchange-ventworks",
       "auric-spire",
+      "vertical-market",
     ]);
     expect(arenaMaps.length).toBe(maps.length - explorableMaps.length);
   });
@@ -322,6 +324,64 @@ describe.each(arenaMaps.map((m) => [m.id, m] as const))(
 );
 
 /**
+ * The Vertical Market's own dressing. The generic lint above proves the
+ * district is walkable and wired; what is pinned here is that it reads
+ * as somewhere new — its stall furniture is its alone, its lamps hang
+ * over the aisles rather than blocking them, and it is the biggest and
+ * busiest floor in the game.
+ */
+describe("the Vertical Market", () => {
+  const market = requireMap("vertical-market");
+  const MARKET_PROPS: readonly PropId[] = [
+    "stall-awning",
+    "cage-lamp",
+    "crate-stack",
+    "noodle-counter",
+  ];
+
+  it("builds its aisles out of stall furniture no other district has", () => {
+    const here = market.props.map((prop) => prop.propId);
+    for (const id of MARKET_PROPS) {
+      expect(here.filter((prop) => prop === id).length, id).toBeGreaterThan(0);
+    }
+    const elsewhere = maps
+      .filter((map) => map.id !== market.id)
+      .flatMap((map) => map.props.map((prop) => prop.propId));
+    for (const id of MARKET_PROPS) {
+      expect(elsewhere, `${id} leaked off the market`).not.toContain(id);
+    }
+  });
+
+  it("hangs its lamps over the walkways instead of standing them in one", () => {
+    const lamps = market.props.filter((prop) => prop.propId === "cage-lamp");
+    expect(lamps.length).toBeGreaterThanOrEqual(4);
+    for (const lamp of lamps) {
+      expect(lamp.blocks, `lamp at ${lamp.x},${lamp.y}`).toBe(false);
+      expect(isWalkable(market, lamp.x, lamp.y)).toBe(true);
+    }
+  });
+
+  it("is the largest floor in the game — a district, not a room", () => {
+    for (const map of maps) {
+      if (map.id === market.id) continue;
+      expect(
+        market.width * market.height,
+        `${map.id} is bigger than the market`,
+      ).toBeGreaterThan(map.width * map.height);
+    }
+  });
+
+  it("puts scaffold decking under the market and nothing wet on it", () => {
+    // Rust plate is the district's signature surface: the gallery and
+    // the landing are laid over it, and the light well is roofed, so
+    // the map never asks for rain.
+    const decking = market.tiles.flat().filter((id) => id === "rust-floor");
+    expect(decking.length).toBeGreaterThan(20);
+    expect(market.weather).toBe("clear");
+  });
+});
+
+/**
  * Exit lint. An exit is the one piece of map data that points at
  * another map, so it is the one that can rot silently: a destination
  * that was renamed, an entry spawn that was moved. Both would show up
@@ -335,9 +395,12 @@ describe("map exits", () => {
 
   it("marks the ways out of the districts, and nothing on an arena", () => {
     expect(exits.map(({ map, exit }) => `${map.id}/${exit.id}`)).toEqual([
+      // The hub's one way out on foot, and the market's way back.
+      "cinder-plaza/market-gate",
       "greywater-steps/chainwell-stair",
       "exchange-ventworks/tram-gate",
       "auric-spire/spire-tram",
+      "vertical-market/market-stair",
     ]);
     for (const arena of arenaMaps) {
       expect(mapExits(arena), `${arena.id} declares an exit`).toEqual([]);
@@ -480,9 +543,11 @@ describe("NPC visuals", () => {
       "crown-watcher",
       "flick",
       "flick-steps",
+      "market-fixer",
       "market-vendor",
       "matron-ferrow",
       "rust-runner",
+      "stall-broker",
       "tram-messenger",
     ]);
   });
@@ -566,14 +631,20 @@ describe("ambient crowds", () => {
     }
   });
 
-  it("dresses the hub as the busiest street and the rest more quietly", () => {
+  it("dresses the market as the densest street, the hub next, the rest quietly", () => {
     const counts = explorableMaps.map((map) => [map.id, map.ambient?.count ?? 0]);
     expect(counts).toEqual([
       ["cinder-plaza", 9],
       ["greywater-steps", 4],
       ["exchange-ventworks", 3],
       ["auric-spire", 5],
+      // The bazaar is the busiest map in the game, by design.
+      ["vertical-market", MAX_AMBIENT_PER_MAP],
     ]);
+    const densest = [...explorableMaps].sort(
+      (a, b) => (b.ambient?.count ?? 0) - (a.ambient?.count ?? 0),
+    )[0];
+    expect(densest?.id).toBe("vertical-market");
     for (const map of explorableMaps) {
       expect(map.ambient?.count ?? 0).toBeLessThanOrEqual(MAX_AMBIENT_PER_MAP);
     }
@@ -590,6 +661,8 @@ describe("weather", () => {
       ["greywater-steps", "rain"],
       ["exchange-ventworks", "clear"],
       ["auric-spire", "clear"],
+      // The market is roofed by the levels stacked above it.
+      ["vertical-market", "clear"],
     ]);
   });
 
@@ -655,6 +728,8 @@ describe("day phase", () => {
       ["exchange-ventworks", "night"],
       // ...and the climb happens against a deadline at dawn.
       ["auric-spire", "late"],
+      // The bazaar only trades after dark.
+      ["vertical-market", "night"],
     ]);
   });
 

@@ -4,6 +4,7 @@ import { act2Arc } from "./act2";
 import { act3Arc } from "./act3";
 import { chapelArc } from "./chapel";
 import { introArc } from "./intro";
+import { marketArc } from "./market";
 
 /** Every authored story arc; validated arc-by-arc in tests. */
 export const storyArcs: StoryArc[] = [
@@ -12,6 +13,7 @@ export const storyArcs: StoryArc[] = [
   act2Arc,
   act3Arc,
   chapelArc,
+  marketArc,
 ];
 
 export function getArc(id: string): StoryArc | undefined {
@@ -23,4 +25,4 @@ export function findArcByNode(nodeId: string): StoryArc | undefined {
   return storyArcs.find((arc) => arc.nodes.some((node) => node.id === nodeId));
 }
 
-export { introArc, act1Arc, act2Arc, act3Arc, chapelArc };
+export { introArc, act1Arc, act2Arc, act3Arc, chapelArc, marketArc };

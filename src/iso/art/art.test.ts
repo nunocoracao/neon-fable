@@ -14,7 +14,7 @@ import {
   remapped,
   type PixelGrid,
 } from "./pixel";
-import { PROP_ART } from "./props";
+import { PROP_ART, isoBox } from "./props";
 import { TILE_ART, puddleGrid } from "./tiles";
 import {
   RAIN_STREAK_ART,
@@ -403,6 +403,125 @@ describe("street furniture (native hi-res)", () => {
         .join("\n"),
     );
     expect(new Set(steam).size).toBe(PROP_ART["vent-stack"].frames.length);
+  });
+});
+
+/**
+ * Market dressing. The Vertical Market's stall furniture is held to the
+ * same envelope as the rest of the street, with one deliberate
+ * exception encoded here: the cage lamp hangs off the scaffolding and
+ * never touches the boards, so it grounds with a pool of light instead
+ * of a shadow.
+ */
+const MARKET_FURNITURE = [
+  "stall-awning",
+  "cage-lamp",
+  "crate-stack",
+  "noodle-counter",
+] as const;
+
+describe("market furniture (native hi-res)", () => {
+  it("fits the v2 prop envelope and anchors inside the tile's lower half", () => {
+    for (const id of MARKET_FURNITURE) {
+      const art = PROP_ART[id];
+      const grid = art.frames[0] ?? [];
+      expect(grid[0]?.length, `${id} width`).toBeLessThanOrEqual(64);
+      expect(grid.length, `${id} height`).toBeLessThanOrEqual(96);
+      expect(art.anchorX, `${id} anchorX`).toBeLessThan(grid[0]?.length ?? 0);
+      expect(art.anchorY, `${id} anchorY`).toBeLessThan(grid.length);
+      expect(
+        grid.length - 1 - art.anchorY,
+        `${id} rows below anchor`,
+      ).toBeLessThanOrEqual(16);
+    }
+  });
+
+  it("grounds what stands on the boards, and lights what hangs over them", () => {
+    for (const id of ["stall-awning", "crate-stack", "noodle-counter"] as const) {
+      expect(PROP_ART[id].frames[0]?.join("").includes("z"), id).toBe(true);
+    }
+    // The cage lamp is strung from the scaffold: no contact, no shadow.
+    const lamp = PROP_ART["cage-lamp"];
+    const lit = lamp.frames[0] ?? [];
+    expect(lit.join("").includes("z")).toBe(false);
+    // What it does put on the ground is its own pooled light, and the
+    // flicker dropout takes the pool with the bulb.
+    const pool = (grid: PixelGrid): string => grid.slice(lamp.anchorY - 3).join("");
+    expect(pool(lit)).toMatch(/[mno]/);
+    expect(pool(lamp.frames[lamp.frames.length - 1] ?? [])).not.toMatch(/[mno]/);
+  });
+
+  it("burns amber over the aisles, and leaves the freight unlit", () => {
+    for (const id of ["stall-awning", "cage-lamp", "noodle-counter"] as const) {
+      const glow = PROP_ART[id].glow ?? [];
+      expect(glow.length, `${id} glow`).toBeGreaterThan(0);
+      for (const source of glow) {
+        expect(source.color, `${id} glow color`).toBe("m");
+      }
+    }
+    expect(PROP_ART["crate-stack"].glow).toBeUndefined();
+  });
+
+  it("loops the working stalls and holds the freight still", () => {
+    for (const id of ["stall-awning", "cage-lamp", "noodle-counter"] as const) {
+      const art = PROP_ART[id];
+      expect(art.frameMs, id).toBeGreaterThan(0);
+      const unique = new Set(art.frames.map((grid) => grid.join("\n")));
+      expect(unique.size, `${id} distinct frames`).toBe(art.frames.length);
+    }
+    const stack = PROP_ART["crate-stack"];
+    expect(stack.frameMs).toBe(0);
+    expect(stack.frames).toHaveLength(1);
+    // The counter's steam actually drifts between frames.
+    const steam = PROP_ART["noodle-counter"].frames.map((grid) =>
+      grid
+        .slice(0, 16)
+        .map((row) => [...row].map((ch) => ("78".includes(ch) ? "x" : ".")).join(""))
+        .join("\n"),
+    );
+    expect(new Set(steam).size).toBe(PROP_ART["noodle-counter"].frames.length);
+  });
+});
+
+describe("isoBox", () => {
+  const INK = { top: "b", rim: "c", left: "4", right: "3", ink: "1" };
+
+  it("is a lid diamond over a wall, w wide and w/2 + wallH tall", () => {
+    const box = isoBox(16, 6, INK);
+    expect(box).toHaveLength(16 / 2 + 6);
+    for (const row of box) expect(row.length).toBe(16);
+    expectValid(box, "isoBox(16, 6)");
+    // The lid's first row is the diamond's 4px tip, centered: ink, the
+    // lit rim, the far rim's darker step, ink.
+    expect(box[0]).toBe("......1c41......");
+  });
+
+  it("puts the footprint's center — the tile contact point — on one row", () => {
+    // The point that lands on the tile diamond's center is the widest
+    // row of the *lower* diamond: wallH + w/4.
+    const w = 16;
+    const wallH = 6;
+    const box = isoBox(w, wallH, INK);
+    const solid = box.map((row) => row.replaceAll(".", "").length);
+    expect(solid[wallH + w / 4]).toBe(w);
+  });
+
+  it("lights the left face and shades the right, ringed in ink", () => {
+    const box = isoBox(16, 6, INK);
+    const wall = box[10] ?? "";
+    expect(wall.startsWith("1")).toBe(true);
+    expect(wall.endsWith("1")).toBe(true);
+    expect(wall.slice(1, 8)).toBe("4".repeat(7));
+    expect(wall.slice(8, 15)).toBe("3".repeat(7));
+  });
+
+  it("runs seams across the top face only when asked for grain", () => {
+    const plain = isoBox(24, 8, INK).join("");
+    const grained = isoBox(24, 8, { ...INK, grain: "a" }).join("");
+    expect(plain).not.toContain("a");
+    expect(grained).toContain("a");
+    // Grain is a top-face treatment: the walls are untouched by it.
+    expect(grained.replaceAll("a", "b")).toBe(plain);
   });
 });
 
