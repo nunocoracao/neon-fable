@@ -966,6 +966,77 @@ describe("act 1 chapter flow", () => {
   });
 });
 
+describe("minimap", () => {
+  /** Mounts the hub with the scene's frame callbacks captured. */
+  function exploreTheHub(): FrameRequestCallback[] {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return 1;
+    });
+    showScreen(
+      createGameScreen({ session: createSession(testCharacterState(1)) }),
+    );
+    return frames;
+  }
+
+  function collapsed(): boolean {
+    const el = document.querySelector(".nf-minimap");
+    if (!el) throw new Error("no minimap");
+    return el.classList.contains("nf-minimap-collapsed");
+  }
+
+  it("rides along with the scene, expanded by default", () => {
+    const frames = exploreTheHub();
+    expect(document.querySelector(".nf-minimap-canvas")).not.toBeNull();
+    expect(collapsed()).toBe(false);
+    // The scene feeds it; nothing here should throw on the first frame.
+    expect(() => frames[0]?.(0)).not.toThrow();
+  });
+
+  it("M collapses and expands it, and the choice is persisted", () => {
+    exploreTheHub();
+    pressKey("m");
+    expect(collapsed()).toBe(true);
+    expect(settings.get().minimap).toBe(false);
+    expect(localStorage.getItem(SETTINGS_KEY)).toMatch(/"minimap":false/);
+
+    pressKey("M");
+    expect(collapsed()).toBe(false);
+    expect(settings.get().minimap).toBe(true);
+  });
+
+  it("opens collapsed when that is what the player left it as", () => {
+    settings.update({ minimap: false });
+    exploreTheHub();
+    expect(collapsed()).toBe(true);
+  });
+
+  it("its tab collapses it too, and reads its state without color", () => {
+    exploreTheHub();
+    const tab = document.querySelector<HTMLButtonElement>(".nf-minimap-tab");
+    expect(tab?.getAttribute("aria-pressed")).toBe("true");
+    tab?.click();
+    expect(collapsed()).toBe(true);
+    expect(tab?.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("leaves M alone while an overlay covers the map", () => {
+    exploreTheHub();
+    pressKey("i");
+    expect(document.querySelector(".nf-inventory")).not.toBeNull();
+    pressKey("m");
+    expect(collapsed()).toBe(false);
+    expect(settings.get().minimap).toBe(true);
+  });
+
+  it("goes away with the screen", () => {
+    exploreTheHub();
+    showScreen(createMainMenuScreen());
+    expect(document.querySelector(".nf-minimap")).toBeNull();
+  });
+});
+
 describe("save/load", () => {
   function reachHubIdle(): void {
     createTestCharacter();

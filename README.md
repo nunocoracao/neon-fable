@@ -44,9 +44,15 @@ entry that drops you on the hub map without a character).
   Enter to take the focused choice. Greyed-out choices show the
   requirement you're missing in brackets, e.g. `[Tech 6]`. Choices have
   real consequences: flags, credits, items, fights, travel, endings.
-- **HUD & overlays** — `I` opens the inventory, `Esc` opens the pause
-  menu (or closes the open overlay). Saves live in the pause menu; the
-  game also autosaves on every map transition and combat entry.
+- **HUD & overlays** — `I` opens the inventory, `M` collapses or expands
+  the corner minimap, `Esc` opens the pause menu (or closes the open
+  overlay). Saves live in the pause menu; the game also autosaves on
+  every map transition and combat entry.
+- **Minimap** — a top-down overview of the district under the HUD bar:
+  two-tone walkable and blocked ground, tinted water, a pip with a
+  facing tick for you, and pips for the ways out, the people, and the
+  places the story sends you. It shows the whole map (no fog) and is
+  read-only — clicking it does nothing.
 - **Combat** — turn-based on an iso arena. Initiative comes from
   Reflexes. On your turn: Attack, Ability, Item, Move (click a
   highlighted tile or use the arrow keys), Flee, or End Turn. Damage is
@@ -113,7 +119,9 @@ plus content from `src/data/`); rendering and DOM code stay thin.
 - **Iso scene** (`src/iso/`) — 2:1 diamond tiles, painter's-order depth
   sort, BFS pathfinding, and a combat arena scene with walk tweens, HP
   bars, and floating damage text. Presentation only: it never imports
-  game rules.
+  game rules. `minimap.ts` holds the minimap's projection math (cells,
+  pips, viewport box) as pure functions; `src/ui/minimap.ts` only paints
+  them, and only when the scene's view has changed.
 - **UI** (`src/ui/`) — a screen router (`showScreen`) plus overlay
   panels. A mount error shows a crash notice instead of a blank page.
   Missing content ids log `console.error` and degrade (drop the fight,
