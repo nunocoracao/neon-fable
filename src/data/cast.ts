@@ -121,6 +121,26 @@ export const MARROW_VISUAL: CharacterVisual = {
   enhancements: { eyes: "cyb-optic-suite" },
 };
 
+// The Flooded Quays' one fixture: a salvage diver who works the basin
+// on her own, gills grafted along her ribs so she can stay down in it.
+// Weather-beaten, unbothered, and lit amber by the barge she scavenges.
+export const DREDGE_VISUAL: CharacterVisual = {
+  appearance: {
+    skinTone: "warm-brown",
+    build: "heavy",
+    hairStyle: "buzz",
+    hairColor: "silver",
+    eyes: "wide",
+    eyeColor: "amber",
+    brows: "heavy",
+    mouth: "neutral",
+    faceDetail: "scar",
+    headwear: "hood",
+  },
+  outfit: "out-diver-harness",
+  enhancements: { dermal: "cyb-silt-gills" },
+};
+
 /** Every named story speaker's authored look, keyed by display name. */
 export const cast: Readonly<Record<string, CharacterVisual>> = {
   Flick: FLICK_VISUAL,
@@ -129,6 +149,7 @@ export const cast: Readonly<Record<string, CharacterVisual>> = {
   "Auditor Lin": LIN_VISUAL,
   Quill: QUILL_VISUAL,
   Marrow: MARROW_VISUAL,
+  Dredge: DREDGE_VISUAL,
   // The fixer at the Filament's corner table: groomed, amused, and
   // never quite warm — the smile stops below the eyes.
   Sable: {

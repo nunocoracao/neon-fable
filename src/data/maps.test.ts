@@ -21,6 +21,7 @@ import {
   minimapPipKind,
   minimapPips,
 } from "../iso/minimap";
+import { REFLECTION_RANGE } from "../iso/glowPass";
 import { findPath, findPathToAdjacent } from "../iso/path";
 import { resolveDayPhase } from "../iso/dayPhase";
 import {
@@ -31,6 +32,8 @@ import {
   inBounds,
   isWalkable,
   mapExits,
+  neighbors,
+  propTiles,
   requireSpawn,
   tileAt,
   tileMaterial,
@@ -38,6 +41,7 @@ import {
   type PropId,
   type TileId,
 } from "../iso/tilemap";
+import type { TilePoint } from "../iso/coords";
 import { puddleTiles, tileHoldsWater } from "../iso/weather";
 import { encounters, getEncounter } from "./encounters";
 import { getItem } from "./items";
@@ -61,6 +65,7 @@ describe("map registry", () => {
       "exchange-ventworks",
       "auric-spire",
       "vertical-market",
+      "flooded-quays",
       "rustyard-arena",
       "undercroft-arena",
       "vault-arena",
@@ -69,6 +74,7 @@ describe("map registry", () => {
       "cycler-floor-arena",
       "spire-crown-arena",
       "market-scaffold-arena",
+      "quays-walkway-arena",
     ]);
     expect(getMap(HUB_MAP_ID)?.name).toBe("Cinder Row Plaza");
     expect(getMap("nowhere")).toBeUndefined();
@@ -193,6 +199,7 @@ describe("map lint covers every registered map", () => {
       "exchange-ventworks",
       "auric-spire",
       "vertical-market",
+      "flooded-quays",
     ]);
     expect(arenaMaps.length).toBe(maps.length - explorableMaps.length);
   });
@@ -383,6 +390,135 @@ describe("the Vertical Market", () => {
 });
 
 /**
+ * The Flooded Quays' own dressing. The generic lint above proves the
+ * district is walkable and wired; what is pinned here is the thing it
+ * was built to be — a map with almost no ground on it, where every
+ * route is a walkway span over open water, and where the one set piece
+ * is a wreck too big for the tile it stands on.
+ */
+describe("the Flooded Quays", () => {
+  const quays = requireMap("flooded-quays");
+  const QUAY_PROPS: readonly PropId[] = [
+    "mooring-post",
+    "salvage-tarp",
+    "sunken-barge",
+  ];
+  const walkable: TilePoint[] = [];
+  for (let y = 0; y < quays.height; y++) {
+    for (let x = 0; x < quays.width; x++) {
+      if (isWalkable(quays, x, y)) walkable.push({ x, y });
+    }
+  }
+
+  it("furnishes the dockland with gear no other district has", () => {
+    const here = quays.props.map((prop) => prop.propId);
+    for (const id of QUAY_PROPS) {
+      expect(here.filter((prop) => prop === id).length, id).toBeGreaterThan(0);
+    }
+    const elsewhere = maps
+      .filter((map) => map.id !== quays.id)
+      .flatMap((map) => map.props.map((prop) => prop.propId));
+    for (const id of QUAY_PROPS) {
+      expect(elsewhere, `${id} leaked off the quays`).not.toContain(id);
+    }
+  });
+
+  it("is the water district — more canal than the rest of the game has", () => {
+    const openWater = (map: IsoMap): number =>
+      map.tiles.flat().filter((id) => tileMaterial(id) === "water").length;
+    const here = openWater(quays);
+    // A third of the district is basin, and there is more of it here
+    // than on every other map in the game put together.
+    expect(here).toBeGreaterThan(quays.width * quays.height * 0.33);
+    const elsewhere = maps
+      .filter((map) => map.id !== quays.id)
+      .reduce((total, map) => total + openWater(map), 0);
+    expect(here, "the quays are not the wettest map in the game").toBeGreaterThan(
+      elsewhere,
+    );
+    // And more of it than there is ground to stand on.
+    expect(here).toBeGreaterThan(walkable.length);
+  });
+
+  it("crosses the basin on walkway spans, not on a bridge you can miss", () => {
+    // Every route between the two banks runs over plate decking laid on
+    // the water, and each span is a single tile wide: the pathfinder
+    // funnels onto them because there is nothing either side to walk on.
+    const decking = walkable.filter(
+      (tile) => quays.tiles[tile.y]?.[tile.x] === "rust-floor",
+    );
+    expect(decking.length).toBeGreaterThan(10);
+    for (const tile of decking) {
+      const neighbouring = neighbors(tile).filter((n) =>
+        isWalkable(quays, n.x, n.y),
+      );
+      expect(
+        neighbouring.length,
+        `walkway at (${tile.x}, ${tile.y}) is a plaza, not a span`,
+      ).toBeLessThanOrEqual(3);
+    }
+    // And crossing really is the only way over: block the spans and the
+    // wharf falls off the map.
+    const damned: IsoMap = {
+      ...quays,
+      tiles: quays.tiles.map((row) =>
+        row.map((id) => (id === "rust-floor" ? "canal" : id)),
+      ),
+    };
+    const start = requireSpawn(quays, ENTRY_SPAWN_ID);
+    const board = quays.interactables.find((i) => i.id === "quays-tide-board");
+    if (!board) throw new Error("no tide board");
+    expect(findPathToAdjacent(quays, start, board)).not.toBeNull();
+    expect(findPathToAdjacent(damned, start, board)).toBeNull();
+  });
+
+  it("lies a wreck across six tiles and blocks every one of them", () => {
+    const barge = quays.props.find((prop) => prop.propId === "sunken-barge");
+    if (!barge) throw new Error("no barge");
+    const covered = propTiles(barge);
+    expect(covered).toHaveLength(6);
+    expect(barge.blocks).toBe(true);
+    for (const tile of covered) {
+      expect(inBounds(quays, tile.x, tile.y), `${tile.x},${tile.y}`).toBe(true);
+      expect(isWalkable(quays, tile.x, tile.y), `${tile.x},${tile.y}`).toBe(false);
+      // The hull's own tile is the nearest one it covers, so painter's
+      // order sorts the whole set piece by it (see PropPlacement).
+      expect(tile.x + tile.y).toBeLessThanOrEqual(barge.x + barge.y);
+    }
+    // Half of her is in the water and half aground on the quay lip.
+    const materials = covered.map((tile) =>
+      tileMaterial(quays.tiles[tile.y]?.[tile.x] ?? "pavement"),
+    );
+    expect(materials.filter((m) => m === "water").length).toBe(3);
+    expect(materials.filter((m) => m === "pavement").length).toBe(3);
+  });
+
+  it("stands its lamps where the water can take their reflection", () => {
+    // The point of the district: every emissive thing on it is within
+    // reflection range of open canal, so the glow pass has somewhere to
+    // pool. See collectGlowPlacements / REFLECTION_RANGE.
+    // Tenement walls glow too, but they are the frame, not the lighting.
+    const emissive = quays.props.filter(
+      (prop) => prop.propId !== "building" && PROP_ART[prop.propId].glow,
+    );
+    expect(emissive.length).toBeGreaterThan(2);
+    for (const prop of emissive) {
+      const reflects = [];
+      for (let dy = -REFLECTION_RANGE; dy <= REFLECTION_RANGE; dy++) {
+        for (let dx = -REFLECTION_RANGE; dx <= REFLECTION_RANGE; dx++) {
+          const id = quays.tiles[prop.y + dy]?.[prop.x + dx];
+          if (id !== undefined && TILE_ART[id].reflective) reflects.push(id);
+        }
+      }
+      expect(
+        reflects.length,
+        `${prop.propId} at (${prop.x}, ${prop.y}) lights nothing wet`,
+      ).toBeGreaterThan(0);
+    }
+  });
+});
+
+/**
  * Exit lint. An exit is the one piece of map data that points at
  * another map, so it is the one that can rot silently: a destination
  * that was renamed, an entry spawn that was moved. Both would show up
@@ -396,12 +532,14 @@ describe("map exits", () => {
 
   it("marks the ways out of the districts, and nothing on an arena", () => {
     expect(exits.map(({ map, exit }) => `${map.id}/${exit.id}`)).toEqual([
-      // The hub's one way out on foot, and the market's way back.
+      // The hub's two ways out on foot, and both districts' ways back.
+      "cinder-plaza/canal-lock",
       "cinder-plaza/market-gate",
       "greywater-steps/chainwell-stair",
       "exchange-ventworks/tram-gate",
       "auric-spire/spire-tram",
       "vertical-market/market-stair",
+      "flooded-quays/quays-lock",
     ]);
     for (const arena of arenaMaps) {
       expect(mapExits(arena), `${arena.id} declares an exit`).toEqual([]);
@@ -547,6 +685,7 @@ describe("NPC visuals", () => {
       "market-fixer",
       "market-vendor",
       "matron-ferrow",
+      "quays-diver",
       "rust-runner",
       "stall-broker",
       "tram-messenger",
@@ -641,6 +780,8 @@ describe("ambient crowds", () => {
       ["auric-spire", 5],
       // The bazaar is the busiest map in the game, by design.
       ["vertical-market", MAX_AMBIENT_PER_MAP],
+      // The quays are the emptiest: nobody lives out on the water.
+      ["flooded-quays", 5],
     ]);
     const densest = [...explorableMaps].sort(
       (a, b) => (b.ambient?.count ?? 0) - (a.ambient?.count ?? 0),
@@ -653,7 +794,7 @@ describe("ambient crowds", () => {
 });
 
 describe("weather", () => {
-  it("rains on the quayside and nowhere else, with the hub left clear", () => {
+  it("rains on the two waterside districts and nowhere else", () => {
     const declared = explorableMaps.map((map) => [map.id, map.weather ?? "clear"]);
     expect(declared).toEqual([
       ["cinder-plaza", "clear"],
@@ -664,6 +805,9 @@ describe("weather", () => {
       ["auric-spire", "clear"],
       // The market is roofed by the levels stacked above it.
       ["vertical-market", "clear"],
+      // The quays are open canal under an open shaft: the map where
+      // rain and standing water are shown off together.
+      ["flooded-quays", "rain"],
     ]);
   });
 
@@ -731,6 +875,8 @@ describe("day phase", () => {
       ["auric-spire", "late"],
       // The bazaar only trades after dark.
       ["vertical-market", "night"],
+      // ...and the quays are only ever visited in the small hours.
+      ["flooded-quays", "late"],
     ]);
   });
 

@@ -139,7 +139,12 @@ export type PropId =
   | "stall-awning"
   | "cage-lamp"
   | "crate-stack"
-  | "noodle-counter";
+  | "noodle-counter"
+  // Quayside dressing: dockland furniture for the Flooded Quays. The
+  // barge is the game's first prop whose bulk needs a footprint.
+  | "mooring-post"
+  | "salvage-tarp"
+  | "sunken-barge";
 
 /** A static decoration on a tile. Blocking props make the tile unwalkable. */
 export interface PropPlacement {

@@ -14,7 +14,7 @@ import {
   remapped,
   type PixelGrid,
 } from "./pixel";
-import { PROP_ART, isoBox } from "./props";
+import { PROP_ART, isoBox, isoSlab } from "./props";
 import { TILE_ART, puddleGrid } from "./tiles";
 import {
   RAIN_STREAK_ART,
@@ -522,6 +522,158 @@ describe("isoBox", () => {
     expect(grained).toContain("a");
     // Grain is a top-face treatment: the walls are untouched by it.
     expect(grained.replaceAll("a", "b")).toBe(plain);
+  });
+});
+
+describe("isoSlab", () => {
+  const INK = { top: "b", rim: "c", left: "4", right: "3", ink: "1" };
+
+  it("sizes itself to the footprint's parallelogram plus the wall", () => {
+    for (const [wx, wy, wallH] of [
+      [1, 1, 6],
+      [3, 2, 18],
+      [2, 4, 10],
+    ] as const) {
+      const slab = isoSlab(wx, wy, wallH, INK);
+      expectValid(slab.grid, `isoSlab(${wx}, ${wy}, ${wallH})`);
+      expect(slab.grid[0]?.length, "width").toBe(32 * (wx + wy));
+      expect(slab.grid.length, "height").toBe(16 * (wx + wy) + wallH + 1);
+      // Anchored on the near tile, with the same half tile below the
+      // anchor every other prop is held to.
+      expect(slab.anchorX).toBe(32 * wx);
+      expect(slab.grid.length - 1 - slab.anchorY).toBe(16);
+    }
+  });
+
+  it("covers every tile of the footprint and nothing beyond it", () => {
+    const wx = 3;
+    const wy = 2;
+    const slab = isoSlab(wx, wy, 12, INK);
+    const solidAt = (px: number, py: number): boolean => {
+      const row = slab.grid[Math.round(py + slab.anchorY)];
+      return (row?.[Math.round(px + slab.anchorX)] ?? ".") !== ".";
+    };
+    for (let i = 0; i < wx; i++) {
+      for (let j = 0; j < wy; j++) {
+        // Each covered tile's diamond center, relative to the near tile.
+        const px = 32 * (i - (wx - 1)) - 32 * (j - (wy - 1));
+        const py = 16 * (i - (wx - 1)) + 16 * (j - (wy - 1));
+        expect(solidAt(px, py), `tile (${i}, ${j})`).toBe(true);
+      }
+    }
+    // One tile further along either axis is off the slab entirely.
+    expect(solidAt(32 * 1 - 0, 16 * 1), "past the near corner").toBe(false);
+    expect(solidAt(-32 * wx - 16, -16 * wx), "past the far bow").toBe(false);
+  });
+
+  it("lights the deck's near rim and shades the wall it hangs over", () => {
+    const slab = isoSlab(2, 2, 10, INK);
+    const painted = slab.grid.join("");
+    expect(painted).toContain("c");
+    expect(painted).toContain("4");
+    expect(painted).toContain("3");
+    // Grain is a deck treatment, exactly as it is on isoBox.
+    const grained = isoSlab(2, 2, 10, { ...INK, grain: "a" });
+    expect(grained.grid.join("")).toContain("a");
+    expect(grained.grid.join("").replaceAll("a", "b")).toBe(painted);
+  });
+});
+
+/**
+ * Quayside dressing. The Flooded Quays' furniture, held to the street's
+ * envelope with one deliberate exception encoded here: the sunken barge
+ * is a set piece whose bulk lies across six tiles, so it is allowed to
+ * be as wide as its footprint — and it grounds in water, not on a
+ * shadow, because it is floating.
+ */
+const QUAY_FURNITURE = ["mooring-post", "salvage-tarp"] as const;
+
+describe("quayside furniture (native hi-res)", () => {
+  it("fits the v2 prop envelope and anchors inside the tile's lower half", () => {
+    for (const id of QUAY_FURNITURE) {
+      const art = PROP_ART[id];
+      const grid = art.frames[0] ?? [];
+      expect(grid[0]?.length, `${id} width`).toBeLessThanOrEqual(64);
+      expect(grid.length, `${id} height`).toBeLessThanOrEqual(96);
+      expect(art.anchorX, `${id} anchorX`).toBeLessThan(grid[0]?.length ?? 0);
+      expect(
+        grid.length - 1 - art.anchorY,
+        `${id} rows below anchor`,
+      ).toBeLessThanOrEqual(16);
+    }
+  });
+
+  it("grounds what stands on the boards with a soft z shadow", () => {
+    for (const id of QUAY_FURNITURE) {
+      expect(PROP_ART[id].frames[0]?.join("").includes("z"), id).toBe(true);
+    }
+    // Both are unlit dockside clutter: no glow, no loop.
+    for (const id of QUAY_FURNITURE) {
+      expect(PROP_ART[id].glow, `${id} glow`).toBeUndefined();
+      expect(PROP_ART[id].frameMs, `${id} cadence`).toBe(0);
+    }
+  });
+
+  it("rusts the bollard at the waterline and ropes it off", () => {
+    const post = PROP_ART["mooring-post"].frames[0] ?? [];
+    // Chrome cap, rust bleed down the shaft, rope wrapped round it, and
+    // a concrete pad under the lot.
+    expect(post.join("")).toContain("9");
+    expect(post.join("")).toContain("a");
+    expect(post.join("")).toContain("c");
+    expect(post.join("")).toContain("R");
+  });
+
+  it("lashes the salvage under hazard webbing", () => {
+    const tarp = (PROP_ART["salvage-tarp"].frames[0] ?? []).join("");
+    // Dark fabric over the pile, hazard strapping across it.
+    expect(tarp).toContain("W");
+    expect(tarp).toContain("Z");
+  });
+});
+
+describe("the sunken barge (a set piece across six tiles)", () => {
+  const art = PROP_ART["sunken-barge"];
+  const frames = art.frames;
+  const base = frames[0] ?? [];
+
+  it("is sized and anchored to the hull's own footprint", () => {
+    // Three tiles of hull by two, so 32 * (3 + 2) art pixels across —
+    // deliberately wider than the single-tile envelope, and anchored on
+    // the near tile so painter's order still sorts it correctly.
+    expect(base[0]?.length).toBe(160);
+    expect(art.anchorX).toBe(96);
+    expect(base.length - 1 - art.anchorY).toBe(16);
+    for (const [f, grid] of frames.entries()) expectValid(grid, `barge frame ${f}`);
+  });
+
+  it("is down by the bow, with the canal standing in its hold", () => {
+    // The forward end is gone under: the far corner of the footprint is
+    // open water, not hull.
+    const at = (px: number, py: number): string =>
+      base[py + art.anchorY]?.[px + art.anchorX] ?? ".";
+    expect(at(-32 * 2, -16 * 2), "the bow").toBe(".");
+    expect(at(0, 0), "the stern").not.toBe(".");
+    // Water inside the hull, and rust above the waterline.
+    const painted = base.join("");
+    expect(painted).toContain("d");
+    expect(painted).toContain("e");
+    expect(painted).toContain("b");
+    // Floating: it grounds in the canal, so it casts no ground shadow.
+    expect(painted).not.toContain("z");
+  });
+
+  it("keeps one lamp burning on the mast, and works the water with it", () => {
+    const glow = art.glow ?? [];
+    expect(glow).toHaveLength(1);
+    expect(glow[0]?.color).toBe("m");
+    // High on the mast, well above the deck.
+    expect(glow[0]?.offsetY ?? 0).toBeLessThan(-40);
+  });
+
+  it("moves: the water dithers and the lamp breathes between frames", () => {
+    expect(art.frameMs).toBeGreaterThan(0);
+    expect(new Set(frames.map((grid) => grid.join("\n"))).size).toBe(frames.length);
   });
 });
 

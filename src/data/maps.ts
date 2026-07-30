@@ -1,20 +1,22 @@
 /**
- * Isometric map content: five explorable maps (the Cinder Row hub, the
+ * Isometric map content: six explorable maps (the Cinder Row hub, the
  * Greywater Steps settlement, the Exchange ventworks, the Auric Spire
- * concourse, and the Vertical Market) and the combat arenas the
- * encounters fight on. Maps are authored as character rows expanded
- * through buildMapGrid; interactables reference story node and
+ * concourse, the Vertical Market, and the Flooded Quays) and the combat
+ * arenas the encounters fight on. Maps are authored as character rows
+ * expanded through buildMapGrid; interactables reference story node and
  * encounter ids by string only — the iso layer never resolves them.
  *
  * Every map is dressed from the native hi-res tile and prop
  * vocabulary, and each carries its own material identity: the hub is
  * neon and lived-in, Greywater is damp and salvaged, the Ventworks is
  * swept industrial-corporate, the Spire concourse is sterile, the
- * Vertical Market is crowded scaffold and lamplight. Arenas stay
- * deliberately quiet — see the arena section's note.
+ * Vertical Market is crowded scaffold and lamplight, and the Flooded
+ * Quays are plate walkways over black water. Arenas stay deliberately
+ * quiet — see the arena section's note.
  */
 import { buildMapGrid, type IsoMap, type LegendEntry } from "../iso/tilemap";
 import {
+  DREDGE_VISUAL,
   FERROW_VISUAL,
   FLICK_VISUAL,
   LIN_VISUAL,
@@ -117,6 +119,18 @@ const cinderPlaza: IsoMap = {
       interaction: { kind: "dialogue", nodeId: "filament-door" },
       // A door the story sends you through: worth a minimap pip.
       minimap: true,
+    },
+    {
+      id: "canal-lock",
+      // The lockgate at the head of the storm canal, against the east
+      // wall where the water leaves the plaza — and the way down to the
+      // dockland it ends up in.
+      x: 14,
+      y: 1,
+      label: "Lockgate",
+      spriteId: "exit",
+      interaction: { kind: "dialogue", nodeId: "fq-lock" },
+      exit: { mapId: "flooded-quays" },
     },
     {
       id: "market-vendor",
@@ -781,6 +795,167 @@ const verticalMarket: IsoMap = {
 };
 
 /**
+ * The Flooded Quays — the dockland the Sprawl gave up on, three levels
+ * under Cinder Row where the storm canal widens into a basin nobody
+ * pumps out any more. There is no ground here worth the name: a wharf
+ * strip along the north wall, a strand along the south, and between
+ * them open black water crossed by two plate walkways and the catwalk
+ * that joins them amidships. Every route funnels onto those spans —
+ * the pathfinder does the funnelling for free, because the water
+ * either side of them simply is not walkable.
+ *
+ * Half-sunk against the eastern bank lies a salvage lighter, a set
+ * piece three tiles of hull by two: the game's first prop whose bulk
+ * needs a footprint, and the thing the district is named for as much
+ * as the water is. Rain falls on all of it in the small hours, so the
+ * basin, the puddles standing on the boards, and the lamps working
+ * against both are doing the reflection pass' whole job at once — this
+ * is the map that shows weather and water together.
+ *
+ * Reached from the hub and nowhere else: the lock at the head of Cinder
+ * Row's storm canal, down and back. The Vertical Market is two levels
+ * up the same shaft with no way between that isn't the plaza, so the
+ * hub stays the junction and travel reads as one hop from home.
+ */
+const quaysLegend: Record<string, LegendEntry> = {
+  "#": { tile: "foundation", prop: { propId: "building", blocks: true } },
+  ".": { tile: "pavement" },
+  ",": { tile: "pavement-cracked" },
+  "~": { tile: "canal" },
+  D: { tile: "canal-deep" },
+  // Plate decking: the walkway spans and the catwalk laid over water.
+  r: { tile: "rust-floor" },
+  // The wharf's lip along the north bank, and the strand's along the
+  // south — every tile of shore in this district is a quay edge.
+  s: { tile: "quay-s" },
+  n: { tile: "quay-n" },
+  // Bollards, set along both banks where the barges used to tie up.
+  P: { tile: "quay-s", prop: { propId: "mooring-post", blocks: true } },
+  Q: { tile: "quay-n", prop: { propId: "mooring-post", blocks: true } },
+  // Salvage waiting on a buyer: on the boards out at the platform, and
+  // stacked along the strand.
+  W: { tile: "rust-floor", prop: { propId: "salvage-tarp", blocks: true } },
+  T: { tile: "pavement", prop: { propId: "salvage-tarp", blocks: true } },
+  // The one lamp standing out over the water, and the strand's own.
+  L: { tile: "rust-floor", prop: { propId: "streetlight", blocks: true } },
+  l: { tile: "pavement", prop: { propId: "streetlight", blocks: true } },
+  N: { tile: "pavement", prop: { propId: "neon-sign", blocks: true } },
+  h: { tile: "pavement", prop: { propId: "holo-sign", blocks: true } },
+  c: { tile: "pavement", prop: { propId: "crate", blocks: true } },
+  t: { tile: "pavement", prop: { propId: "trash-heap", blocks: true } },
+  u: { tile: "pavement", prop: { propId: "cable-bundle", blocks: false } },
+};
+
+const quaysRows = [
+  "################",
+  "#.,..l......ht.#",
+  "#ssPssssssPssss#",
+  "#DD~r~~~~~~r~DD#",
+  "#D~~r~~~~~~r~~D#",
+  "#~~~r~~~~~~r~~~#",
+  "#~~~r~~~~~~r~~~#",
+  "#~~~rrrrrrrr~~~#",
+  "#~~~r~LrrW~r~~~#",
+  "#~~~r~~~~~~r~~~#",
+  "#D~~r~~~~~~r~~D#",
+  "#nQnnnnnQnnnnnn#",
+  "#.l..T....l.N..#",
+  "#...,.cu..T....#",
+  "################",
+];
+
+const quaysGrid = buildMapGrid(quaysLegend, quaysRows);
+
+const floodedQuays: IsoMap = {
+  id: "flooded-quays",
+  name: "The Flooded Quays",
+  width: quaysGrid.width,
+  height: quaysGrid.height,
+  tiles: quaysGrid.tiles,
+  props: [
+    ...quaysGrid.props,
+    // The salvage lighter, aground across the eastern end of the south
+    // bank: stern on the quay lip, bow and hold under the water. Placed
+    // by hand rather than by legend character because its bulk covers
+    // six tiles — the near one it is written on, and the five behind.
+    {
+      propId: "sunken-barge",
+      x: 14,
+      y: 11,
+      blocks: true,
+      footprint: [
+        { x: -1, y: 0 },
+        { x: -2, y: 0 },
+        { x: 0, y: -1 },
+        { x: -1, y: -1 },
+        { x: -2, y: -1 },
+      ],
+    },
+  ],
+  interactables: [
+    {
+      id: "quays-tide-board",
+      // Bolted to the wharf wall where the lock crews used to read it.
+      x: 8,
+      y: 1,
+      label: "Tide Board",
+      spriteId: "terminal",
+      interaction: { kind: "dialogue", nodeId: "fq-board" },
+    },
+    {
+      id: "quays-diver",
+      // Out on the salvage platform, where the catwalk widens.
+      x: 7,
+      y: 8,
+      label: "Dredge",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "fq-diver" },
+      visual: DREDGE_VISUAL,
+    },
+    {
+      id: "quays-cage",
+      // Chained off the strand under the wrecked barge's stern.
+      x: 13,
+      y: 12,
+      label: "Salvage cage",
+      spriteId: "stash",
+      interaction: { kind: "dialogue", nodeId: "fq-cage" },
+    },
+    {
+      id: "quays-lock",
+      x: 8,
+      y: 12,
+      label: "Lockgate Stair",
+      spriteId: "exit",
+      interaction: { kind: "dialogue", nodeId: "fq-stair" },
+      // Back up the canal the way you came down it, out on the road
+      // below Cinder Row's curb.
+      exit: { mapId: "cinder-plaza", entryId: "south-road" },
+    },
+  ],
+  // The lock stair puts you down on the strand, facing the water.
+  spawns: [{ id: "player-start", x: 8, y: 13 }],
+  // Nobody lives here and nobody is passing through: a couple of people
+  // working the strand, a couple more up on the wharf, and the water in
+  // between. Sparser than anywhere else in the game on purpose.
+  ambient: {
+    count: 5,
+    zones: [
+      { id: "strand", x: 1, y: 11, width: 14, height: 3 },
+      { id: "wharf", x: 1, y: 1, width: 14, height: 2 },
+    ],
+  },
+  // It rains on the quays the way it rains on Greywater, and for the
+  // same reason: this is where the water is. Here it also has open
+  // canal to fall into and lamps standing over it, which is the whole
+  // point of the map.
+  weather: "rain",
+  // The small hours, when the basin is black and the only things
+  // burning are the wharf signage and one lamp on a wrecked mast.
+  dayPhase: "late",
+};
+
+/**
  * Combat arenas. Every tile of an arena is open floor: the combat engine
  * has no obstacle rules (movement is bounds + occupancy only), so arena
  * maps must not place blocking props or unwalkable tiles inside the grid
@@ -1091,12 +1266,53 @@ const marketScaffoldArena: IsoMap = {
   spawns: [{ id: "player-start", x: 1, y: 3 }],
 };
 
+/**
+ * Lockgate Walkway — a cleared span out on the Flooded Quays
+ * (enc-quays-salvage, 9x7). The quays' own arena: a plate walkway down
+ * the middle where the fight funnels, wet concrete banks either side,
+ * and the canal lip along the north and west edges where the boards
+ * run out. Chokepoints in how it reads, an even grid in what it is —
+ * the engine has no obstacle rules, so the pinch has to be drawn, not
+ * built.
+ */
+const quaysWalkwayLegend: Record<string, LegendEntry> = {
+  ".": { tile: "pavement" },
+  ",": { tile: "pavement-cracked" },
+  r: { tile: "rust-floor" },
+  n: { tile: "quay-n" },
+  w: { tile: "quay-w" },
+};
+
+const quaysWalkwayRows = [
+  "nnnnnnnnn",
+  "w..rrr...",
+  "w..rrr...",
+  "w,.rrr..,",
+  "w..rrr...",
+  "w,,rrr,,,",
+  "w,,,,,,,,",
+];
+
+const quaysWalkwayGrid = buildMapGrid(quaysWalkwayLegend, quaysWalkwayRows);
+
+const quaysWalkwayArena: IsoMap = {
+  id: "quays-walkway-arena",
+  name: "Lockgate Walkway",
+  width: quaysWalkwayGrid.width,
+  height: quaysWalkwayGrid.height,
+  tiles: quaysWalkwayGrid.tiles,
+  props: quaysWalkwayGrid.props,
+  interactables: [],
+  spawns: [{ id: "player-start", x: 1, y: 3 }],
+};
+
 export const maps: readonly IsoMap[] = [
   cinderPlaza,
   greywaterSteps,
   exchangeVentworks,
   auricSpire,
   verticalMarket,
+  floodedQuays,
   rustyardArena,
   undercroftArena,
   vaultArena,
@@ -1105,6 +1321,7 @@ export const maps: readonly IsoMap[] = [
   cyclerFloorArena,
   spireCrownArena,
   marketScaffoldArena,
+  quaysWalkwayArena,
 ];
 
 export const HUB_MAP_ID = cinderPlaza.id;
