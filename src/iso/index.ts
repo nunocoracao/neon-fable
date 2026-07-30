@@ -205,10 +205,26 @@ export {
   type PixelArtSprites,
 } from "./art/provider";
 export {
+  attackClassFor,
   composedCharacterKey,
   type ComposedCharacter,
   type ComposedLayer,
 } from "./art/layers";
+export {
+  ATTACK_CLASS_IDS,
+  ATTACK_TIMING,
+  attackDurationMs,
+  attackFrameAt,
+  attackFrameCount,
+  attackImpactMs,
+  attackSequence,
+  selectMotionFrame,
+  type AttackClassId,
+  type AttackFrameWindow,
+  type AttackSequence,
+  type AttackTiming,
+  type MotionQuery,
+} from "./attack";
 export { type SpriteCacheStats } from "./art/spriteCache";
 export {
   facingFromDelta,
@@ -217,5 +233,6 @@ export {
   smoothStep01,
   variantIndex,
   type Facing,
+  type LoopState,
   type MotionState,
 } from "./animation";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BODY_TIMING, type Facing, type MotionState } from "../../animation";
+import { BODY_TIMING, type Facing, type LoopState } from "../../animation";
 import {
   composedCharacterGrid,
   layerArtGrid,
@@ -21,7 +21,7 @@ import {
   type WeaponClassId,
 } from "./weapons";
 
-const STATES: MotionState[] = ["idle", "walk"];
+const STATES: LoopState[] = ["idle", "walk"];
 const FACINGS: Facing[] = ["n", "e", "s", "w"];
 
 /** The palette characters weapon layers may draw: chrome metal (6/T/9),

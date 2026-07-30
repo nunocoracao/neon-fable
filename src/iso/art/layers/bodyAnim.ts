@@ -28,7 +28,7 @@
  * Every transform leaves the shadow rows and the (16, 44) anchor
  * untouched, so frames never drift against the ground.
  */
-import type { MotionState } from "../../animation";
+import type { LoopState } from "../../animation";
 import type { PixelGrid } from "../pixel";
 import {
   BODY_FRAME,
@@ -229,14 +229,14 @@ function idleFrames(base: PixelGrid): PixelGrid[] {
 export function bodyAnimFrames(
   base: PixelGrid,
   build: BodyBuildId,
-): Readonly<Record<MotionState, readonly PixelGrid[]>> {
+): Readonly<Record<LoopState, readonly PixelGrid[]>> {
   return { idle: idleFrames(base), walk: walkFrames(base, build) };
 }
 
 function animSet(
   build: BodyBuildId,
   view: BodyViewId,
-): Readonly<Record<MotionState, readonly PixelGrid[]>> {
+): Readonly<Record<LoopState, readonly PixelGrid[]>> {
   return bodyAnimFrames(BODY_GRIDS[build][view], build);
 }
 
@@ -248,7 +248,7 @@ function animSet(
 export const BODY_ANIM: Readonly<
   Record<
     BodyBuildId,
-    Readonly<Record<BodyViewId, Readonly<Record<MotionState, readonly PixelGrid[]>>>>
+    Readonly<Record<BodyViewId, Readonly<Record<LoopState, readonly PixelGrid[]>>>>
   >
 > = {
   lean: { front: animSet("lean", "front"), back: animSet("lean", "back") },

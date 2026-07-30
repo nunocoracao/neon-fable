@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { BODY_TIMING, type Facing, type MotionState } from "../animation";
+import { BODY_TIMING, type Facing, type LoopState } from "../animation";
 import { composeVisual } from "../../character/appearance";
 import { enemies } from "../../data/enemies";
 import { INTERACTABLE_ART } from "./interactables";
@@ -68,7 +68,7 @@ function bakeEverything(): number {
   }
 
   const facings: Facing[] = ["n", "e", "s", "w"];
-  const states: MotionState[] = ["idle", "walk"];
+  const states: LoopState[] = ["idle", "walk"];
 
   // The v2 layered bodies: both builds and views, plus the mirrored
   // facings the provider derives at bake time.

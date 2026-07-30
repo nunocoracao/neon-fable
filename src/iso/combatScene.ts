@@ -16,6 +16,7 @@ import {
   shakeOffsetPx,
   type Facing,
 } from "./animation";
+import { attackSequence, type AttackClassId, type AttackSequence } from "./attack";
 import { createPixelArtSprites } from "./art/provider";
 import { clampCamera, mapPixelBounds, type Camera } from "./camera";
 import {
@@ -83,21 +84,30 @@ export interface CombatScene {
   /** Replace the entity view; changed positions animate as walks. */
   setEntities(entities: readonly CombatSceneEntity[]): void;
   setHighlights(highlights: Partial<CombatHighlights>): void;
-  /** Lunge the attacker toward the target (attack or offensive ability). */
-  attackFx(attackerId: string, targetId: string): void;
+  /**
+   * Play the attacker's swing at the target (attack or offensive
+   * ability): the attacker turns to face it, runs its weapon class's
+   * attack animation, and throws its weight through the blow. Returns
+   * the milliseconds until the sequence's impact beat, which callers
+   * pass back as the delay on the reactions that land with it — so a
+   * rifle's damage number appears as the muzzle lights, not before the
+   * gun is up. Reduced motion returns 0: everything lands at once.
+   */
+  attackFx(attackerId: string, targetId: string): number;
   /** Hit flash + brief shake on an entity (attack landing, ability hit). */
-  flashEntity(id: string): void;
+  flashEntity(id: string, delayMs?: number): void;
   /** Floating rise-and-fade text over a tile (damage, MISS, heals). */
-  floatText(tile: TilePoint, text: string, color?: string): void;
+  floatText(
+    tile: TilePoint,
+    text: string,
+    color?: string,
+    delayMs?: number,
+  ): void;
   destroy(): void;
 }
 
 /** Tiles per second entities walk between logical positions. */
 const WALK_SPEED = 6;
-const LUNGE_MS = 220;
-const LUNGE_DISTANCE_PX = 24;
-/** Flash starts slightly after the event so it lands at the lunge apex. */
-const FLASH_DELAY_MS = 90;
 const FLASH_MS = 300;
 const SHAKE_PX = 6;
 const DISSOLVE_MS = 550;
@@ -115,7 +125,9 @@ interface EntityView extends CombatSceneEntity {
   facing: Facing;
   /** Screen-space unit vector toward the last attack target. */
   lungeDir: { dx: number; dy: number } | null;
-  lungeStart: number;
+  /** The swing being played, and when it started; null when at rest. */
+  attack: AttackSequence | null;
+  attackStart: number;
   flashStart: number;
   /** Timestamp the entity was seen dead, for the dissolve. */
   diedAt: number;
@@ -293,16 +305,35 @@ export function createCombatScene(
     }
   }
 
-  /** Screen offset from the entity's in-flight attack lunge, if any. */
+  /**
+   * Screen offset from the entity's in-flight swing: the body's travel
+   * peaks on the class's impact beat and is back at rest by the end of
+   * its envelope. A negative class distance reads as recoil — a rifle
+   * kicks away from its own shot instead of stepping into it.
+   */
   function lungeOffset(entity: EntityView, now: number): { x: number; y: number } {
-    if (!entity.lungeDir) return { x: 0, y: 0 };
-    const k = lunge01(now - entity.lungeStart, LUNGE_MS);
-    if (k === 0 && now - entity.lungeStart >= LUNGE_MS) entity.lungeDir = null;
+    const swing = entity.attack;
+    if (!entity.lungeDir || !swing) return { x: 0, y: 0 };
+    const elapsed = now - entity.attackStart;
+    const k = lunge01(elapsed, swing.lungeMs);
+    if (k === 0 && elapsed >= swing.lungeMs) entity.lungeDir = null;
+    const px = k * swing.lungePx;
     return {
-      x: entity.lungeDir ? entity.lungeDir.dx * k * LUNGE_DISTANCE_PX : 0,
+      x: entity.lungeDir ? entity.lungeDir.dx * px : 0,
       // Screen y is compressed 2:1 in iso space.
-      y: entity.lungeDir ? entity.lungeDir.dy * k * (LUNGE_DISTANCE_PX / 2) : 0,
+      y: entity.lungeDir ? entity.lungeDir.dy * (px / 2) : 0,
     };
+  }
+
+  /** Ms into the attack animation, or undefined once it has finished. */
+  function attackElapsed(entity: EntityView, now: number): number | undefined {
+    if (!entity.attack) return undefined;
+    const elapsed = now - entity.attackStart;
+    if (elapsed >= entity.attack.durationMs) {
+      entity.attack = null;
+      return undefined;
+    }
+    return elapsed;
   }
 
   function drawEntitySprite(entity: EntityView, now: number): void {
@@ -311,10 +342,11 @@ export function createCombatScene(
       facing: entity.facing,
       moving: entity.queue.length > 0,
       timeMs: settings.get().reducedMotion ? 0 : now,
+      attackElapsedMs: attackElapsed(entity, now),
     };
     const sprite = sprites.entity(entity.spriteId, pose);
     const lunge = lungeOffset(entity, now);
-    const flashElapsed = now - entity.flashStart - FLASH_DELAY_MS;
+    const flashElapsed = now - entity.flashStart;
     const shake =
       entity.flashStart > 0 ? shakeOffsetPx(flashElapsed, FLASH_MS, SHAKE_PX) : 0;
     const drawX = snap(sx - sprite.anchorX + lunge.x + shake);
@@ -460,6 +492,8 @@ export function createCombatScene(
         floats.splice(i, 1);
         continue;
       }
+      // Numbers scheduled against a later impact beat wait their turn.
+      if (age < 0) continue;
       const t = age / FLOAT_MS;
       const textY = Math.round(float.sy - 88 - t * FLOAT_RISE_PX);
       ctx!.globalAlpha = 1 - t * t;
@@ -521,7 +555,8 @@ export function createCombatScene(
             progress: 0,
             facing: incoming.spriteId === "player" ? "e" : "s",
             lungeDir: null,
-            lungeStart: 0,
+            attack: null,
+            attackStart: 0,
             flashStart: 0,
             diedAt: incoming.alive ? 0 : -DISSOLVE_MS,
           });
@@ -553,42 +588,56 @@ export function createCombatScene(
       highlights = { ...highlights, ...next };
     },
 
-    attackFx(attackerId: string, targetId: string): void {
+    attackFx(attackerId: string, targetId: string): number {
       const attacker = entities.get(attackerId);
       const target = entities.get(targetId);
-      if (!attacker || !target) return;
+      if (!attacker || !target) return 0;
+      // The attacker always turns to face what it is swinging at, even
+      // when every other part of the sequence is switched off.
       attacker.facing =
         facingFromDelta(
           target.position.x - attacker.position.x,
           target.position.y - attacker.position.y,
         ) ?? attacker.facing;
-      // Reduced motion: face the target but skip the lunge.
-      if (settings.get().reducedMotion) return;
+      // Reduced motion: face the target, then let the whole exchange
+      // resolve on the spot — no swing, no travel, no delayed beats.
+      if (settings.get().reducedMotion) return 0;
+      const attackClass: AttackClassId =
+        sprites.attackClass?.(attacker.spriteId) ?? "unarmed";
+      const swing = attackSequence(attackClass);
       const from = worldToScreen(attacker.visual.x, attacker.visual.y);
       const to = worldToScreen(target.visual.x, target.visual.y);
       const dx = to.sx - from.sx;
       const dy = to.sy - from.sy;
       const length = Math.hypot(dx, dy) || 1;
       attacker.lungeDir = { dx: dx / length, dy: dy / length };
-      attacker.lungeStart = performance.now();
+      attacker.attack = swing;
+      attacker.attackStart = performance.now();
+      return swing.impactMs;
     },
 
-    flashEntity(id: string): void {
+    flashEntity(id: string, delayMs = 0): void {
       // Reduced motion: no flash or shake — floating numbers and the
       // combat log still report every hit.
       if (settings.get().reducedMotion) return;
       const entity = entities.get(id);
-      if (entity) entity.flashStart = performance.now();
+      if (entity) entity.flashStart = performance.now() + Math.max(0, delayMs);
     },
 
-    floatText(tile: TilePoint, text: string, color = "#e8e6f0"): void {
+    floatText(
+      tile: TilePoint,
+      text: string,
+      color = "#e8e6f0",
+      delayMs = 0,
+    ): void {
       const { sx, sy } = worldToScreen(tile.x, tile.y);
-      const now = performance.now();
-      // Stack rapid numbers over the same column so none overlap.
+      const bornAt = performance.now() + Math.max(0, delayMs);
+      // Stack rapid numbers over the same column so none overlap —
+      // including ones still waiting on an impact beat.
       const stacked = floats.filter(
-        (f) => f.sx === sx && now - f.bornAt < FLOAT_MS,
+        (f) => f.sx === sx && Math.abs(bornAt - f.bornAt) < FLOAT_MS,
       ).length;
-      floats.push({ text, color, sx, sy: sy - stacked * 20, bornAt: now });
+      floats.push({ text, color, sx, sy: sy - stacked * 20, bornAt });
     },
 
     destroy(): void {

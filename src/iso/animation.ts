@@ -9,8 +9,18 @@
 /** Iso-space facing: n is up-right on screen, e down-right, s down-left, w up-left. */
 export type Facing = "n" | "e" | "s" | "w";
 
-/** Movement state a sprite set is selected from. */
-export type MotionState = "idle" | "walk";
+/**
+ * The looping movement states: the two sets that play forever off the
+ * wall clock. BODY_TIMING covers exactly these.
+ */
+export type LoopState = "idle" | "walk";
+
+/**
+ * Motion state a sprite set is selected from. "attack" is a one-shot
+ * set played by the combat sequencer rather than a loop — its frame
+ * counts and timing are per weapon class and live in ./attack.
+ */
+export type MotionState = LoopState | "attack";
 
 /**
  * Facing for a movement delta in world tile coordinates (+x = e, +y = s).
@@ -157,14 +167,14 @@ export function dissolvedAt(progress: number, bx: number, by: number): boolean {
  * themselves, so this replaces the legacy 2-frame bob approach.
  */
 export const BODY_TIMING: Readonly<
-  Record<MotionState, { frameMs: number; frameCount: number }>
+  Record<LoopState, { frameMs: number; frameCount: number }>
 > = {
   idle: { frameMs: 450, frameCount: 4 },
   walk: { frameMs: 110, frameCount: 6 },
 };
 
 /** Looping hi-res body frame index for a motion state. */
-export function bodyFrameAt(state: MotionState, timeMs: number): number {
+export function bodyFrameAt(state: LoopState, timeMs: number): number {
   const { frameMs, frameCount } = BODY_TIMING[state];
   return frameAt(timeMs, frameMs, frameCount);
 }

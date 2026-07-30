@@ -4,7 +4,7 @@
  * and no wall-clock — the preview panel (./appearancePreview) renders
  * whatever this state says, so all of it is unit-testable.
  */
-import type { Facing, MotionState } from "../iso/animation";
+import type { Facing, LoopState } from "../iso/animation";
 import { ART_SCALE } from "../iso/art/pixel";
 
 /**
@@ -23,7 +23,7 @@ export const PREVIEW_ZOOM_LEVELS: readonly number[] = [4, 6, 8];
 
 export interface PreviewState {
   facing: Facing;
-  motion: MotionState;
+  motion: LoopState;
   /** CSS pixels per art pixel; one of PREVIEW_ZOOM_LEVELS. */
   zoom: number;
 }

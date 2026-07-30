@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BODY_TIMING, type Facing, type MotionState } from "../../animation";
+import { BODY_TIMING, type Facing, type LoopState } from "../../animation";
 import { HEADWEAR_OPTIONS } from "../../../data/appearance";
 import {
   composedCharacterGrid,
@@ -17,7 +17,7 @@ import {
   type HeadwearId,
 } from "./headwear";
 
-const STATES: MotionState[] = ["idle", "walk"];
+const STATES: LoopState[] = ["idle", "walk"];
 const FACINGS: Facing[] = ["n", "e", "s", "w"];
 
 /** The palette characters each option may draw, per the module contract. */

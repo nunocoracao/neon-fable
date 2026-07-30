@@ -243,6 +243,17 @@ export function weaponArtId(layer: string, build: BodyBuildId): string {
   return `${layer}@${build}`;
 }
 
+/**
+ * The weapon class a registry art id names, or null for anything that
+ * is not one (an unregistered layer, a malformed id). The inverse of
+ * weaponArtId — the attack animation reads a composed character's
+ * weapon slot back into the class whose swing it should play.
+ */
+export function weaponClassFromArtId(art: string): WeaponClassId | null {
+  const [layer] = art.split("@");
+  return WEAPON_CLASS_IDS.find((id) => id === layer) ?? null;
+}
+
 /** The flat per-view registry the layer engine consumes. */
 export const WEAPON_GRIDS: Readonly<
   Record<string, Readonly<Record<BodyViewId, PixelGrid>>>

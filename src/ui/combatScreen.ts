@@ -429,15 +429,18 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       playEventSfx(event);
       if (!scene) continue;
       switch (event.type) {
+        // The scene reports how long its attack animation takes to
+        // connect; the reactions ride that beat so the flash and the
+        // number land with the blow instead of ahead of it.
         case "attacked": {
           const tile = getCombatant(combat, event.targetId)?.position;
           if (!tile) break;
-          scene.attackFx(event.attackerId, event.targetId);
+          const impact = scene.attackFx(event.attackerId, event.targetId);
           if (event.hit) {
-            scene.flashEntity(event.targetId);
-            scene.floatText(tile, `-${event.damage}`, "#ff4d5e");
+            scene.flashEntity(event.targetId, impact);
+            scene.floatText(tile, `-${event.damage}`, "#ff4d5e", impact);
           } else {
-            scene.floatText(tile, "MISS", "#8a86a3");
+            scene.floatText(tile, "MISS", "#8a86a3", impact);
           }
           break;
         }
@@ -445,9 +448,9 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
           if (event.damage <= 0) break;
           const tile = getCombatant(combat, event.targetId)?.position;
           if (!tile) break;
-          scene.attackFx(event.combatantId, event.targetId);
-          scene.flashEntity(event.targetId);
-          scene.floatText(tile, `-${event.damage}`, "#ff4d5e");
+          const impact = scene.attackFx(event.combatantId, event.targetId);
+          scene.flashEntity(event.targetId, impact);
+          scene.floatText(tile, `-${event.damage}`, "#ff4d5e", impact);
           break;
         }
         // Float texts carry a sign and unit so damage, heals, and

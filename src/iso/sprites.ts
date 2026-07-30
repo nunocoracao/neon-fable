@@ -5,6 +5,7 @@
  * the animation clock. The pixel-art implementation lives in ./art.
  */
 import type { Facing } from "./animation";
+import type { AttackClassId } from "./attack";
 import type {
   DayPhaseId,
   InteractableSpriteId,
@@ -49,6 +50,14 @@ export interface EntityPose {
   moving: boolean;
   /** Absolute animation clock in milliseconds. */
   timeMs: number;
+  /**
+   * Milliseconds since this entity's attack animation started, when the
+   * combat sequencer is playing one. While it is inside the attack
+   * class's sequence the one-shot attack frames win over the idle and
+   * walk loops; past the end (and when absent) the loops resume. See
+   * ./attack.ts for the timing and selection rules.
+   */
+  attackElapsedMs?: number | undefined;
 }
 
 export interface SpriteProvider {
@@ -86,6 +95,13 @@ export interface SpriteProvider {
   entity(id: EntitySpriteId, pose: EntityPose): Sprite;
   /** Solid-color silhouette of the same frame, for hit flashes. */
   entitySilhouette(id: EntitySpriteId, pose: EntityPose): Sprite;
+  /**
+   * Which attack animation this entity's current look swings — the
+   * class of the weapon it holds, or "unarmed". The combat scene asks
+   * so it can time the sequence's beats; providers that resolve no
+   * descriptors may omit it and callers fall back to bare hands.
+   */
+  attackClass?(id: EntitySpriteId): AttackClassId;
   /**
    * Pre-baked radial glow in a palette color for the additive neon
    * pass; radius is in 1x art pixels, anchored at the glow center.
