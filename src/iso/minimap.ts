@@ -23,6 +23,7 @@ import { viewportToWorld, type Camera } from "./camera";
 import { screenToWorld, type TilePoint } from "./coords";
 import {
   TILE_DEFS,
+  propBlocksTile,
   tileMaterial,
   type Interactable,
   type InteractableSpriteId,
@@ -145,8 +146,7 @@ export function minimapCell(map: IsoMap, x: number, y: number): MinimapCell {
   if (material === "foundation") return "void";
   if (material === "water") return "water";
   if (!TILE_DEFS[tile].walkable) return "blocked";
-  const blocked = map.props.some((p) => p.blocks && p.x === x && p.y === y);
-  return blocked ? "blocked" : "walkable";
+  return propBlocksTile(map, x, y) ? "blocked" : "walkable";
 }
 
 /** The whole cell grid, row-major like map.tiles, for one paint pass. */
