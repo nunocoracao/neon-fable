@@ -5,11 +5,12 @@ import {
   interactableVisual,
   seededAppearance,
 } from "../character";
-import { requireEnemy } from "../data/enemies";
+import { enemies, requireEnemy } from "../data/enemies";
 import { requireMap } from "../data/maps";
 import { ambientSpriteId, createCrowd } from "../iso/ambient";
 import {
   ambientSpriteSource,
+  enemyDeathStyle,
   enemySpriteSource,
   npcSpriteSource,
 } from "./entitySprites";
@@ -91,6 +92,21 @@ describe("enemySpriteSource", () => {
     const source = enemySpriteSource();
     expect(source("nme-nobody")).toBeUndefined();
     expect(source("nme-nobody")).toBeUndefined();
+  });
+});
+
+describe("enemyDeathStyle", () => {
+  it("reads how an archetype dies off its chassis", () => {
+    for (const enemy of enemies) {
+      expect(enemyDeathStyle(enemy.id), enemy.id).toBe(
+        enemy.chassis === "machine" ? "sparkout" : "collapse",
+      );
+    }
+  });
+
+  it("crumples anything it cannot identify", () => {
+    expect(enemyDeathStyle("nme-nobody")).toBe("collapse");
+    expect(enemyDeathStyle(undefined)).toBe("collapse");
   });
 });
 

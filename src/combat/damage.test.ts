@@ -13,6 +13,7 @@ import {
   damageBonus,
   fleeChance,
   hitChance,
+  isGlancingBlow,
   weaponRange,
 } from "./damage";
 
@@ -75,6 +76,21 @@ describe("abilityDamage", () => {
 
   it("never deals less than 1", () => {
     expect(abilityDamage(2, 99, false)).toBe(1);
+  });
+});
+
+describe("isGlancingBlow", () => {
+  it("is a glance when plating stopped as much as got through", () => {
+    // Raw 4 against 3 armor: 1 lands, 3 stopped.
+    expect(isGlancingBlow(1, 3)).toBe(true);
+    expect(isGlancingBlow(3, 3)).toBe(true);
+    expect(isGlancingBlow(4, 3)).toBe(false);
+  });
+
+  it("is never a glance through armor that was not there", () => {
+    expect(isGlancingBlow(1, 0)).toBe(false);
+    // What an armor-ignoring ability reports: no plating in the way.
+    expect(isGlancingBlow(7, 0)).toBe(false);
   });
 });
 

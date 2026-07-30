@@ -9,6 +9,7 @@ import {
   fleeChanceFor,
   getCombatant,
   isAlive,
+  isGlancingBlow,
   itemOptions,
   manhattanPath,
   reachableTiles,
@@ -16,6 +17,7 @@ import {
   runEnemyTurns,
   takeAction,
   type CombatAction,
+  type Combatant,
   type CombatEvent,
   type CombatState,
   type GridPosition,
@@ -26,8 +28,9 @@ import {
   createCombatScene,
   createPixelArtSprites,
   type CombatScene,
+  type DeathReactionKind,
 } from "../iso";
-import { enemySpriteSource } from "./entitySprites";
+import { enemyDeathStyle, enemySpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
 import type { DayPhaseId, IsoMap, TilePoint } from "../iso";
 import { SaveError, loadGame, type GameState } from "../state";
@@ -368,6 +371,11 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     });
   }
 
+  /** How a combatant dies on screen; the player is always a body. */
+  function deathStyleFor(c: Combatant): DeathReactionKind {
+    return c.kind === "player" ? "collapse" : enemyDeathStyle(c.enemyId);
+  }
+
   function pushEntities(): void {
     if (!scene || !combat) return;
     const activeId =
@@ -382,6 +390,9 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         maxHp: c.maxHp,
         alive: isAlive(c),
         active: c.id === activeId,
+        // Reactions landing on one beat queue in initiative order.
+        order: combat!.initiativeOrder.indexOf(c.id),
+        deathStyle: deathStyleFor(c),
       })),
     );
   }
@@ -433,24 +444,39 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         // connect; the reactions ride that beat so the flash and the
         // number land with the blow instead of ahead of it.
         case "attacked": {
-          const tile = getCombatant(combat, event.targetId)?.position;
-          if (!tile) break;
+          const target = getCombatant(combat, event.targetId);
+          if (!target) break;
           const impact = scene.attackFx(event.attackerId, event.targetId);
           if (event.hit) {
-            scene.flashEntity(event.targetId, impact);
-            scene.floatText(tile, `-${event.damage}`, "#ff4d5e", impact);
+            scene.hitFx(event.targetId, {
+              attackerId: event.attackerId,
+              delayMs: impact,
+              glancing: isGlancingBlow(event.damage, target.armor),
+            });
+            scene.floatText(target.position, `-${event.damage}`, "#ff4d5e", impact);
           } else {
-            scene.floatText(tile, "MISS", "#8a86a3", impact);
+            scene.floatText(target.position, "MISS", "#8a86a3", impact);
           }
           break;
         }
         case "ability-used": {
           if (event.damage <= 0) break;
-          const tile = getCombatant(combat, event.targetId)?.position;
-          if (!tile) break;
+          const target = getCombatant(combat, event.targetId);
+          if (!target) break;
           const impact = scene.attackFx(event.combatantId, event.targetId);
-          scene.flashEntity(event.targetId, impact);
-          scene.floatText(tile, `-${event.damage}`, "#ff4d5e", impact);
+          // An ability that goes through plating is never a glancing
+          // blow, however much plating there was.
+          const effect = getAbility(event.abilityId)?.effect;
+          const armor =
+            effect?.type === "damage" && effect.ignoresArmor === true
+              ? 0
+              : target.armor;
+          scene.hitFx(event.targetId, {
+            attackerId: event.combatantId,
+            delayMs: impact,
+            glancing: isGlancingBlow(event.damage, armor),
+          });
+          scene.floatText(target.position, `-${event.damage}`, "#ff4d5e", impact);
           break;
         }
         // Float texts carry a sign and unit so damage, heals, and

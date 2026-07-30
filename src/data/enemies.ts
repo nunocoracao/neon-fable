@@ -19,6 +19,12 @@ export interface EnemyWeapon {
   rangeType: RangeType;
 }
 
+/**
+ * What an archetype is made of. Purely presentational so far: a body
+ * crumples when it dies, a chassis sparks out (see ../iso/reaction.ts).
+ */
+export type EnemyChassis = "flesh" | "machine";
+
 export interface Enemy {
   id: string;
   name: string;
@@ -28,6 +34,8 @@ export interface Enemy {
   weapon: EnemyWeapon;
   /** Flat damage reduction, like an outfit's armor. */
   armor: number;
+  /** Flesh or machine; decides how the archetype dies on screen. */
+  chassis: EnemyChassis;
   /** Abilities from src/data/abilities.ts the enemy AI may use. */
   abilityIds: string[];
   /** Authored look, rendered through the layered appearance pipeline. */
@@ -45,6 +53,7 @@ export const enemies: Enemy[] = [
     maxHp: 14,
     weapon: { name: "Service Pistol", damage: 4, rangeType: "ranged" },
     armor: 1,
+    chassis: "flesh",
     abilityIds: [],
     // Pressed corporate gray: spire suit, slicked hair, crimson optics.
     visual: {
@@ -74,6 +83,7 @@ export const enemies: Enemy[] = [
     maxHp: 20,
     weapon: { name: "Rebar Club", damage: 5, rangeType: "melee" },
     armor: 1,
+    chassis: "flesh",
     abilityIds: ["ability-crush"],
     // Scarred scrapyard bulk with salvage-grade chrome arms.
     visual: {
@@ -103,6 +113,7 @@ export const enemies: Enemy[] = [
     maxHp: 8,
     weapon: { name: "Arc Stinger", damage: 3, rangeType: "ranged" },
     armor: 0,
+    chassis: "machine",
     abilityIds: ["ability-shock-dart"],
     // Hooded shell, sensor band, breather grille: barely a face at all.
     visual: {
@@ -130,6 +141,7 @@ export const enemies: Enemy[] = [
     maxHp: 24,
     weapon: { name: "Shock Maul", damage: 6, rangeType: "melee" },
     armor: 3,
+    chassis: "machine",
     abilityIds: ["ability-stun-strike"],
     // Chromed security slab: plate, reinforced arms, dermal armor.
     visual: {
@@ -160,6 +172,7 @@ export const enemies: Enemy[] = [
     maxHp: 16,
     weapon: { name: "Riot Pistol", damage: 4, rangeType: "ranged" },
     armor: 2,
+    chassis: "flesh",
     abilityIds: [],
     // Flood-grey harness and a service cap pulled low over red optics.
     visual: {
@@ -189,6 +202,7 @@ export const enemies: Enemy[] = [
     maxHp: 12,
     weapon: { name: "Spark Cutter", damage: 4, rangeType: "melee" },
     armor: 1,
+    chassis: "flesh",
     abilityIds: ["ability-shock-dart"],
     // Patched wet-rig, tied-back hair, magenta work-lenses.
     visual: {
@@ -218,6 +232,7 @@ export const enemies: Enemy[] = [
     maxHp: 24,
     weapon: { name: "Valve Hammer", damage: 6, rangeType: "melee" },
     armor: 3,
+    chassis: "machine",
     abilityIds: ["ability-stun-strike"],
     // Mineral-crusted caretaker frame: dark shell, inked plating seams.
     visual: {
@@ -247,6 +262,7 @@ export const enemies: Enemy[] = [
     maxHp: 15,
     weapon: { name: "Cordon Riot Gun", damage: 4, rangeType: "ranged" },
     armor: 2,
+    chassis: "flesh",
     abilityIds: ["ability-riot-net"],
     // Matte interdiction plate under a tech hood; patient red stare.
     visual: {
@@ -276,6 +292,7 @@ export const enemies: Enemy[] = [
     maxHp: 13,
     weapon: { name: "Writ-Server Pistol", damage: 4, rangeType: "ranged" },
     armor: 1,
+    chassis: "flesh",
     abilityIds: [],
     // The good coat: ghostline mantle, silvered hair, magenta appraisal.
     visual: {
@@ -305,6 +322,7 @@ export const enemies: Enemy[] = [
     maxHp: 22,
     weapon: { name: "Shear Mandibles", damage: 5, rangeType: "melee" },
     armor: 2,
+    chassis: "machine",
     abilityIds: ["ability-coolant-vent"],
     // Feral duct chassis: scarred shell, scavenged claw-arms, red band.
     visual: {
@@ -334,6 +352,7 @@ export const enemies: Enemy[] = [
     maxHp: 24,
     weapon: { name: "Mandate Lance", damage: 5, rangeType: "ranged" },
     armor: 1,
+    chassis: "machine",
     abilityIds: ["ability-mandate-pulse"],
     // Polished civic idol: spire suit, dyed scalp glyph, magenta band.
     visual: {
@@ -365,6 +384,7 @@ export const enemies: Enemy[] = [
     maxHp: 26,
     weapon: { name: "Succession Writ", damage: 5, rangeType: "ranged" },
     armor: 2,
+    chassis: "machine",
     abilityIds: ["ability-mandate-pulse"],
     // Founders-era custodian in civic white, jacked into the registry.
     visual: {

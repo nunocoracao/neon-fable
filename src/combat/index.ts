@@ -17,6 +17,7 @@ export {
   damageBonus,
   fleeChance,
   hitChance,
+  isGlancingBlow,
   weaponRange,
 } from "./damage";
 export { inBounds, isOccupied, manhattan, moveSpeed } from "./grid";

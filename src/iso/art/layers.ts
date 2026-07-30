@@ -44,7 +44,9 @@ import {
   attackFrameShift,
   attackWeaponGrid,
 } from "./layers/attack";
+import { reactionFrameGrid } from "./layers/hit";
 import type { AttackClassId } from "../attack";
+import type { ReactionVariant } from "../reaction";
 
 /** Layer slots in base (toward-camera) z-order, bottom to top. */
 export const LAYER_SLOTS = [
@@ -307,14 +309,20 @@ export function composedCharacterKey(character: ComposedCharacter): string {
   return [character.build as string, ...layers].join("|");
 }
 
-/** Bake-cache key for one composed frame: full descriptor + pose. */
+/**
+ * Bake-cache key for one composed frame: full descriptor + pose. A
+ * reaction frame carries its variant too — the same flinch frame thrown
+ * left and thrown right are two different pictures.
+ */
 export function composedFrameKey(
   character: ComposedCharacter,
   facing: Facing,
   state: MotionState,
   frame: number,
+  variant?: ReactionVariant,
 ): string {
-  return `${composedCharacterKey(character)}:${facing}:${state}:${frame}`;
+  const suffix = variant ? `:${variant.kind}:${variant.awayX}` : "";
+  return `${composedCharacterKey(character)}:${facing}:${state}:${frame}${suffix}`;
 }
 
 /**
@@ -418,21 +426,41 @@ function attackGrid(
  * (stable, so face parts keep their relative order), look each layer's
  * art up in its slot registry (unregistered art is skipped), compose
  * on the neutral pose, animate the composed body, and mirror for
- * south/west. Attack frames take the one-shot path above instead of the
- * idle/walk loops. Pure and deterministic — the provider only calls
- * this on a bake-cache miss.
+ * south/west. Attack and reaction frames take their one-shot paths
+ * instead of the idle/walk loops. Pure and deterministic — the provider
+ * only calls this on a bake-cache miss.
+ *
+ * A reaction needs its `variant`: which flinch, shudder, or death, and
+ * which way the blow threw it. Unlike every other set, its transform is
+ * applied *after* the facing mirror — the recoil direction is a screen
+ * direction, not a body-relative one.
  */
 export function composedCharacterGrid(
   character: ComposedCharacter,
   facing: Facing,
   state: MotionState,
   frame: number,
+  variant?: ReactionVariant,
 ): PixelGrid {
   const { view, flip } = bodyViewForFacing(facing);
   if (state === "attack") {
     return flip
       ? mirrored(attackGrid(character, facing, view, frame))
       : attackGrid(character, facing, view, frame);
+  }
+  if (state === "react") {
+    if (!variant) {
+      throw new Error("a react frame needs a reaction variant");
+    }
+    const parts = resolvedParts(character, facing, view, state, frame);
+    requireParts(parts, character);
+    const composed = composeGrids(parts);
+    return reactionFrameGrid(
+      flip ? mirrored(composed) : composed,
+      variant.kind,
+      frame,
+      variant.awayX,
+    );
   }
   const parts = resolvedParts(character, facing, view, state, frame);
   requireParts(parts, character);

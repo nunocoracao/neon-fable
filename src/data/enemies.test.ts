@@ -14,6 +14,28 @@ describe("enemy registry", () => {
   });
 });
 
+describe("enemy chassis", () => {
+  it("says what every archetype is made of, and the roster has both", () => {
+    const kinds = new Set(enemies.map((e) => e.chassis));
+    for (const enemy of enemies) {
+      expect(["flesh", "machine"], enemy.id).toContain(enemy.chassis);
+    }
+    expect(kinds, "the Sprawl fights both").toEqual(
+      new Set(["flesh", "machine"]),
+    );
+  });
+
+  it("counts the drones and the chassis as machines", () => {
+    // What the fiction calls a machine dies like one (a spark-out
+    // rather than a crumple); the people do not.
+    expect(requireEnemy("nme-static-drone").chassis).toBe("machine");
+    expect(requireEnemy("nme-vault-sentinel").chassis).toBe("machine");
+    expect(requireEnemy("nme-pump-custodian").chassis).toBe("machine");
+    expect(requireEnemy("nme-auric-agent").chassis).toBe("flesh");
+    expect(requireEnemy("nme-rustyard-bruiser").chassis).toBe("flesh");
+  });
+});
+
 describe("enemy visuals", () => {
   it("every archetype's appearance validates against the catalogs", () => {
     for (const enemy of enemies) {

@@ -15,6 +15,7 @@ import {
   MOUTH_OPTIONS,
 } from "../../data/appearance";
 import { ATTACK_CLASS_IDS, attackFrameCount } from "../attack";
+import { REACTION_KINDS, reactionFrameCount } from "../reaction";
 import { enemies } from "../../data/enemies";
 import { items } from "../../data/items";
 import { maps } from "../../data/maps";
@@ -51,6 +52,7 @@ describe("gallery sections", () => {
       "cast",
       "bodies",
       "attacks",
+      "reactions",
       "appearance",
     ]);
     for (const s of sections) {
@@ -157,6 +159,38 @@ describe("gallery sections", () => {
         }
       }
     }
+  });
+
+  it("covers every reaction × build × facing × throw at its authored length", () => {
+    const reactions = section("reactions");
+    expect(reactions.entries.length).toBe(
+      REACTION_KINDS.length * BODY_BUILD_IDS.length * 4 * 2,
+    );
+    for (const kind of REACTION_KINDS) {
+      for (const build of BODY_BUILD_IDS) {
+        for (const facing of ["n", "e", "s", "w"]) {
+          for (const awayX of [-1, 1]) {
+            const id = `react ${kind} ${build} ${facing} away${awayX}`;
+            const entry = reactions.entries.find((e) => e.id === id);
+            expect(entry, `${id} present`).toBeDefined();
+            expect(entry?.frames.length, `${kind} frame count`).toBe(
+              reactionFrameCount(kind),
+            );
+            expect(entry?.frameMs, `${kind} cadence`).toBeGreaterThan(0);
+          }
+        }
+      }
+    }
+    const frame = (id: string, f = 0): string =>
+      reactions.entries.find((e) => e.id === id)?.frames[f]?.join("\n") ?? "";
+    // A blow from the other side throws the body the other way.
+    expect(frame("react flinch lean e away1")).not.toBe(
+      frame("react flinch lean e away-1"),
+    );
+    // A body and a chassis end up on the floor differently.
+    expect(frame("react collapse lean e away1", 3)).not.toBe(
+      frame("react sparkout lean e away1", 3),
+    );
   });
 
   it("covers every registered hair style × hair color × facing, plus a walk sweep per build", () => {
