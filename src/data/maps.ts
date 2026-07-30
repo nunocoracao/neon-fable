@@ -1055,6 +1055,42 @@ const spireCrownArena: IsoMap = {
   spawns: [{ id: "player-start", x: 1, y: 3 }],
 };
 
+/**
+ * Scaffold Row — a cleared stretch of the Vertical Market's walkways
+ * (enc-market-scaffold, 9x7). The market's own arena: scaffold decking
+ * runs the outer ring where the stalls and boards crowd in, a band of
+ * broken concrete inside it, and a swept trading floor at the center —
+ * the one patch of the district with room to swing.
+ */
+const marketScaffoldLegend: Record<string, LegendEntry> = {
+  ".": { tile: "pavement" },
+  ",": { tile: "pavement-cracked" },
+  r: { tile: "rust-floor" },
+};
+
+const marketScaffoldRows = [
+  "rrrrrrrrr",
+  "rr,,,,,rr",
+  "r,.....,r",
+  "r,.....,r",
+  "r,.....,r",
+  "rr,,,,,rr",
+  "rrrrrrrrr",
+];
+
+const marketScaffoldGrid = buildMapGrid(marketScaffoldLegend, marketScaffoldRows);
+
+const marketScaffoldArena: IsoMap = {
+  id: "market-scaffold-arena",
+  name: "Scaffold Row",
+  width: marketScaffoldGrid.width,
+  height: marketScaffoldGrid.height,
+  tiles: marketScaffoldGrid.tiles,
+  props: marketScaffoldGrid.props,
+  interactables: [],
+  spawns: [{ id: "player-start", x: 1, y: 3 }],
+};
+
 export const maps: readonly IsoMap[] = [
   cinderPlaza,
   greywaterSteps,
@@ -1068,6 +1104,7 @@ export const maps: readonly IsoMap[] = [
   relayCrownArena,
   cyclerFloorArena,
   spireCrownArena,
+  marketScaffoldArena,
 ];
 
 export const HUB_MAP_ID = cinderPlaza.id;

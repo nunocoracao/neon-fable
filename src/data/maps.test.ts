@@ -68,6 +68,7 @@ describe("map registry", () => {
       "relay-crown-arena",
       "cycler-floor-arena",
       "spire-crown-arena",
+      "market-scaffold-arena",
     ]);
     expect(getMap(HUB_MAP_ID)?.name).toBe("Cinder Row Plaza");
     expect(getMap("nowhere")).toBeUndefined();

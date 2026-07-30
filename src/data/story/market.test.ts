@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getEncounter } from "../encounters";
 import { HUB_MAP_ID, requireMap } from "../maps";
 import { storyArcs } from "./index";
 import { marketArc } from "./market";
@@ -9,7 +10,8 @@ import { marketArc } from "./market";
  * the map itself by the lint in ../maps.test.ts; what is pinned here is
  * the district's wiring — both ways through the door, every fixture on
  * the boards reachable in dialogue as well as on foot, and the promise
- * this arc makes to later work: it touches nothing the acts read.
+ * this arc makes to later work: it stages an arena and touches nothing
+ * the acts read.
  */
 
 const nodesById = new Map(marketArc.nodes.map((node) => [node.id, node]));
@@ -129,5 +131,25 @@ describe("vertical market arc", () => {
       const canMoveOn = node.choices.some((choice) => choice.target);
       expect(canEnd || canMoveOn, `node ${node.id} traps the player`).toBe(true);
     }
+  });
+});
+
+describe("the market's staged encounter", () => {
+  it("registers a fight on the district's own arena, unused by the story", () => {
+    const encounter = getEncounter("enc-market-scaffold");
+    expect(encounter?.arenaMapId).toBe("market-scaffold-arena");
+    const started = storyArcs.flatMap((arc) =>
+      arc.nodes.flatMap((node) =>
+        node.choices.flatMap((choice) =>
+          (choice.effects ?? []).flatMap((effect) =>
+            effect.type === "start-combat" ? [effect.encounterId] : [],
+          ),
+        ),
+      ),
+    );
+    // Authored ahead of the beat that will use it: no choice anywhere in
+    // the game starts it yet, and the map lint still holds it to every
+    // rule a live arena obeys.
+    expect(started).not.toContain("enc-market-scaffold");
   });
 });
