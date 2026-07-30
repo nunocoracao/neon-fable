@@ -134,7 +134,12 @@ export type PropId =
   | "vent-stack"
   | "hydrant"
   | "trash-heap"
-  | "cable-bundle";
+  | "cable-bundle"
+  // Market dressing: stall furniture for the Vertical Market's aisles.
+  | "stall-awning"
+  | "cage-lamp"
+  | "crate-stack"
+  | "noodle-counter";
 
 /** A static decoration on a tile. Blocking props make the tile unwalkable. */
 export interface PropPlacement {

@@ -285,6 +285,26 @@ export const encounters: Encounter[] = [
     fleeable: false,
   },
   {
+    // The Vertical Market's fight, staged and waiting: the district's
+    // arena and its shakedown crew are authored here so a later story
+    // beat only has to point a choice at this id. Nothing in the
+    // narrative starts it yet.
+    id: "enc-market-scaffold",
+    name: "Scaffold Row Shakedown",
+    grid: { width: 9, height: 7 },
+    arenaMapId: "market-scaffold-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [
+      { enemyId: "nme-rustyard-bruiser", position: { x: 7, y: 2 } },
+      { enemyId: "nme-rustyard-bruiser", position: { x: 7, y: 4 } },
+      { enemyId: "nme-static-drone", position: { x: 6, y: 5 } },
+    ],
+    rewards: {
+      credits: 55,
+      items: [{ itemId: "con-surge-stim" }],
+    },
+  },
+  {
     id: "enc-crown-court",
     name: "The Crown Ring — Sappers' Breach",
     grid: { width: 9, height: 7 },

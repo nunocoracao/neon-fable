@@ -1037,6 +1037,77 @@ describe("minimap", () => {
   });
 });
 
+/**
+ * The Vertical Market round trip, driven through the real screens: the
+ * hub's market gate up and the Cinderway stair back down. The district
+ * is the first place in the game a player walks to and back off their
+ * own bat, so both directions are exercised end to end — the gate's
+ * dialogue, the transition, the map that comes up behind it, and the
+ * stair standing next to where the stair puts you.
+ */
+describe("the Vertical Market round trip", () => {
+  function mountOn(location: string, dialogueNodeId?: string): void {
+    const state: GameState = { ...testCharacterState(1), location };
+    showScreen(
+      createGameScreen({ session: createSession(state), dialogueNodeId }),
+    );
+  }
+
+  /** Runs one scene frame so the interact prompt has picked its target. */
+  function firstFrame(): void {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return 1;
+    });
+    mountOn("vertical-market");
+    frames[0]?.(0);
+  }
+
+  it("climbs the market gate out of the hub", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    mountOn("cinder-plaza", "vm-gate");
+    expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
+
+    click("Climb into the market");
+    vi.advanceTimersByTime(transitionSwapMs(TRANSITION_TIMING));
+    expect(textOf(".nf-transition-card")).toMatch(/The Vertical Market/);
+    expect(textOf(".nf-hud-status")).toMatch(/The Vertical Market/);
+
+    vi.advanceTimersByTime(transitionDurationMs(TRANSITION_TIMING));
+    expect(document.querySelector(".nf-transition")).toBeNull();
+    // Travel carried the arrival beat with it: you come off the stair
+    // into the noise, with the whole district offered by name.
+    expect(textOf(".nf-dialogue")).toMatch(/off the last tread into the noise/);
+    expect(buttonByText("Work the north row")).toBeDefined();
+    expect(buttonByText("Take a stool at the noodle counter")).toBeDefined();
+  });
+
+  it("takes the Cinderway stair back down to the plaza", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    mountOn("vertical-market", "vm-stair");
+    expect(textOf(".nf-hud-status")).toMatch(/The Vertical Market/);
+
+    click("Take the stair down to Cinder Row");
+    vi.advanceTimersByTime(transitionSwapMs(TRANSITION_TIMING));
+    expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
+    vi.advanceTimersByTime(transitionDurationMs(TRANSITION_TIMING));
+    expect(document.querySelector(".nf-transition")).toBeNull();
+  });
+
+  it("lands you at the foot of the stair, and says where it goes", () => {
+    firstFrame();
+    const hint = document.querySelector(".nf-interact-prompt");
+    expect(hint?.textContent).toBe(
+      "Enter — take Cinderway Stair → Cinder Row Plaza",
+    );
+    expect(hint?.classList.contains("nf-interact-prompt-visible")).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(textOf(".nf-dialogue")).toMatch(/The Cinderway stair drops out/);
+  });
+});
+
 describe("save/load", () => {
   function reachHubIdle(): void {
     createTestCharacter();

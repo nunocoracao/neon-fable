@@ -2,25 +2,31 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { requireMap } from "../data/maps";
 import { ambientSpriteSource } from "../ui/entitySprites";
-import { createCrowd, crowdEntities, stepCrowd } from "./ambient";
+import {
+  MAX_AMBIENT_PER_MAP,
+  createCrowd,
+  crowdEntities,
+  stepCrowd,
+} from "./ambient";
 import { createPixelArtSprites } from "./art/provider";
 import { mapPixelBounds } from "./camera";
 import { renderScene, type RenderView } from "./render";
 import { resolveWeather } from "./weather";
 
 /**
- * Frame-cost guard for the busiest map in the game (the hub, with its
- * full ambient crowd walking). Draw calls are stubbed to nothing, so
- * what is measured is the JS a frame actually owns: stepping every
- * pedestrian, building and depth-sorting the drawable list, and the
- * provider's per-sprite cache lookups — the work that grows with crowd
- * size. The whole run also proves the bake cache does its job: a
- * warmed scene must resolve entity sprites out of cache, so a crowd
- * costs lookups, not re-bakes.
+ * Frame-cost guard for the busiest map in the game (the Vertical
+ * Market, with its full ambient crowd walking — the densest street
+ * authored, at the per-map pedestrian cap). Draw calls are stubbed to
+ * nothing, so what is measured is the JS a frame actually owns:
+ * stepping every pedestrian, building and depth-sorting the drawable
+ * list, and the provider's per-sprite cache lookups — the work that
+ * grows with crowd size. The whole run also proves the bake cache does
+ * its job: a warmed scene must resolve entity sprites out of cache, so
+ * a crowd costs lookups, not re-bakes.
  *
- * A warmed hub frame lands around 0.2ms on a dev machine against a
- * 16.6ms budget at 60fps; the ceiling here leaves room for slow CI
- * while still catching an order-of-magnitude regression (a per-frame
+ * A warmed frame lands around 0.2ms on a dev machine against a 16.6ms
+ * budget at 60fps; the ceiling here leaves room for slow CI while
+ * still catching an order-of-magnitude regression (a per-frame
  * recompose, a cache key that never hits, an O(n^2) crowd step).
  */
 const FRAMES = 120;
@@ -67,10 +73,12 @@ afterEach(() => {
 });
 
 describe("crowded-scene frame budget", () => {
-  const map = requireMap("cinder-plaza");
+  const map = requireMap("vertical-market");
 
-  it("renders the hub's full crowd well inside a 60fps frame", () => {
-    expect(map.ambient?.count).toBeGreaterThan(0);
+  it("renders the market's full crowd well inside a 60fps frame", () => {
+    // Pin the choice of map: this bench is only meaningful on whichever
+    // district carries the most pedestrians.
+    expect(map.ambient?.count).toBe(MAX_AMBIENT_PER_MAP);
     const sprites = createPixelArtSprites({ entity: ambientSpriteSource() });
     const ctx = stubContext();
     const bounds = mapPixelBounds(map);

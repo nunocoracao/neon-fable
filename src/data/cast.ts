@@ -84,12 +84,51 @@ export const LIN_VISUAL: CharacterVisual = {
   outfit: "out-spire-suit",
 };
 
+// The Vertical Market's two fixtures. Quill brokers the boards — who
+// trades where, and what the pitch costs; Marrow keeps a stool at the
+// noodle counter and sells the district's other commodity. Both read
+// friendly-side: no crimson optic, no hostile cue.
+export const QUILL_VISUAL: CharacterVisual = {
+  appearance: {
+    skinTone: "golden-tan",
+    build: "heavy",
+    hairStyle: "locs",
+    hairColor: "auburn",
+    eyes: "narrow",
+    eyeColor: "amber",
+    brows: "arched",
+    mouth: "smirk",
+    faceDetail: "tattoo",
+    headwear: "none",
+  },
+  outfit: "out-diver-harness",
+};
+
+export const MARROW_VISUAL: CharacterVisual = {
+  appearance: {
+    skinTone: "deep-umber",
+    build: "lean",
+    hairStyle: "slicked",
+    hairColor: "silver",
+    eyes: "standard",
+    eyeColor: "hologram-blue",
+    brows: "straight",
+    mouth: "neutral",
+    faceDetail: "cyber-lines",
+    headwear: "none",
+  },
+  outfit: "out-ghostline-mantle",
+  enhancements: { eyes: "cyb-optic-suite" },
+};
+
 /** Every named story speaker's authored look, keyed by display name. */
 export const cast: Readonly<Record<string, CharacterVisual>> = {
   Flick: FLICK_VISUAL,
   Vesper: VESPER_VISUAL,
   "Matron Ferrow": FERROW_VISUAL,
   "Auditor Lin": LIN_VISUAL,
+  Quill: QUILL_VISUAL,
+  Marrow: MARROW_VISUAL,
   // The fixer at the Filament's corner table: groomed, amused, and
   // never quite warm — the smile stops below the eyes.
   Sable: {
