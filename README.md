@@ -184,6 +184,18 @@ internally connected (a zone drawn across a pinch point splits into
 islands and strands whoever spawns on the wrong side). The per-map
 ceiling is `MAX_AMBIENT_PER_MAP`.
 
+Interiors (the Auric Spire's two floors) are authored the same way with
+three conventions of their own, linted in `maps.test.ts`. They never
+stand the `building` prop — a room's far faces are glazing runs and its
+near two edges are left as plain `foundation`, because a 92-pixel wall
+sprite on the south or east edge paints over the two tile rows behind
+it. Glazing comes in two orientations (`glass-partition-x` along the
+map's x axis, `-y` along its y) and a run of panes on one axis butts
+into itself as an unbroken wall; a run laid across the other axis
+staggers. And an interior declares its own `weather` and `dayPhase`
+rather than inheriting the default, so the light in a sealed floor
+reads the same whatever the story has staged on the street outside.
+
 ### Story (`src/data/story/`)
 
 A `StoryArc` is a list of nodes; each node has `speaker`, `text`, and
