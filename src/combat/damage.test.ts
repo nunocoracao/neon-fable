@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BASE_FLEE_CHANCE,
   BASE_HIT_CHANCE,
+  CRITICAL_DAMAGE_SHARE,
   MAX_FLEE_CHANCE,
   MAX_HIT_CHANCE,
   MELEE_RANGE,
@@ -13,6 +14,7 @@ import {
   damageBonus,
   fleeChance,
   hitChance,
+  isCriticalBlow,
   isGlancingBlow,
   weaponRange,
 } from "./damage";
@@ -91,6 +93,28 @@ describe("isGlancingBlow", () => {
     expect(isGlancingBlow(1, 0)).toBe(false);
     // What an armor-ignoring ability reports: no plating in the way.
     expect(isGlancingBlow(7, 0)).toBe(false);
+  });
+});
+
+describe("isCriticalBlow", () => {
+  it("is critical once a blow takes its share of the whole frame", () => {
+    // A third of a 30 HP frame: 10 shouts, 9 does not.
+    expect(isCriticalBlow(10, 30)).toBe(true);
+    expect(isCriticalBlow(9, 30)).toBe(false);
+    expect(isCriticalBlow(30, 30)).toBe(true);
+    expect(CRITICAL_DAMAGE_SHARE).toBe(1 / 3);
+  });
+
+  it("scales with the target rather than with a flat figure", () => {
+    // The same 8 damage is a big hit on a courier and a scratch on a
+    // chassis — the reading is a share, not a number.
+    expect(isCriticalBlow(8, 20)).toBe(true);
+    expect(isCriticalBlow(8, 90)).toBe(false);
+  });
+
+  it("says nothing about a blow that landed on nothing", () => {
+    expect(isCriticalBlow(0, 30)).toBe(false);
+    expect(isCriticalBlow(5, 0)).toBe(false);
   });
 });
 

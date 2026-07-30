@@ -2,12 +2,13 @@
  * Combat arena scene: renders an arena map with combatant entities, HP
  * bars, tile highlights (reachable / targets / path preview), walk
  * tweens, and combat feedback — attack lunges, hit flash + shake, hit
- * reactions, deaths, and floating combat numbers. Presentation only —
+ * reactions, deaths, and the floating readouts a blow leaves behind
+ * (damage figures, misses, heals, condition labels). Presentation only —
  * the combat screen feeds it authoritative state and interprets clicks;
  * this layer never imports the combat engine. All effect timing math
  * comes from the pure helpers in ./animation, ./attack, and ./reaction.
  */
-import { settings } from "../settings";
+import { settings, type ZoomLevel } from "../settings";
 import {
   ABILITY_FX,
   abilityCastMs,
@@ -51,12 +52,27 @@ import {
   type ScheduledReaction,
 } from "./reaction";
 import {
+  POPUP_LIFT_PX,
+  POPUP_MS,
+  nextPopupSlot,
+  popupMotionAt,
+  popupSlotOffsetPx,
+  type PopupKind,
+} from "./popup";
+import {
   statusMarkerFrame,
   statusMarkerOffsets,
   type StatusFamilyId,
 } from "./status";
 import { createPixelArtSprites } from "./art/provider";
-import { clampCamera, mapPixelBounds, type Camera } from "./camera";
+import {
+  cameraTranslation,
+  clampCamera,
+  mapPixelBounds,
+  snapToPixelGrid,
+  viewportToWorld,
+  type Camera,
+} from "./camera";
 import {
   TILE_H,
   TILE_W,
@@ -208,14 +224,31 @@ export interface CombatScene {
    * in initiative order, and one body never plays two at once.
    */
   hitFx(targetId: string, options?: HitFxOptions): void;
-  /** Floating rise-and-fade text over a tile (damage, MISS, heals). */
-  floatText(
-    tile: TilePoint,
-    text: string,
-    color?: string,
-    delayMs?: number,
-  ): void;
+  /**
+   * Float one readout over a tile: a damage figure, a miss, a heal, a
+   * condition's label (see ./popup.ts). Presentation only — the caller
+   * derives what it says from the combat log, and the scene decides
+   * nothing but where it goes and how it moves. Simultaneous readouts
+   * over one column stack rather than overlap.
+   */
+  popup(request: CombatPopupRequest): void;
   destroy(): void;
+}
+
+/** One readout the combat screen asks the scene to float. */
+export interface CombatPopupRequest {
+  /** The tile it hangs over — the body it is about. */
+  readonly tile: TilePoint;
+  /** How it is styled; see ./popup.ts. */
+  readonly kind: PopupKind;
+  /** What it says, already derived from the log entry behind it. */
+  readonly text: string;
+  /**
+   * Ms to hold it back — the beat the blow it answers actually lands
+   * on (see attackFx / abilityFx), so a rifle's figure appears when the
+   * round arrives rather than when the trigger is pulled.
+   */
+  readonly delayMs?: number;
 }
 
 /** Tiles per second entities walk between logical positions. */
@@ -228,8 +261,6 @@ const SHAKE_PX = 6;
  * still reports every defeat in the log and the initiative strip.
  */
 const DEATH_FADE_MS = 400;
-const FLOAT_MS = 900;
-const FLOAT_RISE_PX = 56;
 /**
  * Screen pixels above a tile's center that a blow lands at: the chest
  * of a figure standing on it (the 32×48 frame's row 24, at ART_SCALE).
@@ -270,12 +301,20 @@ interface EntityView extends CombatSceneEntity {
   fadeStart: number;
 }
 
-interface FloatingText {
+/**
+ * One readout in flight. Its column and the point it hangs over are
+ * resolved when it is asked for, so it stays where the blow landed even
+ * if the body walks away before it has faded; the slot is the rung it
+ * took over that column (see nextPopupSlot).
+ */
+interface FloatingPopup {
   text: string;
-  color: string;
+  kind: PopupKind;
   sx: number;
   sy: number;
+  /** Scene-clock ms it is due on; later than now while it waits. */
   bornAt: number;
+  slot: number;
 }
 
 /**
@@ -353,7 +392,7 @@ export function createCombatScene(
   const bounds = mapPixelBounds(map);
 
   const entities = new Map<string, EntityView>();
-  const floats: FloatingText[] = [];
+  const popups: FloatingPopup[] = [];
   /** Blows whose effects have not finished playing; pruned as they end. */
   const impacts: ImpactFx[] = [];
   /** Ability casts still playing; pruned the same way. */
@@ -395,6 +434,14 @@ export function createCombatScene(
   let viewportW = 0;
   let viewportH = 0;
   let dpr = 1;
+  /**
+   * The view scale the whole arena is drawn at — the player's own zoom
+   * setting, the same one the streets are explored at. Everything the
+   * scene paints lives inside this transform, floating numbers
+   * included, so a readout is exactly as large relative to the body it
+   * is about at every level.
+   */
+  let zoom: ZoomLevel = settings.get().zoom;
   // Fixed camera on the arena center; arenas are small enough to fit.
   let camera: Camera = {
     sx: (bounds.minX + bounds.maxX) / 2,
@@ -402,27 +449,42 @@ export function createCombatScene(
   };
 
   function snap(value: number): number {
-    return Math.round(value * dpr) / dpr;
+    return snapToPixelGrid(value, dpr * zoom);
   }
 
   function resize(): void {
     dpr = window.devicePixelRatio || 1;
     viewportW = canvas.clientWidth;
     viewportH = canvas.clientHeight;
+    // Backing store in device pixels; the base transform scales world
+    // units by dpr * zoom so draw code stays in world-screen units.
     canvas.width = Math.round(viewportW * dpr);
     canvas.height = Math.round(viewportH * dpr);
-    ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
-    camera = clampCamera(camera, bounds, viewportW, viewportH);
+    const scale = dpr * zoom;
+    ctx!.setTransform(scale, 0, 0, scale, 0, 0);
+    // At higher zoom the viewport spans fewer world units.
+    camera = clampCamera(camera, bounds, viewportW / zoom, viewportH / zoom);
+  }
+
+  /** Follows the zoom setting mid-fight, like the weather toggle. */
+  function syncZoom(): void {
+    const next = settings.get().zoom;
+    if (next === zoom) return;
+    zoom = next;
+    resize();
   }
 
   function pickTile(event: PointerEvent): TilePoint {
     const rect = canvas.getBoundingClientRect();
-    const cssX = event.clientX - rect.left;
-    const cssY = event.clientY - rect.top;
-    return screenToTile(
-      cssX - viewportW / 2 + camera.sx,
-      cssY - viewportH / 2 + camera.sy,
+    const world = viewportToWorld(
+      camera,
+      viewportW,
+      viewportH,
+      zoom,
+      event.clientX - rect.left,
+      event.clientY - rect.top,
     );
+    return screenToTile(world.sx, world.sy);
   }
 
   function onPointerUp(event: PointerEvent): void {
@@ -795,6 +857,43 @@ export function createCombatScene(
     });
   }
 
+  /**
+   * Every readout still in the air: the figure a blow left, the word a
+   * miss left, the label a condition announced itself with. Each rides
+   * the pure curve in ./popup.ts — up and out, or held in place and out
+   * under reduced motion — from the beat it was due on, so one that is
+   * still waiting on a round in flight simply is not drawn yet.
+   * Finished readouts drop out; nothing here persists.
+   */
+  function drawPopups(now: number): void {
+    const reduced = settings.get().reducedMotion;
+    for (let i = popups.length - 1; i >= 0; i--) {
+      const popup = popups[i];
+      if (!popup) continue;
+      const elapsed = now - popup.bornAt;
+      if (elapsed >= POPUP_MS) {
+        popups.splice(i, 1);
+        continue;
+      }
+      const motion = popupMotionAt(elapsed, reduced);
+      if (!motion) continue;
+      const sprite = sprites.popupText?.(popup.text, popup.kind);
+      if (!sprite) continue;
+      const baseline =
+        popup.sy -
+        POPUP_LIFT_PX -
+        popupSlotOffsetPx(popup.slot) -
+        motion.risePx;
+      ctx!.globalAlpha = motion.alpha;
+      ctx!.drawImage(
+        sprite.image,
+        snap(popup.sx - sprite.anchorX),
+        snap(baseline - sprite.anchorY),
+      );
+      ctx!.globalAlpha = 1;
+    }
+  }
+
   function drawEntitySprite(entity: EntityView, now: number): void {
     const { sx, sy } = worldToScreen(entity.visual.x, entity.visual.y);
     const reacting = reactionPose(entity, now);
@@ -852,10 +951,12 @@ export function createCombatScene(
   }
 
   function render(now: number): void {
-    ctx!.clearRect(0, 0, viewportW, viewportH);
+    syncZoom();
+    ctx!.clearRect(0, 0, viewportW / zoom, viewportH / zoom);
     ctx!.imageSmoothingEnabled = false;
     ctx!.save();
-    ctx!.translate(snap(viewportW / 2 - camera.sx), snap(viewportH / 2 - camera.sy));
+    const { tx, ty } = cameraTranslation(camera, viewportW, viewportH, zoom, dpr);
+    ctx!.translate(tx, ty);
 
     // Ground pass. Reduced motion freezes the ambient clock so neon
     // flicker, water shimmer, and the rain go still.
@@ -875,7 +976,7 @@ export function createCombatScene(
         );
       }
     }
-    if (weather) paintSplashes(ctx!, sprites, weather, tileTime, dpr);
+    if (weather) paintSplashes(ctx!, sprites, weather, tileTime, dpr * zoom);
 
     // Highlights sit on the ground under everything.
     for (const tile of highlights.reachable) {
@@ -924,28 +1025,7 @@ export function createCombatScene(
     drawImpacts(now);
     drawCasts(now);
 
-    // Floating combat text, newest on top.
-    for (let i = floats.length - 1; i >= 0; i--) {
-      const float = floats[i];
-      if (!float) continue;
-      const age = now - float.bornAt;
-      if (age > FLOAT_MS) {
-        floats.splice(i, 1);
-        continue;
-      }
-      // Numbers scheduled against a later impact beat wait their turn.
-      if (age < 0) continue;
-      const t = age / FLOAT_MS;
-      const textY = Math.round(float.sy - 88 - t * FLOAT_RISE_PX);
-      ctx!.globalAlpha = 1 - t * t;
-      ctx!.font = "bold 18px 'Courier New', monospace";
-      ctx!.textAlign = "center";
-      ctx!.fillStyle = "#05060c";
-      ctx!.fillText(float.text, float.sx + 1, textY + 1);
-      ctx!.fillStyle = float.color;
-      ctx!.fillText(float.text, float.sx, textY);
-      ctx!.globalAlpha = 1;
-    }
+    drawPopups(now);
 
     ctx!.restore();
 
@@ -957,9 +1037,9 @@ export function createCombatScene(
         sprites,
         weather,
         tileTime,
-        viewportW,
-        viewportH,
-        dpr,
+        viewportW / zoom,
+        viewportH / zoom,
+        dpr * zoom,
       );
     }
   }
@@ -1143,20 +1223,24 @@ export function createCombatScene(
       entity.flashStart = scheduled.startMs;
     },
 
-    floatText(
-      tile: TilePoint,
-      text: string,
-      color = "#e8e6f0",
-      delayMs = 0,
-    ): void {
-      const { sx, sy } = worldToScreen(tile.x, tile.y);
-      const bornAt = performance.now() + Math.max(0, delayMs);
-      // Stack rapid numbers over the same column so none overlap —
-      // including ones still waiting on an impact beat.
-      const stacked = floats.filter(
-        (f) => f.sx === sx && Math.abs(bornAt - f.bornAt) < FLOAT_MS,
-      ).length;
-      floats.push({ text, color, sx, sy: sy - stacked * 20, bornAt });
+    popup(request: CombatPopupRequest): void {
+      const { sx, sy } = worldToScreen(request.tile.x, request.tile.y);
+      const bornAt = performance.now() + Math.max(0, request.delayMs ?? 0);
+      // Readouts already over this column take the rungs they took;
+      // this one climbs to the lowest that is free — including over
+      // ones still waiting on an impact beat of their own.
+      const slot = nextPopupSlot(
+        popups.filter((other) => other.sx === sx),
+        bornAt,
+      );
+      popups.push({
+        text: request.text,
+        kind: request.kind,
+        sx,
+        sy,
+        bornAt,
+        slot,
+      });
     },
 
     destroy(): void {
@@ -1166,7 +1250,7 @@ export function createCombatScene(
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerleave", onPointerLeave);
       unobserveDpr();
-      ctx!.clearRect(0, 0, viewportW, viewportH);
+      ctx!.clearRect(0, 0, viewportW / zoom, viewportH / zoom);
     },
   };
 }

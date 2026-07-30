@@ -64,6 +64,7 @@ describe("gallery sections", () => {
       "effects",
       "abilityEffects",
       "statusMarkers",
+      "popups",
       "appearance",
     ]);
     for (const s of sections) {

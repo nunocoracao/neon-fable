@@ -8,6 +8,7 @@ export { chooseEnemyAction, runEnemyTurns } from "./ai";
 export {
   BASE_FLEE_CHANCE,
   BASE_HIT_CHANCE,
+  CRITICAL_DAMAGE_SHARE,
   MELEE_RANGE,
   RANGED_RANGE,
   UNARMED_WEAPON,
@@ -17,6 +18,7 @@ export {
   damageBonus,
   fleeChance,
   hitChance,
+  isCriticalBlow,
   isGlancingBlow,
   weaponRange,
 } from "./damage";

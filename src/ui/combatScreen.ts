@@ -30,7 +30,14 @@ import {
   statusFamilies,
   type CombatScene,
   type DeathReactionKind,
+  type StatusFamilyId,
 } from "../iso";
+import {
+  eventPopups,
+  statusPopups,
+  type CombatPopup,
+  type PopupContext,
+} from "./combatPopups";
 import { enemyDeathStyle, enemySpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
 import type { DayPhaseId, IsoMap, TilePoint } from "../iso";
@@ -102,6 +109,20 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
   let enemyTimer: ReturnType<typeof setTimeout> | null = null;
   let logIndex = 0;
   let outcomeShown = false;
+  /**
+   * The conditions each combatant was last seen under. The engine owns
+   * them; this only remembers the previous reading so a change can be
+   * announced over the body it happened to (see statusPopups).
+   */
+  let lastStatuses: ReadonlyMap<string, readonly StatusFamilyId[]> = new Map();
+  /**
+   * The beat the last blow processed this pass lands on. A condition is
+   * true of a body the instant the engine says so, but what *put* it
+   * there is still crossing the arena — so the label waits for the
+   * effect that caused it instead of beating it there. Spent by the
+   * push that follows, and zero when nothing was thrown.
+   */
+  let conditionBeatMs = 0;
 
   let topBar: HTMLElement | null = null;
   let initiativeEl: HTMLElement | null = null;
@@ -381,6 +402,17 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     if (!scene || !combat) return;
     const activeId =
       combat.status === "active" ? activeCombatant(combat).id : null;
+    // What is still true of each body: the engine's own conditions,
+    // grouped into marker families by the scene's status rules.
+    const statuses = new Map<string, readonly StatusFamilyId[]>(
+      combat.combatants.map((c) => [
+        c.id,
+        statusFamilies({
+          stunTurns: c.stunTurns,
+          boostStats: c.boosts.map((b) => b.stat),
+        }),
+      ]),
+    );
     scene.setEntities(
       combat.combatants.map((c) => ({
         id: c.id,
@@ -394,14 +426,44 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         // Reactions landing on one beat queue in initiative order.
         order: combat!.initiativeOrder.indexOf(c.id),
         deathStyle: deathStyleFor(c),
-        // What is still true of this body: the engine's own conditions,
-        // grouped into marker families by the scene's status rules.
-        statuses: statusFamilies({
-          stunTurns: c.stunTurns,
-          boostStats: c.boosts.map((b) => b.stat),
-        }),
+        statuses: statuses.get(c.id) ?? [],
       })),
     );
+    // A condition that just landed — or just lifted — says so over the
+    // body it happened to, on the beat whatever caused it arrives.
+    showPopups(statusPopups(lastStatuses, statuses), conditionBeatMs);
+    conditionBeatMs = 0;
+    lastStatuses = statuses;
+  }
+
+  /** Float readouts over the bodies they belong to; missing ones drop. */
+  function showPopups(popups: readonly CombatPopup[], delayMs = 0): void {
+    if (!scene || !combat || popups.length === 0) return;
+    for (const popup of popups) {
+      const tile = getCombatant(combat, popup.combatantId)?.position;
+      if (!tile) continue;
+      scene.popup({ tile, kind: popup.kind, text: popup.text, delayMs });
+    }
+  }
+
+  /**
+   * What the styling of a blow's figure reads: the plating that stood
+   * in its way and the frame it landed on. Damage that goes straight
+   * through plating faces none, however much there was.
+   */
+  function popupContext(event: CombatEvent): PopupContext {
+    if (!combat) return {};
+    if (event.type !== "attacked" && event.type !== "ability-used") return {};
+    const target = getCombatant(combat, event.targetId);
+    if (!target) return {};
+    if (event.type === "attacked") {
+      return { target: { armor: target.armor, maxHp: target.maxHp } };
+    }
+    const effect = getAbility(event.abilityId)?.effect;
+    const ignoresArmor = effect?.type === "damage" && effect.ignoresArmor === true;
+    return {
+      target: { armor: ignoresArmor ? 0 : target.armor, maxHp: target.maxHp },
+    };
   }
 
   function appendLogLine(text: string): void {
@@ -436,25 +498,24 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     }
   }
 
-  /** Renders log lines and scene effects for events not yet processed. */
+  /**
+   * Renders log lines and scene effects for events not yet processed.
+   * The floating readouts ride the same pass: each event's own beat is
+   * what its figure waits for, and the text of that figure is derived
+   * from the event alone (see ./combatPopups.ts) — the log line and the
+   * number over the body are one figure, said twice.
+   */
   function processNewEvents(): void {
     if (!combat) return;
-    /**
-     * The beat the cast played on the previous event lands on. A boost
-     * is logged as its own event right behind the ability that granted
-     * it, so the readout over the caster waits for the aura instead of
-     * beating it there. Carried exactly one event, then spent.
-     */
-    let castBeatMs = 0;
     for (; logIndex < combat.log.length; logIndex++) {
       const event = combat.log[logIndex];
       if (!event) continue;
       const text = combatEventText(event, nameOf);
       if (text) appendLogLine(text);
       playEventSfx(event);
-      const beatMs = castBeatMs;
-      castBeatMs = 0;
       if (!scene) continue;
+      /** Ms until the blow this event describes actually lands. */
+      let beatMs = 0;
       switch (event.type) {
         // The scene reports how long its attack animation takes to
         // connect; the reactions ride that beat so the flash and the
@@ -464,18 +525,15 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
           if (!target) break;
           // A miss still gets its whole sequence — the shot goes wide
           // and chips the arena a tile past whoever it was aimed at.
-          const impact = scene.attackFx(event.attackerId, event.targetId, {
+          beatMs = scene.attackFx(event.attackerId, event.targetId, {
             hit: event.hit,
           });
           if (event.hit) {
             scene.hitFx(event.targetId, {
               attackerId: event.attackerId,
-              delayMs: impact,
+              delayMs: beatMs,
               glancing: isGlancingBlow(event.damage, target.armor),
             });
-            scene.floatText(target.position, `-${event.damage}`, "#ff4d5e", impact);
-          } else {
-            scene.floatText(target.position, "MISS", "#8a86a3", impact);
           }
           break;
         }
@@ -488,12 +546,11 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
           const target = getCombatant(combat, event.targetId);
           const ability = getAbility(event.abilityId);
           if (!target || !ability) break;
-          const cast = scene.abilityFx(
+          beatMs = scene.abilityFx(
             event.combatantId,
             [event.targetId],
             ability.effectRef,
           );
-          castBeatMs = cast;
           if (event.damage <= 0) break;
           // An ability that goes through plating is never a glancing
           // blow, however much plating there was.
@@ -504,37 +561,20 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
               : target.armor;
           scene.hitFx(event.targetId, {
             attackerId: event.combatantId,
-            delayMs: cast,
+            delayMs: beatMs,
             glancing: isGlancingBlow(event.damage, armor),
           });
-          scene.floatText(target.position, `-${event.damage}`, "#ff4d5e", cast);
-          break;
-        }
-        // Float texts carry a sign and unit so damage, heals, and
-        // boosts stay distinguishable without relying on hue alone.
-        case "healed": {
-          const tile = getCombatant(combat, event.combatantId)?.position;
-          if (tile) scene.floatText(tile, `+${event.amount} HP`, "#2ee6d6");
-          break;
-        }
-        case "boosted": {
-          const tile = getCombatant(combat, event.combatantId)?.position;
-          // Waits on the aura when an ability granted it; a dose has no
-          // cast in front of it and shows at once.
-          if (tile) {
-            scene.floatText(tile, `+${event.amount} PWR`, "#f0b429", beatMs);
-          }
-          break;
-        }
-        case "flee-attempted": {
-          if (event.success) break;
-          const tile = getCombatant(combat, event.combatantId)?.position;
-          if (tile) scene.floatText(tile, "NO ESCAPE", "#8a86a3");
           break;
         }
         default:
           break;
       }
+      // Whatever the event was worth as a readout, floated on the beat
+      // its own blow lands on — so a rifle's figure appears when the
+      // round arrives, and a heal, which nothing has to reach, at once.
+      showPopups(eventPopups(event, popupContext(event)), beatMs);
+      // Conditions the same blow left ride the same beat (see above).
+      if (beatMs > 0) conditionBeatMs = beatMs;
     }
   }
 

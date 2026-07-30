@@ -43,9 +43,11 @@ import { items } from "../../data/items";
 import { maps } from "../../data/maps";
 import { ABILITY_FX, ABILITY_FX_IDS } from "../abilityFx";
 import { EFFECT_SPRITE_IDS } from "../impact";
+import { POPUP_KINDS, type PopupKind } from "../popup";
 import { STATUS_FAMILY_IDS, STATUS_MARKERS } from "../status";
 import { ABILITY_FX_ART } from "./abilityEffects";
 import { EFFECT_ART } from "./effects";
+import { popupTextGrid, textGrid } from "./popupFont";
 import { STATUS_MARKER_ART } from "./statusMarkers";
 import { INTERACTABLE_ART } from "./interactables";
 import {
@@ -90,6 +92,17 @@ export interface GallerySection {
 
 const FACINGS: readonly Facing[] = ["n", "e", "s", "w"];
 const MOTIONS: readonly LoopState[] = ["idle", "walk"];
+
+/** A representative reading per popup kind, for the gallery sweep. */
+const POPUP_SAMPLES: Readonly<Record<PopupKind, string>> = {
+  damage: "-12",
+  critical: "-24",
+  reduced: "-3",
+  miss: "MISS",
+  heal: "+8",
+  status: "STUNNED",
+  "status-out": "GUARD DOWN",
+};
 
 function tileEntries(): GalleryEntry[] {
   return Object.entries(TILE_ART).flatMap(([id, art]) =>
@@ -317,6 +330,34 @@ function statusMarkerEntries(): GalleryEntry[] {
       frameMs: art.frames.length > 1 ? art.frameMs : 0,
     };
   });
+}
+
+/**
+ * The combat readout font (../popup.ts): the authored glyph strips in
+ * the ink they are drawn in, then one sample of every popup kind
+ * composed exactly as a fight composes it — ink, size, badge, and the
+ * drop shadow that keeps a figure readable over the arena. Static
+ * entries: a popup moves, but every frame of it is this one picture.
+ */
+function popupEntries(): GalleryEntry[] {
+  const strips: ReadonlyArray<[string, string]> = [
+    ["font digits", "0123456789"],
+    ["font letters A-M", "ABCDEFGHIJKLM"],
+    ["font letters N-Z", "NOPQRSTUVWXYZ"],
+    ["font signs", "+-"],
+  ];
+  return [
+    ...strips.map(([id, text]) => ({
+      id,
+      frames: [textGrid(text)],
+      frameMs: 0,
+    })),
+    ...POPUP_KINDS.map((kind) => ({
+      id: `popup ${kind} (${POPUP_SAMPLES[kind]})`,
+      frames: [popupTextGrid(POPUP_SAMPLES[kind], kind)],
+      frameMs: 0,
+    })),
+  ];
 }
 
 /**
@@ -656,6 +697,11 @@ const SECTION_BUILDERS: ReadonlyArray<{
     id: "statusMarkers",
     title: "Status markers",
     build: statusMarkerEntries,
+  },
+  {
+    id: "popups",
+    title: "Combat readouts (font & popups)",
+    build: popupEntries,
   },
   { id: "appearance", title: "Appearance layers", build: appearanceEntries },
 ];
