@@ -50,6 +50,8 @@ import { BODY_ANIM } from "./layers/bodyAnim";
 import { REMAP_CHANNELS } from "./palette";
 import { mirrored, type PixelGrid } from "./pixel";
 import { PROP_ART } from "./props";
+import { STEAM_FRAME_MS } from "../setpiece";
+import { SETPIECE_ART } from "./setpieces";
 import { TILE_ART } from "./tiles";
 
 /** One gallery cell: a labeled frame loop ready to bake at ART_SCALE. */
@@ -86,6 +88,20 @@ function propEntries(): GalleryEntry[] {
     id,
     frames: art.frames,
     frameMs: art.frames.length > 1 ? art.frameMs : 0,
+  }));
+}
+
+/**
+ * The ambient machinery (../setpiece.ts). The steam burst is a
+ * scheduled sequence rather than an idle loop, so it declares no
+ * frameMs of its own — the gallery plays it at the burst's own frame
+ * duration to show what one actually looks like.
+ */
+function setPieceEntries(): GalleryEntry[] {
+  return Object.entries(SETPIECE_ART).map(([id, art]) => ({
+    id,
+    frames: art.frames,
+    frameMs: art.frameMs > 0 ? art.frameMs : STEAM_FRAME_MS,
   }));
 }
 
@@ -466,6 +482,7 @@ const SECTION_BUILDERS: ReadonlyArray<{
   { id: "tiles", title: "Tiles", build: tileEntries },
   { id: "props", title: "Props", build: propEntries },
   { id: "interactables", title: "Interactables", build: interactableEntries },
+  { id: "setpieces", title: "Set pieces", build: setPieceEntries },
   { id: "cast", title: "Cast (NPCs & enemies)", build: castEntries },
   { id: "bodies", title: "Bodies (hi-res)", build: bodyEntries },
   { id: "appearance", title: "Appearance layers", build: appearanceEntries },

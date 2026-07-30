@@ -298,6 +298,36 @@ const cinderPlaza: IsoMap = {
       { id: "market-row", x: 6, y: 8, width: 7, height: 2 },
     ],
   },
+  // The Cinder Row overline: the district's one piece of working
+  // infrastructure, a maglev rake sweeping the skyline every half a
+  // minute or so and gone the rest of the time. It runs on row -1 —
+  // off the grid, one row behind the north terrace — which is the
+  // whole trick: painter's order puts everything on row 0 in front of
+  // it, so the train emerges past the west wall, crosses above the
+  // rooftops with its underside behind them, and is swallowed by the
+  // east wall on the way out. Nothing about the plaza changes when it
+  // passes; it is a thing happening over the player's head.
+  //
+  // The pumps under the plaza cycle on their own schedule, and the one
+  // stack on the square is where they let go.
+  setPieces: {
+    trains: [
+      {
+        id: "cinder-overline",
+        row: -1,
+        fromX: -8,
+        toX: 24,
+        cars: 3,
+        heightPx: 62,
+        periodMs: 27_000,
+        crossMs: 7_600,
+        // Not at t = 0: the first crossing should catch the player
+        // already standing in the plaza, not greet them on arrival.
+        offsetMs: 5_000,
+      },
+    ],
+    vents: { periodMs: 5_600, chance: 0.4 },
+  },
   // Cinder Row keeps working hours. The player meets the Sprawl at the
   // end of the day, with the last warm light still coming off the
   // towers and the signage only starting to win — the softest the hub
@@ -438,6 +468,14 @@ const greywaterSteps: IsoMap = {
     count: 4,
     zones: [{ id: "walk", x: 1, y: 4, width: 9, height: 4 }],
   },
+  // Greywater's pump stacks work hardest and are hit by the rain the
+  // whole time, so the Steps steam far more than anywhere else: a
+  // tighter window and a higher share of it, raised again by the wet
+  // (see VENT_RAIN_FACTOR). No overline reaches this far under, and
+  // nothing patrols a settlement Auric has written off.
+  setPieces: {
+    vents: { periodMs: 4_200, chance: 0.45 },
+  },
   // The quayside district is where it always rains: water off the
   // cistern, puddles standing in the cracked slabs, the court's neon
   // pooling in them. Visual only — the fights and the story here play
@@ -554,6 +592,11 @@ const exchangeVentworks: IsoMap = {
   ambient: {
     count: 3,
     zones: [{ id: "cycler-lane", x: 3, y: 4, width: 6, height: 4 }],
+  },
+  // The Ventworks is named for the stacks: they blow off constantly and
+  // in the dry, which is the district's whole sound.
+  setPieces: {
+    vents: { periodMs: 3_400, chance: 0.55 },
   },
 };
 
@@ -948,6 +991,39 @@ const verticalMarket: IsoMap = {
       { id: "landing", x: 2, y: 10, width: 12, height: 2 },
     ],
   },
+  // Two Combine drones quartering the boards — the market is watched
+  // the way a place that pays no tax gets watched. They fly the long
+  // rectangle over the aisles on the same beat, half a circuit apart,
+  // so one is always somewhere over the crowd. Scenery: they cannot be
+  // reached, spoken to, or fought, and nothing they pass over changes.
+  setPieces: {
+    drones: [
+      {
+        id: "market-warden-a",
+        waypoints: [
+          { x: 3, y: 3 },
+          { x: 14, y: 3 },
+          { x: 14, y: 10 },
+          { x: 3, y: 10 },
+        ],
+        speed: 1.7,
+        heightPx: 38,
+      },
+      {
+        id: "market-warden-b",
+        waypoints: [
+          { x: 3, y: 3 },
+          { x: 14, y: 3 },
+          { x: 14, y: 10 },
+          { x: 3, y: 10 },
+        ],
+        speed: 1.7,
+        heightPx: 44,
+        // Half a lap behind: 38 tiles of circuit at 1.7 tiles/s.
+        offsetMs: 11_000,
+      },
+    ],
+  },
   // Trading hours: the market only comes alive after dark, and it is
   // roofed by the levels above it — no weather reaches the boards.
   weather: "clear",
@@ -1103,6 +1179,26 @@ const floodedQuays: IsoMap = {
     zones: [
       { id: "strand", x: 1, y: 11, width: 14, height: 3 },
       { id: "wharf", x: 1, y: 1, width: 14, height: 2 },
+    ],
+  },
+  // One drone sweeping the basin, slow and low over open water — the
+  // dockland is not worth two, and the only thing down here anyone
+  // still checks on is whether the water has moved. Its scan cone on
+  // the black canal is the one light out there besides the mast lamp.
+  setPieces: {
+    drones: [
+      {
+        id: "quays-sweeper",
+        waypoints: [
+          { x: 5, y: 4 },
+          { x: 11, y: 5 },
+          { x: 10, y: 10 },
+          { x: 4, y: 9 },
+        ],
+        speed: 1.2,
+        heightPx: 32,
+        offsetMs: 4_000,
+      },
     ],
   },
   // It rains on the quays the way it rains on Greywater, and for the

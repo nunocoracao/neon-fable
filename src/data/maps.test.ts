@@ -22,6 +22,11 @@ import {
   minimapPips,
 } from "../iso/minimap";
 import { REFLECTION_RANGE, collectGlowPlacements } from "../iso/glowPass";
+import {
+  TRAIN_CAR_SPAN,
+  dronePathLength,
+  droneStateAt,
+} from "../iso/setpiece";
 import { findPath, findPathToAdjacent } from "../iso/path";
 import { resolveDayPhase } from "../iso/dayPhase";
 import {
@@ -944,6 +949,129 @@ describe("ambient crowds", () => {
     for (const map of explorableMaps) {
       expect(map.ambient?.count ?? 0).toBeLessThanOrEqual(MAX_AMBIENT_PER_MAP);
     }
+  });
+});
+
+describe("ambient set pieces", () => {
+  it("keeps arenas free of machinery — a fight is the only thing there", () => {
+    for (const arena of arenaMaps) {
+      expect(arena.setPieces, `${arena.id} declares set pieces`).toBeUndefined();
+    }
+  });
+
+  it("gives each district the machinery its own story earns", () => {
+    const declared = explorableMaps.map((map) => [
+      map.id,
+      {
+        trains: map.setPieces?.trains?.length ?? 0,
+        drones: map.setPieces?.drones?.length ?? 0,
+        vents: map.setPieces?.vents !== undefined,
+      },
+    ]);
+    expect(declared).toEqual([
+      // The hub is the only place with a line overhead — the overline
+      // is what the plaza is built under.
+      ["cinder-plaza", { trains: 1, drones: 0, vents: true }],
+      ["greywater-steps", { trains: 0, drones: 0, vents: true }],
+      ["exchange-ventworks", { trains: 0, drones: 0, vents: true }],
+      // Sealed interiors: nothing flies through a corp tower.
+      ["auric-spire", { trains: 0, drones: 0, vents: false }],
+      ["auric-executive", { trains: 0, drones: 0, vents: false }],
+      // Watched from the air, which is the point of both districts.
+      ["vertical-market", { trains: 0, drones: 2, vents: false }],
+      ["flooded-quays", { trains: 0, drones: 1, vents: false }],
+    ]);
+  });
+
+  it("only declares a vent cadence where there are stacks to vent", () => {
+    for (const map of maps) {
+      if (!map.setPieces?.vents) continue;
+      const stacks = map.props.filter((p) => p.propId === "vent-stack");
+      expect(stacks.length, `${map.id} vent cadence with no stacks`)
+        .toBeGreaterThan(0);
+    }
+  });
+
+  it("flies every drone over ground the map actually has", () => {
+    for (const map of explorableMaps) {
+      for (const path of map.setPieces?.drones ?? []) {
+        expect(path.waypoints.length, `${map.id}/${path.id} waypoints`)
+          .toBeGreaterThanOrEqual(3);
+        expect(dronePathLength(path), `${map.id}/${path.id} circuit`)
+          .toBeGreaterThan(0);
+        for (const point of path.waypoints) {
+          expect(inBounds(map, point.x, point.y), `${map.id}/${path.id} waypoint`)
+            .toBe(true);
+        }
+        // A patrol that never crosses the map is not a patrol: the loop
+        // has to span a real fraction of the district it watches.
+        const xs = path.waypoints.map((p) => p.x);
+        const ys = path.waypoints.map((p) => p.y);
+        expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(map.width / 3);
+        expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(map.height / 3);
+      }
+    }
+  });
+
+  it("runs the overline behind the district, on a schedule you can miss", () => {
+    const track = requireMap(HUB_MAP_ID).setPieces?.trains?.[0];
+    expect(track).toBeDefined();
+    if (!track) return;
+    // The line sits off the north edge of the grid, which is the whole
+    // trick: painter's order sorts everything on row 0 in front of it,
+    // so the rake passes behind the tenements with no depth special
+    // case anywhere in the renderer.
+    expect(track.row).toBeLessThan(0);
+    // It enters and leaves clear of the map, so no crossing ever starts
+    // or stops with a carriage parked in shot.
+    const tail = track.cars * TRAIN_CAR_SPAN;
+    expect(track.fromX + tail).toBeLessThanOrEqual(0);
+    expect(track.toX - tail).toBeGreaterThanOrEqual(requireMap(HUB_MAP_ID).width);
+    // Out for well under a fifth of its period: the plaza is quiet far
+    // more often than it is not.
+    expect(track.crossMs).toBeLessThan(track.periodMs / 3);
+  });
+
+  it("changes nothing a player can walk on, fight over, or route through", () => {
+    // The same guarantee weather and the hour carry: set pieces are a
+    // look. Stripping every one of them off a map leaves walkability
+    // and routing byte-identical.
+    for (const map of explorableMaps) {
+      if (!map.setPieces) continue;
+      const bare: IsoMap = { ...map, setPieces: undefined };
+      const spawn = requireSpawn(map, ENTRY_SPAWN_ID);
+      for (let y = 0; y < map.height; y++) {
+        for (let x = 0; x < map.width; x++) {
+          expect(isWalkable(bare, x, y), `${map.id} (${x},${y})`).toBe(
+            isWalkable(map, x, y),
+          );
+        }
+      }
+      for (const target of map.interactables) {
+        expect(findPathToAdjacent(bare, spawn, target)?.length).toBe(
+          findPathToAdjacent(map, spawn, target)?.length,
+        );
+      }
+    }
+  });
+
+  it("flies the quays' sweeper out over water nothing on foot can cross", () => {
+    // A drone has no business with the ground: no collision, no
+    // pathfinding, no walkability. The proof is that its declared beat
+    // takes it over the basin, which no route in the game can.
+    const quays = requireMap("flooded-quays");
+    const path = quays.setPieces?.drones?.[0];
+    expect(path).toBeDefined();
+    if (!path) return;
+    let overWater = 0;
+    for (let t = 0; t < 60_000; t += 100) {
+      const state = droneStateAt(path, t);
+      if (!state) continue;
+      const x = Math.round(state.position.x);
+      const y = Math.round(state.position.y);
+      if (tileMaterial(quays.tiles[y]?.[x] ?? "pavement") === "water") overWater++;
+    }
+    expect(overWater).toBeGreaterThan(0);
   });
 });
 
