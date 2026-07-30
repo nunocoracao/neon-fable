@@ -6,6 +6,8 @@ import { createCombat, livingEnemies, playerCombatant } from "../combat";
 import { requireEncounter, requireMap } from "../data";
 import {
   ATTACK_CLASS_IDS,
+  ATTACK_FX_STYLE,
+  TRACER_MAX_MS,
   attackDurationMs,
   attackFrameCount,
   attackImpactMs,
@@ -197,12 +199,19 @@ describe("attack animation in a real encounter", () => {
         fight.scene.destroy();
       });
 
-      it("reports the impact beat its reactions ride", () => {
+      it("reports the beat its reactions ride", () => {
         const fight = startFight(attackClass);
         clock = 2000;
-        expect(fight.scene.attackFx(fight.playerId, fight.enemyId)).toBe(
-          attackImpactMs(attackClass),
-        );
+        const contact = fight.scene.attackFx(fight.playerId, fight.enemyId);
+        const swing = attackImpactMs(attackClass);
+        if (ATTACK_FX_STYLE[attackClass] === "tracer") {
+          // A fired round lands when it arrives, not when it is fired
+          // (see ../iso/impact.ts); everything else lands as it swings.
+          expect(contact).toBeGreaterThan(swing);
+          expect(contact - swing).toBeLessThanOrEqual(TRACER_MAX_MS);
+        } else {
+          expect(contact).toBe(swing);
+        }
         fight.scene.destroy();
       });
 

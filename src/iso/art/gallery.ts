@@ -41,6 +41,8 @@ import { interactableVisual } from "../../character/npc";
 import { enemies } from "../../data/enemies";
 import { items } from "../../data/items";
 import { maps } from "../../data/maps";
+import { EFFECT_SPRITE_IDS } from "../impact";
+import { EFFECT_ART } from "./effects";
 import { INTERACTABLE_ART } from "./interactables";
 import {
   composedCharacterGrid,
@@ -260,6 +262,24 @@ function reactionEntries(): GalleryEntry[] {
       ),
     ),
   );
+}
+
+/**
+ * Combat effects (../impact.ts): the muzzle flash, the tracer in each
+ * of its authored slopes, the arc smear both hands swing, and the
+ * sparks, dust, and flash a blow ends in. Single-frame effects (the
+ * tracers) are static entries; the rest play at their own authored
+ * hold, which is the hold the fight plays them at too.
+ */
+function effectEntries(): GalleryEntry[] {
+  return EFFECT_SPRITE_IDS.map((id) => {
+    const art = EFFECT_ART[id];
+    return {
+      id,
+      frames: art.frames,
+      frameMs: art.frames.length > 1 ? art.frameMs : 0,
+    };
+  });
 }
 
 /**
@@ -589,6 +609,7 @@ const SECTION_BUILDERS: ReadonlyArray<{
     title: "Reactions (hits & deaths)",
     build: reactionEntries,
   },
+  { id: "effects", title: "Effects (shots & impacts)", build: effectEntries },
   { id: "appearance", title: "Appearance layers", build: appearanceEntries },
 ];
 

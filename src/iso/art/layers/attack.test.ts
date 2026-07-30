@@ -12,7 +12,9 @@ import {
   ATTACK_FRAMES,
   ATTACK_WEAPON_GRIDS,
   ATTACK_WEAPON_REGION,
+  MUZZLE_POINTS,
   attackWeaponGrid,
+  muzzlePoint,
 } from "./attack";
 import {
   BODY_BUILD_IDS,
@@ -327,6 +329,108 @@ describe("composed attack frames", () => {
         const south = composedCharacterGrid(fighter(id, "lean"), "s", "attack", frame);
         expect(south, `${id} f${frame} mirrored`).toEqual(
           east.map((row) => [...row].reverse().join("")),
+        );
+      }
+    }
+  });
+});
+
+/**
+ * The muzzle contract: where a class's blow leaves the character, which
+ * is where the combat scene starts its tracer and burns its muzzle
+ * flash. The point has to sit on the picture rather than near it, so it
+ * is pinned to the flash pixel the firing frame already lights.
+ */
+describe("the muzzle contract", () => {
+  const RANGED: AttackClassId[] = ["pistol", "rifle"];
+
+  it("names a muzzle for the classes that fire and none for the rest", () => {
+    for (const id of ATTACK_CLASS_IDS) {
+      expect(MUZZLE_POINTS[id] !== undefined, id).toBe(RANGED.includes(id));
+    }
+  });
+
+  it("puts the authored muzzle on the flash the firing frame lights", () => {
+    for (const id of RANGED) {
+      const authored = MUZZLE_POINTS[id];
+      if (!authored) throw new Error(`${id} has no muzzle point`);
+      const frame = ATTACK_TIMING[id].impactFrame;
+      for (const build of BODY_BUILD_IDS) {
+        const shift =
+          build === "heavy"
+            ? BODY_FRAME.hands.heavy.right[0] - BODY_FRAME.hands.lean.right[0]
+            : 0;
+        const grid = ATTACK_WEAPON_GRIDS[id][build].front[frame] ?? [];
+        // The hot end of the amber pair: the flame at the barrel.
+        expect(grid[authored.y]?.[authored.x + shift], `${id} ${build} muzzle`).toBe(
+          "n",
+        );
+      }
+    }
+  });
+
+  it("moves the muzzle with the frame's own lean and landed weight", () => {
+    for (const id of RANGED) {
+      const authored = MUZZLE_POINTS[id];
+      const frame = ATTACK_FRAMES[id][ATTACK_TIMING[id].impactFrame];
+      if (!authored || !frame) throw new Error(`${id} has no firing frame`);
+      const point = muzzlePoint(id, "lean", "e");
+      expect(point.x, `${id} leans with the body`).toBe(authored.x + frame.leanX);
+      expect(point.y, `${id} sinks with the body`).toBe(
+        authored.y + (frame.sink === true ? 1 : 0),
+      );
+    }
+  });
+
+  it("falls back to the fist for everything that fires nothing", () => {
+    for (const id of ATTACK_CLASS_IDS.filter((c) => !RANGED.includes(c))) {
+      const frame = ATTACK_FRAMES[id][ATTACK_TIMING[id].impactFrame];
+      if (!frame) throw new Error(`${id} has no impact frame`);
+      for (const build of BODY_BUILD_IDS) {
+        const hands = BODY_FRAME.hands[build];
+        const point = muzzlePoint(id, build, "e");
+        expect(point.x, `${id} ${build} fist x`).toBe(
+          hands.right[1] + frame.handDx + frame.leanX,
+        );
+        expect(point.y, `${id} ${build} fist y`).toBe(
+          hands.rows[1] + frame.handDy + (frame.sink === true ? 1 : 0),
+        );
+      }
+    }
+  });
+
+  it("mirrors the muzzle onto the away facings, and keeps it in frame", () => {
+    for (const id of ATTACK_CLASS_IDS) {
+      for (const build of BODY_BUILD_IDS) {
+        const east = muzzlePoint(id, build, "e");
+        for (const facing of FACINGS) {
+          const point = muzzlePoint(id, build, facing);
+          const mirrors = facing === "s" || facing === "w";
+          expect(point.x, `${id} ${build} ${facing}`).toBe(
+            mirrors ? BODY_FRAME.width - 1 - east.x : east.x,
+          );
+          expect(point.y, `${id} ${build} ${facing} height`).toBe(east.y);
+          // A muzzle outside the frame would fire from thin air.
+          expect(point.x).toBeGreaterThanOrEqual(0);
+          expect(point.x).toBeLessThan(BODY_FRAME.width);
+          expect(point.y).toBeGreaterThanOrEqual(0);
+          expect(point.y).toBeLessThan(BODY_FRAME.height);
+        }
+      }
+    }
+  });
+
+  it("fires from above the ground and below the head", () => {
+    // Shoulder-to-hip: a shot leaves a weapon a body is holding, not
+    // its boots and not its face.
+    for (const id of ATTACK_CLASS_IDS) {
+      for (const build of BODY_BUILD_IDS) {
+        const { y } = muzzlePoint(id, build, "e");
+        expect(y, `${id} ${build} above the head box`).toBeGreaterThan(
+          BODY_FRAME.head.bottom,
+        );
+        expect(y, `${id} ${build} above the ground`).toBeLessThan(
+          BODY_FRAME.shadow.top,
         );
       }
     }
