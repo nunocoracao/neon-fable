@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { minimapCells } from "./minimap";
 import {
   ENTRY_SPAWN_ID,
   INTERIOR_FLOOR_IDS,
@@ -10,6 +11,8 @@ import {
   isWalkable,
   mapExits,
   neighbors,
+  propBlocksTile,
+  propTiles,
   requireSpawn,
   tileAt,
   tileMaterial,
@@ -84,6 +87,73 @@ describe("walkability", () => {
     expect(isWalkable(map, 1, 1)).toBe(false);
     expect(interactableAt(map, 1, 1)?.id).toBe("npc");
     expect(interactableAt(map, 0, 0)).toBeUndefined();
+  });
+});
+
+/**
+ * Set pieces too big for one diamond — a beached hull, a gantry — are
+ * placed on the tile nearest the viewer and declare the tiles their
+ * bulk reaches back over. What matters is that the bulk is solid: the
+ * whole footprint blocks, not just the tile the prop was written on.
+ */
+describe("props with a footprint", () => {
+  const beached = (blocks: boolean): IsoMap => {
+    const map = makeMap(["....", "....", "...."]);
+    map.props.push({
+      propId: "crate",
+      x: 3,
+      y: 2,
+      blocks,
+      footprint: [
+        { x: -1, y: 0 },
+        { x: 0, y: -1 },
+        { x: -1, y: -1 },
+      ],
+    });
+    return map;
+  };
+
+  it("blocks every tile the bulk lies across, not just its own", () => {
+    const map = beached(true);
+    for (const [x, y] of [
+      [3, 2],
+      [2, 2],
+      [3, 1],
+      [2, 1],
+    ] as const) {
+      expect(isWalkable(map, x, y), `(${x}, ${y})`).toBe(false);
+    }
+    // And nothing beyond it: the tiles alongside stay open ground.
+    expect(isWalkable(map, 1, 2)).toBe(true);
+    expect(isWalkable(map, 3, 0)).toBe(true);
+  });
+
+  it("blocks nothing at all when the prop is scenery to walk through", () => {
+    const map = beached(false);
+    expect(propBlocksTile(map, 2, 1)).toBe(false);
+    expect(isWalkable(map, 2, 1)).toBe(true);
+  });
+
+  it("reads as blocked ground on the minimap wherever the bulk lands", () => {
+    const cells = minimapCells(beached(true));
+    expect(cells[1]?.[2]).toBe("blocked");
+    expect(cells[2]?.[3]).toBe("blocked");
+    expect(cells[2]?.[1]).toBe("walkable");
+  });
+
+  it("lists its own tile first, then the tiles it reaches back over", () => {
+    const [prop] = beached(true).props;
+    if (!prop) throw new Error("no prop");
+    expect(propTiles(prop)).toEqual([
+      { x: 3, y: 2 },
+      { x: 2, y: 2 },
+      { x: 3, y: 1 },
+      { x: 2, y: 1 },
+    ]);
+    // A plain prop covers exactly the tile it stands on.
+    expect(propTiles({ propId: "crate", x: 4, y: 5, blocks: true })).toEqual([
+      { x: 4, y: 5 },
+    ]);
   });
 });
 

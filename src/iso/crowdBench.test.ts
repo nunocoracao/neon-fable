@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { requireMap } from "../data/maps";
+import { maps, requireMap } from "../data/maps";
 import { ambientSpriteSource } from "../ui/entitySprites";
 import {
   MAX_AMBIENT_PER_MAP,
@@ -11,6 +11,7 @@ import {
 import { createPixelArtSprites } from "./art/provider";
 import { mapPixelBounds } from "./camera";
 import { renderScene, type RenderView } from "./render";
+import { tileMaterial } from "./tilemap";
 import { resolveWeather } from "./weather";
 
 /**
@@ -138,13 +139,26 @@ describe("crowded-scene frame budget", () => {
     expect(steady.evictions).toBe(0);
   });
 
-  it("keeps a rainy crowded frame inside the same budget", () => {
+  it("keeps a rainy frame on open water inside the same budget", () => {
     // Rain adds a few hundred streak draws and a handful of splashes on
     // top of everything above, all resolved from the same bake cache
     // (two streak sprites, three splash frames). If weather ever starts
     // baking per frame, this is where it shows up.
-    const rainy = requireMap("greywater-steps");
+    //
+    // Measured on the quays because they are the worst case for the wet
+    // path: the most open water in the game, so the glow pass reflects
+    // off more tiles here than anywhere else, and the district stands a
+    // six-tile wrecked hull in the middle of it.
+    const rainy = requireMap("flooded-quays");
     expect(rainy.weather).toBe("rain");
+    const openWater = (map: typeof rainy): number =>
+      map.tiles.flat().filter((id) => tileMaterial(id) === "water").length;
+    for (const map of maps) {
+      if (map.id === rainy.id) continue;
+      expect(openWater(rainy), `${map.id} is wetter`).toBeGreaterThan(
+        openWater(map),
+      );
+    }
     const weather = resolveWeather(rainy, { enabled: true });
     const sprites = createPixelArtSprites({ entity: ambientSpriteSource() });
     const ctx = stubContext();

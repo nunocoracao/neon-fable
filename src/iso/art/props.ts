@@ -946,6 +946,99 @@ export const isoBox = (w: number, wallH: number, ink: BoxInk): string[] => {
   });
 };
 
+/**
+ * An isometric slab standing on a rectangular footprint: `wx` tiles
+ * along the map's x axis by `wy` along its y, raised `wallH` rows off
+ * the ground. isoBox draws one tile's worth of solid; this draws the
+ * set-piece case — a hull, a gantry deck — whose bulk lies across
+ * several, and which is placed with a PropPlacement footprint to match.
+ *
+ * Geometry follows from the tile diamond alone (64x32 at 1x, so a step
+ * along x is +32/+16 art pixels and a step along y is -32/+16): the
+ * grid is exactly the footprint's parallelogram plus the wall, anchored
+ * on the near tile — the one with the greatest x + y — so a placement's
+ * own tile is the nearest one its bulk covers and painter's order needs
+ * no special case. Exactly 16 rows fall below the anchor, the same half
+ * tile every other prop is held to.
+ */
+export interface SlabArt {
+  grid: string[];
+  /** Ground contact, in art pixels: the near tile's diamond center. */
+  anchorX: number;
+  anchorY: number;
+}
+
+/** Tile-space coordinates of an art pixel offset from a tile's center. */
+const tileU = (px: number, py: number): number => px / 64 + py / 32;
+const tileV = (px: number, py: number): number => py / 32 - px / 64;
+
+export const isoSlab = (
+  wx: number,
+  wy: number,
+  wallH: number,
+  ink: BoxInk,
+): SlabArt => {
+  const anchorX = 32 * wx;
+  const anchorY = wallH + 16 * (wx + wy - 1);
+  const width = 32 * (wx + wy);
+  const height = 16 * (wx + wy) + wallH + 1;
+  /** Whether a ground-plane point lies on the footprint. */
+  const onFootprint = (px: number, py: number): boolean => {
+    const u = tileU(px, py);
+    const v = tileV(px, py);
+    return u >= 0.5 - wx && u <= 0.5 && v >= 0.5 - wy && v <= 0.5;
+  };
+  const grid = Array.from({ length: height }, (_, y) => {
+    const cells: string[] = [];
+    // Deck span of this row, for the rim and the far step.
+    let deckFrom = -1;
+    let deckTo = -1;
+    let solidFrom = -1;
+    let solidTo = -1;
+    for (let x = 0; x < width; x++) {
+      // Sample at the pixel's center; a pixel drawn at py stands for
+      // ground py + k when the solid is k rows tall under it.
+      const px = x - anchorX + 0.5;
+      const py = y - anchorY + 0.5;
+      const deck = onFootprint(px, py + wallH);
+      let solid = deck;
+      for (let k = 0; !solid && k < wallH; k++) solid = onFootprint(px, py + k);
+      if (!solid) {
+        cells.push(".");
+        continue;
+      }
+      if (solidFrom < 0) solidFrom = x;
+      solidTo = x;
+      if (deck) {
+        if (deckFrom < 0) deckFrom = x;
+        deckTo = x;
+        // Deck planking, seamed along one axis of the iso grain — the
+        // same treatment isoBox gives a lid, at slab scale.
+        cells.push(
+          ink.grain !== undefined && (x - 2 * y + 4 * width) % 12 === 0
+            ? ink.grain
+            : ink.top,
+        );
+      } else {
+        // Below the deck: the wall face the pixel hangs off is whichever
+        // footprint edge it has fallen furthest past.
+        const overU = tileU(px, py + wallH) - 0.5;
+        const overV = tileV(px, py + wallH) - 0.5;
+        cells.push(overU > overV ? ink.right : ink.left);
+      }
+    }
+    // The deck lit along its near-left rim, stepped down on the far one.
+    for (let i = 0; i < 2; i++) {
+      if (deckFrom >= 0 && deckFrom + i <= deckTo) cells[deckFrom + i] = ink.rim;
+      if (deckTo >= 0 && deckTo - i >= deckFrom) cells[deckTo - i] = ink.left;
+    }
+    if (solidFrom >= 0) cells[solidFrom] = ink.ink;
+    if (solidTo >= 0) cells[solidTo] = ink.ink;
+    return cells.join("");
+  });
+  return { grid, anchorX, anchorY };
+};
+
 /** Stamp `art` onto a copy of `base` at (x, y); transparency shows through. */
 const stamped = (
   base: readonly string[],
@@ -1229,6 +1322,195 @@ const noodleFrame = (phase: number): string[] =>
     0,
   );
 
+/* --- Quayside dressing. The Flooded Quays are furnished out of three
+ * pieces: the mooring posts every walkway span is tied off to, tarped
+ * salvage waiting on the boards for a buyer, and the half-sunk barge
+ * the district is built around. Same street light as everything else —
+ * top-left, chrome where the metal shows, rust everywhere it has been
+ * wet for twenty years. --- */
+
+/* --- Mooring post: a chromed bollard gone rusty at the waterline,
+ * a coil of rope round its shaft, set in a concrete pad. 20x23,
+ * ground contact at (10, 20). --- */
+
+const POST_CAP = gap(5) + "0TT" + "9".repeat(4) + "TT0" + gap(5);
+const POST_CAP_LOW = gap(5) + "0T9" + "6".repeat(4) + "9T0" + gap(5);
+const POST_COLLAR = gap(5) + "0" + "6".repeat(8) + "0" + gap(5);
+/** One row of the shaft: chrome, with four columns of rust bleed. */
+const postShaft = (bleed: string): string => gap(6) + "07" + bleed + "60" + gap(6);
+/** A wrap of rope round the shaft, standing proud of it. */
+const postRope = (wrap: string): string => gap(5) + "0" + wrap + "0" + gap(5);
+
+const mooringPost: string[] = [
+  POST_CAP,
+  POST_CAP_LOW,
+  POST_COLLAR,
+  postShaft("6666"),
+  postShaft("66a6"),
+  postShaft("6aa6"),
+  postShaft("66a6"),
+  postShaft("6666"),
+  postRope("cbccbccb"),
+  postRope("bccbccbc"),
+  postShaft("6666"),
+  postShaft("6a66"),
+  postShaft("aa66"),
+  postShaft("6a66"),
+  postShaft("6666"),
+  postShaft("66aa"),
+  postShaft("666a"),
+  postShaft("6666"),
+  gap(4) + "0" + "6".repeat(10) + "0" + gap(4),
+  gap(4) + "0S" + "R".repeat(8) + "Q0" + gap(4),
+  gap(4) + "0Q" + "Q".repeat(8) + "Q0" + gap(4),
+  gap(3) + "z".repeat(14) + gap(3),
+  gap(6) + "z".repeat(8) + gap(6),
+];
+
+/* --- Salvage tarp: whatever came up off the bottom this week, roped
+ * under a sheet and left on the boards. Two bundles under one cover,
+ * lashed with hazard webbing. 40x40, ground contact at (20, 30). --- */
+
+const TARP_INK = { top: "W", rim: "X", left: "W", right: "V", ink: "1" };
+
+const salvageTarp: string[] = ((): string[] => {
+  let grid = blank(40, 40);
+  // The ground shadow goes down first, so the pile lands on top of it.
+  grid = stamped(
+    grid,
+    [gap(5) + "z".repeat(30) + gap(5), gap(10) + "z".repeat(20) + gap(10)],
+    0,
+    34,
+  );
+  // A smaller bundle set back behind the main one, only its top showing.
+  grid = stamped(grid, isoBox(20, 6, TARP_INK), 12, 4);
+  grid = stamped(grid, isoBox(28, 9, TARP_INK), 6, 14);
+  // Hazard webbing lashed over the cover, and a rope tail off the near
+  // corner where somebody meant to come back for it.
+  grid = stamped(grid, rep(11, "ZY"), 19, 22);
+  grid = stamped(grid, ["YZZZZZZZZZZZZY"], 13, 26);
+  return stamped(grid, ["..c", ".c.", "cb.", "b.."], 31, 28);
+})();
+
+/* --- Sunken barge: a salvage lighter that went down at its mooring
+ * and stayed there. Three tiles of hull by two, flooded to the deck at
+ * the bow, its stern still riding high enough to keep a wheelhouse and
+ * a derrick out of the water — and one amber riding lamp still burning
+ * on the mast, which is what the district steers by. The bulk lies
+ * across six tiles; the placement declares them (see PropPlacement's
+ * footprint) so the water closes over the hull instead of the map
+ * pretending a boat is a bollard. --- */
+
+const BARGE_TILES_X = 3;
+const BARGE_TILES_Y = 2;
+const BARGE_FREEBOARD = 18;
+const bargeHull = isoSlab(BARGE_TILES_X, BARGE_TILES_Y, BARGE_FREEBOARD, {
+  top: "b",
+  rim: "c",
+  left: "b",
+  right: "a",
+  ink: "1",
+  grain: "a",
+});
+
+/** How far along the hull (in tiles, from the stern) the water closes. */
+const BARGE_WATERLINE = -1;
+/** Width of the band of surface water washing over the sinking deck. */
+const BARGE_WASH = 0.14;
+
+/** A point on the barge's deck, in art pixels, by tile position. */
+const bargeDeck = (i: number, j: number): readonly [number, number] => [
+  Math.round(bargeHull.anchorX + 32 * (i - (BARGE_TILES_X - 1)) - 32 * (j - (BARGE_TILES_Y - 1))),
+  Math.round(
+    bargeHull.anchorY +
+      16 * (i - (BARGE_TILES_X - 1)) +
+      16 * (j - (BARGE_TILES_Y - 1)) -
+      BARGE_FREEBOARD,
+  ),
+];
+
+/** The open cargo hold, in deck coordinates: it is full of the canal. */
+const BARGE_HOLD = { fromU: -0.82, toU: -0.26, fromV: -1.15, toV: 0.05 };
+
+/**
+ * Drown the bow and flood the hold. Everything forward of the waterline
+ * is gone under; the pixels just aft of it are the surface washing over
+ * the deck; and the hold amidships is open water inside a coaming.
+ * `phase` shifts both dithers, so the water moves between frames.
+ */
+const bargeSunk = (phase: number): string[] =>
+  bargeHull.grid.map((row, y) =>
+    [...row]
+      .map((ch, x) => {
+        if (ch === ".") return ch;
+        // Where this pixel sits on the deck plane, in tiles from the
+        // stern corner — the one coordinate frame the water knows.
+        const px = x - bargeHull.anchorX + 0.5;
+        const py = y - bargeHull.anchorY + 0.5 + BARGE_FREEBOARD;
+        const u = tileU(px, py);
+        const v = tileV(px, py);
+        if (u < BARGE_WATERLINE) return ".";
+        if (u < BARGE_WATERLINE + BARGE_WASH) {
+          return (x + y + phase) % 2 === 0 ? "f" : "e";
+        }
+        const onDeck =
+          u <= 0.5 && u >= 0.5 - BARGE_TILES_X && v <= 0.5 && v >= 0.5 - BARGE_TILES_Y;
+        const inHold =
+          onDeck &&
+          u > BARGE_HOLD.fromU &&
+          u < BARGE_HOLD.toU &&
+          v > BARGE_HOLD.fromV &&
+          v < BARGE_HOLD.toV;
+        if (!inHold) return ch;
+        const coaming =
+          u - BARGE_HOLD.fromU < 0.05 ||
+          BARGE_HOLD.toU - u < 0.05 ||
+          v - BARGE_HOLD.fromV < 0.05 ||
+          BARGE_HOLD.toV - v < 0.05;
+        if (coaming) return "1";
+        return (x + y + phase) % 4 === 0 ? "e" : "d";
+      })
+      .join(""),
+  );
+
+/** The wheelhouse, standing on the stern quarter of the deck. */
+const bargeHouse = isoBox(20, 12, {
+  top: "4",
+  rim: "5",
+  left: "4",
+  right: "3",
+  ink: "1",
+});
+
+/** The derrick boom, dipped off the mast and into the flooded bow. */
+const bargeBoom: string[] = Array.from({ length: 24 }, (_, k) =>
+  gap(46 - 2 * k) + "T6" + gap(2 * k),
+);
+
+/** The riding lamp on the masthead: a caged bulb, lit and dimmed. */
+const bargeLamp = (core: string): string[] => [
+  "..66..",
+  ".0" + core.repeat(2) + "0.",
+  "06" + core.repeat(2) + "60",
+  ".0" + core.repeat(2) + "0.",
+  "..00..",
+];
+
+const bargeFrame = (phase: number): string[] => {
+  const [houseX, houseY] = bargeDeck(2, 0.35);
+  const [mastX, mastY] = bargeDeck(1.7, 0.9);
+  let grid = bargeSunk(phase);
+  // Freight still lashed to the deck where the water has not reached.
+  grid = stamped(grid, isoBox(12, 5, TARP_INK), houseX - 34, houseY - 4);
+  grid = stamped(grid, isoBox(16, 6, TARP_INK), houseX - 26, houseY + 6);
+  // Wheelhouse, then the mast rising through the deck in front of it.
+  grid = stamped(grid, bargeHouse, houseX - 10, houseY - 17);
+  grid = stamped(grid, rep(mastY - 18, "T60"), mastX - 1, 18);
+  grid = stamped(grid, bargeBoom, mastX - 46, 24);
+  grid = stamped(grid, bargeLamp(phase === 0 ? "n" : "m"), mastX - 4, 13);
+  return grid;
+};
+
 export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
   building: {
     frames: [buildingBase, buildingAlt],
@@ -1372,5 +1654,29 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     flicker: false,
     // Burner and service strip, amber through the steam.
     glow: [{ color: "m", radius: 18, intensity: 0.32, offsetX: 0, offsetY: -14 }],
+  },
+  "mooring-post": {
+    frames: [mooringPost],
+    anchorX: 10,
+    anchorY: 20,
+    frameMs: 0,
+    flicker: false,
+  },
+  "salvage-tarp": {
+    frames: [salvageTarp],
+    anchorX: 20,
+    anchorY: 30,
+    frameMs: 0,
+    flicker: false,
+  },
+  "sunken-barge": {
+    frames: [bargeFrame(0), bargeFrame(1)],
+    anchorX: bargeHull.anchorX,
+    anchorY: bargeHull.anchorY,
+    frameMs: 900,
+    flicker: false,
+    // The riding lamp on the masthead — the one light out on the water,
+    // and what the quays' reflections are drawn from.
+    glow: [{ color: "m", radius: 20, intensity: 0.4, offsetX: -8, offsetY: -66 }],
   },
 };

@@ -6,7 +6,7 @@
  * rectangles where this module says to, so every position here is
  * testable without a canvas.
  *
- * Fog-free, by decision: no map in the game is larger than ~16x13 tiles
+ * Fog-free, by decision: no map in the game is larger than ~18x15 tiles
  * and every one is fully reachable from its spawn (pinned by the map
  * lint in src/data/maps.test.ts), so a fog-of-war layer would buy no
  * navigational tension while costing per-map explored state in every
@@ -23,6 +23,7 @@ import { viewportToWorld, type Camera } from "./camera";
 import { screenToWorld, type TilePoint } from "./coords";
 import {
   TILE_DEFS,
+  propBlocksTile,
   tileMaterial,
   type Interactable,
   type InteractableSpriteId,
@@ -145,8 +146,7 @@ export function minimapCell(map: IsoMap, x: number, y: number): MinimapCell {
   if (material === "foundation") return "void";
   if (material === "water") return "water";
   if (!TILE_DEFS[tile].walkable) return "blocked";
-  const blocked = map.props.some((p) => p.blocks && p.x === x && p.y === y);
-  return blocked ? "blocked" : "walkable";
+  return propBlocksTile(map, x, y) ? "blocked" : "walkable";
 }
 
 /** The whole cell grid, row-major like map.tiles, for one paint pass. */

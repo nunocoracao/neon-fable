@@ -139,7 +139,12 @@ export type PropId =
   | "stall-awning"
   | "cage-lamp"
   | "crate-stack"
-  | "noodle-counter";
+  | "noodle-counter"
+  // Quayside dressing: dockland furniture for the Flooded Quays. The
+  // barge is the game's first prop whose bulk needs a footprint.
+  | "mooring-post"
+  | "salvage-tarp"
+  | "sunken-barge";
 
 /** A static decoration on a tile. Blocking props make the tile unwalkable. */
 export interface PropPlacement {
@@ -147,6 +152,38 @@ export interface PropPlacement {
   x: number;
   y: number;
   blocks: boolean;
+  /**
+   * Extra tiles this prop's bulk lies across, as (dx, dy) offsets from
+   * its own tile — how a set piece too big for one diamond (a beached
+   * hull, a gantry) is placed. A blocking prop blocks all of them.
+   *
+   * Offsets must run behind the prop (dx <= 0 and dy <= 0), so the tile
+   * it is placed on stays the nearest one it covers: painter's order
+   * sorts a prop by that tile alone (depth = x + y), and anything the
+   * bulk reaches over is therefore drawn before it. Legend characters
+   * are per-tile, so a prop with a footprint is appended to a map's
+   * prop list by hand — which is what a one-off set piece deserves.
+   */
+  footprint?: readonly TilePoint[];
+}
+
+/** Every tile a prop's bulk covers: its own, then its footprint. */
+export function propTiles(prop: PropPlacement): TilePoint[] {
+  return [
+    { x: prop.x, y: prop.y },
+    ...(prop.footprint ?? []).map((offset) => ({
+      x: prop.x + offset.x,
+      y: prop.y + offset.y,
+    })),
+  ];
+}
+
+/** True if a blocking prop's bulk stands on this tile. */
+export function propBlocksTile(map: IsoMap, x: number, y: number): boolean {
+  return map.props.some(
+    (prop) =>
+      prop.blocks && propTiles(prop).some((tile) => tile.x === x && tile.y === y),
+  );
 }
 
 export type InteractableSpriteId =
@@ -385,7 +422,7 @@ export function requireSpawn(map: IsoMap, id: string): SpawnPoint {
 export function isWalkable(map: IsoMap, x: number, y: number): boolean {
   const tile = tileAt(map, x, y);
   if (!tile || !tile.walkable) return false;
-  if (map.props.some((p) => p.blocks && p.x === x && p.y === y)) return false;
+  if (propBlocksTile(map, x, y)) return false;
   if (interactableAt(map, x, y)) return false;
   return true;
 }

@@ -305,6 +305,24 @@ export const encounters: Encounter[] = [
     },
   },
   {
+    // The Flooded Quays' fight, staged the same way: the walkway arena
+    // and what comes up it are authored ahead of the beat that will use
+    // them. Nothing in the narrative starts it yet.
+    id: "enc-quays-salvage",
+    name: "Lockgate Walkway Toll",
+    grid: { width: 9, height: 7 },
+    arenaMapId: "quays-walkway-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [
+      { enemyId: "nme-rustyard-bruiser", position: { x: 7, y: 3 } },
+      { enemyId: "nme-vent-crawler", position: { x: 6, y: 5 } },
+    ],
+    rewards: {
+      credits: 45,
+      items: [{ itemId: "con-field-kit" }],
+    },
+  },
+  {
     id: "enc-crown-court",
     name: "The Crown Ring — Sappers' Breach",
     grid: { width: 9, height: 7 },
