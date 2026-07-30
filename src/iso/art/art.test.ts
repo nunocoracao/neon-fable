@@ -15,6 +15,7 @@ import {
   type PixelGrid,
 } from "./pixel";
 import { PROP_ART, isoBox, isoSlab } from "./props";
+import { SETPIECE_ART } from "./setpieces";
 import { TILE_ART, puddleGrid } from "./tiles";
 import {
   RAIN_STREAK_ART,
@@ -1331,3 +1332,141 @@ describe("weather art", () => {
   });
 });
 
+
+/**
+ * Set pieces. These are the only art in the game that is never drawn on
+ * the ground it sorts at, which is exactly what the checks here are
+ * about: nothing carries a shadow, every anchor is a point on the
+ * machine rather than a footprint, and the frame sets have to actually
+ * move — a set piece whose frames repeat reads as a stutter in the
+ * middle of an otherwise still scene.
+ */
+const SETPIECE_IDS = [
+  "train-head",
+  "train-car",
+  "patrol-drone",
+  "steam-burst",
+] as const;
+
+/** Rows of a grid that paint anything, top-most first. */
+function paintedRows(grid: PixelGrid): number[] {
+  const rows: number[] = [];
+  grid.forEach((row, y) => {
+    if ([...row].some((ch) => ch !== TRANSPARENT)) rows.push(y);
+  });
+  return rows;
+}
+
+describe("set-piece art", () => {
+  it("registers a valid, non-empty frame set for every piece", () => {
+    expect(Object.keys(SETPIECE_ART).sort()).toEqual([...SETPIECE_IDS].sort());
+    for (const id of SETPIECE_IDS) {
+      const art = SETPIECE_ART[id];
+      expect(art.frames.length, `${id} frames`).toBeGreaterThanOrEqual(2);
+      const width = art.frames[0]?.[0]?.length ?? 0;
+      const height = art.frames[0]?.length ?? 0;
+      art.frames.forEach((grid, f) => {
+        expectValid(grid, `${id} frame ${f}`);
+        // One silhouette envelope per piece: the bake cache keys on the
+        // frame index alone, so frames may not change size.
+        expect(grid[0]?.length, `${id} frame ${f} width`).toBe(width);
+        expect(grid.length, `${id} frame ${f} height`).toBe(height);
+        expect(paintedRows(grid).length, `${id} frame ${f} paints`)
+          .toBeGreaterThan(0);
+      });
+      // Anchors are points on the machine, so they fall inside it.
+      expect(art.anchorX, `${id} anchorX`).toBeLessThan(width);
+      expect(art.anchorY, `${id} anchorY`).toBeLessThan(height);
+    }
+  });
+
+  it("grounds nothing: a set piece is never standing on its tile", () => {
+    // The z shadow every prop owes the floor is exactly what these must
+    // not have — a train is above the rooflines, a drone hovers, and
+    // steam has already left the grille.
+    for (const id of SETPIECE_IDS) {
+      for (const [f, grid] of SETPIECE_ART[id].frames.entries()) {
+        expect(grid.join("").includes("z"), `${id} frame ${f} shadow`).toBe(false);
+      }
+    }
+  });
+
+  it("animates through frames that are actually different", () => {
+    for (const id of SETPIECE_IDS) {
+      const frames = SETPIECE_ART[id].frames;
+      const unique = new Set(frames.map((grid) => grid.join("\n")));
+      expect(unique.size, `${id} distinct frames`).toBe(frames.length);
+    }
+  });
+
+  it("builds the rake out of one shell, so cars butt up into a train", () => {
+    const head = SETPIECE_ART["train-head"];
+    const car = SETPIECE_ART["train-car"];
+    expect(head.anchorX).toBe(car.anchorX);
+    expect(head.anchorY).toBe(car.anchorY);
+    expect(head.frames[0]?.length).toBe(car.frames[0]?.length);
+    expect(head.frames[0]?.[0]?.length).toBe(car.frames[0]?.[0]?.length);
+    // Two tiles of track per car (a step along x is 32 art pixels), so
+    // a rake spaced TRAIN_CAR_SPAN apart has no gaps between carriages.
+    expect(head.frames[0]?.[0]?.length).toBe(32 * 3);
+  });
+
+  it("lights the carriages and marks the lead one", () => {
+    // Amber glass down both flanks, and a livery stripe under it, on
+    // every car in the rake.
+    for (const id of ["train-head", "train-car"] as const) {
+      const ink = SETPIECE_ART[id].frames[0]?.join("") ?? "";
+      expect(ink.includes("n"), `${id} lit glass`).toBe(true);
+      expect(ink.includes("g"), `${id} livery`).toBe(true);
+    }
+    // The lead car burns every bay while the rest ride part-dark, so
+    // the head of a passing rake is legible at a glance.
+    const litness = (id: "train-head" | "train-car"): number =>
+      [...(SETPIECE_ART[id].frames[0]?.join("") ?? "")].filter((ch) => ch === "n")
+        .length;
+    expect(litness("train-head")).toBeGreaterThan(litness("train-car"));
+    // And it carries the beacon: white specular the carriages have not.
+    expect(SETPIECE_ART["train-head"].frames[0]?.join("").includes("9")).toBe(true);
+    expect(SETPIECE_ART["train-car"].frames[0]?.join("").includes("9")).toBe(false);
+  });
+
+  it("hangs the drone's scan cone under its hull, thinning with depth", () => {
+    const art = SETPIECE_ART["patrol-drone"];
+    const grid = art.frames[0] ?? [];
+    const hull = grid.slice(0, art.anchorY).join("");
+    const cone = grid.slice(art.anchorY);
+    // Chrome above the lens, cyan light below it, and nothing solid in
+    // the beam — a cone drawn as a solid wedge would read as a spike.
+    expect(hull.includes("T")).toBe(true);
+    expect(cone.join("").includes("T")).toBe(false);
+    expect(cone.join("")).toMatch(/[gi]/);
+    // It widens as it falls...
+    const span = (row: string): number => {
+      const lit = [...row].flatMap((ch, x) => (ch === TRANSPARENT ? [] : [x]));
+      return lit.length === 0 ? 0 : (lit[lit.length - 1] ?? 0) - (lit[0] ?? 0);
+    };
+    expect(span(cone[cone.length - 1] ?? "")).toBeGreaterThan(span(cone[1] ?? ""));
+    // ...and dims as it goes, so the beam falls off before the ground
+    // instead of ending in a hard edge.
+    expect(cone[1]).toMatch(/g/);
+    expect(cone[1]).not.toMatch(/i/);
+    expect(cone[cone.length - 1]).toMatch(/i/);
+    expect(cone[cone.length - 1]).not.toMatch(/g/);
+  });
+
+  it("climbs the steam burst off the grille frame by frame", () => {
+    const frames = SETPIECE_ART["steam-burst"].frames;
+    const feet = frames.map((grid) => Math.max(...paintedRows(grid)));
+    const heads = frames.map((grid) => Math.min(...paintedRows(grid)));
+    // Both ends of the plume rise, and neither ever falls back.
+    expect(feet).toEqual([...feet].sort((a, b) => b - a));
+    expect(heads).toEqual([...heads].sort((a, b) => b - a));
+    expect(feet[0]).toBeGreaterThan(feet[feet.length - 1] ?? 0);
+    // The first frame is at the mouth (the anchor row) and the last has
+    // left it entirely — the burst travels rather than switching on.
+    expect(feet[0]).toBe(SETPIECE_ART["steam-burst"].anchorY);
+    expect(feet[feet.length - 1]).toBeLessThan(
+      SETPIECE_ART["steam-burst"].anchorY - 10,
+    );
+  });
+});
