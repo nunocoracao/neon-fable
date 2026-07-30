@@ -78,6 +78,26 @@ export function isGlancingBlow(damageDealt: number, armor: number): boolean {
   return armor > 0 && armor >= damageDealt;
 }
 
+/**
+ * The share of a target's whole frame a single blow has to take to
+ * read as a critical one. A third is the point at which three more of
+ * the same would finish them — enough that the figure deserves to be
+ * shouted rather than reported.
+ */
+export const CRITICAL_DAMAGE_SHARE = 1 / 3;
+
+/**
+ * Whether a landed blow took a real share of what the target can take.
+ * Like isGlancingBlow this is purely a reading of the numbers the math
+ * already produced — the engine has no critical-hit roll and branches
+ * on nothing here. The combat screen reads it to style the floating
+ * figure larger and hotter; the log reports the same number either way.
+ */
+export function isCriticalBlow(damageDealt: number, targetMaxHp: number): boolean {
+  if (targetMaxHp <= 0 || damageDealt <= 0) return false;
+  return damageDealt >= targetMaxHp * CRITICAL_DAMAGE_SHARE;
+}
+
 /** Ability damage: flat amount, reduced by armor unless it ignores it. */
 export function abilityDamage(
   amount: number,
