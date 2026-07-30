@@ -1,9 +1,17 @@
 import type { StatKey } from "../character/stats";
+import type { AbilityFxId } from "../iso/abilityFx";
 
 /**
  * Combat ability content. Abilities are granted by items (grant-ability
  * effects on weapons/enhancements) or listed on enemies; the combat engine
  * interprets them. Pure typed data — no functions.
+ *
+ * Every ability also says what it *looks* like, by naming one of the
+ * effect archetypes in src/iso/abilityFx.ts. The reference is typed, so
+ * an ability cannot name a look that does not exist, and several
+ * abilities may share one: a stun strike and a shock dart are the same
+ * arc thrown at different reaches. Nothing downstream branches on an
+ * ability id — the scene resolves the archetype and plays it.
  */
 
 export type AbilityEffect =
@@ -26,6 +34,8 @@ export interface Ability {
   /** Turns the ability stays unusable after firing. */
   cooldown: number;
   effect: AbilityEffect;
+  /** The effect archetype this plays as; see src/iso/abilityFx.ts. */
+  effectRef: AbilityFxId;
 }
 
 export const abilities: Ability[] = [
@@ -38,6 +48,7 @@ export const abilities: Ability[] = [
     range: 1,
     cooldown: 3,
     effect: { type: "damage", amount: 2, stunTurns: 1 },
+    effectRef: "shock-arc",
   },
   {
     id: "ability-crush",
@@ -48,6 +59,7 @@ export const abilities: Ability[] = [
     range: 1,
     cooldown: 2,
     effect: { type: "damage", amount: 7, ignoresArmor: true },
+    effectRef: "kinetic-slam",
   },
   {
     id: "ability-shock-dart",
@@ -58,6 +70,7 @@ export const abilities: Ability[] = [
     range: 5,
     cooldown: 2,
     effect: { type: "damage", amount: 4 },
+    effectRef: "shock-arc",
   },
   {
     id: "ability-riot-net",
@@ -68,6 +81,7 @@ export const abilities: Ability[] = [
     range: 4,
     cooldown: 3,
     effect: { type: "damage", amount: 2, stunTurns: 1 },
+    effectRef: "snare-mesh",
   },
   {
     id: "ability-coolant-vent",
@@ -78,6 +92,7 @@ export const abilities: Ability[] = [
     range: 2,
     cooldown: 2,
     effect: { type: "damage", amount: 4, ignoresArmor: true },
+    effectRef: "nano-cloud",
   },
   {
     id: "ability-mandate-pulse",
@@ -88,6 +103,7 @@ export const abilities: Ability[] = [
     range: 5,
     cooldown: 3,
     effect: { type: "damage", amount: 4, stunTurns: 1 },
+    effectRef: "optic-flash",
   },
   {
     id: "ability-overclock-burst",
@@ -98,6 +114,7 @@ export const abilities: Ability[] = [
     range: 5,
     cooldown: 3,
     effect: { type: "damage", amount: 5 },
+    effectRef: "volley-streak",
   },
   {
     id: "ability-shatter-hand",
@@ -108,6 +125,7 @@ export const abilities: Ability[] = [
     range: 1,
     cooldown: 3,
     effect: { type: "damage", amount: 6, ignoresArmor: true },
+    effectRef: "kinetic-slam",
   },
   {
     id: "ability-bulwark-surge",
@@ -118,6 +136,7 @@ export const abilities: Ability[] = [
     range: 0,
     cooldown: 4,
     effect: { type: "boost", stat: "body", amount: 2, turns: 2 },
+    effectRef: "guard-shimmer",
   },
   {
     id: "ability-combat-focus",
@@ -128,6 +147,7 @@ export const abilities: Ability[] = [
     range: 0,
     cooldown: 4,
     effect: { type: "boost", stat: "reflexes", amount: 2, turns: 2 },
+    effectRef: "focus-ring",
   },
 ];
 
