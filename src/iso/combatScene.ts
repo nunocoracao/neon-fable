@@ -17,6 +17,18 @@ import {
 } from "./animation";
 import { attackSequence, type AttackClassId, type AttackSequence } from "./attack";
 import {
+  effectFrameAt,
+  effectSpriteId,
+  impactSequence,
+  overshootPoint,
+  swipeSpriteId,
+  tracerPointAt,
+  tracerProgress,
+  tracerSpriteId,
+  type EffectSpriteId,
+  type ImpactSequence,
+} from "./impact";
+import {
   activeReaction,
   latestBeatFor,
   pruneReactions,
@@ -35,6 +47,7 @@ import {
   sameTile,
   screenToTile,
   worldToScreen,
+  type ScreenPoint,
   type TilePoint,
   type WorldPoint,
 } from "./coords";
@@ -69,6 +82,17 @@ export interface CombatSceneEntity {
    * content data (an enemy archetype's chassis); defaults to a crumple.
    */
   deathStyle?: DeathReactionKind;
+}
+
+/** What the scene needs to know about a blow being thrown. */
+export interface AttackFxOptions {
+  /**
+   * Whether the blow connects. A hit ends in sparks on the target; a
+   * miss carries a tile past it and puffs wall dust instead, so the two
+   * read apart from across the arena. Defaults to a hit — abilities
+   * that reach the damage step never miss.
+   */
+  hit?: boolean;
 }
 
 /** What the scene needs to know about a blow that just landed. */
@@ -126,13 +150,20 @@ export interface CombatScene {
   /**
    * Play the attacker's swing at the target (attack or offensive
    * ability): the attacker turns to face it, runs its weapon class's
-   * attack animation, and throws its weight through the blow. Returns
-   * the milliseconds until the sequence's impact beat, which callers
-   * pass back as the delay on the reactions that land with it — so a
-   * rifle's damage number appears as the muzzle lights, not before the
-   * gun is up. Reduced motion returns 0: everything lands at once.
+   * attack animation, throws its weight through the blow, and fires the
+   * effects that carry it — muzzle flash and tracer for a gun, an arc
+   * smear for a blade, sparks or wall dust where it ends (see
+   * ./impact.ts). Returns the milliseconds until the blow *lands*,
+   * which callers pass back as the delay on the reactions that answer
+   * it — so a rifle's damage number appears when the round arrives, not
+   * when the trigger is pulled. Reduced motion returns 0: everything
+   * lands at once, under a single held impact marker.
    */
-  attackFx(attackerId: string, targetId: string): number;
+  attackFx(
+    attackerId: string,
+    targetId: string,
+    options?: AttackFxOptions,
+  ): number;
   /**
    * Play a landed blow on its target: the white flash and shake over a
    * two-frame recoil away from the attacker (a shallower shudder when
@@ -162,6 +193,12 @@ const SHAKE_PX = 6;
 const DEATH_FADE_MS = 400;
 const FLOAT_MS = 900;
 const FLOAT_RISE_PX = 56;
+/**
+ * Screen pixels above a tile's center that a blow lands at: the chest
+ * of a figure standing on it (the 32×48 frame's row 24, at ART_SCALE).
+ * Effects happen at body height, not on the floor.
+ */
+const IMPACT_HEIGHT_PX = 40;
 
 /** Death for anything the caller did not describe: a body crumples. */
 const DEFAULT_DEATH_STYLE: DeathReactionKind = "collapse";
@@ -195,6 +232,26 @@ interface FloatingText {
   sx: number;
   sy: number;
   bornAt: number;
+}
+
+/**
+ * One blow's effects in flight. Everything positional is resolved when
+ * the blow is thrown — the muzzle it left, the point it lands on, the
+ * streak's own slope — so the whole sequence is pure math over the
+ * scene clock from there on, and nothing shifts under it if a combatant
+ * moves mid-flight.
+ */
+interface ImpactFx {
+  readonly sequence: ImpactSequence;
+  /** Scene-clock ms the attack started; every window is relative to it. */
+  readonly startMs: number;
+  /** Where the blow leaves from (the muzzle, or the chest). */
+  readonly from: ScreenPoint;
+  /** Where it lands: the target, or a tile past it on a miss. */
+  readonly to: ScreenPoint;
+  /** The streak picture for this line, and the smear for this hand. */
+  readonly tracerId: EffectSpriteId;
+  readonly swipeId: EffectSpriteId;
 }
 
 /** Axis-by-axis steps from one tile to the next (dominant axis first). */
@@ -235,6 +292,8 @@ export function createCombatScene(
 
   const entities = new Map<string, EntityView>();
   const floats: FloatingText[] = [];
+  /** Blows whose effects have not finished playing; pruned as they end. */
+  const impacts: ImpactFx[] = [];
   /**
    * Every reaction in flight or still waiting on its beat, plus the
    * deaths, which stay forever — their last frame is the heap on the
@@ -467,6 +526,100 @@ export function createCombatScene(
     return active ? reactionPoseAt(active, now) : undefined;
   }
 
+  /**
+   * Fire one blow's effects: the flash at the muzzle, the streak across
+   * the ground, and the spark or the wall dust it ends in. Returns the
+   * sequence so the caller can hand its contact beat back to the combat
+   * screen. Purely presentational — nothing here decides anything.
+   */
+  function spawnImpact(
+    attacker: EntityView,
+    target: EntityView,
+    attackClass: AttackClassId,
+    hit: boolean,
+    now: number,
+    reducedMotion: boolean,
+  ): ImpactSequence {
+    // A miss carries a tile past whatever it was aimed at, along the
+    // attacker's own line, and hits the arena instead.
+    const landing = hit
+      ? target.visual
+      : overshootPoint(attacker.visual, target.visual);
+    const ground = worldToScreen(landing.x, landing.y);
+    const to: ScreenPoint = { sx: ground.sx, sy: ground.sy - IMPACT_HEIGHT_PX };
+    const stance = worldToScreen(attacker.visual.x, attacker.visual.y);
+    const muzzle = sprites.muzzleOffset?.(attacker.spriteId, attacker.facing) ?? {
+      x: 0,
+      y: -IMPACT_HEIGHT_PX,
+    };
+    const from: ScreenPoint = {
+      sx: stance.sx + muzzle.x,
+      sy: stance.sy + muzzle.y,
+    };
+    const dx = to.sx - from.sx;
+    const dy = to.sy - from.sy;
+    const sequence = impactSequence(attackClass, {
+      distancePx: Math.hypot(dx, dy),
+      hit,
+      reducedMotion,
+    });
+    impacts.push({
+      sequence,
+      startMs: now,
+      from,
+      to,
+      tracerId: tracerSpriteId(dx, dy),
+      swipeId: swipeSpriteId(dx),
+    });
+    return sequence;
+  }
+
+  /** Draw one baked effect frame centered on a screen point. */
+  function drawEffect(id: EffectSpriteId, frame: number, at: ScreenPoint): void {
+    const sprite = sprites.effect?.(id, frame);
+    if (!sprite) return;
+    ctx!.drawImage(
+      sprite.image,
+      snap(at.sx - sprite.anchorX),
+      snap(at.sy - sprite.anchorY),
+    );
+  }
+
+  /**
+   * Every blow in flight, in its own order: what left the weapon, what
+   * is crossing the ground, then what it did where it landed. Finished
+   * sequences drop out — an effect leaves nothing behind.
+   */
+  function drawImpacts(now: number): void {
+    for (let i = impacts.length - 1; i >= 0; i--) {
+      const fx = impacts[i];
+      if (!fx) continue;
+      const elapsed = now - fx.startMs;
+      if (elapsed >= fx.sequence.endMs) {
+        impacts.splice(i, 1);
+        continue;
+      }
+      const { launch, impact } = fx.sequence;
+      if (launch) {
+        const frame = effectFrameAt(launch, elapsed);
+        if (frame !== null) {
+          // A muzzle flash burns at the gun; a blade's smear is drawn
+          // where the blade actually goes through.
+          const id = launch.kind === "swipe" ? fx.swipeId : effectSpriteId(launch.kind);
+          drawEffect(id, frame, launch.kind === "swipe" ? fx.to : fx.from);
+        }
+      }
+      const flight = tracerProgress(fx.sequence, elapsed);
+      if (flight !== null) {
+        drawEffect(fx.tracerId, 0, tracerPointAt(fx.from, fx.to, flight));
+      }
+      const landed = effectFrameAt(impact, elapsed);
+      if (landed !== null) {
+        drawEffect(effectSpriteId(impact.kind), landed, fx.to);
+      }
+    }
+  }
+
   function drawEntitySprite(entity: EntityView, now: number): void {
     const { sx, sy } = worldToScreen(entity.visual.x, entity.visual.y);
     const reacting = reactionPose(entity, now);
@@ -587,6 +740,10 @@ export function createCombatScene(
       if (d.entity.alive) drawHpBar(d.entity);
     }
 
+    // Combat effects over the fighters: a shot is in front of whoever
+    // fired it, and the spark it strikes is in front of what it hit.
+    drawImpacts(now);
+
     // Floating combat text, newest on top.
     for (let i = floats.length - 1; i >= 0; i--) {
       const float = floats[i];
@@ -706,7 +863,11 @@ export function createCombatScene(
       highlights = { ...highlights, ...next };
     },
 
-    attackFx(attackerId: string, targetId: string): number {
+    attackFx(
+      attackerId: string,
+      targetId: string,
+      options: AttackFxOptions = {},
+    ): number {
       const attacker = entities.get(attackerId);
       const target = entities.get(targetId);
       if (!attacker || !target) return 0;
@@ -717,11 +878,17 @@ export function createCombatScene(
           target.position.x - attacker.position.x,
           target.position.y - attacker.position.y,
         ) ?? attacker.facing;
-      // Reduced motion: face the target, then let the whole exchange
-      // resolve on the spot — no swing, no travel, no delayed beats.
-      if (settings.get().reducedMotion) return 0;
+      const hit = options.hit ?? true;
       const attackClass: AttackClassId =
         sprites.attackClass?.(attacker.spriteId) ?? "unarmed";
+      const now = performance.now();
+      // Reduced motion: face the target and let the whole exchange
+      // resolve on the spot — no swing, no travel, no delayed beats.
+      // One held impact frame stays, so a hit is still visibly a hit.
+      if (settings.get().reducedMotion) {
+        spawnImpact(attacker, target, attackClass, hit, now, true);
+        return 0;
+      }
       const swing = attackSequence(attackClass);
       const from = worldToScreen(attacker.visual.x, attacker.visual.y);
       const to = worldToScreen(target.visual.x, target.visual.y);
@@ -730,8 +897,11 @@ export function createCombatScene(
       const length = Math.hypot(dx, dy) || 1;
       attacker.lungeDir = { dx: dx / length, dy: dy / length };
       attacker.attack = swing;
-      attacker.attackStart = performance.now();
-      return swing.impactMs;
+      attacker.attackStart = now;
+      // The blow lands when its effects say it does: for a fired round
+      // that is the swing's own impact beat plus the flight time.
+      return spawnImpact(attacker, target, attackClass, hit, now, false)
+        .contactMs;
     },
 
     hitFx(targetId: string, options: HitFxOptions = {}): void {

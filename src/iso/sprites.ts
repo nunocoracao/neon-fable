@@ -6,6 +6,7 @@
  */
 import type { Facing } from "./animation";
 import type { AttackClassId } from "./attack";
+import type { EffectSpriteId } from "./impact";
 import type { ReactionPose } from "./reaction";
 import type {
   DayPhaseId,
@@ -110,6 +111,22 @@ export interface SpriteProvider {
    * descriptors may omit it and callers fall back to bare hands.
    */
   attackClass?(id: EntitySpriteId): AttackClassId;
+  /**
+   * Screen-pixel offset from this entity's sprite anchor to the point
+   * its blow leaves from — the weapon muzzle on the class's firing
+   * frame, or the fist for everything that throws no round (see
+   * muzzlePoint in ./art/layers/attack). Per facing, because the away
+   * facings mirror the whole figure. Providers that resolve no
+   * descriptors may omit it; callers then fire from the chest.
+   */
+  muzzleOffset?(id: EntitySpriteId, facing: Facing): { x: number; y: number };
+  /**
+   * A combat effect's baked frame — muzzle flash, tracer, arc smear,
+   * spark burst, wall chip (see ./impact.ts). Frames are authored art
+   * cached like every other bake; nothing here is drawn procedurally.
+   * Optional, so providers with no effect art simply show none.
+   */
+  effect?(id: EffectSpriteId, frame: number): Sprite;
   /**
    * Pre-baked radial glow in a palette color for the additive neon
    * pass; radius is in 1x art pixels, anchored at the glow center.

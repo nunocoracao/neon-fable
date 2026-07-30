@@ -446,7 +446,11 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         case "attacked": {
           const target = getCombatant(combat, event.targetId);
           if (!target) break;
-          const impact = scene.attackFx(event.attackerId, event.targetId);
+          // A miss still gets its whole sequence — the shot goes wide
+          // and chips the arena a tile past whoever it was aimed at.
+          const impact = scene.attackFx(event.attackerId, event.targetId, {
+            hit: event.hit,
+          });
           if (event.hit) {
             scene.hitFx(event.targetId, {
               attackerId: event.attackerId,

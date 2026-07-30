@@ -11,9 +11,11 @@ import {
   propFrameAt,
   tilePhaseMs,
   variantIndex,
+  type Facing,
   type MotionState,
 } from "../animation";
 import { selectMotionFrame, type AttackClassId } from "../attack";
+import type { EffectSpriteId } from "../impact";
 import type { ReactionVariant } from "../reaction";
 import type {
   EntityPose,
@@ -29,8 +31,10 @@ import {
   type PropId,
   type TileId,
 } from "../tilemap";
+import { EFFECT_ART } from "./effects";
 import { INTERACTABLE_ART } from "./interactables";
 import { BODY_FRAME } from "./layers/body";
+import { muzzlePoint } from "./layers/attack";
 import {
   attackClassFor,
   composedCharacterGrid,
@@ -38,7 +42,7 @@ import {
   type ComposedCharacter,
 } from "./layers";
 import { bakeGlow } from "./glow";
-import { bakeSilhouette, bakeSprite, spriteBytes } from "./pixel";
+import { ART_SCALE, bakeSilhouette, bakeSprite, spriteBytes } from "./pixel";
 import { PROP_ART } from "./props";
 import { SETPIECE_ART } from "./setpieces";
 import {
@@ -97,6 +101,13 @@ function exposeCacheStats(cache: { stats(): SpriteCacheStats }): void {
 /** SpriteProvider plus the bake-cache stats hook, for tests and dev. */
 export interface PixelArtSprites extends SpriteProvider {
   cacheStats(): SpriteCacheStats;
+  /**
+   * The pixel provider always resolves a descriptor, so the two
+   * capabilities SpriteProvider leaves optional — where a blow leaves
+   * from, and the effect art it leaves with — are guaranteed here.
+   */
+  muzzleOffset(id: EntitySpriteId, facing: Facing): { x: number; y: number };
+  effect(id: EffectSpriteId, frame: number): Sprite;
 }
 
 export interface PixelArtSpriteOptions {
@@ -330,6 +341,32 @@ export function createPixelArtSprites(
 
     attackClass(id: EntitySpriteId): AttackClassId {
       return attackClassFor(descriptorFor(id));
+    },
+
+    muzzleOffset(id: EntitySpriteId, facing: Facing): { x: number; y: number } {
+      const descriptor = descriptorFor(id);
+      const point = muzzlePoint(
+        attackClassFor(descriptor),
+        descriptor.build,
+        facing,
+      );
+      // Art pixels relative to the sprite's own anchor, in screen scale —
+      // the scene adds this straight onto the entity's screen position.
+      return {
+        x: (point.x - BODY_FRAME.anchorX) * ART_SCALE,
+        y: (point.y - BODY_FRAME.anchorY) * ART_SCALE,
+      };
+    },
+
+    effect(id: EffectSpriteId, frame: number): Sprite {
+      const art = EFFECT_ART[id];
+      const index = Math.min(
+        Math.max(0, Math.trunc(frame)),
+        art.frames.length - 1,
+      );
+      return cached(`effect:${id}:${index}`, () =>
+        bakeSprite(art.frames[index] ?? [], art.anchorX, art.anchorY, palette),
+      );
     },
 
     entitySilhouette(id: EntitySpriteId, pose: EntityPose): Sprite {
