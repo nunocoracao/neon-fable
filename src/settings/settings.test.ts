@@ -47,6 +47,7 @@ describe("clampSettings", () => {
       zoom: 1.5,
       glow: true,
       weather: true,
+      minimap: true,
     });
     expect(
       clampSettings({ textSpeed: "warp", reducedMotion: true }),
@@ -56,6 +57,7 @@ describe("clampSettings", () => {
       zoom: 1,
       glow: true,
       weather: true,
+      minimap: true,
     });
   });
 
@@ -66,6 +68,7 @@ describe("clampSettings", () => {
       zoom: 1,
       glow: true,
       weather: true,
+      minimap: true,
     });
   });
 
@@ -81,6 +84,13 @@ describe("clampSettings", () => {
     expect(clampSettings({ weather: false }).weather).toBe(false);
     expect(clampSettings({ weather: "off" }).weather).toBe(true);
     expect(clampSettings({ weather: 0 }).weather).toBe(true);
+  });
+
+  it("minimap defaults on; only an explicit false collapses it", () => {
+    expect(clampSettings({}).minimap).toBe(true);
+    expect(clampSettings({ minimap: false }).minimap).toBe(false);
+    expect(clampSettings({ minimap: "off" }).minimap).toBe(true);
+    expect(clampSettings({ minimap: 0 }).minimap).toBe(true);
   });
 
   it("rejects zoom values off the level ladder", () => {
@@ -116,6 +126,7 @@ describe("parse / serialize / migrate", () => {
       zoom: 1.5,
       glow: false,
       weather: false,
+      minimap: false,
     } as const;
     expect(parseSettings(serializeSettings(settings))).toEqual(settings);
   });
@@ -143,6 +154,7 @@ describe("parse / serialize / migrate", () => {
       zoom: 1,
       glow: true,
       weather: true,
+      minimap: true,
     });
     expect(migrateSettings({ version: "zero" })).toEqual(DEFAULT_SETTINGS);
   });
@@ -159,6 +171,7 @@ describe("parse / serialize / migrate", () => {
       zoom: 1,
       glow: true,
       weather: true,
+      minimap: true,
     });
   });
 
@@ -175,6 +188,26 @@ describe("parse / serialize / migrate", () => {
       zoom: 2,
       glow: true,
       weather: true,
+      minimap: true,
+    });
+  });
+
+  it("migrates v4 payloads (no minimap yet) with the corner shown", () => {
+    const v4 = JSON.stringify({
+      version: 4,
+      textSpeed: "normal",
+      reducedMotion: false,
+      zoom: 1.5,
+      glow: false,
+      weather: false,
+    });
+    expect(parseSettings(v4)).toEqual({
+      textSpeed: "normal",
+      reducedMotion: false,
+      zoom: 1.5,
+      glow: false,
+      weather: false,
+      minimap: true,
     });
   });
 });
@@ -194,6 +227,7 @@ describe("load / save", () => {
         zoom: 2,
         glow: false,
         weather: false,
+        minimap: false,
       },
       storage,
     );
@@ -204,6 +238,7 @@ describe("load / save", () => {
       zoom: 2,
       glow: false,
       weather: false,
+      minimap: false,
     });
   });
 
@@ -248,6 +283,7 @@ describe("settings store", () => {
         zoom: 1.5,
         glow: true,
         weather: true,
+        minimap: true,
       },
       storage,
     );
@@ -258,6 +294,7 @@ describe("settings store", () => {
       zoom: 1.5,
       glow: true,
       weather: true,
+      minimap: true,
     });
   });
 
@@ -274,6 +311,7 @@ describe("settings store", () => {
       zoom: 1,
       glow: true,
       weather: true,
+      minimap: true,
     });
     expect(loadSettings(storage).textSpeed).toBe("instant");
     expect(seen).toEqual(["instant"]);
