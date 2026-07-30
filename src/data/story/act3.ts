@@ -528,6 +528,11 @@ export const act3Arc: StoryArc = {
           ],
         },
         { id: "muster", label: "Work through the muster crowd.", target: "a3-muster" },
+        {
+          id: "riser",
+          label: "Try the second riser — the one with no call button.",
+          target: "a3-exec-lift",
+        },
         { id: "terminal", label: "Read the lobby ledger terminal.", target: "a3-terminal" },
         { id: "booth", label: "Look in on the auditor's booth.", target: "a3-lin" },
         { id: "gate", label: "Face the Registry Gate.", target: "a3-gate" },
@@ -656,6 +661,11 @@ export const act3Arc: StoryArc = {
             { type: "set-flag", key: "gate3-route", value: "fight" },
             { type: "start-combat", encounterId: "enc-spire-gate" },
           ],
+        },
+        {
+          id: "ask-guard",
+          label: "Ask the officer on the queue what the tower thinks it is doing.",
+          target: "a3-security",
         },
         {
           id: "back",
@@ -1017,6 +1027,360 @@ export const act3Arc: StoryArc = {
           effects: [{ type: "travel", mapId: "cinder-plaza" }],
         },
         { id: "stay", label: "Stay at the Spire.", effects: [{ type: "end" }] },
+      ],
+    },
+    // ------------------------------------------------------------------
+    // The tower's own floors — the concourse's security, and the
+    // directors' level up the second riser. Optional throughout: the
+    // finale's spine runs concourse -> gate -> crown, and everything
+    // here is what a player who pushes on a closed door finds.
+    // ------------------------------------------------------------------
+    {
+      id: "a3-security",
+      speaker: "Spire Security",
+      text:
+        "The officer has been standing at the same two square meters of " +
+        "polished stone since before the screens changed, and it shows. " +
+        "\"Concourse is open, registry is open, and past the arch is " +
+        "above my grade.\" A pause exactly as long as the training " +
+        "allows. \"You want my honest read? Nobody upstairs called this " +
+        "in. The building did. We got no post orders tonight, and the " +
+        "risers started answering to something that doesn't file " +
+        "shift reports.\"",
+      location: "spire:concourse",
+      choices: [
+        {
+          id: "risers",
+          label: "\"Risers, plural?\"",
+          target: "a3-security-risers",
+        },
+        {
+          id: "leave",
+          label: "\"Long night, officer.\" Leave them to it.",
+          target: "a3-spire-arrival",
+        },
+      ],
+    },
+    {
+      id: "a3-security-risers",
+      speaker: "Spire Security",
+      text:
+        "\"Crown lift, and the executive riser beside it.\" The officer " +
+        "does not point; the eyes do it. \"Directors' floor. Voted the " +
+        "Succession through at eleven and went home at midnight — every " +
+        "one of them, like a fire drill nobody rang.\" A shrug that " +
+        "costs nothing and admits everything. \"Their desks are still " +
+        "logged in. Floor detail's still up there. If you go up and " +
+        "they take exception, that's between you and them.\"",
+      location: "spire:concourse",
+      choices: [
+        {
+          id: "riser",
+          label: "\"Then I'll go and take exception back.\"",
+          target: "a3-exec-lift",
+          effects: [{ type: "set-flag", key: "exec-known", value: true }],
+        },
+        {
+          id: "back",
+          label: "Step back into the concourse.",
+          target: "a3-spire-arrival",
+        },
+      ],
+    },
+    {
+      id: "a3-exec-lift",
+      text:
+        "The second riser has no call button, no floor list, and no " +
+        "queue — just a reader plate and a pair of doors polished so " +
+        "well the atrium's brass inlay runs up them unbroken. It is " +
+        "already lit. Somewhere ninety floors above, the executive " +
+        "level is holding a car for whoever the building decides has " +
+        "business up there.",
+      location: "spire:concourse",
+      choices: [
+        {
+          id: "standing",
+          label: "Show the plate the chair's override. It is, technically, yours.",
+          target: "a3-exec-floor",
+          requirements: [
+            { type: "flag-equals", key: "a3-standing", value: "auric" },
+          ],
+          effects: [
+            { type: "set-flag", key: "exec-known", value: true },
+            { type: "travel", mapId: "auric-executive" },
+          ],
+        },
+        {
+          id: "ride",
+          label: "Put a hand on the plate and see what the building thinks.",
+          target: "a3-exec-floor",
+          effects: [
+            { type: "set-flag", key: "exec-known", value: true },
+            { type: "travel", mapId: "auric-executive" },
+          ],
+        },
+        {
+          id: "leave",
+          label: "Leave it. The crown is the errand.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      // The executive floor's junction: everything up here is offered
+      // by name from the arrival beat as well as by walking to it, so
+      // the floor reads as one graph whichever way it is entered.
+      id: "a3-exec-floor",
+      text:
+        "The doors open on carpetless black stone and the particular " +
+        "silence of a floor that has been left rather than closed. " +
+        "Glazed cells run the plan out to the curtain wall; behind the " +
+        "glass, timber desks sit with their ledger panes still lit and " +
+        "their chairs pushed back at the angle of people who stood up " +
+        "all at once. The Succession was voted through in this room " +
+        "before midnight. Nobody stayed to watch it execute.",
+      location: "spire:executive",
+      choices: [
+        {
+          id: "desk",
+          label: "Read the corner station — its pane is still open.",
+          target: "a3-exec-desk",
+        },
+        {
+          id: "checkpoint",
+          label: "Deal with the floor detail coming down the aisle.",
+          target: "a3-exec-checkpoint",
+        },
+        {
+          id: "safe",
+          label: "Look at the lockbox under the wall bench.",
+          target: "a3-exec-cache",
+        },
+        {
+          id: "down",
+          label: "Take the riser back down to the concourse.",
+          target: "a3-exec-descend",
+        },
+        {
+          id: "stand",
+          label: "Stand a moment in the room where it was decided.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "a3-exec-checkpoint",
+      speaker: "Spire Security",
+      text:
+        "The floor detail comes down the aisle unhurried, one hand on a " +
+        "baton nobody has drawn in this building in nine years. \"This " +
+        "level is closed to the concourse,\" they say, and then, more " +
+        "honestly: \"This level is closed to everyone. We are standing " +
+        "here because the post says stand here, and the post is the " +
+        "last instruction anybody gave us before the building started " +
+        "giving its own.\"",
+      location: "spire:executive",
+      choices: [
+        {
+          id: "override",
+          label: "Show them whose hand you are. (Chair's override)",
+          target: "a3-exec-cleared",
+          requirements: [
+            { type: "flag-equals", key: "a3-standing", value: "auric" },
+          ],
+          effects: [{ type: "set-flag", key: "exec-cleared", value: true }],
+        },
+        {
+          id: "talk",
+          label: "\"Your post reports to a chair that walked out at midnight. Mine's still climbing.\"",
+          target: "a3-exec-cleared",
+          requirements: [{ type: "stat", stat: "cool", value: 7 }],
+          ifUnavailable: "disabled",
+          effects: [{ type: "set-flag", key: "exec-cleared", value: true }],
+        },
+        {
+          id: "fight",
+          label: "\"Then stand there.\" Go through the detail.",
+          target: "a3-exec-cleared",
+          effects: [
+            { type: "set-flag", key: "exec-cleared", value: true },
+            { type: "set-flag", key: "exec-forced", value: true },
+            { type: "start-combat", encounterId: "enc-exec-security" },
+          ],
+        },
+        {
+          id: "back",
+          label: "Step back toward the riser.",
+          target: "a3-exec-floor",
+        },
+      ],
+    },
+    {
+      id: "a3-exec-cleared",
+      text:
+        "The aisle is yours. Whatever it cost — a credential, a " +
+        "sentence, or the detail's whole evening — the floor stops " +
+        "being guarded and goes back to being what it actually is: an " +
+        "office with the lights on and nobody in it, ninety floors " +
+        "above a city that is about to change hands.",
+      location: "spire:executive",
+      choices: [
+        {
+          id: "on",
+          label: "Get on with it.",
+          target: "a3-exec-floor",
+        },
+      ],
+    },
+    {
+      id: "a3-exec-desk",
+      text:
+        "The corner station's pane has not locked because nobody logged " +
+        "out; the directorate left the way people leave a room they " +
+        "expect to be somebody else's problem. On screen: the night's " +
+        "traffic, in the flat civic type the whole tower thinks in. " +
+        "Motions carried. Proxies lodged. And, under it all, an " +
+        "instruction sheet nobody drafted for public reading.",
+      location: "spire:executive",
+      choices: [
+        {
+          id: "trace",
+          label: "Work the sheet: what did they actually instruct the engine to do?",
+          target: "a3-exec-sheet",
+          requirements: [
+            { type: "flag-equals", key: "exec-cleared", value: true },
+            { type: "stat", stat: "tech", value: 6 },
+          ],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "set-flag", key: "locus-known", value: true },
+            { type: "set-flag", key: "exec-ledger", value: true },
+          ],
+        },
+        {
+          id: "audit",
+          label: "Read the minutes the way you were trained to. (Auditor's eye)",
+          target: "a3-exec-minutes",
+          requirements: [{ type: "background", tag: "corp" }],
+        },
+        {
+          id: "petty",
+          label: "Pocket what the drawer is stupid enough to keep in it.",
+          target: "a3-exec-floor",
+          effects: [
+            { type: "credits", amount: 60 },
+            { type: "add-item", itemId: "con-field-kit" },
+          ],
+        },
+        {
+          id: "back",
+          label: "Leave the pane to its night.",
+          target: "a3-exec-floor",
+        },
+      ],
+    },
+    {
+      id: "a3-exec-sheet",
+      text:
+        "The instruction sheet is four lines long and the fourth is the " +
+        "one that matters: the transfer does not complete on the clock. " +
+        "The Locus has to hear a standing declaration read at its ring, " +
+        "in person, per the founders' instrument — 'for the city's " +
+        "continuing inhabitants' — and the directorate's plan for that " +
+        "line was to have nobody in the building when dawn came, so the " +
+        "engine would read it to itself. They went home to make the " +
+        "room empty. The room is not empty.",
+      location: "spire:executive",
+      choices: [
+        {
+          id: "back",
+          label: "Take the sheet's four lines with you.",
+          target: "a3-exec-floor",
+        },
+      ],
+    },
+    {
+      id: "a3-exec-minutes",
+      text:
+        "The minutes read like every set of minutes you ever filed: " +
+        "unanimous, unhurried, and written by somebody who already knew " +
+        "the vote. What is missing is the risk annex — struck, at the " +
+        "chair's request, from a motion transferring every civic title " +
+        "in the Sprawl. In your old life that omission alone would have " +
+        "been a career. Tonight it is only confirmation: the people who " +
+        "started this understood it about as well as the people it " +
+        "happens to.",
+      location: "spire:executive",
+      choices: [
+        {
+          id: "back",
+          label: "Close the minutes.",
+          target: "a3-exec-floor",
+          effects: [{ type: "set-flag", key: "exec-minutes", value: true }],
+        },
+      ],
+    },
+    {
+      id: "a3-exec-cache",
+      text:
+        "A lockbox sits under the wall bench where the floor keeps what " +
+        "the floor is not supposed to have: petty cash for the couriers " +
+        "the Combine does not employ, field kits for the accidents it " +
+        "does not have, and a lattice of house credentials for the " +
+        "doors it does not admit to.",
+      location: "spire:executive",
+      choices: [
+        {
+          id: "crack",
+          label: "Work the lock. Corporate hardware, corporate habits.",
+          target: "a3-exec-floor",
+          requirements: [{ type: "stat", stat: "tech", value: 5 }],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "credits", amount: 120 },
+            { type: "add-item", itemId: "con-trauma-patch", quantity: 2 },
+            { type: "set-flag", key: "exec-lockbox", value: true },
+          ],
+        },
+        {
+          id: "force",
+          label: "Put a boot through it and take what falls out.",
+          target: "a3-exec-floor",
+          effects: [
+            { type: "credits", amount: 40 },
+            { type: "add-item", itemId: "con-field-kit" },
+            { type: "set-flag", key: "exec-lockbox", value: true },
+          ],
+        },
+        {
+          id: "back",
+          label: "Leave it locked.",
+          target: "a3-exec-floor",
+        },
+      ],
+    },
+    {
+      id: "a3-exec-descend",
+      text:
+        "The riser is holding its car for you, doors open on the same " +
+        "unbroken brass. Ninety floors down, the concourse is still " +
+        "full of people watching a tower decide what they are worth; " +
+        "up here the lights burn over empty desks, keeping the room " +
+        "exactly as the directorate left it, in case anybody ever " +
+        "wants to look at what they did.",
+      location: "spire:executive",
+      choices: [
+        {
+          id: "down",
+          label: "Ride back down to the concourse.",
+          target: "a3-spire-arrival",
+          effects: [{ type: "travel", mapId: "auric-spire" }],
+        },
+        {
+          id: "stay",
+          label: "Stay on the floor a while longer.",
+          effects: [{ type: "end" }],
+        },
       ],
     },
     // ------------------------------------------------------------------
