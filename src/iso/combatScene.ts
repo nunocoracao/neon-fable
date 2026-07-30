@@ -607,9 +607,10 @@ export function createCombatScene(
   }
 
   /**
-   * Turn a combatant toward another, and hand back the swing that goes
-   * with it — the class's attack animation, started now, with the body's
-   * weight thrown along the line between them.
+   * Start a combatant swinging at another: the class's attack animation
+   * from now, with the body's weight thrown along the line between them.
+   * Facing is the caller's (see faceToward) — a blow is still aimed
+   * where it was aimed when the animation is switched off.
    */
   function throwAt(
     attacker: EntityView,

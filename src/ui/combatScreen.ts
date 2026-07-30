@@ -440,10 +440,10 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
   function processNewEvents(): void {
     if (!combat) return;
     /**
-     * The beat the cast just played lands on. A boost is logged as its
-     * own event right behind the ability that granted it, so the number
-     * over the caster waits for the aura instead of beating it there.
-     * Cleared by anything that is not that pair.
+     * The beat the cast played on the previous event lands on. A boost
+     * is logged as its own event right behind the ability that granted
+     * it, so the readout over the caster waits for the aura instead of
+     * beating it there. Carried exactly one event, then spent.
      */
     let castBeatMs = 0;
     for (; logIndex < combat.log.length; logIndex++) {
@@ -453,7 +453,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       if (text) appendLogLine(text);
       playEventSfx(event);
       const beatMs = castBeatMs;
-      if (event.type !== "ability-used") castBeatMs = 0;
+      castBeatMs = 0;
       if (!scene) continue;
       switch (event.type) {
         // The scene reports how long its attack animation takes to
