@@ -17,6 +17,7 @@ import {
 import type { AbilityFxId } from "../abilityFx";
 import { selectMotionFrame, type AttackClassId } from "../attack";
 import type { EffectSpriteId } from "../impact";
+import type { PopupKind } from "../popup";
 import type { ReactionVariant } from "../reaction";
 import type { StatusFamilyId } from "../status";
 import type {
@@ -36,6 +37,7 @@ import {
 import { ABILITY_FX_ART } from "./abilityEffects";
 import { EFFECT_ART } from "./effects";
 import { INTERACTABLE_ART } from "./interactables";
+import { popupTextGrid } from "./popupFont";
 import { STATUS_MARKER_ART } from "./statusMarkers";
 import { BODY_FRAME } from "./layers/body";
 import { muzzlePoint } from "./layers/attack";
@@ -114,6 +116,7 @@ export interface PixelArtSprites extends SpriteProvider {
   effect(id: EffectSpriteId, frame: number): Sprite;
   abilityEffect(id: AbilityFxId, frame: number): Sprite;
   statusMarker(id: StatusFamilyId, frame: number): Sprite;
+  popupText(text: string, kind: PopupKind): Sprite;
 }
 
 export interface PixelArtSpriteOptions {
@@ -395,6 +398,23 @@ export function createPixelArtSprites(
       return cached(`status:${id}:${index}`, () =>
         bakeSprite(art.frames[index] ?? [], art.anchorX, art.anchorY, palette),
       );
+    },
+
+    popupText(text: string, kind: PopupKind): Sprite {
+      // Off the phase key: a damage figure is a readout, not scenery,
+      // and has to be exactly as legible at dawn as it is at 3am. The
+      // composition is cached with the bake, so a number the fight has
+      // already shown costs one map lookup the next time it lands.
+      return untinted(`popup:${kind}:${text}`, () => {
+        const grid = popupTextGrid(text, kind);
+        // Anchored on the bottom center of the text: the scene places a
+        // popup by the point it hangs over, whatever it says.
+        return bakeSprite(
+          grid,
+          Math.floor((grid[0]?.length ?? 0) / 2),
+          grid.length,
+        );
+      });
     },
 
     entitySilhouette(id: EntitySpriteId, pose: EntityPose): Sprite {

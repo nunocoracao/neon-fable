@@ -8,6 +8,7 @@ import type { AbilityFxId } from "./abilityFx";
 import type { Facing } from "./animation";
 import type { AttackClassId } from "./attack";
 import type { EffectSpriteId } from "./impact";
+import type { PopupKind } from "./popup";
 import type { ReactionPose } from "./reaction";
 import type { StatusFamilyId } from "./status";
 import type {
@@ -142,6 +143,14 @@ export interface SpriteProvider {
    * its slow loop. Optional, like the effects above.
    */
   statusMarker?(id: StatusFamilyId, frame: number): Sprite;
+  /**
+   * One floating readout — a damage figure, "MISS", a status label —
+   * composed from the pixel font and baked in the kind's own ink (see
+   * ./popup.ts). Anchored on the bottom center of the text, so the
+   * scene positions it by the point it hangs over. Optional, like the
+   * effects above.
+   */
+  popupText?(text: string, kind: PopupKind): Sprite;
   /**
    * Pre-baked radial glow in a palette color for the additive neon
    * pass; radius is in 1x art pixels, anchored at the glow center.
