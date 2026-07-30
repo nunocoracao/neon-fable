@@ -64,6 +64,20 @@ export function attackDamage(
   return Math.max(1, weapon.damage + damageBonus(attackStat) - targetArmor);
 }
 
+/**
+ * Whether armor took the greater share of a landed blow: at least as
+ * much was stopped as got through. Equivalent to armor covering half or
+ * more of the raw figure, since what got through is the raw figure less
+ * the armor. Damage that ignores armor never glances — pass 0.
+ *
+ * Purely a reading of the numbers the math already produces; nothing in
+ * the engine branches on it. The combat scene does, playing a reduced
+ * shudder instead of a full flinch when a hit barely got through.
+ */
+export function isGlancingBlow(damageDealt: number, armor: number): boolean {
+  return armor > 0 && armor >= damageDealt;
+}
+
 /** Ability damage: flat amount, reduced by armor unless it ignores it. */
 export function abilityDamage(
   amount: number,
