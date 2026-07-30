@@ -177,6 +177,7 @@ describe("item formatting", () => {
               range: 1,
               cooldown: 1,
               effect: { type: "damage", amount: 1 },
+              effectRef: "kinetic-slam",
             }
           : undefined,
       ),

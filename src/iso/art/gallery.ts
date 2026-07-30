@@ -41,8 +41,12 @@ import { interactableVisual } from "../../character/npc";
 import { enemies } from "../../data/enemies";
 import { items } from "../../data/items";
 import { maps } from "../../data/maps";
+import { ABILITY_FX, ABILITY_FX_IDS } from "../abilityFx";
 import { EFFECT_SPRITE_IDS } from "../impact";
+import { STATUS_FAMILY_IDS, STATUS_MARKERS } from "../status";
+import { ABILITY_FX_ART } from "./abilityEffects";
 import { EFFECT_ART } from "./effects";
+import { STATUS_MARKER_ART } from "./statusMarkers";
 import { INTERACTABLE_ART } from "./interactables";
 import {
   composedCharacterGrid,
@@ -276,6 +280,39 @@ function effectEntries(): GalleryEntry[] {
     const art = EFFECT_ART[id];
     return {
       id,
+      frames: art.frames,
+      frameMs: art.frames.length > 1 ? art.frameMs : 0,
+    };
+  });
+}
+
+/**
+ * Ability effects (../abilityFx.ts): one entry per archetype, playing at
+ * the hold the fight plays it at. A beam's entry is the segment picture
+ * the chain is built from rather than the chain itself — the chain is
+ * geometry the scene lays out over a line it does not have here — so
+ * what the gallery shows is exactly the art, frame for frame.
+ */
+function abilityEffectEntries(): GalleryEntry[] {
+  return ABILITY_FX_IDS.map((id) => {
+    const art = ABILITY_FX_ART[id];
+    return {
+      id: `${id} (${ABILITY_FX[id].form})`,
+      frames: art.frames,
+      frameMs: art.frames.length > 1 ? art.frameMs : 0,
+    };
+  });
+}
+
+/**
+ * Status markers (../status.ts): the glyph each condition family hangs
+ * over a body, looping at the slow hold it loops at in a fight.
+ */
+function statusMarkerEntries(): GalleryEntry[] {
+  return STATUS_FAMILY_IDS.map((id) => {
+    const art = STATUS_MARKER_ART[id];
+    return {
+      id: `status ${id} (${STATUS_MARKERS[id].label})`,
       frames: art.frames,
       frameMs: art.frames.length > 1 ? art.frameMs : 0,
     };
@@ -610,6 +647,16 @@ const SECTION_BUILDERS: ReadonlyArray<{
     build: reactionEntries,
   },
   { id: "effects", title: "Effects (shots & impacts)", build: effectEntries },
+  {
+    id: "abilityEffects",
+    title: "Ability effects (per archetype)",
+    build: abilityEffectEntries,
+  },
+  {
+    id: "statusMarkers",
+    title: "Status markers",
+    build: statusMarkerEntries,
+  },
   { id: "appearance", title: "Appearance layers", build: appearanceEntries },
 ];
 

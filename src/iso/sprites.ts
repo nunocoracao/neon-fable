@@ -4,10 +4,12 @@
  * coordinates (for deterministic texture variants and phase offsets) and
  * the animation clock. The pixel-art implementation lives in ./art.
  */
+import type { AbilityFxId } from "./abilityFx";
 import type { Facing } from "./animation";
 import type { AttackClassId } from "./attack";
 import type { EffectSpriteId } from "./impact";
 import type { ReactionPose } from "./reaction";
+import type { StatusFamilyId } from "./status";
 import type {
   DayPhaseId,
   InteractableSpriteId,
@@ -127,6 +129,19 @@ export interface SpriteProvider {
    * Optional, so providers with no effect art simply show none.
    */
   effect?(id: EffectSpriteId, frame: number): Sprite;
+  /**
+   * An ability effect archetype's baked frame — the arc, the glare, the
+   * slam, the mesh, the cloud, the auras (see ./abilityFx.ts). Abilities
+   * name an archetype rather than carrying art of their own, so one
+   * baked set serves every ability that shares the look. Optional, so
+   * providers with no ability art simply show none.
+   */
+  abilityEffect?(id: AbilityFxId, frame: number): Sprite;
+  /**
+   * A status family's marker glyph (see ./status.ts), baked per frame of
+   * its slow loop. Optional, like the effects above.
+   */
+  statusMarker?(id: StatusFamilyId, frame: number): Sprite;
   /**
    * Pre-baked radial glow in a palette color for the additive neon
    * pass; radius is in 1x art pixels, anchored at the glow center.

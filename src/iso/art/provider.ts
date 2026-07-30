@@ -14,9 +14,11 @@ import {
   type Facing,
   type MotionState,
 } from "../animation";
+import type { AbilityFxId } from "../abilityFx";
 import { selectMotionFrame, type AttackClassId } from "../attack";
 import type { EffectSpriteId } from "../impact";
 import type { ReactionVariant } from "../reaction";
+import type { StatusFamilyId } from "../status";
 import type {
   EntityPose,
   EntitySpriteId,
@@ -31,8 +33,10 @@ import {
   type PropId,
   type TileId,
 } from "../tilemap";
+import { ABILITY_FX_ART } from "./abilityEffects";
 import { EFFECT_ART } from "./effects";
 import { INTERACTABLE_ART } from "./interactables";
+import { STATUS_MARKER_ART } from "./statusMarkers";
 import { BODY_FRAME } from "./layers/body";
 import { muzzlePoint } from "./layers/attack";
 import {
@@ -108,6 +112,8 @@ export interface PixelArtSprites extends SpriteProvider {
    */
   muzzleOffset(id: EntitySpriteId, facing: Facing): { x: number; y: number };
   effect(id: EffectSpriteId, frame: number): Sprite;
+  abilityEffect(id: AbilityFxId, frame: number): Sprite;
+  statusMarker(id: StatusFamilyId, frame: number): Sprite;
 }
 
 export interface PixelArtSpriteOptions {
@@ -365,6 +371,28 @@ export function createPixelArtSprites(
         art.frames.length - 1,
       );
       return cached(`effect:${id}:${index}`, () =>
+        bakeSprite(art.frames[index] ?? [], art.anchorX, art.anchorY, palette),
+      );
+    },
+
+    abilityEffect(id: AbilityFxId, frame: number): Sprite {
+      const art = ABILITY_FX_ART[id];
+      const index = Math.min(
+        Math.max(0, Math.trunc(frame)),
+        art.frames.length - 1,
+      );
+      return cached(`ability:${id}:${index}`, () =>
+        bakeSprite(art.frames[index] ?? [], art.anchorX, art.anchorY, palette),
+      );
+    },
+
+    statusMarker(id: StatusFamilyId, frame: number): Sprite {
+      const art = STATUS_MARKER_ART[id];
+      const index = Math.min(
+        Math.max(0, Math.trunc(frame)),
+        art.frames.length - 1,
+      );
+      return cached(`status:${id}:${index}`, () =>
         bakeSprite(art.frames[index] ?? [], art.anchorX, art.anchorY, palette),
       );
     },
