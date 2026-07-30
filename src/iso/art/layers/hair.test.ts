@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BODY_TIMING, type Facing, type MotionState } from "../../animation";
+import { BODY_TIMING, type Facing, type LoopState } from "../../animation";
 import { HAIR_STYLE_OPTIONS } from "../../../data/appearance";
 import {
   composedCharacterGrid,
@@ -21,7 +21,7 @@ import {
 } from "./hair";
 
 const [HAIR_CHANNEL = "K"] = REMAP_CHANNELS.hair;
-const STATES: MotionState[] = ["idle", "walk"];
+const STATES: LoopState[] = ["idle", "walk"];
 
 /** Every (style, view, grid) triple, labeled for assertion messages. */
 const GRIDS = HAIR_STYLE_IDS.flatMap((style) =>

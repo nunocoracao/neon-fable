@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BODY_TIMING, type Facing, type MotionState } from "../animation";
+import { BODY_TIMING, type Facing, type LoopState } from "../animation";
 import {
   composeGrids,
   composedCharacterGrid,
@@ -22,7 +22,7 @@ import { gridErrors, mirrored, type PixelGrid } from "./pixel";
 const { width: W, height: H } = BODY_FRAME;
 const BLANK = ".".repeat(W);
 const FACINGS: Facing[] = ["n", "e", "s", "w"];
-const STATES: MotionState[] = ["idle", "walk"];
+const STATES: LoopState[] = ["idle", "walk"];
 
 /** A frame-sized grid with the given (x, y, char) pixels set. */
 function frameGrid(
