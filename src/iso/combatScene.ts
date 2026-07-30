@@ -9,6 +9,17 @@
  */
 import { settings } from "../settings";
 import {
+  ABILITY_FX,
+  abilityCastMs,
+  abilityFxFrameAt,
+  beamPoints,
+  beamSegmentCount,
+  castsWithWeapon,
+  planAbilityCast,
+  type AbilityCastPlan,
+  type AbilityFxId,
+} from "./abilityFx";
+import {
   dissolve01,
   facingFromDelta,
   lunge01,
@@ -39,6 +50,11 @@ import {
   type ReactionPose,
   type ScheduledReaction,
 } from "./reaction";
+import {
+  statusMarkerFrame,
+  statusMarkerOffsets,
+  type StatusFamilyId,
+} from "./status";
 import { createPixelArtSprites } from "./art/provider";
 import { clampCamera, mapPixelBounds, type Camera } from "./camera";
 import {
@@ -82,6 +98,13 @@ export interface CombatSceneEntity {
    * content data (an enemy archetype's chassis); defaults to a crumple.
    */
   deathStyle?: DeathReactionKind;
+  /**
+   * Conditions currently true of this combatant (see ./status.ts), each
+   * drawn as its family's marker over the body for as long as it is
+   * pushed. Presentation only — the engine owns the conditions
+   * themselves; the scene only shows what it is handed.
+   */
+  statuses?: readonly StatusFamilyId[];
 }
 
 /** What the scene needs to know about a blow being thrown. */
@@ -165,6 +188,20 @@ export interface CombatScene {
     options?: AttackFxOptions,
   ): number;
   /**
+   * Play an ability going off: the caster throws it (or, for a self
+   * buff, simply lights up), the archetype named by the ability's
+   * `effectRef` plays on every target at once, and the beat the blow
+   * lands on comes back — which callers pass as the delay on the
+   * reactions and numbers that answer it, exactly as with attackFx.
+   * Nothing here knows an ability id; the archetype is the whole
+   * contract (see ./abilityFx.ts).
+   */
+  abilityFx(
+    casterId: string,
+    targetIds: readonly string[],
+    fx: AbilityFxId,
+  ): number;
+  /**
    * Play a landed blow on its target: the white flash and shake over a
    * two-frame recoil away from the attacker (a shallower shudder when
    * armor ate most of it). Queued — reactions answering one beat play
@@ -199,6 +236,13 @@ const FLOAT_RISE_PX = 56;
  * Effects happen at body height, not on the floor.
  */
 const IMPACT_HEIGHT_PX = 40;
+
+/**
+ * Screen pixels above a tile's center that a status marker hangs at:
+ * clear of the HP bar, so a condition never covers the health it
+ * applies to.
+ */
+const STATUS_MARKER_HEIGHT_PX = 126;
 
 /** Death for anything the caller did not describe: a body crumples. */
 const DEFAULT_DEATH_STYLE: DeathReactionKind = "collapse";
@@ -254,6 +298,24 @@ interface ImpactFx {
   readonly swipeId: EffectSpriteId;
 }
 
+/**
+ * One ability cast in flight. Like a blow's effects, everything
+ * positional is resolved when the cast goes off — where it leaves from
+ * and the chest of every body it reaches — so the whole sequence is
+ * pure math over the scene clock from there on, and nothing shifts
+ * under it if a combatant moves mid-cast.
+ */
+interface AbilityFx {
+  readonly fx: AbilityFxId;
+  readonly plan: AbilityCastPlan;
+  /** Scene-clock ms the cast started; every window is relative to it. */
+  readonly startMs: number;
+  /** Where the cast leaves the caster (the muzzle, or the chest). */
+  readonly from: ScreenPoint;
+  /** Where each target's effect is drawn, in the plan's own order. */
+  readonly points: readonly ScreenPoint[];
+}
+
 /** Axis-by-axis steps from one tile to the next (dominant axis first). */
 function stepQueue(from: TilePoint, to: TilePoint): TilePoint[] {
   const steps: TilePoint[] = [];
@@ -294,6 +356,8 @@ export function createCombatScene(
   const floats: FloatingText[] = [];
   /** Blows whose effects have not finished playing; pruned as they end. */
   const impacts: ImpactFx[] = [];
+  /** Ability casts still playing; pruned the same way. */
+  const casts: AbilityFx[] = [];
   /**
    * Every reaction in flight or still waiting on its beat, plus the
    * deaths, which stay forever — their last frame is the heap on the
@@ -526,6 +590,52 @@ export function createCombatScene(
     return active ? reactionPoseAt(active, now) : undefined;
   }
 
+  /** The chest of whoever stands here: the height effects happen at. */
+  function chestPoint(at: WorldPoint): ScreenPoint {
+    const ground = worldToScreen(at.x, at.y);
+    return { sx: ground.sx, sy: ground.sy - IMPACT_HEIGHT_PX };
+  }
+
+  /** Where a blow leaves a combatant: its weapon's muzzle, or its chest. */
+  function muzzlePoint(entity: EntityView): ScreenPoint {
+    const stance = worldToScreen(entity.visual.x, entity.visual.y);
+    const offset = sprites.muzzleOffset?.(entity.spriteId, entity.facing) ?? {
+      x: 0,
+      y: -IMPACT_HEIGHT_PX,
+    };
+    return { sx: stance.sx + offset.x, sy: stance.sy + offset.y };
+  }
+
+  /**
+   * Turn a combatant toward another, and hand back the swing that goes
+   * with it — the class's attack animation, started now, with the body's
+   * weight thrown along the line between them.
+   */
+  function throwAt(
+    attacker: EntityView,
+    target: EntityView,
+    attackClass: AttackClassId,
+    now: number,
+  ): void {
+    const from = worldToScreen(attacker.visual.x, attacker.visual.y);
+    const to = worldToScreen(target.visual.x, target.visual.y);
+    const dx = to.sx - from.sx;
+    const dy = to.sy - from.sy;
+    const length = Math.hypot(dx, dy) || 1;
+    attacker.lungeDir = { dx: dx / length, dy: dy / length };
+    attacker.attack = attackSequence(attackClass);
+    attacker.attackStart = now;
+  }
+
+  /** Turn a combatant to face another; the one beat nothing switches off. */
+  function faceToward(attacker: EntityView, target: EntityView): void {
+    attacker.facing =
+      facingFromDelta(
+        target.position.x - attacker.position.x,
+        target.position.y - attacker.position.y,
+      ) ?? attacker.facing;
+  }
+
   /**
    * Fire one blow's effects: the flash at the muzzle, the streak across
    * the ground, and the spark or the wall dust it ends in. Returns the
@@ -545,17 +655,8 @@ export function createCombatScene(
     const landing = hit
       ? target.visual
       : overshootPoint(attacker.visual, target.visual);
-    const ground = worldToScreen(landing.x, landing.y);
-    const to: ScreenPoint = { sx: ground.sx, sy: ground.sy - IMPACT_HEIGHT_PX };
-    const stance = worldToScreen(attacker.visual.x, attacker.visual.y);
-    const muzzle = sprites.muzzleOffset?.(attacker.spriteId, attacker.facing) ?? {
-      x: 0,
-      y: -IMPACT_HEIGHT_PX,
-    };
-    const from: ScreenPoint = {
-      sx: stance.sx + muzzle.x,
-      sy: stance.sy + muzzle.y,
-    };
+    const to = chestPoint(landing);
+    const from = muzzlePoint(attacker);
     const dx = to.sx - from.sx;
     const dy = to.sy - from.sy;
     const sequence = impactSequence(attackClass, {
@@ -618,6 +719,79 @@ export function createCombatScene(
         drawEffect(effectSpriteId(impact.kind), landed, fx.to);
       }
     }
+  }
+
+  /** Draw one baked ability-effect frame centered on a screen point. */
+  function drawAbilityFrame(
+    id: AbilityFxId,
+    frame: number,
+    at: ScreenPoint,
+  ): void {
+    const sprite = sprites.abilityEffect?.(id, frame);
+    if (!sprite) return;
+    ctx!.drawImage(
+      sprite.image,
+      snap(at.sx - sprite.anchorX),
+      snap(at.sy - sprite.anchorY),
+    );
+  }
+
+  /**
+   * Every ability cast still playing. The form decides where the frames
+   * go and nothing else does: a beam is a chain of segments laid along
+   * the caster's line, and everything else is drawn on the point it was
+   * placed at — the target's chest, or the caster's own for an aura.
+   * Finished casts drop out; nothing here persists.
+   */
+  function drawCasts(now: number): void {
+    for (let i = casts.length - 1; i >= 0; i--) {
+      const cast = casts[i];
+      if (!cast) continue;
+      const elapsed = now - cast.startMs;
+      if (elapsed >= cast.plan.sequence.endMs) {
+        casts.splice(i, 1);
+        continue;
+      }
+      const frame = abilityFxFrameAt(cast.plan.sequence.effect, elapsed);
+      if (frame === null) continue;
+      const { form, segmentSpacingPx, amplitudePx } = ABILITY_FX[cast.fx];
+      cast.points.forEach((point) => {
+        if (form !== "beam") {
+          drawAbilityFrame(cast.fx, frame, point);
+          return;
+        }
+        const span = Math.hypot(point.sx - cast.from.sx, point.sy - cast.from.sy);
+        const count = beamSegmentCount(span, segmentSpacingPx);
+        for (const step of beamPoints(cast.from, point, count, frame, amplitudePx)) {
+          drawAbilityFrame(cast.fx, frame, step);
+        }
+      });
+    }
+  }
+
+  /**
+   * The conditions on a body, marked over its head in a centered row —
+   * one glyph per family, however many boosts are stacked behind it.
+   * Reduced motion holds the first frame: the mark stays, the loop stops.
+   */
+  function drawStatusMarkers(entity: EntityView, now: number): void {
+    const families = entity.statuses ?? [];
+    if (families.length === 0) return;
+    const reduced = settings.get().reducedMotion;
+    const { sx, sy } = worldToScreen(entity.visual.x, entity.visual.y);
+    const offsets = statusMarkerOffsets(families.length);
+    families.forEach((family, index) => {
+      const sprite = sprites.statusMarker?.(
+        family,
+        statusMarkerFrame(family, reduced ? 0 : now, reduced),
+      );
+      if (!sprite) return;
+      ctx!.drawImage(
+        sprite.image,
+        snap(sx + (offsets[index] ?? 0) - sprite.anchorX),
+        snap(sy - STATUS_MARKER_HEIGHT_PX - sprite.anchorY),
+      );
+    });
   }
 
   function drawEntitySprite(entity: EntityView, now: number): void {
@@ -737,12 +911,17 @@ export function createCombatScene(
     drawables.sort(compareDrawables);
     for (const d of drawables) {
       drawEntitySprite(d.entity, now);
-      if (d.entity.alive) drawHpBar(d.entity);
+      if (d.entity.alive) {
+        drawHpBar(d.entity);
+        // A heap has no conditions: only the standing are marked.
+        drawStatusMarkers(d.entity, now);
+      }
     }
 
     // Combat effects over the fighters: a shot is in front of whoever
     // fired it, and the spark it strikes is in front of what it hit.
     drawImpacts(now);
+    drawCasts(now);
 
     // Floating combat text, newest on top.
     for (let i = floats.length - 1; i >= 0; i--) {
@@ -873,11 +1052,7 @@ export function createCombatScene(
       if (!attacker || !target) return 0;
       // The attacker always turns to face what it is swinging at, even
       // when every other part of the sequence is switched off.
-      attacker.facing =
-        facingFromDelta(
-          target.position.x - attacker.position.x,
-          target.position.y - attacker.position.y,
-        ) ?? attacker.facing;
+      faceToward(attacker, target);
       const hit = options.hit ?? true;
       const attackClass: AttackClassId =
         sprites.attackClass?.(attacker.spriteId) ?? "unarmed";
@@ -889,19 +1064,63 @@ export function createCombatScene(
         spawnImpact(attacker, target, attackClass, hit, now, true);
         return 0;
       }
-      const swing = attackSequence(attackClass);
-      const from = worldToScreen(attacker.visual.x, attacker.visual.y);
-      const to = worldToScreen(target.visual.x, target.visual.y);
-      const dx = to.sx - from.sx;
-      const dy = to.sy - from.sy;
-      const length = Math.hypot(dx, dy) || 1;
-      attacker.lungeDir = { dx: dx / length, dy: dy / length };
-      attacker.attack = swing;
-      attacker.attackStart = now;
+      throwAt(attacker, target, attackClass, now);
       // The blow lands when its effects say it does: for a fired round
       // that is the swing's own impact beat plus the flight time.
       return spawnImpact(attacker, target, attackClass, hit, now, false)
         .contactMs;
+    },
+
+    abilityFx(
+      casterId: string,
+      targetIds: readonly string[],
+      fx: AbilityFxId,
+    ): number {
+      const caster = entities.get(casterId);
+      if (!caster) return 0;
+      const targets = targetIds
+        .map((id) => entities.get(id))
+        .filter((entity): entity is EntityView => entity !== undefined);
+      if (targets.length === 0) return 0;
+      const now = performance.now();
+      const reducedMotion = settings.get().reducedMotion;
+      const attackClass: AttackClassId =
+        sprites.attackClass?.(caster.spriteId) ?? "unarmed";
+      // A cast thrown at somebody turns the caster toward them and runs
+      // its weapon's swing; an aura is the caster lighting up where it
+      // stands, so neither happens. Reduced motion keeps the turn and
+      // drops the swing, exactly as a plain attack does.
+      const thrown = castsWithWeapon(fx);
+      const first = targets[0];
+      if (thrown && first && first !== caster) {
+        faceToward(caster, first);
+        if (!reducedMotion) throwAt(caster, first, attackClass, now);
+      }
+      const plan = planAbilityCast(
+        fx,
+        targets.map((entity) => ({
+          entityId: entity.id,
+          order: entity.order ?? 0,
+        })),
+        {
+          castMs: abilityCastMs(fx, attackClass),
+          reducedMotion,
+        },
+      );
+      // Resolved once, here: the plan's order is the order the points
+      // are in, so nothing has to be looked up again while it plays.
+      const byId = new Map(targets.map((entity) => [entity.id, entity]));
+      casts.push({
+        fx,
+        plan,
+        startMs: now,
+        from: muzzlePoint(caster),
+        points: plan.plays.map((play) => {
+          const entity = byId.get(play.entityId) ?? caster;
+          return chestPoint(entity.visual);
+        }),
+      });
+      return plan.sequence.contactMs;
     },
 
     hitFx(targetId: string, options: HitFxOptions = {}): void {
