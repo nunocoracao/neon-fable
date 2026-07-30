@@ -14,7 +14,9 @@ import {
   HEADWEAR_OPTIONS,
   MOUTH_OPTIONS,
 } from "../../data/appearance";
+import { ABILITY_FX, ABILITY_FX_IDS } from "../abilityFx";
 import { ATTACK_CLASS_IDS, attackFrameCount } from "../attack";
+import { STATUS_FAMILY_IDS, STATUS_MARKERS } from "../status";
 import {
   EFFECT_SPRITE_IDS,
   EFFECT_TIMING,
@@ -60,6 +62,8 @@ describe("gallery sections", () => {
       "attacks",
       "reactions",
       "effects",
+      "abilityEffects",
+      "statusMarkers",
       "appearance",
     ]);
     for (const s of sections) {
@@ -211,6 +215,31 @@ describe("gallery sections", () => {
       expect(entry.frameMs, `${entry.id} cadence`).toBe(
         timing.frameCount > 1 ? timing.frameMs : 0,
       );
+    }
+  });
+
+  it("covers every ability archetype at its authored frame count and hold", () => {
+    const effects = section("abilityEffects");
+    expect(effects.entries.length).toBe(ABILITY_FX_IDS.length);
+    for (const id of ABILITY_FX_IDS) {
+      const entry = effects.entries.find((e) => e.id.startsWith(id));
+      expect(entry, `${id} present`).toBeDefined();
+      // The form is on the label: what a cast looks like depends as much
+      // on where it is drawn as on what is drawn.
+      expect(entry?.id, `${id} labeled`).toBe(`${id} (${ABILITY_FX[id].form})`);
+      expect(entry?.frames.length, `${id} frames`).toBe(ABILITY_FX[id].frameCount);
+      expect(entry?.frameMs, `${id} cadence`).toBe(ABILITY_FX[id].frameMs);
+    }
+  });
+
+  it("covers every status marker family, looping at its own hold", () => {
+    const markers = section("statusMarkers");
+    expect(markers.entries.length).toBe(STATUS_FAMILY_IDS.length);
+    for (const id of STATUS_FAMILY_IDS) {
+      const entry = markers.entries.find((e) => e.id === `status ${id} (${STATUS_MARKERS[id].label})`);
+      expect(entry, `${id} present`).toBeDefined();
+      expect(entry?.frames.length, `${id} frames`).toBe(STATUS_MARKERS[id].frameCount);
+      expect(entry?.frameMs, `${id} cadence`).toBe(STATUS_MARKERS[id].frameMs);
     }
   });
 
