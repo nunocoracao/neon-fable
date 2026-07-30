@@ -36,6 +36,20 @@ export {
   type ItemOption,
 } from "./legal";
 export { combatResultFlag, resolveCombat } from "./outcome";
+export {
+  COMBAT_ACTION_KINDS,
+  abilityPreviews,
+  actionAvailabilities,
+  actionAvailability,
+  attackPreview,
+  movePreview,
+  type AbilityPreview,
+  type ActionAvailability,
+  type ActionBlockReason,
+  type AttackPreview,
+  type CombatActionKind,
+  type MovePreview,
+} from "./preview";
 export { PLAYER_COMBATANT_ID, createCombat } from "./setup";
 export {
   activeCombatant,

@@ -46,6 +46,7 @@ import { EFFECT_SPRITE_IDS } from "../impact";
 import { POPUP_KINDS, type PopupKind } from "../popup";
 import { STATUS_FAMILY_IDS, STATUS_MARKERS } from "../status";
 import { ABILITY_FX_ART } from "./abilityEffects";
+import { ACTION_ICON_ART, ACTION_ICON_IDS } from "./actionIcons";
 import { EFFECT_ART } from "./effects";
 import { popupTextGrid, textGrid } from "./popupFont";
 import { STATUS_MARKER_ART } from "./statusMarkers";
@@ -330,6 +331,19 @@ function statusMarkerEntries(): GalleryEntry[] {
       frameMs: art.frames.length > 1 ? art.frameMs : 0,
     };
   });
+}
+
+/**
+ * The combat HUD's action-bar glyphs (./actionIcons.ts). Static, and
+ * the only art in the registry that is painted into DOM rather than
+ * onto the arena — which is exactly why it belongs in the sweep.
+ */
+function actionIconEntries(): GalleryEntry[] {
+  return ACTION_ICON_IDS.map((id) => ({
+    id: `action ${id}`,
+    frames: [ACTION_ICON_ART[id]],
+    frameMs: 0,
+  }));
 }
 
 /**
@@ -702,6 +716,11 @@ const SECTION_BUILDERS: ReadonlyArray<{
     id: "popups",
     title: "Combat readouts (font & popups)",
     build: popupEntries,
+  },
+  {
+    id: "actionIcons",
+    title: "Action-bar icons",
+    build: actionIconEntries,
   },
   { id: "appearance", title: "Appearance layers", build: appearanceEntries },
 ];

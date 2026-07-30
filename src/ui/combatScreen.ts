@@ -6,7 +6,6 @@ import {
   attackOptions,
   chooseEnemyAction,
   createCombat,
-  fleeChanceFor,
   getCombatant,
   isAlive,
   isGlancingBlow,
@@ -17,13 +16,23 @@ import {
   runEnemyTurns,
   takeAction,
   type CombatAction,
+  type CombatActionKind,
   type Combatant,
   type CombatEvent,
   type CombatState,
   type GridPosition,
 } from "../combat";
+import { defaultAppearance } from "../character";
+import { emptyEquipment } from "../inventory";
 import { audio, hitSoundForDamage } from "../audio";
-import { getAbility, getEncounter, getItem, getMap, requireMap } from "../data";
+import {
+  getAbility,
+  getEncounter,
+  getEnemy,
+  getItem,
+  getMap,
+  requireMap,
+} from "../data";
 import {
   createCombatScene,
   createPixelArtSprites,
@@ -38,8 +47,25 @@ import {
   type CombatPopup,
   type PopupContext,
 } from "./combatPopups";
+import {
+  actionForHotkey,
+  actionButtons,
+  initiativeChips,
+  targetCard,
+  type ActionButton,
+  type InitiativeChip,
+  type TargetCard,
+} from "./combatHud";
+import {
+  createActionBar,
+  createInitiativeRail,
+  createTargetCard,
+  type HudView,
+  type InitiativeRailModel,
+} from "./combatHudView";
 import { enemyDeathStyle, enemySpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
+import { portraitCanvas, visualPortraitCanvas } from "./portraits";
 import type { DayPhaseId, IsoMap, TilePoint } from "../iso";
 import { SaveError, loadGame, type GameState } from "../state";
 import { focusFirst, installListNav } from "./focus";
@@ -124,15 +150,24 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
    */
   let conditionBeatMs = 0;
 
+  /**
+   * The body the target card is describing: whatever the pointer is
+   * over (a tile, a chip, a target button), falling back to the first
+   * legal target while a targeting mode is open — opening Attack should
+   * put something in the card, not leave a gap where one goes.
+   */
+  let hoverTargetId: string | null = null;
+
   let topBar: HTMLElement | null = null;
-  let initiativeEl: HTMLElement | null = null;
   let logEl: HTMLElement | null = null;
   let bottomBar: HTMLElement | null = null;
   let statusEl: HTMLElement | null = null;
   let hintEl: HTMLElement | null = null;
   let selectionEl: HTMLElement | null = null;
-  let actionBarEl: HTMLElement | null = null;
   let overlayEl: HTMLElement | null = null;
+  let rail: HudView<InitiativeRailModel> | null = null;
+  let actionBar: HudView<readonly ActionButton[]> | null = null;
+  let targetCardView: HudView<TargetCard | null> | null = null;
 
   function nameOf(id: string): string {
     return displayNames[id] ?? getCombatant(combat!, id)?.name ?? id;
@@ -165,25 +200,30 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
 
   // --- Rendering -------------------------------------------------------
 
+  /**
+   * The portrait for one combatant, from the same appearance data its
+   * sprite is composed from: the player's live look, an enemy's
+   * authored archetype visual. Enemies wear the grim variant — a chip
+   * in an initiative rail is a face across a fight, not a conversation.
+   */
+  function combatantPortrait(
+    view: { kind: "player" | "enemy"; enemyId: string | null },
+  ): HTMLCanvasElement {
+    if (view.kind === "player") {
+      const { appearance, equipment } = session.state.player;
+      return portraitCanvas(appearance, equipment);
+    }
+    const visual = getEnemy(view.enemyId ?? "")?.visual;
+    return visual
+      ? visualPortraitCanvas(visual, "grim")
+      : portraitCanvas(defaultAppearance(), emptyEquipment(), "grim");
+  }
+
   function renderInitiative(): void {
-    if (!initiativeEl || !combat) return;
-    initiativeEl.replaceChildren();
-    const round = document.createElement("span");
-    round.className = "nf-init-round";
-    round.textContent = `Round ${combat.round}`;
-    initiativeEl.append(round);
-    combat.initiativeOrder.forEach((id, index) => {
-      const combatant = getCombatant(combat!, id);
-      if (!combatant) return;
-      const chip = document.createElement("span");
-      chip.className = "nf-init-chip";
-      if (combatant.kind === "player") chip.classList.add("nf-init-player");
-      if (!isAlive(combatant)) chip.classList.add("nf-init-dead");
-      if (combat!.status === "active" && index === combat!.turnIndex) {
-        chip.classList.add("nf-init-active");
-      }
-      chip.textContent = nameOf(id);
-      initiativeEl!.append(chip);
+    if (!rail || !combat) return;
+    rail.update({
+      round: combat.round,
+      chips: initiativeChips(combat, displayNames),
     });
   }
 
@@ -205,54 +245,33 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     }
   }
 
-  function actionButton(
-    label: string,
-    enabled: boolean,
-    onClick: () => void,
-  ): HTMLButtonElement {
-    const button = document.createElement("button");
-    button.className = "nf-button nf-button-small";
-    button.textContent = label;
-    button.disabled = !enabled;
-    button.addEventListener("click", onClick);
-    return button;
+  function renderActionBar(): void {
+    if (!actionBar || !combat) return;
+    actionBar.update(actionButtons(combat, { busy }));
   }
 
-  function renderActionBar(): void {
-    if (!actionBarEl || !combat) return;
-    actionBarEl.replaceChildren();
-    const canAct = playerCanAct();
-    const fleeChance = combat ? fleeChanceFor(combat) : null;
-    const entries: Array<[string, boolean, () => void]> = [
-      [
-        "Attack",
-        canAct && attackOptions(combat).length > 0,
-        () => switchMode({ kind: "attack" }),
-      ],
-      [
-        "Ability",
-        canAct && abilityOptions(combat).some((o) => o.targets.length > 0),
-        () => switchMode({ kind: "ability", abilityId: null }),
-      ],
-      [
-        "Item",
-        canAct && itemOptions(combat).length > 0,
-        () => switchMode({ kind: "item" }),
-      ],
-      [
-        "Move",
-        canAct && reachableTiles(combat).length > 0,
-        () => switchMode({ kind: "move" }),
-      ],
-      [
-        fleeChance !== null ? `Flee (${percentLabel(fleeChance)})` : "Flee",
-        canAct && fleeChance !== null,
-        () => apply({ type: "flee" }),
-      ],
-      ["End Turn", canAct, () => apply({ type: "end-turn" })],
-    ];
-    for (const [label, enabled, onClick] of entries) {
-      actionBarEl.append(actionButton(label, enabled, onClick));
+  /** Runs an action-bar button: a mode to enter, or an action to submit. */
+  function invokeAction(kind: CombatActionKind): void {
+    if (!combat || !playerCanAct()) return;
+    switch (kind) {
+      case "attack":
+        switchMode({ kind: "attack" });
+        return;
+      case "ability":
+        switchMode({ kind: "ability", abilityId: null });
+        return;
+      case "item":
+        switchMode({ kind: "item" });
+        return;
+      case "move":
+        switchMode({ kind: "move" });
+        return;
+      case "flee":
+        apply({ type: "flee" });
+        return;
+      case "end-turn":
+        apply({ type: "end-turn" });
+        return;
     }
   }
 
@@ -260,13 +279,56 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     label: string,
     onClick: () => void,
     enabled = true,
+    targetId: string | null = null,
   ): HTMLButtonElement {
     const button = document.createElement("button");
     button.className = "nf-choice";
     button.textContent = label;
     button.disabled = !enabled;
     button.addEventListener("click", onClick);
+    // A target button inspects what it would hit, by pointer or by tab.
+    if (targetId !== null) {
+      const show = (): void => inspect(targetId);
+      const clear = (): void => inspect(null);
+      button.addEventListener("mouseenter", show);
+      button.addEventListener("focus", show);
+      button.addEventListener("mouseleave", clear);
+      button.addEventListener("blur", clear);
+    }
     return button;
+  }
+
+  /** Points the target card at a body (or lets it fall back). */
+  function inspect(combatantId: string | null): void {
+    hoverTargetId = combatantId;
+    renderTargetCard();
+  }
+
+  /**
+   * The body the card describes when nothing is being pointed at: the
+   * first thing the open targeting mode could hit, so choosing a target
+   * always has its stats on screen beside the choice.
+   */
+  function fallbackTargetId(): string | null {
+    if (!combat || !playerCanAct()) return null;
+    if (mode.kind === "attack") {
+      return attackOptions(combat)[0]?.targetId ?? null;
+    }
+    if (mode.kind === "ability" && mode.abilityId !== null) {
+      const abilityId = mode.abilityId;
+      const option = abilityOptions(combat).find(
+        (o) => o.abilityId === abilityId,
+      );
+      return option?.targets[0]?.targetId ?? null;
+    }
+    return null;
+  }
+
+  function renderTargetCard(): void {
+    if (!targetCardView || !combat) return;
+    targetCardView.update(
+      targetCard(combat, hoverTargetId ?? fallbackTargetId(), displayNames),
+    );
   }
 
   function renderSelection(): void {
@@ -294,6 +356,8 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
               `${nameOf(option.targetId)} — ${percentLabel(option.hitChance)} ` +
                 `to hit · ${option.damage} dmg`,
               () => apply({ type: "attack", targetId: option.targetId }),
+              true,
+              option.targetId,
             ),
           );
         }
@@ -342,6 +406,8 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
                   abilityId: selectedId,
                   targetId: target.targetId,
                 }),
+              true,
+              target.targetId,
             ),
           );
         }
@@ -585,13 +651,18 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     renderStatus();
     renderActionBar();
     renderSelection();
+    renderTargetCard();
     refreshHighlights();
     if (combat && combat.status !== "active") showOutcome();
   }
 
   function switchMode(next: Mode): void {
     mode = next;
+    // A new mode targets new bodies; whatever was under the pointer in
+    // the old one is not what the card should be describing.
+    hoverTargetId = null;
     renderSelection();
+    renderTargetCard();
     refreshHighlights();
   }
 
@@ -687,6 +758,16 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
 
   function onTileHover(tile: TilePoint | null): void {
     if (!scene || !combat) return;
+    // Pointing anywhere in the arena inspects whoever is standing there,
+    // in or out of a targeting mode — the card is how you read a body.
+    inspect(
+      tile === null
+        ? null
+        : combat.combatants.find(
+            (c) =>
+              isAlive(c) && c.position.x === tile.x && c.position.y === tile.y,
+          )?.id ?? null,
+    );
     if (!playerCanAct() || mode.kind !== "move" || tile === null) {
       scene.setHighlights({ hover: tile, path: [] });
       return;
@@ -708,6 +789,18 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       return;
     }
     if (!combat || !playerCanAct()) return;
+    // Number keys run the action bar, in the order the bar shows them.
+    const hotkeyAction = actionForHotkey(event.key);
+    if (hotkeyAction !== null) {
+      const button = actionButtons(combat, { busy }).find(
+        (b) => b.kind === hotkeyAction,
+      );
+      if (button?.enabled) {
+        event.preventDefault();
+        invokeAction(hotkeyAction);
+      }
+      return;
+    }
     const deltas: Record<string, GridPosition> = {
       ArrowRight: { x: 1, y: 0 },
       ArrowLeft: { x: -1, y: 0 },
@@ -921,14 +1014,21 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       const title = document.createElement("div");
       title.className = "nf-combat-title";
       title.textContent = encounter.name;
-      initiativeEl = document.createElement("div");
-      initiativeEl.className = "nf-initiative";
-      topBar.append(title, initiativeEl);
+      rail = createInitiativeRail({
+        portrait: (chip: InitiativeChip) => combatantPortrait(chip),
+        onHover: inspect,
+      });
+      topBar.append(title, rail.el);
       root.append(topBar);
 
       logEl = document.createElement("div");
       logEl.className = "nf-combat-log";
       root.append(logEl);
+
+      targetCardView = createTargetCard({
+        portrait: (card: TargetCard) => combatantPortrait(card),
+      });
+      root.append(targetCardView.el);
 
       bottomBar = document.createElement("div");
       bottomBar.className = "nf-combat-bottom";
@@ -938,9 +1038,8 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       hintEl.className = "nf-combat-hint";
       selectionEl = document.createElement("div");
       selectionEl.className = "nf-combat-selection";
-      actionBarEl = document.createElement("div");
-      actionBarEl.className = "nf-action-bar";
-      bottomBar.append(statusEl, hintEl, selectionEl, actionBarEl);
+      actionBar = createActionBar({ onInvoke: invokeAction });
+      bottomBar.append(statusEl, hintEl, selectionEl, actionBar.el);
       root.append(bottomBar);
 
       window.addEventListener("keydown", onKeyDown);
@@ -961,16 +1060,19 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       topBar?.remove();
       logEl?.remove();
       bottomBar?.remove();
+      targetCardView?.el.remove();
       overlayEl?.remove();
       topBar = null;
-      initiativeEl = null;
       logEl = null;
       bottomBar = null;
       statusEl = null;
       hintEl = null;
       selectionEl = null;
-      actionBarEl = null;
       overlayEl = null;
+      rail = null;
+      actionBar = null;
+      targetCardView = null;
+      hoverTargetId = null;
       if (root) {
         root.style.pointerEvents = "";
         root = null;

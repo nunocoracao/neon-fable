@@ -12,7 +12,9 @@ import {
   composePortrait,
   defaultAppearance,
   portraitKey,
+  visualEquipment,
   type Appearance,
+  type CharacterVisual,
 } from "../character";
 import type { ExpressionId } from "../data/appearance";
 import type { EquipmentState } from "../inventory/equipment";
@@ -61,4 +63,21 @@ export function portraitCanvas(
   el.height = PORTRAIT_FRAME.height * ART_SCALE;
   el.getContext("2d")?.drawImage(baked.image, 0, 0);
   return el;
+}
+
+/**
+ * The portrait for an authored non-player look — a named NPC, an enemy
+ * archetype — through the same bake and cache as the player's. Gear on
+ * a visual resolves exactly like equipment, so an enemy's coat and
+ * optics show in its portrait the way they show on its sprite.
+ */
+export function visualPortraitCanvas(
+  visual: CharacterVisual,
+  expression: ExpressionId = "neutral",
+): HTMLCanvasElement {
+  return portraitCanvas(
+    visual.appearance,
+    visualEquipment(visual),
+    expression,
+  );
 }
