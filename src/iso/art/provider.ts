@@ -6,7 +6,6 @@
  * helpers in ../animation, so frame choice is testable without a canvas.
  */
 import {
-  bodyFrameAt,
   frameAt,
   hash2,
   propFrameAt,
@@ -14,6 +13,7 @@ import {
   variantIndex,
   type MotionState,
 } from "../animation";
+import { selectMotionFrame, type AttackClassId } from "../attack";
 import type {
   EntityPose,
   EntitySpriteId,
@@ -31,6 +31,7 @@ import {
 import { INTERACTABLE_ART } from "./interactables";
 import { BODY_FRAME } from "./layers/body";
 import {
+  attackClassFor,
   composedCharacterGrid,
   composedFrameKey,
   type ComposedCharacter,
@@ -177,15 +178,22 @@ export function createPixelArtSprites(
       ? player()
       : options?.entity?.(id) ?? FALLBACK_CHARACTER;
 
-  function composedPose(pose: EntityPose): { state: MotionState; frame: number } {
-    const state: MotionState = pose.moving ? "walk" : "idle";
-    return { state, frame: bodyFrameAt(state, pose.timeMs) };
+  /**
+   * Which frame of which set a pose shows. The attack sets are per
+   * weapon class, so the choice needs the descriptor — the same
+   * descriptor the bake key already serializes.
+   */
+  function composedPose(
+    descriptor: ComposedCharacter,
+    pose: EntityPose,
+  ): { state: MotionState; frame: number } {
+    return selectMotionFrame(attackClassFor(descriptor), pose);
   }
 
   // Bake keys serialize the descriptor itself, so entities that look
   // alike (three of the same enemy archetype) share one baked canvas.
   function composedSprite(descriptor: ComposedCharacter, pose: EntityPose): Sprite {
-    const { state, frame } = composedPose(pose);
+    const { state, frame } = composedPose(descriptor, pose);
     return cached(
       `entity:${composedFrameKey(descriptor, pose.facing, state, frame)}`,
       () =>
@@ -276,7 +284,7 @@ export function createPixelArtSprites(
         // exactly on the shape it is tracing.
         const phase = hash2(x, y) % 1000;
         const descriptor = options?.npc?.(x, y) ?? FALLBACK_CHARACTER;
-        const { state, frame } = composedPose({
+        const { state, frame } = composedPose(descriptor, {
           facing: "s",
           moving: false,
           timeMs: timeMs + phase,
@@ -305,9 +313,13 @@ export function createPixelArtSprites(
       return composedSprite(descriptorFor(id), pose);
     },
 
+    attackClass(id: EntitySpriteId): AttackClassId {
+      return attackClassFor(descriptorFor(id));
+    },
+
     entitySilhouette(id: EntitySpriteId, pose: EntityPose): Sprite {
       const descriptor = descriptorFor(id);
-      const { state, frame } = composedPose(pose);
+      const { state, frame } = composedPose(descriptor, pose);
       return untinted(
         `flash:${composedFrameKey(descriptor, pose.facing, state, frame)}`,
         () =>
