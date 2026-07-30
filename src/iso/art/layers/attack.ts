@@ -52,10 +52,16 @@
  * amber pair m/n for muzzle flash — fire is its own light, not a
  * material, so it deliberately sits outside the accent remap.
  */
+import type { Facing } from "../../animation";
 import type { AttackClassId } from "../../attack";
-import { attackFrameCount } from "../../attack";
+import { ATTACK_TIMING, attackFrameCount } from "../../attack";
 import { rowsShifted, type PixelGrid } from "../pixel";
-import { BODY_FRAME, type BodyBuildId, type BodyViewId } from "./body";
+import {
+  BODY_FRAME,
+  bodyViewForFacing,
+  type BodyBuildId,
+  type BodyViewId,
+} from "./body";
 
 /**
  * Rows/cols (inclusive) an attack frame's weapon pixels may occupy.
@@ -644,4 +650,64 @@ export function attackFrameShift(
   const authored = requireFrame(attackClass, frame);
   const tilted = leaned(grid, authored.leanX);
   return authored.sink === true ? sunk(tilted) : tilted;
+}
+
+/**
+ * Where a class's blow leaves the character: the art pixel a shot is
+ * fired from, on the frame the class fires (ATTACK_TIMING.impactFrame).
+ *
+ * Authored at the lean build's hand window in the front view, exactly
+ * like the strokes themselves, and pinned by a test to the flash pixel
+ * the frame already lights there — so the tracer starts at the same
+ * muzzle the sprite's own fire frame burns at, not near it.
+ *
+ * Classes that fire nothing carry no point: their blow leaves the fist,
+ * which the hand contract (BODY_FRAME.hands plus the frame's own reach)
+ * already says where to find.
+ */
+export const MUZZLE_POINTS: Readonly<
+  Partial<Record<AttackClassId, { readonly x: number; readonly y: number }>>
+> = {
+  pistol: { x: 28, y: 23 },
+  rifle: { x: 27, y: 22 },
+};
+
+/**
+ * The muzzle (or the fist) on a class's impact frame, in art pixels of
+ * the front view, with the frame's own lean and landed weight applied —
+ * the same transforms attackFrameShift moves the drawn weapon by, so
+ * the point tracks the picture rather than the un-shifted strokes.
+ */
+function muzzleArtPoint(
+  attackClass: AttackClassId,
+  build: BodyBuildId,
+): { x: number; y: number } {
+  const frame = requireFrame(attackClass, ATTACK_TIMING[attackClass].impactFrame);
+  const authored = MUZZLE_POINTS[attackClass];
+  const hands = BODY_FRAME.hands[build];
+  const [, outer = 21] = hands.right;
+  const [, bottom = 30] = hands.rows;
+  const base = authored
+    ? { x: authored.x + BUILD_SHIFT[build], y: authored.y }
+    : { x: outer + frame.handDx, y: bottom + frame.handDy };
+  return {
+    x: base.x + frame.leanX,
+    y: base.y + (frame.sink === true ? 1 : 0),
+  };
+}
+
+/**
+ * Where a facing puts the muzzle, in art pixels of the composed frame.
+ * South and west mirror the whole figure (see bodyViewForFacing), so the
+ * muzzle mirrors with it: a gun fired east leaves the frame's right
+ * edge, the same gun fired west leaves its left.
+ */
+export function muzzlePoint(
+  attackClass: AttackClassId,
+  build: BodyBuildId,
+  facing: Facing,
+): { x: number; y: number } {
+  const { x, y } = muzzleArtPoint(attackClass, build);
+  const { flip } = bodyViewForFacing(facing);
+  return { x: flip ? BODY_FRAME.width - 1 - x : x, y };
 }
