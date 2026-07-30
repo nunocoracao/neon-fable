@@ -15,6 +15,7 @@ import {
   shakeOffsetPx,
   tilePhaseMs,
   variantIndex,
+  smoothStep01,
 } from "./animation";
 
 describe("facingFromDelta", () => {
@@ -254,5 +255,33 @@ describe("bodyFrameAt / BODY_TIMING", () => {
       bodyFrameAt("idle", i * frameMs),
     );
     expect(seen).toEqual([0, 1, 2, 3, 0]);
+  });
+});
+
+describe("smoothStep01", () => {
+  it("runs 0 to 1 across the unit interval and clamps outside it", () => {
+    expect(smoothStep01(0)).toBe(0);
+    expect(smoothStep01(1)).toBe(1);
+    expect(smoothStep01(0.5)).toBeCloseTo(0.5, 10);
+    expect(smoothStep01(-3)).toBe(0);
+    expect(smoothStep01(7)).toBe(1);
+  });
+
+  it("eases at both ends and gathers through the middle", () => {
+    const step = (from: number, to: number): number =>
+      smoothStep01(to) - smoothStep01(from);
+    expect(step(0.4, 0.6)).toBeGreaterThan(step(0, 0.2) * 1.5);
+    expect(step(0.4, 0.6)).toBeGreaterThan(step(0.8, 1) * 1.5);
+    // Symmetric about the midpoint: it settles exactly as it gathered.
+    expect(step(0, 0.2)).toBeCloseTo(step(0.8, 1), 10);
+  });
+
+  it("never goes backwards", () => {
+    let previous = -Infinity;
+    for (let t = 0; t <= 1; t += 0.01) {
+      const value = smoothStep01(t);
+      expect(value).toBeGreaterThanOrEqual(previous);
+      previous = value;
+    }
   });
 });

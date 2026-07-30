@@ -41,6 +41,18 @@ export function pulse01(timeMs: number, periodMs: number): number {
   return phase < 0.5 ? phase * 2 : 2 - phase * 2;
 }
 
+/**
+ * Smoothstep across the unit interval: eased at both ends, quickest
+ * through the middle. Set-piece traversals ride this rather than a
+ * linear ramp, so something crossing the frame reads as sweeping past —
+ * gathering through the middle of its span and easing off at the edges
+ * — instead of sliding at one flat rate.
+ */
+export function smoothStep01(t: number): number {
+  const p = clamp01(t);
+  return p * p * (3 - 2 * p);
+}
+
 /** Deterministic 2D integer hash with well-mixed low bits. */
 export function hash2(x: number, y: number): number {
   let h = (x | 0) * 374761393 + (y | 0) * 668265263;
