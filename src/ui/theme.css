@@ -1206,10 +1206,17 @@ body::after {
   border: 2px solid var(--nf-border);
 }
 
+/* --- Initiative rail ---
+   Portrait chips in fixed initiative order. Only three things move: the
+   active chip grows, defeated chips grey out and collapse to a stub, and
+   the turn badge counts down. Portrait sizes are exact integer divisors
+   of the 96px bake (96 / 3 = 32, 96 / 2 = 48) so no chip ever shows a
+   half-scaled pixel. */
+
 .nf-initiative {
   display: flex;
-  align-items: center;
-  gap: 0.4rem;
+  align-items: flex-end;
+  gap: 0.35rem;
   flex-wrap: wrap;
 }
 
@@ -1225,30 +1232,138 @@ body::after {
 }
 
 .nf-init-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  width: 4.5rem;
+  padding: 0.25rem;
   font-family: var(--nf-font-display);
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  padding: 0.3rem 0.5rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
   color: var(--nf-ink-dim);
   background: rgba(18, 18, 31, 0.85);
   border: 2px solid var(--nf-border);
+  pointer-events: auto;
+  transition:
+    width 160ms steps(4, end),
+    border-color 120ms ease;
+}
+
+.nf-init-portrait {
+  position: relative;
+  line-height: 0;
+}
+
+/* Framed with an outline, not a border: box-sizing is border-box
+   globally, and a border would eat into the content box and leave the
+   96px bake at a fractional scale. An outline is outside the box. */
+.nf-init-portrait canvas.nf-portrait {
+  width: 32px;
+  height: 32px;
+  border: none;
+  outline: 1px solid var(--nf-border);
+}
+
+/* How many turns off this combatant is; "NOW" for whoever is up. */
+.nf-init-turn {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  padding: 0 2px;
+  font-size: 0.55rem;
+  line-height: 1.4;
+  letter-spacing: 0.05em;
+  color: var(--nf-ink-dim);
+  background: var(--nf-bg-deep);
+  border: 1px solid var(--nf-border);
+}
+
+.nf-init-statuses {
+  position: absolute;
+  left: -3px;
+  bottom: -3px;
+  display: flex;
+  gap: 1px;
+}
+
+.nf-init-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nf-init-hp {
+  width: 100%;
+  height: 4px;
+  background: var(--nf-outline);
+  border: 1px solid var(--nf-border);
+}
+
+.nf-init-hp-fill {
+  height: 100%;
+  background: var(--nf-glow-cyan);
 }
 
 .nf-init-player {
   color: var(--nf-glow-cyan);
 }
 
+/* The combatant acting now: bigger portrait, lit border, name in full ink. */
 .nf-init-active {
+  width: 5.5rem;
   border-color: var(--nf-glow-cyan);
   box-shadow: 2px 2px 0 rgba(20, 102, 95, 0.8);
   color: var(--nf-ink);
 }
 
-/* Dead combatants: strikethrough carries the state, dimming stays
-   mild enough that the name is still legible. */
+.nf-init-active .nf-init-portrait canvas.nf-portrait {
+  width: 48px;
+  height: 48px;
+  outline-color: var(--nf-glow-cyan);
+}
+
+.nf-init-active .nf-init-turn {
+  color: var(--nf-bg-deep);
+  background: var(--nf-glow-cyan);
+  border-color: var(--nf-glow-cyan);
+}
+
+/* Defeated: the colour drains out and the chip collapses to a stub that
+   still holds its place in the order. */
 .nf-init-dead {
-  opacity: 0.6;
+  width: 2.6rem;
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+
+.nf-init-dead .nf-init-portrait canvas.nf-portrait {
+  width: 24px;
+  height: 24px;
+}
+
+.nf-init-dead .nf-init-name {
   text-decoration: line-through;
+  font-size: 0.55rem;
+}
+
+
+/* --- Condition badges ---
+   Frame zero of the arena's own status marker, at half its bake so the
+   pixels stay square. */
+
+.nf-status-badge {
+  display: inline-flex;
+  padding: 1px;
+  line-height: 0;
+  background: rgba(5, 6, 12, 0.85);
+  border: 1px solid var(--nf-border);
+}
+
+canvas.nf-status-glyph {
+  width: 11px;
+  height: 11px;
 }
 
 .nf-combat-log {
@@ -1314,6 +1429,10 @@ body::after {
   pointer-events: auto;
 }
 
+/* --- Action bar ---
+   Icon, name, hotkey. A disabled button keeps its title attribute, which
+   is the reason it is disabled — nothing greys out silently. */
+
 .nf-action-bar {
   display: flex;
   gap: 0.5rem;
@@ -1321,8 +1440,183 @@ body::after {
   justify-content: center;
 }
 
-.nf-action-bar .nf-button {
+.nf-action-button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 4.75rem;
+  padding: 0.35rem 0.5rem 0.3rem;
+  font-family: var(--nf-font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nf-ink);
+  background: var(--nf-bg-raised);
+  border: 2px solid var(--nf-border);
+  box-shadow: var(--nf-shadow-hard);
+  cursor: pointer;
   pointer-events: auto;
+}
+
+.nf-action-button:hover:not(:disabled),
+.nf-action-button:focus-visible {
+  border-color: var(--nf-glow-cyan);
+  color: var(--nf-glow-cyan);
+  outline: none;
+}
+
+.nf-action-button:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 rgba(5, 6, 12, 0.65);
+}
+
+.nf-action-button:disabled {
+  color: var(--nf-ink-dim);
+  background: var(--nf-bg-panel);
+  border-color: var(--nf-outline);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* The glyph fades with the button but never blurs. */
+.nf-action-icon {
+  line-height: 0;
+}
+
+canvas.nf-action-glyph {
+  width: 16px;
+  height: 16px;
+}
+
+.nf-action-button:disabled canvas.nf-action-glyph {
+  opacity: 0.4;
+}
+
+.nf-action-label {
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.nf-action-hotkey {
+  position: absolute;
+  top: -1px;
+  right: 2px;
+  font-size: 0.55rem;
+  color: var(--nf-glow-amber);
+}
+
+.nf-action-button:disabled .nf-action-hotkey {
+  color: var(--nf-ink-dim);
+}
+
+/* --- Target card ---
+   Whoever the pointer is on, and what your weapon would do about it. */
+
+/* Under the log, on the readouts side of the screen: the right column
+   is what the fight is telling you, the bottom bar is what you tell it.
+   Offset by the log's own maximum extent so the two never collide. */
+.nf-target-card {
+  position: fixed;
+  right: 1rem;
+  top: calc(4rem + 40vh + 0.75rem);
+  display: flex;
+  gap: 0.6rem;
+  width: min(17rem, 45vw);
+  padding: 0.5rem 0.6rem;
+  background: rgba(18, 18, 31, 0.9);
+  border: 2px solid var(--nf-border);
+  box-shadow: var(--nf-shadow-hard);
+  pointer-events: none;
+  animation: nf-fade-in 140ms ease both;
+}
+
+.nf-target-card[hidden] {
+  display: none;
+}
+
+.nf-target-portrait {
+  line-height: 0;
+}
+
+.nf-target-portrait canvas.nf-portrait {
+  width: 48px;
+  height: 48px;
+  border: none;
+  outline: 2px solid var(--nf-border);
+}
+
+.nf-target-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.nf-target-name {
+  font-family: var(--nf-font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  color: var(--nf-glow-magenta);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nf-target-hp {
+  height: 6px;
+  background: var(--nf-outline);
+  border: 1px solid var(--nf-border);
+}
+
+.nf-target-hp-fill {
+  height: 100%;
+  background: var(--nf-glow-cyan);
+}
+
+/* HP colour is a step, not a gradient: the HUD has no soft edges. */
+.nf-init-hp-fill[data-band="mid"],
+.nf-target-hp-fill[data-band="mid"] {
+  background: var(--nf-glow-amber);
+}
+
+.nf-init-hp-fill[data-band="low"],
+.nf-target-hp-fill[data-band="low"] {
+  background: var(--nf-danger);
+}
+
+.nf-target-hp-text,
+.nf-target-stats {
+  font-size: 0.68rem;
+  color: var(--nf-ink-dim);
+}
+
+.nf-target-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.nf-target-attack {
+  font-family: var(--nf-font-display);
+  font-size: 0.68rem;
+  color: var(--nf-glow-amber);
+}
+
+.nf-target-statuses {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.1rem;
+}
+
+/* On a cramped screen the arena wins: the card is a convenience, the
+   log and the action bar are not. */
+@media (max-width: 720px), (max-height: 540px) {
+  .nf-target-card {
+    display: none;
+  }
 }
 
 .nf-combat-outcome {
