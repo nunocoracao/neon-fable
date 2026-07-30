@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { TILE_H, TILE_W, screenToTile, worldToScreen } from "../coords";
 import { INTERIOR_FLOOR_IDS, TRIM_EDGES } from "../tilemap";
 import {
+  ACTION_ICON_ART,
+  ACTION_ICON_IDS,
+  ACTION_ICON_SIZE,
+} from "./actionIcons";
+import {
   INTERACTABLE_ART,
   hasOpeningArt,
   openingFrames,
@@ -1468,5 +1473,39 @@ describe("set-piece art", () => {
     expect(feet[feet.length - 1]).toBeLessThan(
       SETPIECE_ART["steam-burst"].anchorY - 10,
     );
+  });
+});
+
+describe("action-bar icons", () => {
+  it("registers a valid square glyph for every action", () => {
+    expect(Object.keys(ACTION_ICON_ART).sort()).toEqual(
+      [...ACTION_ICON_IDS].sort(),
+    );
+    for (const id of ACTION_ICON_IDS) {
+      const grid = ACTION_ICON_ART[id];
+      expectValid(grid, `action icon ${id}`);
+      expect(grid.length, `${id} height`).toBe(ACTION_ICON_SIZE);
+      expect(grid[0]?.length, `${id} width`).toBe(ACTION_ICON_SIZE);
+      expect(paintedRows(grid).length, `${id} paints`).toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps every glyph clear of the frame edge, so buttons can crop none of it", () => {
+    for (const id of ACTION_ICON_IDS) {
+      const grid = ACTION_ICON_ART[id];
+      const rows = paintedRows(grid);
+      expect(Math.min(...rows), `${id} top margin`).toBeGreaterThan(0);
+      expect(Math.max(...rows), `${id} bottom margin`).toBeLessThan(
+        ACTION_ICON_SIZE - 1,
+      );
+    }
+  });
+
+  it("carries no ground shadow — a button face is not standing on anything", () => {
+    for (const id of ACTION_ICON_IDS) {
+      expect(ACTION_ICON_ART[id].join("").includes("z"), `${id} shadow`).toBe(
+        false,
+      );
+    }
   });
 });

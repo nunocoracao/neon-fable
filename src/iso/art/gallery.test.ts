@@ -27,6 +27,7 @@ import { REACTION_KINDS, reactionFrameCount } from "../reaction";
 import { enemies } from "../../data/enemies";
 import { items } from "../../data/items";
 import { maps } from "../../data/maps";
+import { ACTION_ICON_IDS } from "./actionIcons";
 import { INTERACTABLE_ART } from "./interactables";
 import { SETPIECE_ART } from "./setpieces";
 import { BODY_BUILD_IDS } from "./layers/body";
@@ -65,6 +66,7 @@ describe("gallery sections", () => {
       "abilityEffects",
       "statusMarkers",
       "popups",
+      "actionIcons",
       "appearance",
     ]);
     for (const s of sections) {
@@ -241,6 +243,17 @@ describe("gallery sections", () => {
       expect(entry, `${id} present`).toBeDefined();
       expect(entry?.frames.length, `${id} frames`).toBe(STATUS_MARKERS[id].frameCount);
       expect(entry?.frameMs, `${id} cadence`).toBe(STATUS_MARKERS[id].frameMs);
+    }
+  });
+
+  it("covers every action-bar icon, one static glyph each", () => {
+    const icons = section("actionIcons");
+    expect(icons.entries.map((e) => e.id)).toEqual(
+      ACTION_ICON_IDS.map((id) => `action ${id}`),
+    );
+    for (const entry of icons.entries) {
+      expect(entry.frames.length, `${entry.id} frames`).toBe(1);
+      expect(entry.frameMs, `${entry.id} is static`).toBe(0);
     }
   });
 
