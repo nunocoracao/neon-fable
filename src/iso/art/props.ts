@@ -928,17 +928,16 @@ export const isoBox = (w: number, wallH: number, ink: BoxInk): string[] => {
       } else if (x === from || x === to - 1) {
         row += ink.ink;
       } else if (top && x >= top[0] && x < top[1]) {
-        // Top face: lit along its upper-left rim, shaded on the far one,
-        // with seams running along one axis of the iso grain.
-        const seam = ink.grain !== undefined && (x - 2 * y + 4 * w) % 10 === 0;
-        row +=
-          x < top[0] + 2
-            ? ink.rim
-            : x >= top[1] - 2
-              ? ink.left
-              : seam
-                ? ink.grain ?? ink.top
-                : ink.top;
+        // Top face: lit along its upper-left rim, a darker step on the
+        // far one, and between them the surface, seamed along one axis
+        // of the iso grain where the box asks for planking.
+        const surface =
+          ink.grain !== undefined && (x - 2 * y + 4 * w) % 10 === 0
+            ? ink.grain
+            : ink.top;
+        if (x < top[0] + 2) row += ink.rim;
+        else if (x >= top[1] - 2) row += ink.left;
+        else row += surface;
       } else {
         row += x < w / 2 ? ink.left : ink.right;
       }
