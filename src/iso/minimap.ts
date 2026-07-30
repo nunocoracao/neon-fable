@@ -6,7 +6,7 @@
  * rectangles where this module says to, so every position here is
  * testable without a canvas.
  *
- * Fog-free, by decision: no map in the game is larger than ~16x13 tiles
+ * Fog-free, by decision: no map in the game is larger than ~18x15 tiles
  * and every one is fully reachable from its spawn (pinned by the map
  * lint in src/data/maps.test.ts), so a fog-of-war layer would buy no
  * navigational tension while costing per-map explored state in every

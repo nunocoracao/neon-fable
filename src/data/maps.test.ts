@@ -21,7 +21,7 @@ import {
   minimapPipKind,
   minimapPips,
 } from "../iso/minimap";
-import { REFLECTION_RANGE } from "../iso/glowPass";
+import { REFLECTION_RANGE, collectGlowPlacements } from "../iso/glowPass";
 import { findPath, findPathToAdjacent } from "../iso/path";
 import { resolveDayPhase } from "../iso/dayPhase";
 import {
@@ -42,7 +42,12 @@ import {
   type TileId,
 } from "../iso/tilemap";
 import type { TilePoint } from "../iso/coords";
-import { puddleTiles, tileHoldsWater } from "../iso/weather";
+import {
+  puddleTiles,
+  resolveWeather,
+  tileHoldsWater,
+  type WeatherView,
+} from "../iso/weather";
 import { encounters, getEncounter } from "./encounters";
 import { getItem } from "./items";
 import { HUB_MAP_ID, getMap, maps, requireMap } from "./maps";
@@ -491,6 +496,27 @@ describe("the Flooded Quays", () => {
     );
     expect(materials.filter((m) => m === "water").length).toBe(3);
     expect(materials.filter((m) => m === "pavement").length).toBe(3);
+  });
+
+  it("actually pools its light on the basin, rain and all", () => {
+    // The mood, through the real pipeline rather than by inspection:
+    // resolve the map's weather, collect a frame of glow at its own
+    // hour, and check the emissive pass put reflections down on open
+    // canal — and more of them than the hub's little storm canal gets.
+    const weather = resolveWeather(quays, { enabled: true });
+    expect(weather?.id).toBe("rain");
+    const onWater = (map: IsoMap, view: WeatherView | null): number =>
+      collectGlowPlacements(map, 0, view, resolveDayPhase(map)).filter(
+        (glow) => tileMaterial(map.tiles[glow.y]?.[glow.x] ?? "pavement") === "water",
+      ).length;
+    expect(onWater(quays, weather)).toBeGreaterThan(20);
+    const hub = requireMap(HUB_MAP_ID);
+    expect(onWater(quays, weather)).toBeGreaterThan(
+      onWater(hub, resolveWeather(hub, { enabled: true })),
+    );
+    // Puddles standing on the boards, too: the second wet surface the
+    // same pass reflects off.
+    expect(puddleTiles(quays).size).toBeGreaterThan(4);
   });
 
   it("stands its lamps where the water can take their reflection", () => {

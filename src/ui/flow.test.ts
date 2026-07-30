@@ -1108,6 +1108,60 @@ describe("the Vertical Market round trip", () => {
   });
 });
 
+/**
+ * The Flooded Quays round trip, driven through the real screens: the
+ * hub's lockgate down and the Lockgate Stair back up. Same shape as the
+ * market's trip, and worth exercising separately because this is the
+ * district that arrives under weather — the map behind the transition
+ * is a rainy one, and it has to come up as the map, not as a mood.
+ */
+describe("the Flooded Quays round trip", () => {
+  function mountOn(location: string, dialogueNodeId?: string): void {
+    const state: GameState = { ...testCharacterState(1), location };
+    showScreen(
+      createGameScreen({ session: createSession(state), dialogueNodeId }),
+    );
+  }
+
+  it("goes down the lockgate out of the hub", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    mountOn("cinder-plaza", "fq-lock");
+    expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
+
+    click("Take the stair down to the water");
+    vi.advanceTimersByTime(transitionSwapMs(TRANSITION_TIMING));
+    expect(textOf(".nf-transition-card")).toMatch(/The Flooded Quays/);
+    expect(textOf(".nf-hud-status")).toMatch(/The Flooded Quays/);
+
+    vi.advanceTimersByTime(transitionDurationMs(TRANSITION_TIMING));
+    expect(document.querySelector(".nf-transition")).toBeNull();
+    // Travel carried the arrival beat with it, and the whole district is
+    // offered by name from it.
+    expect(textOf(".nf-dialogue")).toMatch(/no more ground/);
+    expect(buttonByText("Cross to the platform")).toBeDefined();
+    expect(buttonByText("Take a walkway over to the wharf")).toBeDefined();
+  });
+
+  it("climbs the Lockgate Stair back up to the plaza", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    mountOn("flooded-quays", "fq-stair");
+    expect(textOf(".nf-hud-status")).toMatch(/The Flooded Quays/);
+
+    click("Climb back up to Cinder Row");
+    vi.advanceTimersByTime(transitionSwapMs(TRANSITION_TIMING));
+    expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
+    vi.advanceTimersByTime(transitionDurationMs(TRANSITION_TIMING));
+    expect(document.querySelector(".nf-transition")).toBeNull();
+  });
+
+  it("puts the diver on the boards where you can walk up to her", () => {
+    mountOn("flooded-quays", "fq-diver");
+    expect(textOf(".nf-dialogue")).toMatch(/Mind the third plank/);
+    // She is on the cast list, so the line comes with her face.
+    expect(document.querySelector("canvas.nf-portrait")).not.toBeNull();
+  });
+});
+
 describe("save/load", () => {
   function reachHubIdle(): void {
     createTestCharacter();
