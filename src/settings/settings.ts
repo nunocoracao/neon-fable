@@ -27,6 +27,8 @@ export interface Settings {
   glow: boolean;
   /** Weather effects (rain streaks, puddles, splashes) in the iso scene. */
   weather: boolean;
+  /** The corner minimap while exploring; collapsed leaves its tab. */
+  minimap: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -35,12 +37,13 @@ export const DEFAULT_SETTINGS: Settings = {
   zoom: 1,
   glow: true,
   weather: true,
+  minimap: true,
 };
 
 export const SETTINGS_KEY = "neon-fable:settings";
 
 /** Bump when the Settings shape changes; migrateSettings routes on it. */
-export const SETTINGS_VERSION = 4;
+export const SETTINGS_VERSION = 5;
 
 /** Coerces any value onto the zoom-level ladder; off-ladder → default. */
 export function clampZoom(value: unknown): ZoomLevel {
@@ -82,10 +85,11 @@ export function clampSettings(value: unknown): Settings {
     textSpeed,
     reducedMotion: record.reducedMotion === true,
     zoom: clampZoom(record.zoom),
-    // Glow and weather default on: older payloads without the fields
-    // keep both passes.
+    // Glow, weather, and the minimap default on: older payloads without
+    // the fields keep both passes and the HUD corner.
     glow: record.glow !== false,
     weather: record.weather !== false,
+    minimap: record.minimap !== false,
   };
 }
 
@@ -93,8 +97,8 @@ export function clampSettings(value: unknown): Settings {
  * Migrates a parsed payload from any stored version to the current
  * shape. Every version so far routes through the field-tolerant clamp —
  * v1 payloads simply lack zoom, v2 payloads lack glow, v3 payloads lack
- * weather, and each gets its default; unknown or future versions degrade
- * to defaults per field instead of crashing.
+ * weather, v4 payloads lack minimap, and each gets its default; unknown
+ * or future versions degrade to defaults per field instead of crashing.
  */
 export function migrateSettings(parsed: unknown): Settings {
   return clampSettings(parsed);

@@ -365,6 +365,57 @@ body::after {
   opacity: 1;
 }
 
+/* --- Minimap (exploration) --- */
+
+/* Parked in the strip directly under the HUD bar's action buttons — the
+   one lane no other HUD element uses. The status chip and the buttons
+   are above it; the interact prompt and the toast run along the bottom
+   center. Mounted before the overlay layer, so an open panel covers it. */
+.nf-minimap {
+  position: fixed;
+  top: 4rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+  pointer-events: none;
+}
+
+/* The tab is the only interactive part, collapsed or not. */
+.nf-minimap-tab {
+  pointer-events: auto;
+}
+
+.nf-minimap-body {
+  padding: 3px;
+  line-height: 0;
+  background: rgba(18, 18, 31, 0.85);
+  border: 2px solid var(--nf-border);
+  box-shadow: var(--nf-shadow-hard);
+}
+
+/* Read-only overview: the picture takes no pointer events at all, so
+   clicking the minimap does nothing — no travel, no panning. */
+.nf-minimap-canvas {
+  display: block;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+/* Collapsed: the slim tab is all that is left in the corner. */
+.nf-minimap-collapsed .nf-minimap-body {
+  display: none;
+}
+
+/* Windows too small to hold both the HUD bar and a picture under it: the
+   overview yields and leaves the tab, so nothing ever overlaps. */
+@media (max-width: 720px), (max-height: 540px) {
+  .nf-minimap .nf-minimap-body {
+    display: none;
+  }
+}
+
 /* --- Map transitions --- */
 
 /* Covers everything, screens included: the screen underneath is
@@ -1427,6 +1478,7 @@ body::after {
 /* Screen transitions: full screens and fixed bars fade in on mount. */
 .nf-screen,
 .nf-hud,
+.nf-minimap,
 .nf-combat-top,
 .nf-combat-log,
 .nf-combat-bottom,

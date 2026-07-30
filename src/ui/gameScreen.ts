@@ -38,6 +38,7 @@ import { createEpilogueScreen } from "./epilogueScreen";
 import { createInventoryOverlay } from "./inventoryOverlay";
 import { focusFirst, installListNav } from "./focus";
 import { createMainMenuScreen } from "./mainMenu";
+import { createMinimap, type MinimapHandle } from "./minimap";
 import type { OverlayHandle } from "./overlay";
 import { createSaveLoadPanel } from "./saveLoad";
 import { createStylistOverlay } from "./stylistOverlay";
@@ -114,6 +115,8 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   let toast: HTMLElement | null = null;
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let promptEl: HTMLElement | null = null;
+  let minimap: MinimapHandle | null = null;
+  let unsubscribeSettings: (() => void) | null = null;
   /** The interactable whose scene is currently open, for the door beat. */
   let usedInteractable: Interactable | null = null;
   /** A map transition in flight, and whether it has already swapped. */
@@ -195,6 +198,15 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     }
     promptEl.textContent = text;
     promptEl.classList.add("nf-interact-prompt-visible");
+  }
+
+  /**
+   * M, and the minimap's own tab, both go through the setting — so the
+   * Settings panel's switch, the key, and the tab can never disagree,
+   * and the choice survives the session.
+   */
+  function toggleMinimap(): void {
+    settings.update({ minimap: !settings.get().minimap });
   }
 
   function closeOverlay(): void {
@@ -440,6 +452,12 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       if (overlay?.kind === "advance") closeOverlay();
       else openAdvancement();
     }
+    if (event.key === "m" || event.key === "M") {
+      // The minimap sits under whatever overlay is open, so collapsing
+      // it mid-dialogue would be a change you cannot see; leave it be.
+      if (overlay) return;
+      toggleMinimap();
+    }
   }
 
   return {
@@ -506,6 +524,18 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       hud.append(hudStatus, actions);
       root.append(hud);
 
+      minimap = createMinimap({
+        map,
+        open: settings.get().minimap,
+        onToggle: toggleMinimap,
+      });
+      // Mounted before the overlay layer so an open panel covers it,
+      // the way it covers the rest of the map.
+      root.append(minimap.el);
+      unsubscribeSettings = settings.subscribe((next) => {
+        minimap?.setOpen(next.minimap);
+      });
+
       overlayLayer = document.createElement("div");
       overlayLayer.className = "nf-overlay-layer";
       // One delegated listener covers every overlay mounted here —
@@ -538,6 +568,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
           entity: ambientSpriteSource(),
         }),
         onFocus: showFocusHint,
+        onView: (view) => minimap?.update(view),
         onInteract(event): void {
           if (overlay) return;
           audio.play("interact");
@@ -575,6 +606,10 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       transition = null;
       scene?.destroy();
       scene = null;
+      unsubscribeSettings?.();
+      unsubscribeSettings = null;
+      minimap?.destroy();
+      minimap = null;
       hud?.remove();
       overlayLayer?.remove();
       toast?.remove();

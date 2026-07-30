@@ -32,6 +32,7 @@ const CONTROLS: ReadonlyArray<[keys: string, what: string]> = [
   ["1–9", "Pick a dialogue choice by number"],
   ["I", "Open or close the inventory"],
   ["P", "Open or close advancement"],
+  ["M", "Expand or collapse the minimap"],
   ["Arrows in combat", "Step across the grid while moving"],
   ["Tab in combat", "Cycle the action buttons"],
   ["Click / drag", "Move and interact · pan the camera"],
@@ -186,6 +187,25 @@ function buildSettingsPanel(onClose: () => void): HTMLElement {
     "have them. It never changes how the game plays — turn it off for a " +
     "clearer, cheaper picture. Reduced motion stills the rain on its own.";
   panel.append(weatherNote);
+
+  panel.append(
+    segmentedRow(
+      "Minimap",
+      [
+        ["on", "Shown"],
+        ["off", "Collapsed"],
+      ] as const,
+      (value) => (value === "on") === settings.get().minimap,
+      (value) => settings.update({ minimap: value === "on" }),
+    ),
+  );
+  const minimapNote = document.createElement("p");
+  minimapNote.className = "nf-dim";
+  minimapNote.textContent =
+    "The minimap shows the whole district, where you stand and face, the " +
+    "ways out, and who is worth walking to. Collapsed it leaves a tab in " +
+    "the corner; M expands it again while exploring.";
+  panel.append(minimapNote);
 
   const motionHeading = document.createElement("h3");
   motionHeading.textContent = "Motion";

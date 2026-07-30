@@ -15,6 +15,12 @@ import {
 } from "../iso/ambient";
 import { PROP_ART } from "../iso/art/props";
 import { TILE_ART } from "../iso/art/tiles";
+import {
+  minimapCells,
+  minimapLayout,
+  minimapPipKind,
+  minimapPips,
+} from "../iso/minimap";
 import { findPath, findPathToAdjacent } from "../iso/path";
 import { resolveDayPhase } from "../iso/dayPhase";
 import {
@@ -382,6 +388,76 @@ describe("map exits", () => {
         findPathToAdjacent(map, { x: start.x, y: start.y }, exit),
         `${map.id}/${exit.id} unreachable`,
       ).not.toBeNull();
+    }
+  });
+});
+
+describe("minimap markers", () => {
+  it("marks every way out of every district", () => {
+    for (const map of explorableMaps) {
+      for (const exit of mapExits(map)) {
+        expect(minimapPipKind(exit), `${map.id}/${exit.id}`).toBe("exit");
+      }
+    }
+  });
+
+  it("marks every person you can talk to", () => {
+    for (const map of explorableMaps) {
+      const people = map.interactables.filter((i) => i.spriteId === "npc");
+      expect(people.length, `${map.id} has nobody`).toBeGreaterThan(0);
+      for (const npc of people) {
+        expect(minimapPipKind(npc), `${map.id}/${npc.id}`).toBe("npc");
+      }
+    }
+  });
+
+  it("marks every object the story sends you to, by kind or by flag", () => {
+    // Objects earn a pip either by being a key kind (terminal, stash) or
+    // by declaring one; nothing on an explorable map is left unmarked,
+    // because every interactable in the game is somewhere to go.
+    for (const map of explorableMaps) {
+      for (const thing of map.interactables) {
+        expect(minimapPipKind(thing), `${map.id}/${thing.id}`).not.toBeNull();
+      }
+    }
+  });
+
+  it("keeps every marker on the map it is drawn over", () => {
+    for (const map of explorableMaps) {
+      const layout = minimapLayout(map);
+      const start = requireSpawn(map, ENTRY_SPAWN_ID);
+      for (const pip of minimapPips(map, layout, {
+        tile: { x: start.x, y: start.y },
+        facing: "n",
+      })) {
+        expect(pip.x, `${map.id}/${pip.id ?? "player"}`).toBeLessThanOrEqual(
+          layout.width,
+        );
+        expect(pip.y, `${map.id}/${pip.id ?? "player"}`).toBeLessThanOrEqual(
+          layout.height,
+        );
+      }
+    }
+  });
+
+  it("leaves arenas with nothing but the fighter's own pip", () => {
+    for (const map of arenaMaps) {
+      const layout = minimapLayout(map);
+      const pips = minimapPips(map, layout, {
+        tile: { x: 0, y: 0 },
+        facing: "s",
+      });
+      expect(pips.map((p) => p.kind), map.id).toEqual(["player"]);
+    }
+  });
+
+  it("shows walkable ground on every map — no all-void overview", () => {
+    for (const map of maps) {
+      const cells = minimapCells(map).flat();
+      expect(
+        cells.filter((c) => c === "walkable").length,
+        `${map.id} reads as solid void`,
+      ).toBeGreaterThan(0);
     }
   });
 });

@@ -187,6 +187,14 @@ export interface Interactable {
   /** Set on interactables that lead off this map; see MapExit. */
   exit?: MapExit;
   /**
+   * Whether this earns a pip on the minimap, overriding the default for
+   * its kind. Ways out and people always show; among objects only the
+   * key kinds (terminal, stash) do, so a door or a prop the story sends
+   * you to declares `minimap: true` and anything that would crowd the
+   * corner declares false. See minimapPipKind in ./minimap.ts.
+   */
+  minimap?: boolean;
+  /**
    * Authored look for "npc" sprites, rendered through the layered
    * appearance pipeline. Named story NPCs set this in map data; absent
    * means a stable seeded look derived from the map position (see

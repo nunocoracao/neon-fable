@@ -36,6 +36,7 @@ import type {
   IsoFocusHintHandler,
   IsoInteractionHandler,
 } from "./events";
+import type { MinimapView } from "./minimap";
 import { findPath, findPathToAdjacent } from "./path";
 import { renderScene, type OpeningView, type RenderView } from "./render";
 import { doorCycleMs, doorOpen01, doorTiming } from "./transition";
@@ -63,6 +64,14 @@ export interface IsoSceneOptions {
    * the outline and floating name itself.
    */
   onFocus?: IsoFocusHintHandler;
+  /**
+   * Called every frame with where the player stands and what the camera
+   * frames — the minimap's source. Reported rather than diffed here: the
+   * consumer holds the last view and decides whether anything moved (see
+   * sameMinimapView in ./minimap.ts), so the scene stays ignorant of the
+   * HUD it feeds.
+   */
+  onView?: (view: MinimapView) => void;
   sprites?: SpriteProvider;
   /**
    * Populate the map's declared ambient crowd (default true). Off gives
@@ -482,6 +491,14 @@ export function createIsoScene(
         : null,
     };
     renderScene(ctx!, sprites, view);
+    options.onView?.({
+      playerTile,
+      facing: playerFacing,
+      camera,
+      viewportW,
+      viewportH,
+      zoom,
+    });
     rafId = requestAnimationFrame(frame);
   }
 

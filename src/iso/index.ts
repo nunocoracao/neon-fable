@@ -91,6 +91,31 @@ export {
 } from "./tilemap";
 export { glowIntensityScale, resolveDayPhase } from "./dayPhase";
 export {
+  FACING_STEP,
+  MINIMAP_CELL_MAX,
+  MINIMAP_CELL_MIN,
+  MINIMAP_COLORS,
+  MINIMAP_MAX_PX,
+  minimapCell,
+  minimapCells,
+  minimapLayout,
+  minimapPipKind,
+  minimapPips,
+  minimapViewport,
+  pipSize,
+  sameMinimapView,
+  tickLength,
+  tileCenter,
+  tileTopLeft,
+  type MinimapCell,
+  type MinimapLayout,
+  type MinimapPip,
+  type MinimapPipKind,
+  type MinimapPlayer,
+  type MinimapRect,
+  type MinimapView,
+} from "./minimap";
+export {
   ARENA_STREAK_DENSITY,
   PUDDLE_DENSITY,
   RAIN_LAYERS,

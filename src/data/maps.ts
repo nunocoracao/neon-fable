@@ -112,6 +112,8 @@ const cinderPlaza: IsoMap = {
       label: "The Filament",
       spriteId: "door",
       interaction: { kind: "dialogue", nodeId: "filament-door" },
+      // A door the story sends you through: worth a minimap pip.
+      minimap: true,
     },
     {
       id: "market-vendor",
@@ -342,6 +344,8 @@ const greywaterSteps: IsoMap = {
       label: "Patch's Den",
       spriteId: "door",
       interaction: { kind: "dialogue", nodeId: "a1-patch" },
+      // A door the story sends you through: worth a minimap pip.
+      minimap: true,
     },
     {
       id: "dead-relay-shrine",
@@ -375,6 +379,8 @@ const greywaterSteps: IsoMap = {
       label: "Pump-Deck Gate",
       spriteId: "door",
       interaction: { kind: "dialogue", nodeId: "a1-pumpgate" },
+      // A door the story sends you through: worth a minimap pip.
+      minimap: true,
     },
     {
       id: "chainwell-stair",
@@ -468,6 +474,8 @@ const exchangeVentworks: IsoMap = {
       label: "Cordon Core",
       spriteId: "door",
       interaction: { kind: "dialogue", nodeId: "a2-core-door" },
+      // A door the story sends you through: worth a minimap pip.
+      minimap: true,
     },
     {
       id: "cycler-gallery",
@@ -574,6 +582,8 @@ const auricSpire: IsoMap = {
       label: "Crown Lift",
       spriteId: "door",
       interaction: { kind: "dialogue", nodeId: "a3-crown-door" },
+      // A door the story sends you through: worth a minimap pip.
+      minimap: true,
     },
     {
       id: "registry-gate",
@@ -582,6 +592,8 @@ const auricSpire: IsoMap = {
       label: "Registry Gate",
       spriteId: "door",
       interaction: { kind: "dialogue", nodeId: "a3-gate" },
+      // A door the story sends you through: worth a minimap pip.
+      minimap: true,
     },
     {
       id: "ledger-terminal",
