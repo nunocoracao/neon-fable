@@ -27,6 +27,7 @@ import { getAbility, getEncounter, getItem, getMap, requireMap } from "../data";
 import {
   createCombatScene,
   createPixelArtSprites,
+  statusFamilies,
   type CombatScene,
   type DeathReactionKind,
 } from "../iso";
@@ -393,6 +394,12 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         // Reactions landing on one beat queue in initiative order.
         order: combat!.initiativeOrder.indexOf(c.id),
         deathStyle: deathStyleFor(c),
+        // What is still true of this body: the engine's own conditions,
+        // grouped into marker families by the scene's status rules.
+        statuses: statusFamilies({
+          stunTurns: c.stunTurns,
+          boostStats: c.boosts.map((b) => b.stat),
+        }),
       })),
     );
   }
@@ -432,12 +439,21 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
   /** Renders log lines and scene effects for events not yet processed. */
   function processNewEvents(): void {
     if (!combat) return;
+    /**
+     * The beat the cast just played lands on. A boost is logged as its
+     * own event right behind the ability that granted it, so the number
+     * over the caster waits for the aura instead of beating it there.
+     * Cleared by anything that is not that pair.
+     */
+    let castBeatMs = 0;
     for (; logIndex < combat.log.length; logIndex++) {
       const event = combat.log[logIndex];
       if (!event) continue;
       const text = combatEventText(event, nameOf);
       if (text) appendLogLine(text);
       playEventSfx(event);
+      const beatMs = castBeatMs;
+      if (event.type !== "ability-used") castBeatMs = 0;
       if (!scene) continue;
       switch (event.type) {
         // The scene reports how long its attack animation takes to
@@ -463,24 +479,35 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
           }
           break;
         }
+        // Abilities play the archetype their content names, never a
+        // look picked out by id here: the scene is handed the effectRef
+        // and resolves the rest (see src/iso/abilityFx.ts). Every ability
+        // goes through this — a self-buff has no damage to show, but it
+        // still lights up.
         case "ability-used": {
-          if (event.damage <= 0) break;
           const target = getCombatant(combat, event.targetId);
-          if (!target) break;
-          const impact = scene.attackFx(event.combatantId, event.targetId);
+          const ability = getAbility(event.abilityId);
+          if (!target || !ability) break;
+          const cast = scene.abilityFx(
+            event.combatantId,
+            [event.targetId],
+            ability.effectRef,
+          );
+          castBeatMs = cast;
+          if (event.damage <= 0) break;
           // An ability that goes through plating is never a glancing
           // blow, however much plating there was.
-          const effect = getAbility(event.abilityId)?.effect;
+          const effect = ability.effect;
           const armor =
-            effect?.type === "damage" && effect.ignoresArmor === true
+            effect.type === "damage" && effect.ignoresArmor === true
               ? 0
               : target.armor;
           scene.hitFx(event.targetId, {
             attackerId: event.combatantId,
-            delayMs: impact,
+            delayMs: cast,
             glancing: isGlancingBlow(event.damage, armor),
           });
-          scene.floatText(target.position, `-${event.damage}`, "#ff4d5e", impact);
+          scene.floatText(target.position, `-${event.damage}`, "#ff4d5e", cast);
           break;
         }
         // Float texts carry a sign and unit so damage, heals, and
@@ -492,7 +519,11 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         }
         case "boosted": {
           const tile = getCombatant(combat, event.combatantId)?.position;
-          if (tile) scene.floatText(tile, `+${event.amount} PWR`, "#f0b429");
+          // Waits on the aura when an ability granted it; a dose has no
+          // cast in front of it and shows at once.
+          if (tile) {
+            scene.floatText(tile, `+${event.amount} PWR`, "#f0b429", beatMs);
+          }
           break;
         }
         case "flee-attempted": {
