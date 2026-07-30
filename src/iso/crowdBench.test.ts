@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { maps, requireMap } from "../data/maps";
+import { HUB_MAP_ID, maps, requireMap } from "../data/maps";
 import { ambientSpriteSource } from "../ui/entitySprites";
 import {
   MAX_AMBIENT_PER_MAP,
@@ -11,6 +11,7 @@ import {
 import { createPixelArtSprites } from "./art/provider";
 import { mapPixelBounds } from "./camera";
 import { renderScene, type RenderView } from "./render";
+import { collectSetPieces } from "./setpiece";
 import { tileMaterial } from "./tilemap";
 import { resolveWeather } from "./weather";
 
@@ -193,6 +194,80 @@ describe("crowded-scene frame budget", () => {
     expect(perFrame, `${perFrame.toFixed(3)}ms per rainy frame`).toBeLessThan(
       FRAME_BUDGET_MS,
     );
+    expect(sprites.cacheStats().misses - warmed.misses).toBe(0);
+  });
+
+
+  it("keeps the hub inside budget with the overline, the crowd, and rain all up", () => {
+    // The worst frame the game can actually produce on the hub: the
+    // full plaza crowd walking, the rain curtain and its reflections
+    // on, and the overline mid-crossing with every car and its lights
+    // on screen. If a set piece ever starts baking per frame — a cache
+    // key with a clock in it, a grid rebuilt per car — this is where it
+    // shows up, because the miss assertion below fails long before the
+    // timing one does.
+    const hub = requireMap(HUB_MAP_ID);
+    const track = hub.setPieces?.trains?.[0];
+    expect(track, "the hub declares an overline to bench").toBeDefined();
+    if (!track) return;
+    // Bench the crossing itself, not the quiet minute either side of it.
+    const start = (() => {
+      for (let t = 0; t < track.periodMs * 2; t += 50) {
+        if (collectSetPieces(hub, t).some((p) => p.spriteId === "train-head")) {
+          return t;
+        }
+      }
+      throw new Error("the overline never crosses");
+    })();
+    // Rain forced on: the hub plays clear, but a set piece must not
+    // cost more just because the weather pass is also running.
+    const weather = resolveWeather(hub, { enabled: true, weather: "rain" });
+    const sprites = createPixelArtSprites({ entity: ambientSpriteSource() });
+    const ctx = stubContext();
+    const bounds = mapPixelBounds(hub);
+
+    const runHubFrames = (): number => {
+      let crowd = createCrowd(hub);
+      let pieces = 0;
+      for (let frame = 0; frame < FRAMES; frame++) {
+        const timeMs = start + frame * (1000 / 60);
+        crowd = stepCrowd(crowd, hub, 1 / 60);
+        const setPieces = collectSetPieces(hub, timeMs, { rain: true });
+        pieces += setPieces.length;
+        renderScene(ctx, sprites, {
+          map: hub,
+          camera: { sx: bounds.minX + 200, sy: bounds.minY + 200 },
+          viewportW: 1280,
+          viewportH: 720,
+          hoverTile: { x: 5, y: 5 },
+          path: [],
+          entities: [
+            { spriteId: "player", position: { x: 7, y: 6 }, facing: "s", moving: true },
+            ...crowdEntities(crowd),
+          ],
+          timeMs,
+          dpr: 2,
+          zoom: 1,
+          glowEnabled: true,
+          weather,
+          setPieces,
+        });
+      }
+      return pieces;
+    };
+
+    runHubFrames();
+    const warmed = sprites.cacheStats();
+    const begin = performance.now();
+    const drawn = runHubFrames();
+    const perFrame = (performance.now() - begin) / FRAMES;
+    // The train really was up for the run being measured.
+    expect(drawn).toBeGreaterThanOrEqual(FRAMES * (track.cars + 1));
+    expect(perFrame, `${perFrame.toFixed(3)}ms per hub frame`).toBeLessThan(
+      FRAME_BUDGET_MS,
+    );
+    // Set-piece bake keys are frame indices, never the clock, so a
+    // warmed crossing re-bakes nothing at all.
     expect(sprites.cacheStats().misses - warmed.misses).toBe(0);
   });
 

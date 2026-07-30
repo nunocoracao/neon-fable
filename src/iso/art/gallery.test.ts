@@ -18,6 +18,7 @@ import { enemies } from "../../data/enemies";
 import { items } from "../../data/items";
 import { maps } from "../../data/maps";
 import { INTERACTABLE_ART } from "./interactables";
+import { SETPIECE_ART } from "./setpieces";
 import { BODY_BUILD_IDS } from "./layers/body";
 import { HAIR_STYLE_IDS } from "./layers/hair";
 import { gridErrors } from "./pixel";
@@ -45,6 +46,7 @@ describe("gallery sections", () => {
       "tiles",
       "props",
       "interactables",
+      "setpieces",
       "cast",
       "bodies",
       "appearance",
@@ -70,6 +72,20 @@ describe("gallery sections", () => {
         tiles.entries.some((e) => e.id === id || e.id.startsWith(`${id} v`)),
         `tile ${id} present`,
       ).toBe(true);
+    }
+  });
+
+  it("covers every set piece, each playing its own sequence", () => {
+    const setPieces = section("setpieces");
+    expect(setPieces.entries.map((e) => e.id).sort()).toEqual(
+      Object.keys(SETPIECE_ART).sort(),
+    );
+    // Every one of them animates, the scheduled steam burst included —
+    // a set piece shown as a still is the one thing the gallery cannot
+    // usefully say about it.
+    for (const entry of setPieces.entries) {
+      expect(entry.frames.length, `${entry.id} frames`).toBeGreaterThan(1);
+      expect(entry.frameMs, `${entry.id} cadence`).toBeGreaterThan(0);
     }
   });
 

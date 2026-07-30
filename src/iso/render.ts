@@ -18,6 +18,7 @@ import {
   type IsoMap,
 } from "./tilemap";
 import type { EntitySpriteId, Sprite, SpriteProvider } from "./sprites";
+import { setPieceGlows, type SetPieceDraw } from "./setpiece";
 import { tileKey, type WeatherView } from "./weather";
 import { paintRainStreaks, paintSplashes } from "./weatherPaint";
 
@@ -87,12 +88,26 @@ export interface RenderView {
   opening?: OpeningView | null;
   /** The one interactable in focus, outlined and named. */
   focus?: FocusView | null;
+  /**
+   * Ambient machinery on the move this frame — the overline, patrol
+   * drones, vented steam. Positions and frames come from the pure pass
+   * in ./setpiece.ts; the renderer only folds them into the object sort
+   * and the glow pass, which is what keeps them depth-correct with no
+   * set-piece-specific code anywhere here.
+   */
+  setPieces?: readonly SetPieceDraw[];
 }
 
 interface SceneDrawable extends Drawable {
   sprite: Sprite;
   /** Silhouette to trace an outline with, on the focused interactable. */
   outline?: Sprite;
+  /**
+   * Draw displacement from the tile center, in world-screen units, for
+   * anything that sorts at a tile but is not standing on it.
+   */
+  offsetX?: number;
+  offsetY?: number;
 }
 
 /**
@@ -137,6 +152,7 @@ export function renderScene(
   const { map, camera, viewportW, viewportH, timeMs, dpr, zoom } = view;
   const weather = view.weather ?? null;
   const focus = view.focus ?? null;
+  const setPieces = view.setPieces ?? [];
   const scale = dpr * zoom;
   ctx.clearRect(0, 0, viewportW / zoom, viewportH / zoom);
   ctx.imageSmoothingEnabled = false;
@@ -238,6 +254,17 @@ export function renderScene(
         timeMs,
       }),
     })),
+    // Set pieces join the same sort as everything else: an overline on
+    // a row behind the tenements passes behind them because its row is
+    // behind theirs, not because anything here knows what a train is.
+    ...setPieces.map((piece) => ({
+      x: piece.x,
+      y: piece.y,
+      layer: "object" as const,
+      sprite: sprites.setPiece(piece.spriteId, piece.frame),
+      offsetX: piece.offsetX * ART_SCALE,
+      offsetY: piece.offsetY * ART_SCALE,
+    })),
   ];
   drawables.sort(compareDrawables);
   const outlineAlpha =
@@ -253,19 +280,18 @@ export function renderScene(
       }
       ctx.globalAlpha = 1;
     }
-    drawSprite(ctx, d.sprite, d.x, d.y, scale);
+    drawSprite(ctx, d.sprite, d.x, d.y, scale, d.offsetX ?? 0, d.offsetY ?? 0);
   }
 
   // Glow pass: emissive light from neon, screens, and their water
   // reflections, composited additively over the whole scene so signage
   // reads as casting light rather than just being bright.
   if (view.glowEnabled) {
-    const glows = collectGlowPlacements(
-      map,
-      timeMs,
-      weather,
-      view.dayPhase ?? DEFAULT_DAY_PHASE,
-    );
+    const phase = view.dayPhase ?? DEFAULT_DAY_PHASE;
+    const glows = collectGlowPlacements(map, timeMs, weather, phase);
+    // A headlamp and a scan cone are lights like any other, just ones
+    // that moved since the last frame.
+    glows.push(...setPieceGlows(setPieces, phase));
     if (glows.length > 0) {
       ctx.save();
       ctx.globalCompositeOperation = "lighter";

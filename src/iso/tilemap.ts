@@ -306,6 +306,82 @@ export interface AmbientSpec {
 }
 
 /**
+ * An elevated line crossing a map's background. The train is scenery on
+ * a long timer: it departs once per `periodMs`, takes `crossMs` to run
+ * the declared span, and is simply absent the rest of the time. Nothing
+ * about it is stateful — where it is (and whether it is out at all) is a
+ * function of the clock alone (see src/iso/setpiece.ts).
+ *
+ * The row may sit off the grid entirely: the line rides above the map,
+ * and a negative row is what puts it behind the structures on row 0 —
+ * painter's order does the occlusion with no special case, exactly as it
+ * does for everything else on the map.
+ */
+export interface TrainTrack {
+  id: string;
+  /** Map row the line runs along; may fall outside the grid. */
+  row: number;
+  /** World x the lead car enters at, and the one it leaves at. */
+  fromX: number;
+  toX: number;
+  /** Cars following the lead one. */
+  cars: number;
+  /** How high the line rides above the row, in 1x art pixels. */
+  heightPx: number;
+  /** Time from one departure to the next. */
+  periodMs: number;
+  /** How long one crossing takes; never more than periodMs. */
+  crossMs: number;
+  /** Phase offset, so a line does not always depart at t = 0. */
+  offsetMs?: number;
+}
+
+/**
+ * A patrol drone's beat: a closed loop of tile waypoints it flies round
+ * forever at a fixed speed, hovering `heightPx` above the ground. Purely
+ * decorative — a drone is not an interactable, has no collision, and no
+ * stat, roll, or route anywhere in the game reads one.
+ */
+export interface DronePath {
+  id: string;
+  /** Loop of tile waypoints; the last leg closes back to the first. */
+  waypoints: readonly TilePoint[];
+  /** Cruise speed along the loop, in tiles per second. */
+  speed: number;
+  /** Hover height above the tile, in 1x art pixels. */
+  heightPx: number;
+  /** Offset along the loop, so a pair never flies in formation. */
+  offsetMs?: number;
+}
+
+/**
+ * How often a map's vent stacks blow off steam. Every vent-stack prop on
+ * the map gets its own seeded schedule from this one cadence, so a
+ * district vents at its own rhythm without any per-prop authoring.
+ */
+export interface VentBurstSpec {
+  /** Scheduling window per vent; at most one burst lands in each. */
+  periodMs: number;
+  /** Share of windows that actually vent (0..1); rain raises it. */
+  chance: number;
+}
+
+/**
+ * The large ambient machinery dressing a map: trains crossing the
+ * background, drones on patrol, steam blowing off the vents. All of it
+ * is scenery — declared here, positioned by pure logic in
+ * src/iso/setpiece.ts, and painted in the scene's existing depth-sorted
+ * object pass. Maps that declare none (arenas, quiet interiors) simply
+ * omit the field.
+ */
+export interface SetPieceSpec {
+  trains?: readonly TrainTrack[];
+  drones?: readonly DronePath[];
+  /** Cadence for the map's vent-stack props; absent means they idle. */
+  vents?: VentBurstSpec;
+}
+
+/**
  * The sky a map plays under. Purely a look: weather drives the rain
  * overlay, puddle art, and reflection shimmer (see src/iso/weather.ts)
  * and nothing else — no stat, roll, or route anywhere in the game reads
@@ -343,6 +419,8 @@ export interface IsoMap {
   spawns: SpawnPoint[];
   /** Ambient crowd to dress the map with; absent means no pedestrians. */
   ambient?: AmbientSpec;
+  /** Large ambient machinery: trains, drones, steam. Visual only. */
+  setPieces?: SetPieceSpec;
   /** Weather the map plays under; absent means clear. Visual only. */
   weather?: WeatherId;
   /** Hour the map plays at; absent means night. Visual only. */

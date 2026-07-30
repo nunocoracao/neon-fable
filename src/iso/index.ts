@@ -84,6 +84,10 @@ export {
   type AmbientSpec,
   type AmbientZone,
   type DayPhaseId,
+  type DronePath,
+  type SetPieceSpec,
+  type TrainTrack,
+  type VentBurstSpec,
   type SpawnPoint,
   type TileDef,
   type TileId,
@@ -134,6 +138,28 @@ export {
   type Splash,
   type WeatherView,
 } from "./weather";
+export {
+  DRONE_BOB_PERIOD_MS,
+  DRONE_BOB_PX,
+  STEAM_FRAME_MS,
+  STEAM_MOUTH_OFFSET_Y,
+  TRAIN_CAR_SPAN,
+  VENT_RAIN_FACTOR,
+  collectSetPieces,
+  droneBobPx,
+  droneDraws,
+  dronePathLength,
+  droneStateAt,
+  setPieceGlows,
+  trainDraws,
+  trainRunAt,
+  ventBurstFrameAt,
+  ventDraws,
+  type DroneState,
+  type SetPieceDraw,
+  type SetPieceOptions,
+  type TrainRun,
+} from "./setpiece";
 export { createIsoScene, type IsoScene, type IsoSceneOptions } from "./scene";
 export {
   type FocusView,
@@ -169,6 +195,7 @@ export {
 export {
   type EntityPose,
   type EntitySpriteId,
+  type SetPieceSpriteId,
   type Sprite,
   type SpriteProvider,
 } from "./sprites";
@@ -187,6 +214,7 @@ export {
   facingFromDelta,
   frameAt,
   pulse01,
+  smoothStep01,
   variantIndex,
   type Facing,
   type MotionState,

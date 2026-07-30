@@ -184,6 +184,22 @@ internally connected (a zone drawn across a pinch point splits into
 islands and strands whoever spawns on the wrong side). The per-map
 ceiling is `MAX_AMBIENT_PER_MAP`.
 
+A map can also declare `setPieces` — the large ambient machinery of a
+district, all of it scenery: `trains` (an elevated line, declared as a
+`row`, a `fromX`/`toX` span, a number of `cars`, a `heightPx` above the
+row, and a `periodMs`/`crossMs` schedule), `drones` (a closed loop of
+`waypoints` flown at a `speed`, hovering `heightPx` up), and `vents` (a
+`periodMs`/`chance` cadence every vent-stack prop on the map runs on its
+own seeded schedule, denser in the rain). Where each one is this frame
+is a pure function of the clock in `src/iso/setpiece.ts`; the renderer
+folds the result into the same depth-sorted object pass as props and the
+crowd, so occlusion needs no special case — the hub's overline runs on
+row `-1` and that alone is what makes it pass behind the north terrace.
+A track row may sit off the grid for exactly that reason. Reduced motion
+withholds the train and the steam (a set piece frozen mid-flight reads as
+a bug) and leaves the drones parked. Nothing here touches walkability,
+routing, or combat, and `maps.test.ts` pins that.
+
 Interiors (the Auric Spire's two floors) are authored the same way with
 three conventions of their own, linted in `maps.test.ts`. They never
 stand the `building` prop — a room's far faces are glazing runs and its

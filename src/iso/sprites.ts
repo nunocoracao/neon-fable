@@ -21,6 +21,19 @@ import type {
 export type EntitySpriteId = string;
 
 /**
+ * The large ambient machinery a map can declare (see ./setpiece.ts):
+ * the cars of an elevated line, a patrol drone, and the steam a vent
+ * stack blows off. Unlike props these carry no map placement of their
+ * own — the set-piece logic says where each one is this frame — so the
+ * provider only ever needs the id and an explicit frame index.
+ */
+export type SetPieceSpriteId =
+  | "train-head"
+  | "train-car"
+  | "patrol-drone"
+  | "steam-burst";
+
+/**
  * A drawable image plus its anchor: the pixel inside the image that
  * should land on the center of the tile diamond it occupies.
  */
@@ -82,6 +95,12 @@ export interface SpriteProvider {
   rainStreak(layer: number): Sprite;
   /** Pre-baked splash micro-frame, anchored on the tile diamond center. */
   splash(frame: number): Sprite;
+  /**
+   * A set piece's frame, by explicit index — the scheduling logic has
+   * already decided which one is showing, so nothing about the clock
+   * reaches the provider here.
+   */
+  setPiece(id: SetPieceSpriteId, frame: number): Sprite;
   /**
    * Move the clock: subsequent bakes go through the hour's tinted
    * palette (see ./dayPhase.ts). Optional — a provider that does not

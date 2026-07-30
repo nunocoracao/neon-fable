@@ -52,23 +52,40 @@ export function glowLitAtFrame(
   return !flicker || frame < frameCount - 1;
 }
 
-function toPlacement(
+/**
+ * An authored glow placed on a tile. `liftX`/`liftY` (1x art pixels)
+ * displace it further, which is how something drawn off its own tile —
+ * a train riding above the rooflines, a hovering drone — casts its
+ * light from where it actually is (see ./setpiece.ts).
+ */
+export function glowPlacement(
   source: GlowSource,
   x: number,
   y: number,
   intensity: number,
+  liftX = 0,
+  liftY = 0,
 ): GlowPlacement {
   return {
     x,
     y,
-    offsetX: source.offsetX * ART_SCALE,
-    offsetY: source.offsetY * ART_SCALE,
+    offsetX: (source.offsetX + liftX) * ART_SCALE,
+    offsetY: (source.offsetY + liftY) * ART_SCALE,
     color: source.color,
     radius: source.radius,
     // The hour scales every emissive alpha: neon reads harder against a
     // late-night street and gives way to the sky at dusk.
     alpha: Math.min(1, source.intensity * intensity),
   };
+}
+
+function toPlacement(
+  source: GlowSource,
+  x: number,
+  y: number,
+  intensity: number,
+): GlowPlacement {
+  return glowPlacement(source, x, y, intensity);
 }
 
 /**

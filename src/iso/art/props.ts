@@ -1040,7 +1040,7 @@ export const isoSlab = (
 };
 
 /** Stamp `art` onto a copy of `base` at (x, y); transparency shows through. */
-const stamped = (
+export const stamped = (
   base: readonly string[],
   art: readonly string[],
   x: number,
@@ -1058,7 +1058,7 @@ const stamped = (
   });
 
 /** A transparent canvas to stamp onto. */
-const blank = (w: number, h: number): string[] => rep(h, gap(w));
+export const blank = (w: number, h: number): string[] => rep(h, gap(w));
 
 /* --- Stall awning: a striped canopy on chrome poles over a plank
  * counter of goods, an amber strip lamp burning under the fabric.
