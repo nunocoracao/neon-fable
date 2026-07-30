@@ -38,7 +38,13 @@ import { FACE_LAYERS } from "./layers/face";
 import { CRUSHED_HAIR_LAYERS, HAIR_LAYERS, hairWalkGrid } from "./layers/hair";
 import { HEADWEAR_LAYERS } from "./layers/headwear";
 import { OUTFIT_GRIDS } from "./layers/outfits";
-import { WEAPON_GRIDS } from "./layers/weapons";
+import { WEAPON_GRIDS, weaponClassFromArtId } from "./layers/weapons";
+import {
+  attackArmPose,
+  attackFrameShift,
+  attackWeaponGrid,
+} from "./layers/attack";
+import type { AttackClassId } from "../attack";
 
 /** Layer slots in base (toward-camera) z-order, bottom to top. */
 export const LAYER_SLOTS = [
@@ -312,25 +318,40 @@ export function composedFrameKey(
 }
 
 /**
- * Resolve a descriptor to its composed animation frame: pick the
- * authored view for the facing, order the layers for that facing
- * (stable, so face parts keep their relative order), look each layer's
- * art up in its slot registry (unregistered art is skipped), compose
- * on the neutral pose, animate the composed body, and mirror for
- * south/west. Pure and deterministic — the provider only calls this on
- * a bake-cache miss.
+ * Which attack animation a composed character swings: the class of the
+ * weapon in its weapon slot, or bare hands when it holds nothing (or
+ * holds something whose art has not landed). Pure over the descriptor,
+ * so the scene, the sprite provider, and the gallery all agree without
+ * anyone passing the equipped item around.
  */
-export function composedCharacterGrid(
+export function attackClassFor(character: ComposedCharacter): AttackClassId {
+  for (const layer of character.layers) {
+    if (layer.slot !== "weapon") continue;
+    const weaponClass = weaponClassFromArtId(layer.art);
+    if (weaponClass) return weaponClass;
+  }
+  return "unarmed";
+}
+
+/**
+ * The layers a facing draws, in compose order, with each layer's art
+ * resolved for the view and its per-frame remap applied. `skip` drops a
+ * slot outright — the attack path composes the weapon itself, from the
+ * class's own authored frames rather than the resting silhouette.
+ */
+function resolvedParts(
   character: ComposedCharacter,
   facing: Facing,
+  view: BodyViewId,
   state: MotionState,
   frame: number,
-): PixelGrid {
-  const { view, flip } = bodyViewForFacing(facing);
+  skip?: LayerSlot,
+): LayerPart[] {
   const order = layerOrderFor(facing);
-  const parts: LayerPart[] = [...character.layers]
+  return [...character.layers]
     .sort((a, b) => order.indexOf(a.slot) - order.indexOf(b.slot))
     .flatMap((layer) => {
+      if (layer.slot === skip) return [];
       const grid = layerArtGrid(layer.slot, layer.art, view);
       if (!grid) return [];
       // Long hair trails one pixel on walk frames (secondary motion).
@@ -346,11 +367,75 @@ export function composedCharacterGrid(
       const remap = phase ? { ...layer.remap, ...phase } : layer.remap;
       return [{ grid: posed, remap }];
     });
+}
+
+function requireParts(parts: LayerPart[], character: ComposedCharacter): void {
   if (parts.length === 0) {
     throw new Error(
       `composed character has no drawable layers (build ${character.build})`,
     );
   }
+}
+
+/**
+ * One frame of the attack set: compose everything but the weapon on the
+ * neutral pose, reach the weapon arm out, lay the class's authored
+ * weapon art for that frame on in the facing's draw order, and move the
+ * whole figure — body and weapon as one piece — through the frame's
+ * lean and landed weight.
+ */
+function attackGrid(
+  character: ComposedCharacter,
+  facing: Facing,
+  view: BodyViewId,
+  frame: number,
+): PixelGrid {
+  const attackClass = attackClassFor(character);
+  const parts = resolvedParts(character, facing, view, "attack", frame, "weapon");
+  requireParts(parts, character);
+  const posed = attackArmPose(
+    composeGrids(parts),
+    character.build,
+    attackClass,
+    frame,
+  );
+  const weapon = attackWeaponGrid(attackClass, character.build, view, frame);
+  if (!weapon) return attackFrameShift(posed, attackClass, frame);
+  // The weapon keeps the remap its resting layer carries (the item's
+  // energy-glow accent), so a recolored blade stays recolored mid-swing.
+  const held = character.layers.find((layer) => layer.slot === "weapon");
+  const weaponPart: LayerPart = { grid: weapon, remap: held?.remap ?? {} };
+  const bodyPart: LayerPart = { grid: posed };
+  const armed = layerOrderFor(facing).indexOf("weapon") === 0
+    ? [weaponPart, bodyPart]
+    : [bodyPart, weaponPart];
+  return attackFrameShift(composeGrids(armed), attackClass, frame);
+}
+
+/**
+ * Resolve a descriptor to its composed animation frame: pick the
+ * authored view for the facing, order the layers for that facing
+ * (stable, so face parts keep their relative order), look each layer's
+ * art up in its slot registry (unregistered art is skipped), compose
+ * on the neutral pose, animate the composed body, and mirror for
+ * south/west. Attack frames take the one-shot path above instead of the
+ * idle/walk loops. Pure and deterministic — the provider only calls
+ * this on a bake-cache miss.
+ */
+export function composedCharacterGrid(
+  character: ComposedCharacter,
+  facing: Facing,
+  state: MotionState,
+  frame: number,
+): PixelGrid {
+  const { view, flip } = bodyViewForFacing(facing);
+  if (state === "attack") {
+    return flip
+      ? mirrored(attackGrid(character, facing, view, frame))
+      : attackGrid(character, facing, view, frame);
+  }
+  const parts = resolvedParts(character, facing, view, state, frame);
+  requireParts(parts, character);
   const composed = composeGrids(parts);
   const frames = bodyAnimFrames(composed, character.build)[state];
   const grid = frames[frame];

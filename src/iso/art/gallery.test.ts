@@ -14,6 +14,7 @@ import {
   HEADWEAR_OPTIONS,
   MOUTH_OPTIONS,
 } from "../../data/appearance";
+import { ATTACK_CLASS_IDS, attackFrameCount } from "../attack";
 import { enemies } from "../../data/enemies";
 import { items } from "../../data/items";
 import { maps } from "../../data/maps";
@@ -49,6 +50,7 @@ describe("gallery sections", () => {
       "setpieces",
       "cast",
       "bodies",
+      "attacks",
       "appearance",
     ]);
     for (const s of sections) {
@@ -133,6 +135,27 @@ describe("gallery sections", () => {
         bodies.entries.some((e) => e.id === `${build} w walk`),
         `${build} mirrored walk present`,
       ).toBe(true);
+    }
+  });
+
+  it("covers every attack class × build × facing at its authored length", () => {
+    const attacks = section("attacks");
+    expect(attacks.entries.length).toBe(
+      ATTACK_CLASS_IDS.length * BODY_BUILD_IDS.length * 4,
+    );
+    for (const attackClass of ATTACK_CLASS_IDS) {
+      for (const build of BODY_BUILD_IDS) {
+        for (const facing of ["n", "e", "s", "w"]) {
+          const entry = attacks.entries.find(
+            (e) => e.id === `attack ${attackClass} ${build} ${facing}`,
+          );
+          expect(entry, `attack ${attackClass} ${build} ${facing} present`).toBeDefined();
+          expect(entry?.frames.length, `${attackClass} frame count`).toBe(
+            attackFrameCount(attackClass),
+          );
+          expect(entry?.frameMs, `${attackClass} cadence`).toBeGreaterThan(0);
+        }
+      }
     }
   });
 

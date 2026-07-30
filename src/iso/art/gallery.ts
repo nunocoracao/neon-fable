@@ -12,8 +12,14 @@
 import {
   BODY_TIMING,
   type Facing,
-  type MotionState,
+  type LoopState,
 } from "../animation";
+import {
+  ATTACK_CLASS_IDS,
+  ATTACK_TIMING,
+  attackFrameCount,
+  type AttackClassId,
+} from "../attack";
 import {
   BROWS_OPTIONS,
   EYE_COLOR_OPTIONS,
@@ -71,7 +77,7 @@ export interface GallerySection {
 }
 
 const FACINGS: readonly Facing[] = ["n", "e", "s", "w"];
-const MOTIONS: readonly MotionState[] = ["idle", "walk"];
+const MOTIONS: readonly LoopState[] = ["idle", "walk"];
 
 function tileEntries(): GalleryEntry[] {
   return Object.entries(TILE_ART).flatMap(([id, art]) =>
@@ -165,6 +171,52 @@ function bodyEntries(): GalleryEntry[] {
 }
 
 /**
+ * The attack sets: every attack class swinging on both builds and all
+ * four facings, composed through the real pipeline — the class's weapon
+ * layer in hand, the authored per-frame weapon art, the arm reach, the
+ * lean, and the landed weight — so a swing can be read frame by frame
+ * without starting a fight. Attack frames hold for different lengths
+ * (see ATTACK_TIMING); the gallery has one duration per entry, so it
+ * plays them at the set's mean hold, which keeps the pacing honest
+ * without claiming to be the real sequence.
+ */
+function attackEntries(): GalleryEntry[] {
+  const holder = (
+    attackClass: AttackClassId,
+    build: (typeof BODY_BUILD_IDS)[number],
+  ): ComposedCharacter => ({
+    build,
+    layers: [
+      { slot: "body", art: build, remap: {} },
+      ...(attackClass === "unarmed"
+        ? []
+        : [
+            {
+              slot: "weapon" as const,
+              art: weaponArtId(attackClass, build),
+              remap: {},
+            },
+          ]),
+    ],
+  });
+  const meanHold = (attackClass: AttackClassId): number => {
+    const holds = ATTACK_TIMING[attackClass].frameMs;
+    return Math.round(holds.reduce((a, b) => a + b, 0) / holds.length);
+  };
+  return ATTACK_CLASS_IDS.flatMap((attackClass) =>
+    BODY_BUILD_IDS.flatMap((build) =>
+      FACINGS.map((facing) => ({
+        id: `attack ${attackClass} ${build} ${facing}`,
+        frames: Array.from({ length: attackFrameCount(attackClass) }, (_, frame) =>
+          composedCharacterGrid(holder(attackClass, build), facing, "attack", frame),
+        ),
+        frameMs: meanHold(attackClass),
+      })),
+    ),
+  );
+}
+
+/**
  * Appearance-layer combinations rendered through the real composition
  * pipeline (compose on the neutral pose, animate, mirror), exactly what
  * the player bake produces. Two sweeps over every registered hair
@@ -210,7 +262,7 @@ function appearanceEntries(): GalleryEntry[] {
     id: string,
     who: ComposedCharacter,
     facing: Facing,
-    state: MotionState,
+    state: LoopState,
   ): GalleryEntry => {
     const { frameMs, frameCount } = BODY_TIMING[state];
     return {
@@ -485,6 +537,7 @@ const SECTION_BUILDERS: ReadonlyArray<{
   { id: "setpieces", title: "Set pieces", build: setPieceEntries },
   { id: "cast", title: "Cast (NPCs & enemies)", build: castEntries },
   { id: "bodies", title: "Bodies (hi-res)", build: bodyEntries },
+  { id: "attacks", title: "Attacks (per weapon class)", build: attackEntries },
   { id: "appearance", title: "Appearance layers", build: appearanceEntries },
 ];
 
