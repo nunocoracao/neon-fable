@@ -1,22 +1,32 @@
 /**
  * Combat arena scene: renders an arena map with combatant entities, HP
  * bars, tile highlights (reachable / targets / path preview), walk
- * tweens, and combat feedback — attack lunges, hit flash + shake,
- * defeat dissolves, and floating combat numbers. Presentation only —
+ * tweens, and combat feedback — attack lunges, hit flash + shake, hit
+ * reactions, deaths, and floating combat numbers. Presentation only —
  * the combat screen feeds it authoritative state and interprets clicks;
  * this layer never imports the combat engine. All effect timing math
- * comes from the pure helpers in ./animation.
+ * comes from the pure helpers in ./animation, ./attack, and ./reaction.
  */
 import { settings } from "../settings";
 import {
   dissolve01,
-  dissolvedAt,
   facingFromDelta,
   lunge01,
   shakeOffsetPx,
   type Facing,
 } from "./animation";
 import { attackSequence, type AttackClassId, type AttackSequence } from "./attack";
+import {
+  activeReaction,
+  latestBeatFor,
+  pruneReactions,
+  reactionDurationMs,
+  reactionPoseAt,
+  scheduleReaction,
+  type DeathReactionKind,
+  type ReactionPose,
+  type ScheduledReaction,
+} from "./reaction";
 import { createPixelArtSprites } from "./art/provider";
 import { clampCamera, mapPixelBounds, type Camera } from "./camera";
 import {
@@ -47,6 +57,35 @@ export interface CombatSceneEntity {
   alive: boolean;
   /** Marks whose turn it is (drawn as a ring under the sprite). */
   active: boolean;
+  /**
+   * Place in the fight's initiative order. Reactions answering the same
+   * impact beat play in it, earliest first, so a blow that lands on
+   * several combatants at once reads as a sequence rather than a
+   * simultaneous twitch. Defaults to 0 (all tied, resolved by id).
+   */
+  order?: number;
+  /**
+   * How this combatant dies: bodies crumple, chassis spark out. From
+   * content data (an enemy archetype's chassis); defaults to a crumple.
+   */
+  deathStyle?: DeathReactionKind;
+}
+
+/** What the scene needs to know about a blow that just landed. */
+export interface HitFxOptions {
+  /** Who threw it; the reaction recoils away from them. */
+  attackerId?: string;
+  /**
+   * Ms to hold the reaction back — the attacking sequence's impact beat
+   * (see attackFx), so the flinch answers the blow rather than the
+   * decision to throw it.
+   */
+  delayMs?: number;
+  /**
+   * The target's armor took the greater share of it: a reduced shudder
+   * plays instead of a full flinch.
+   */
+  glancing?: boolean;
 }
 
 export interface CombatHighlights {
@@ -94,8 +133,13 @@ export interface CombatScene {
    * gun is up. Reduced motion returns 0: everything lands at once.
    */
   attackFx(attackerId: string, targetId: string): number;
-  /** Hit flash + brief shake on an entity (attack landing, ability hit). */
-  flashEntity(id: string, delayMs?: number): void;
+  /**
+   * Play a landed blow on its target: the white flash and shake over a
+   * two-frame recoil away from the attacker (a shallower shudder when
+   * armor ate most of it). Queued — reactions answering one beat play
+   * in initiative order, and one body never plays two at once.
+   */
+  hitFx(targetId: string, options?: HitFxOptions): void;
   /** Floating rise-and-fade text over a tile (damage, MISS, heals). */
   floatText(
     tile: TilePoint,
@@ -110,11 +154,17 @@ export interface CombatScene {
 const WALK_SPEED = 6;
 const FLASH_MS = 300;
 const SHAKE_PX = 6;
-const DISSOLVE_MS = 550;
-/** Side of the square pixel blocks removed during a defeat dissolve. */
-const DISSOLVE_BLOCK_PX = 8;
+/**
+ * Reduced motion's whole death animation: the body fades where it
+ * stands and leaves nothing behind. No collapse, no heap — the fight
+ * still reports every defeat in the log and the initiative strip.
+ */
+const DEATH_FADE_MS = 400;
 const FLOAT_MS = 900;
 const FLOAT_RISE_PX = 56;
+
+/** Death for anything the caller did not describe: a body crumples. */
+const DEFAULT_DEATH_STYLE: DeathReactionKind = "collapse";
 
 interface EntityView extends CombatSceneEntity {
   /** Where the sprite is drawn right now (trails position while walking). */
@@ -129,8 +179,14 @@ interface EntityView extends CombatSceneEntity {
   attack: AttackSequence | null;
   attackStart: number;
   flashStart: number;
-  /** Timestamp the entity was seen dead, for the dissolve. */
-  diedAt: number;
+  /**
+   * Screen-x direction away from whatever last hit this entity; the
+   * recoil and the fall both go this way. Held between blows so a death
+   * with no fresh hit behind it still falls somewhere sensible.
+   */
+  awayX: -1 | 1;
+  /** Timestamp a reduced-motion death started fading; 0 when not fading. */
+  fadeStart: number;
 }
 
 interface FloatingText {
@@ -176,12 +232,15 @@ export function createCombatScene(
   if (!ctx) throw new Error("Could not get 2d context for combat canvas");
   const sprites = options.sprites ?? createPixelArtSprites();
   const bounds = mapPixelBounds(map);
-  /** Scratch canvas the defeat dissolve punches pixel blocks out of. */
-  const scratch = document.createElement("canvas");
-  const scratchCtx = scratch.getContext("2d");
 
   const entities = new Map<string, EntityView>();
   const floats: FloatingText[] = [];
+  /**
+   * Every reaction in flight or still waiting on its beat, plus the
+   * deaths, which stay forever — their last frame is the heap on the
+   * floor. Re-timed by the pure sequencer in ./reaction on every add.
+   */
+  let reactions: readonly ScheduledReaction[] = [];
   // The inherited hour, baked into every sprite the arena draws.
   sprites.setDayPhase?.(resolveDayPhase(map, options.dayPhase));
   /** The inherited weather, thinned for combat; null when clear or off. */
@@ -336,22 +395,107 @@ export function createCombatScene(
     return elapsed;
   }
 
+  /**
+   * Whether a fallen combatant still has anything to draw: a fade that
+   * has not finished, or a queued death — whose heap, once queued,
+   * stays on the floor for the rest of the fight.
+   */
+  function drawsDead(entity: EntityView, now: number): boolean {
+    if (entity.fadeStart > 0) return now - entity.fadeStart < DEATH_FADE_MS;
+    return reactions.some((r) => r.entityId === entity.id);
+  }
+
+  /** Screen-x direction away from the attacker, for the recoil. */
+  function awayFrom(entity: EntityView, attackerId?: string): -1 | 1 {
+    const attacker = attackerId ? entities.get(attackerId) : undefined;
+    if (!attacker) return entity.awayX;
+    const from = worldToScreen(attacker.visual.x, attacker.visual.y);
+    const to = worldToScreen(entity.visual.x, entity.visual.y);
+    const dx = to.sx - from.sx;
+    // Straight up or down the screen: shove it off the attacker's side.
+    if (dx === 0) return to.sy >= from.sy ? 1 : -1;
+    return dx > 0 ? 1 : -1;
+  }
+
+  /**
+   * Queue the fall of a combatant just seen dead. Its beat is the beat
+   * of whatever last landed on it, so the collapse follows that blow's
+   * flinch rather than racing it; reduced motion fades instead.
+   */
+  function killEntity(entity: EntityView, now: number): void {
+    if (settings.get().reducedMotion) {
+      entity.fadeStart = now;
+      return;
+    }
+    queueReaction(entity, entity.deathStyle ?? DEFAULT_DEATH_STYLE, now, {
+      beatMs: latestBeatFor(reactions, entity.id) ?? now,
+    });
+  }
+
+  /** Place one reaction on the queue and hand back where it landed. */
+  function queueReaction(
+    entity: EntityView,
+    kind: ScheduledReaction["kind"],
+    now: number,
+    at: { beatMs: number },
+  ): ScheduledReaction {
+    const { queue, scheduled } = scheduleReaction(
+      pruneReactions(reactions, now),
+      {
+        entityId: entity.id,
+        kind,
+        awayX: entity.awayX,
+        order: entity.order ?? 0,
+        beatMs: at.beatMs,
+      },
+      now,
+    );
+    reactions = queue;
+    return scheduled;
+  }
+
+  /**
+   * The reaction pose an entity is in, or undefined at rest. The one
+   * source both the sprite and its flash silhouette read, so an outline
+   * always traces the frame underneath it.
+   */
+  function reactionPose(
+    entity: EntityView,
+    now: number,
+  ): ReactionPose | undefined {
+    const active = activeReaction(reactions, entity.id, now);
+    return active ? reactionPoseAt(active, now) : undefined;
+  }
+
   function drawEntitySprite(entity: EntityView, now: number): void {
     const { sx, sy } = worldToScreen(entity.visual.x, entity.visual.y);
+    const reacting = reactionPose(entity, now);
     const pose = {
       facing: entity.facing,
       moving: entity.queue.length > 0,
       timeMs: settings.get().reducedMotion ? 0 : now,
       attackElapsedMs: attackElapsed(entity, now),
+      reaction: reacting,
     };
     const sprite = sprites.entity(entity.spriteId, pose);
-    const lunge = lungeOffset(entity, now);
+    // A body on the floor neither lunges nor shakes; it has stopped.
+    const lunge = entity.alive ? lungeOffset(entity, now) : { x: 0, y: 0 };
     const flashElapsed = now - entity.flashStart;
     const shake =
-      entity.flashStart > 0 ? shakeOffsetPx(flashElapsed, FLASH_MS, SHAKE_PX) : 0;
+      entity.alive && entity.flashStart > 0
+        ? shakeOffsetPx(flashElapsed, FLASH_MS, SHAKE_PX)
+        : 0;
     const drawX = snap(sx - sprite.anchorX + lunge.x + shake);
     const drawY = snap(sy - sprite.anchorY + lunge.y);
+    // Reduced motion's whole death: the standing figure fades out.
+    const fading =
+      entity.fadeStart > 0
+        ? 1 - dissolve01(now - entity.fadeStart, DEATH_FADE_MS)
+        : 1;
+    if (fading <= 0) return;
+    if (fading < 1) ctx!.globalAlpha = fading;
     ctx!.drawImage(sprite.image, drawX, drawY);
+    if (fading < 1) ctx!.globalAlpha = 1;
     if (entity.flashStart > 0) {
       if (flashElapsed >= 0 && flashElapsed < FLASH_MS) {
         const silhouette = sprites.entitySilhouette(entity.spriteId, pose);
@@ -362,43 +506,6 @@ export function createCombatScene(
         entity.flashStart = 0;
       }
     }
-  }
-
-  /** Defeat dissolve: the sprite with pixel blocks punched out. */
-  function drawDissolving(entity: EntityView, now: number): void {
-    const progress = dissolve01(now - entity.diedAt, DISSOLVE_MS);
-    if (progress >= 1 || !scratchCtx) return;
-    const sprite = sprites.entity(entity.spriteId, {
-      facing: entity.facing,
-      moving: false,
-      timeMs: 0,
-    });
-    const image = sprite.image as HTMLCanvasElement;
-    const w = image.width;
-    const h = image.height;
-    if (w === 0 || h === 0) return;
-    if (scratch.width !== w || scratch.height !== h) {
-      scratch.width = w;
-      scratch.height = h;
-    }
-    scratchCtx.clearRect(0, 0, w, h);
-    scratchCtx.drawImage(image, 0, 0);
-    for (let by = 0; by * DISSOLVE_BLOCK_PX < h; by++) {
-      for (let bx = 0; bx * DISSOLVE_BLOCK_PX < w; bx++) {
-        if (dissolvedAt(progress, bx, by)) {
-          scratchCtx.clearRect(
-            bx * DISSOLVE_BLOCK_PX,
-            by * DISSOLVE_BLOCK_PX,
-            DISSOLVE_BLOCK_PX,
-            DISSOLVE_BLOCK_PX,
-          );
-        }
-      }
-    }
-    const { sx, sy } = worldToScreen(entity.visual.x, entity.visual.y);
-    ctx!.globalAlpha = 1 - progress * 0.5;
-    ctx!.drawImage(scratch, snap(sx - sprite.anchorX), snap(sy - sprite.anchorY));
-    ctx!.globalAlpha = 1;
   }
 
   function drawHpBar(entity: EntityView): void {
@@ -461,26 +568,23 @@ export function createCombatScene(
       }
     }
 
-    // Object pass: living and dissolving entities, depth sorted.
+    // Object pass: the standing and the fallen, depth sorted. A body
+    // that has gone down draws on the ground layer — a heap is scenery
+    // now, and whoever is still standing on its tile steps over it.
     const drawables: Array<Drawable & { entity: EntityView }> = [];
     for (const entity of entities.values()) {
-      if (!entity.alive && entity.diedAt === 0) continue;
-      if (!entity.alive && now - entity.diedAt >= DISSOLVE_MS) continue;
+      if (!entity.alive && !drawsDead(entity, now)) continue;
       drawables.push({
         x: entity.visual.x,
         y: entity.visual.y,
-        layer: "object",
+        layer: entity.alive ? "object" : "ground",
         entity,
       });
     }
     drawables.sort(compareDrawables);
     for (const d of drawables) {
-      if (d.entity.alive) {
-        drawEntitySprite(d.entity, now);
-        drawHpBar(d.entity);
-      } else {
-        drawDissolving(d.entity, now);
-      }
+      drawEntitySprite(d.entity, now);
+      if (d.entity.alive) drawHpBar(d.entity);
     }
 
     // Floating combat text, newest on top.
@@ -548,7 +652,7 @@ export function createCombatScene(
         seen.add(incoming.id);
         const existing = entities.get(incoming.id);
         if (!existing) {
-          entities.set(incoming.id, {
+          const view: EntityView = {
             ...incoming,
             visual: { ...incoming.position },
             queue: [],
@@ -558,17 +662,28 @@ export function createCombatScene(
             attack: null,
             attackStart: 0,
             flashStart: 0,
-            diedAt: incoming.alive ? 0 : -DISSOLVE_MS,
-          });
+            awayX: 1,
+            fadeStart: 0,
+          };
+          entities.set(incoming.id, view);
+          // Already down when the scene first saw it (a fight re-entered
+          // mid-battle): skip the fall and lay the heap out directly.
+          if (!incoming.alive && !settings.get().reducedMotion) {
+            const now = performance.now();
+            const style = view.deathStyle ?? DEFAULT_DEATH_STYLE;
+            queueReaction(view, style, now, {
+              beatMs: now - reactionDurationMs(style),
+            });
+          }
           continue;
         }
         const moved = !sameTile(existing.position, incoming.position);
         const justDied = existing.alive && !incoming.alive;
         Object.assign(existing, incoming);
         if (justDied) {
-          existing.diedAt = performance.now();
           existing.queue = [];
           existing.visual = { ...incoming.position };
+          killEntity(existing, performance.now());
         }
         if (moved && incoming.alive) {
           const fromTile = {
@@ -580,7 +695,10 @@ export function createCombatScene(
         }
       }
       for (const id of entities.keys()) {
-        if (!seen.has(id)) entities.delete(id);
+        if (seen.has(id)) continue;
+        entities.delete(id);
+        // Nothing left to react: drop its queue entries, heap included.
+        reactions = reactions.filter((r) => r.entityId !== id);
       }
     },
 
@@ -616,12 +734,23 @@ export function createCombatScene(
       return swing.impactMs;
     },
 
-    flashEntity(id: string, delayMs = 0): void {
-      // Reduced motion: no flash or shake — floating numbers and the
-      // combat log still report every hit.
+    hitFx(targetId: string, options: HitFxOptions = {}): void {
+      const entity = entities.get(targetId);
+      if (!entity) return;
+      // Reduced motion: no flash, no shake, no recoil — floating
+      // numbers and the combat log still report every hit.
       if (settings.get().reducedMotion) return;
-      const entity = entities.get(id);
-      if (entity) entity.flashStart = performance.now() + Math.max(0, delayMs);
+      const now = performance.now();
+      entity.awayX = awayFrom(entity, options.attackerId);
+      const scheduled = queueReaction(
+        entity,
+        options.glancing === true ? "shudder" : "flinch",
+        now,
+        { beatMs: now + Math.max(0, options.delayMs ?? 0) },
+      );
+      // The flash lights on the frame the recoil starts on, however far
+      // down the queue that turned out to be.
+      entity.flashStart = scheduled.startMs;
     },
 
     floatText(

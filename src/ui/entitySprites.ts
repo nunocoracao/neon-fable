@@ -13,7 +13,12 @@ import {
   seededAppearance,
 } from "../character";
 import { getEnemy } from "../data/enemies";
-import { ambientLookSeed, type ComposedCharacter, type IsoMap } from "../iso";
+import {
+  ambientLookSeed,
+  type ComposedCharacter,
+  type DeathReactionKind,
+  type IsoMap,
+} from "../iso";
 
 function safeCompose(
   visual: Parameters<typeof composeVisual>[0],
@@ -80,6 +85,15 @@ export function ambientSpriteSource(): (
     }
     return memo.get(id);
   };
+}
+
+/**
+ * How an enemy archetype dies on screen. Content decides: an archetype
+ * built of flesh crumples into a heap, a machine sparks out. Unknown
+ * ids (and the player, who never passes through here) crumple.
+ */
+export function enemyDeathStyle(id: string | undefined): DeathReactionKind {
+  return getEnemy(id ?? "")?.chassis === "machine" ? "sparkout" : "collapse";
 }
 
 /** Descriptor source for combat entities, keyed by enemy archetype id. */
