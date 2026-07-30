@@ -14,6 +14,7 @@ import {
   type MotionState,
 } from "../animation";
 import { selectMotionFrame, type AttackClassId } from "../attack";
+import type { ReactionVariant } from "../reaction";
 import type {
   EntityPose,
   EntitySpriteId,
@@ -190,15 +191,29 @@ export function createPixelArtSprites(
     return selectMotionFrame(attackClassFor(descriptor), pose);
   }
 
+  /**
+   * The reaction variant a pose draws with, or undefined when nothing
+   * has landed on it. Only meaningful once the selection rule has
+   * chosen the reaction set — a queued reaction that has already played
+   * out selects a loop instead.
+   */
+  function poseVariant(
+    state: MotionState,
+    pose: EntityPose,
+  ): ReactionVariant | undefined {
+    return state === "react" && pose.reaction ? pose.reaction : undefined;
+  }
+
   // Bake keys serialize the descriptor itself, so entities that look
   // alike (three of the same enemy archetype) share one baked canvas.
   function composedSprite(descriptor: ComposedCharacter, pose: EntityPose): Sprite {
     const { state, frame } = composedPose(descriptor, pose);
+    const variant = poseVariant(state, pose);
     return cached(
-      `entity:${composedFrameKey(descriptor, pose.facing, state, frame)}`,
+      `entity:${composedFrameKey(descriptor, pose.facing, state, frame, variant)}`,
       () =>
         bakeSprite(
-          composedCharacterGrid(descriptor, pose.facing, state, frame),
+          composedCharacterGrid(descriptor, pose.facing, state, frame, variant),
           BODY_FRAME.anchorX,
           BODY_FRAME.anchorY,
           palette,
@@ -320,11 +335,12 @@ export function createPixelArtSprites(
     entitySilhouette(id: EntitySpriteId, pose: EntityPose): Sprite {
       const descriptor = descriptorFor(id);
       const { state, frame } = composedPose(descriptor, pose);
+      const variant = poseVariant(state, pose);
       return untinted(
-        `flash:${composedFrameKey(descriptor, pose.facing, state, frame)}`,
+        `flash:${composedFrameKey(descriptor, pose.facing, state, frame, variant)}`,
         () =>
           bakeSilhouette(
-            composedCharacterGrid(descriptor, pose.facing, state, frame),
+            composedCharacterGrid(descriptor, pose.facing, state, frame, variant),
             FLASH_COLOR,
             BODY_FRAME.anchorX,
             BODY_FRAME.anchorY,
