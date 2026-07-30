@@ -6,6 +6,7 @@
  */
 import type { Facing } from "./animation";
 import type { AttackClassId } from "./attack";
+import type { ReactionPose } from "./reaction";
 import type {
   DayPhaseId,
   InteractableSpriteId,
@@ -58,6 +59,13 @@ export interface EntityPose {
    * ./attack.ts for the timing and selection rules.
    */
   attackElapsedMs?: number | undefined;
+  /**
+   * The hit reaction or death this entity is playing, when the combat
+   * sequencer has one queued for it: which reaction, how far into it,
+   * and which way the blow threw it. Outranks both the attack set and
+   * the loops — see ./reaction.ts.
+   */
+  reaction?: ReactionPose | undefined;
 }
 
 export interface SpriteProvider {

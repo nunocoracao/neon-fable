@@ -15,6 +15,7 @@
  * these counts; a test pins the two together.
  */
 import { bodyFrameAt, type LoopState, type MotionState } from "./animation";
+import { reactionFrameAt, type ReactionPose } from "./reaction";
 
 /**
  * Classes an attack animation is authored per: the five held-weapon
@@ -168,19 +169,29 @@ export interface MotionQuery {
    * playing. Absent (or past the sequence) falls back to the loops.
    */
   readonly attackElapsedMs?: number | undefined;
+  /**
+   * The hit reaction or death this entity is playing, when one is. It
+   * outranks everything: whatever a body was doing, a blow landing on
+   * it interrupts, and a heap on the floor never gets back up.
+   */
+  readonly reaction?: ReactionPose | undefined;
 }
 
 /**
- * The motion state and frame a pose resolves to: an in-flight attack
- * wins over everything, then walking, then the idle breath. This is the
- * one selection rule — the sprite provider calls it for both the sprite
- * and its hit-flash silhouette, so the outline always traces the frame
- * that is actually on screen.
+ * The motion state and frame a pose resolves to: a reaction wins over
+ * everything, then an in-flight attack, then walking, then the idle
+ * breath. This is the one selection rule — the sprite provider calls it
+ * for both the sprite and its hit-flash silhouette, so the outline
+ * always traces the frame that is actually on screen.
  */
 export function selectMotionFrame(
   attackClass: AttackClassId,
   pose: MotionQuery,
 ): { state: MotionState; frame: number } {
+  if (pose.reaction) {
+    const frame = reactionFrameAt(pose.reaction.kind, pose.reaction.elapsedMs);
+    if (frame !== null) return { state: "react", frame };
+  }
   if (pose.attackElapsedMs !== undefined) {
     const frame = attackFrameAt(attackClass, pose.attackElapsedMs);
     if (frame !== null) return { state: "attack", frame };

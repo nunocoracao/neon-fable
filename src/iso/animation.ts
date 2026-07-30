@@ -16,11 +16,12 @@ export type Facing = "n" | "e" | "s" | "w";
 export type LoopState = "idle" | "walk";
 
 /**
- * Motion state a sprite set is selected from. "attack" is a one-shot
- * set played by the combat sequencer rather than a loop — its frame
- * counts and timing are per weapon class and live in ./attack.
+ * Motion state a sprite set is selected from. "attack" and "react" are
+ * one-shot sets played by the combat sequencer rather than loops:
+ * "attack" is per weapon class (see ./attack), "react" is the receiving
+ * end — flinches, shudders, and deaths (see ./reaction).
  */
-export type MotionState = LoopState | "attack";
+export type MotionState = LoopState | "attack" | "react";
 
 /**
  * Facing for a movement delta in world tile coordinates (+x = e, +y = s).
