@@ -21,6 +21,12 @@ import {
   type AttackClassId,
 } from "../attack";
 import {
+  REACTION_KINDS,
+  REACTION_TIMING,
+  reactionFrameCount,
+  type ReactionKind,
+} from "../reaction";
+import {
   BROWS_OPTIONS,
   EYE_COLOR_OPTIONS,
   EYES_OPTIONS,
@@ -212,6 +218,46 @@ function attackEntries(): GalleryEntry[] {
         ),
         frameMs: meanHold(attackClass),
       })),
+    ),
+  );
+}
+
+/**
+ * The receiving end (../reaction.ts): every reaction — the two hit
+ * recoils and the two deaths — per build, per facing, thrown both ways.
+ * A death's last frame is the heap it leaves behind, so the loop ending
+ * on it is the gallery showing what stays on the floor. Like the attack
+ * sets these are one-shots rather than loops, and play at the set's
+ * mean hold.
+ */
+function reactionEntries(): GalleryEntry[] {
+  const figure = (
+    build: (typeof BODY_BUILD_IDS)[number],
+  ): ComposedCharacter => ({
+    build,
+    layers: [
+      { slot: "body", art: build, remap: {} },
+      { slot: "face", art: "standard", remap: {} },
+    ],
+  });
+  const meanHold = (kind: ReactionKind): number => {
+    const holds = REACTION_TIMING[kind].frameMs;
+    return Math.round(holds.reduce((a, b) => a + b, 0) / holds.length);
+  };
+  return REACTION_KINDS.flatMap((kind) =>
+    BODY_BUILD_IDS.flatMap((build) =>
+      FACINGS.flatMap((facing) =>
+        ([-1, 1] as const).map((awayX) => ({
+          id: `react ${kind} ${build} ${facing} away${awayX}`,
+          frames: Array.from({ length: reactionFrameCount(kind) }, (_, frame) =>
+            composedCharacterGrid(figure(build), facing, "react", frame, {
+              kind,
+              awayX,
+            }),
+          ),
+          frameMs: meanHold(kind),
+        })),
+      ),
     ),
   );
 }
@@ -538,6 +584,11 @@ const SECTION_BUILDERS: ReadonlyArray<{
   { id: "cast", title: "Cast (NPCs & enemies)", build: castEntries },
   { id: "bodies", title: "Bodies (hi-res)", build: bodyEntries },
   { id: "attacks", title: "Attacks (per weapon class)", build: attackEntries },
+  {
+    id: "reactions",
+    title: "Reactions (hits & deaths)",
+    build: reactionEntries,
+  },
   { id: "appearance", title: "Appearance layers", build: appearanceEntries },
 ];
 
