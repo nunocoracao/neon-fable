@@ -39,6 +39,7 @@ import type {
 import type { MinimapView } from "./minimap";
 import { findPath, findPathToAdjacent } from "./path";
 import { renderScene, type OpeningView, type RenderView } from "./render";
+import { collectSetPieces } from "./setpiece";
 import { doorCycleMs, doorOpen01, doorTiming } from "./transition";
 import { resolveWeather, type WeatherView } from "./weather";
 import type { SpriteProvider } from "./sprites";
@@ -447,6 +448,13 @@ export function createIsoScene(
     // ambient clock: the player's own movement is the only motion the
     // scene keeps, since that one is the player's own doing.
     crowd = stepCrowd(crowd, map, reducedMotion ? 0 : dt);
+    // The set pieces ride the same frozen clock as everything else, and
+    // reduced motion additionally withholds the ones that would read as
+    // broken held still (see collectSetPieces).
+    const setPieces = collectSetPieces(map, reducedMotion ? 0 : time, {
+      motion: !reducedMotion,
+      rain: weather?.id === "rain",
+    });
     const view: RenderView = {
       map,
       camera,
@@ -478,6 +486,7 @@ export function createIsoScene(
       // still reads as wet without anything moving.
       weather,
       dayPhase,
+      setPieces,
       opening: stepOpening(time, reducedMotion),
       // The outline color is a value, not a branch: the later
       // colorblind-friendly setting picks a palette id here and nothing

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { EntitySpriteId } from "../sprites";
+import type { EntitySpriteId, SetPieceSpriteId } from "../sprites";
 import {
   DAY_PHASES,
   type InteractableSpriteId,
@@ -11,6 +11,7 @@ import type { Facing } from "../animation";
 import { INTERACTABLE_ART } from "./interactables";
 import { ART_SCALE } from "./pixel";
 import { PROP_ART } from "./props";
+import { SETPIECE_ART } from "./setpieces";
 import { skinToneRemap, type ComposedCharacter } from "./layers";
 import { createPixelArtSprites, type PixelArtSprites } from "./provider";
 import { TILE_ART } from "./tiles";
@@ -40,6 +41,7 @@ const TILE_IDS = Object.keys(TILE_ART) as TileId[];
 const PROP_IDS = Object.keys(PROP_ART) as PropId[];
 const INTERACTABLE_IDS = Object.keys(INTERACTABLE_ART) as InteractableSpriteId[];
 const ENTITY_IDS: EntitySpriteId[] = ["player", "enemy"];
+const SETPIECE_IDS = Object.keys(SETPIECE_ART) as SetPieceSpriteId[];
 const FACINGS: Facing[] = ["n", "e", "s", "w"];
 
 /**
@@ -61,6 +63,11 @@ function renderFrame(sprites: PixelArtSprites, timeMs: number): void {
   }
   for (const id of INTERACTABLE_IDS) {
     for (let i = 0; i < 3; i++) sprites.interactable(id, i, i + 2, timeMs);
+  }
+  for (const id of SETPIECE_IDS) {
+    for (let frame = 0; frame < SETPIECE_ART[id].frames.length; frame++) {
+      sprites.setPiece(id, frame);
+    }
   }
   for (const id of ENTITY_IDS) {
     for (const facing of FACINGS) {

@@ -17,6 +17,7 @@ import {
 import type {
   EntityPose,
   EntitySpriteId,
+  SetPieceSpriteId,
   Sprite,
   SpriteProvider,
 } from "../sprites";
@@ -37,6 +38,7 @@ import {
 import { bakeGlow } from "./glow";
 import { bakeSilhouette, bakeSprite, spriteBytes } from "./pixel";
 import { PROP_ART } from "./props";
+import { SETPIECE_ART } from "./setpieces";
 import {
   createSpriteCache,
   type SpriteCacheStats,
@@ -327,6 +329,21 @@ export function createPixelArtSprites(
       // the corner of the sprite, so the draw needs no offset math.
       return cached(`rain:${layer}`, () =>
         bakeSprite(RAIN_STREAK_ART[layer] ?? [], 0, 0, palette),
+      );
+    },
+
+    setPiece(id: SetPieceSpriteId, frame: number): Sprite {
+      const art = SETPIECE_ART[id];
+      // The frame is already a decision the set-piece pass made, so the
+      // key carries no clock and no position: every train on the map
+      // shares one bake per frame, as does every drone.
+      const index =
+        art.frames.length > 0
+          ? ((Math.trunc(frame) % art.frames.length) + art.frames.length) %
+            art.frames.length
+          : 0;
+      return cached(`setpiece:${id}:${index}`, () =>
+        bakeSprite(art.frames[index] ?? [], art.anchorX, art.anchorY, palette),
       );
     },
 

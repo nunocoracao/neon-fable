@@ -58,6 +58,7 @@ function recordingSprites(
     entitySilhouette: () => BLANK,
     glow: () => BLANK,
     rainStreak: () => BLANK,
+    setPiece: () => BLANK,
     splash: () => BLANK,
   };
 }
