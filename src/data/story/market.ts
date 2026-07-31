@@ -1,4 +1,5 @@
 import type { StoryArc } from "../../narrative/types";
+import { lastMileNodes } from "./lastMile";
 
 /**
  * The Vertical Market: a district arc rather than a chapter. It carries
@@ -22,6 +23,16 @@ import type { StoryArc } from "../../narrative/types";
  * walks out at a time, so taking him on benches whoever was already
  * along (see recruitCompanion) — the scene says so rather than letting
  * it happen quietly.
+ *
+ * Marrow's contracts have since arrived, and they are the one thing in
+ * the district that writes story state: "The Last Mile" hangs off his
+ * stool at `lm-offer`. Its nodes live in ./lastMile.ts and are spread
+ * into this arc rather than registered as an arc of their own, because
+ * a choice target only ever resolves inside one arc and the chain has
+ * to be opened by a choice on `vm-fixer`. Everything the district said
+ * about itself above still holds for the district's own nodes; the
+ * chain's flag surface, gating, and rewards are documented where they
+ * are authored.
  */
 export const marketArc: StoryArc = {
   id: "vertical-market",
@@ -264,6 +275,15 @@ export const marketArc: StoryArc = {
           target: "vm-fixer-wait",
           requirements: [{ type: "stat", stat: "cool", value: 7 }],
           ifUnavailable: "disabled",
+        },
+        {
+          // The one door into "The Last Mile" (./lastMile.ts). Ungated:
+          // `lm-offer` reads the chain's stage flag and routes a first
+          // visit, a resumed run, and a finished one to different beats,
+          // so Marrow never has to be asked twice for the same thing.
+          id: "the-job",
+          label: "\"You said I'd need something. Try me.\"",
+          target: "lm-offer",
         },
         {
           id: "leave-fixer",
@@ -667,5 +687,8 @@ export const marketArc: StoryArc = {
         },
       ],
     },
+    // Marrow's side-quest chain, authored in ./lastMile.ts and part of
+    // this arc so `vm-fixer` can open it.
+    ...lastMileNodes,
   ],
 };
