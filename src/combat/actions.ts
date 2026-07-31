@@ -2,8 +2,9 @@ import { requireAbility } from "../data/abilities";
 import { requireItem } from "../data/items";
 import type { ItemResolver } from "../inventory/items";
 import { nextFloat } from "../state/rng";
+import { abilityImpact } from "./area";
 import {
-  abilityDamage,
+  abilityHit,
   attackDamage,
   attackStatKey,
   fleeChance,
@@ -282,27 +283,29 @@ function doUseAbility(
       `"${abilityId}" reaches ${ability.range}, target is ${distance} away`,
     );
   }
-  const damage = abilityDamage(
-    ability.effect.amount,
-    target.armor,
-    ability.effect.ignoresArmor ?? false,
-  );
-  const stunTurns = ability.effect.stunTurns ?? 0;
-  next = withCombatant(next, target.id, (c) => ({
-    ...c,
-    hp: c.hp - damage,
-    stunTurns: c.stunTurns + stunTurns,
-  }));
-  next = pushEvents(next, {
-    type: "ability-used",
-    combatantId: actor.id,
-    abilityId,
-    targetId: target.id,
-    damage,
-    stunTurns,
-  });
-  if (getCombatant(next, target.id)!.hp <= 0) {
-    next = pushEvents(next, { type: "defeated", combatantId: target.id });
+  // Whoever the shape actually reaches — the body aimed at, plus anyone
+  // else standing under it. Resolved by the same function the telegraph
+  // tinted the tiles with, so the blast catches exactly what was shown.
+  for (const caught of abilityImpact(state, actor, ability, target)) {
+    const { damage, stunTurns } = abilityHit(ability.effect, caught.armor);
+    next = withCombatant(next, caught.id, (c) => ({
+      ...c,
+      hp: c.hp - damage,
+      stunTurns: c.stunTurns + stunTurns,
+    }));
+    // One event per body: the log, the floating figures, and the hit
+    // reactions all read a blast as the several blows it is.
+    next = pushEvents(next, {
+      type: "ability-used",
+      combatantId: actor.id,
+      abilityId,
+      targetId: caught.id,
+      damage,
+      stunTurns,
+    });
+    if (getCombatant(next, caught.id)!.hp <= 0) {
+      next = pushEvents(next, { type: "defeated", combatantId: caught.id });
+    }
   }
   return settleOutcome(next);
 }
