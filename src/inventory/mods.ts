@@ -232,7 +232,10 @@ export function sanitizeMods<T extends { equipment: EquipmentState }>(
       item?.kind === "weapon"
         ? storedMods(normalizeMods(item, stack.mods, resolve))
         : undefined;
-    const next: ItemStack = { itemId: stack.itemId, quantity: stack.quantity };
+    // Everything else the copy carries (its color) is left alone — this
+    // pass answers for fitted parts only.
+    const next: ItemStack = { ...stack };
+    delete next.mods;
     if (kept) next.mods = kept;
     return next;
   });

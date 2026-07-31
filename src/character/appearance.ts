@@ -19,11 +19,12 @@ import {
 } from "../iso/art/layers/cyberware";
 import { outfitArtId } from "../iso/art/layers/outfits";
 import { weaponArtId } from "../iso/art/layers/weapons";
-import { REMAP_CHANNELS, type MaterialName } from "../iso/art/palette";
+import { REMAP_CHANNELS } from "../iso/art/palette";
 import {
   ENHANCEMENT_SLOTS,
   type EnhancementSlot,
   type Item,
+  type OutfitDye,
 } from "../inventory/items";
 import type { EquipmentState } from "../inventory/equipment";
 import { modAccent } from "../inventory/mods";
@@ -168,16 +169,12 @@ export function seededAppearance(seed: number): Appearance {
 }
 
 /**
- * A recolor of the outfit layer's two material channels, overriding the
- * ones the worn item declares. This is how one issued coat serves a
- * whole look family: a crew's colors are the accent channel, a
- * different cloth is the primary. Absent channels keep the item's own
- * materials, so a dye that names only an accent leaves the cloth alone.
+ * A recolor of the outfit layer's two material channels. Declared with
+ * the item vocabulary (see src/inventory/items.ts) because a player's
+ * dye rides an item copy; an authored look wears one too, through
+ * CharacterVisual.outfitDye below.
  */
-export interface OutfitDye {
-  readonly primary?: MaterialName;
-  readonly accent?: MaterialName;
-}
+export type { OutfitDye };
 
 /**
  * The authored look of a non-player character: an appearance plus the
@@ -358,10 +355,17 @@ export function resolveLayers(
     const item = lookupItem(equipment.outfit);
     const ref = item?.kind === "outfit" ? item.outfitLayer : undefined;
     if (ref) {
+      // A coat that has been dyed wears the color rubbed into *this
+      // copy* (see src/inventory/dye.ts): the channels the tin named
+      // win, the rest keep the item's authored materials. An undyed
+      // coat draws exactly what its content declares.
       layers.push({
         slot: "outfit",
         art: outfitArtId(ref.id, build),
-        remap: outfitChannelRemap(ref.primary, ref.accent),
+        remap: {
+          ...outfitChannelRemap(ref.primary, ref.accent),
+          ...(outfitDyeRemap(equipment.outfitDye) ?? {}),
+        },
       });
     }
   }

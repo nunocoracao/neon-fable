@@ -2,7 +2,6 @@ import type { CharacterState } from "../character/create";
 import { requireItem } from "../data/items";
 import {
   addGear,
-  addItem,
   findCopy,
   removeItem,
   takeCopy,
@@ -12,7 +11,9 @@ import {
   InventoryError,
   type EnhancementSlot,
   type ItemResolver,
+  type OutfitDye,
 } from "./items";
+import { normalizeDye } from "./dye";
 import { normalizeMods, storedMods } from "./mods";
 import { effectiveStats } from "./selectors";
 
@@ -33,6 +34,13 @@ export interface EquipmentState {
    * bench.
    */
   weaponMods?: (string | null)[];
+  /**
+   * Color rubbed into the coat being worn — the same per-copy state a
+   * carried outfit keeps on its stack (see ItemStack.dye), moved into
+   * the slot along with the outfit. Absent while bare, and on every
+   * coat that has never seen a tin.
+   */
+  outfitDye?: OutfitDye;
   enhancements: Partial<Record<EnhancementSlot, string>>;
 }
 
@@ -53,20 +61,25 @@ export interface Loadout {
 export const UNINSTALL_TRAUMA_PER_LOAD = 3;
 
 /**
- * Puts a weapon back in the bag with whatever was fitted to it, and
- * leaves the slot's parts behind. Outfits carry nothing, so they go
- * back the plain way.
+ * Puts a piece of gear back in the bag with whatever it was carrying —
+ * a weapon with its fitted parts, a coat with the color rubbed into it
+ * — and leaves the slot's copy of that state behind.
  */
 function stowSlot(
   inventory: InventoryState,
   slot: "weapon" | "outfit",
   itemId: string,
-  weaponMods: (string | null)[] | undefined,
+  equipment: EquipmentState,
   resolve: ItemResolver,
 ): InventoryState {
-  return slot === "weapon"
-    ? addGear(inventory, itemId, weaponMods ?? [], resolve)
-    : addItem(inventory, itemId, 1, resolve);
+  return addGear(
+    inventory,
+    itemId,
+    slot === "weapon"
+      ? { mods: equipment.weaponMods ?? [] }
+      : { dye: equipment.outfitDye },
+    resolve,
+  );
 }
 
 /**
@@ -119,28 +132,20 @@ export function equipStack(
       nextInventory,
       slot,
       previous,
-      character.equipment.weaponMods,
+      character.equipment,
       resolve,
     );
   }
-  // Parts come off the copy and into the slot; the slot's own parts
+  // Per-copy state comes off the copy and into the slot; the slot's own
   // left with whatever was displaced, so neither set is ever shared.
-  const weaponMods =
+  const carried: Partial<EquipmentState> =
     item.kind === "weapon"
-      ? storedMods(normalizeMods(item, taken.stack.mods, resolve))
-      : character.equipment.weaponMods;
+      ? { weaponMods: storedMods(normalizeMods(item, taken.stack.mods, resolve)) }
+      : { outfitDye: normalizeDye(item, taken.stack.dye) };
   return {
     character: {
       ...character,
-      equipment: {
-        ...character.equipment,
-        [slot]: stack.itemId,
-        ...(item.kind === "weapon"
-          ? weaponMods
-            ? { weaponMods }
-            : { weaponMods: undefined }
-          : {}),
-      },
+      equipment: { ...character.equipment, [slot]: stack.itemId, ...carried },
     },
     inventory: nextInventory,
   };
@@ -188,16 +193,12 @@ export function unequip(
   }
   const equipment = { ...character.equipment, [slot]: null };
   if (slot === "weapon") equipment.weaponMods = undefined;
+  else equipment.outfitDye = undefined;
   return {
     character: { ...character, equipment },
-    // The parts leave with the weapon they are bolted to.
-    inventory: stowSlot(
-      inventory,
-      slot,
-      itemId,
-      character.equipment.weaponMods,
-      resolve,
-    ),
+    // The parts leave with the weapon they are bolted to, and the color
+    // with the cloth it soaked into.
+    inventory: stowSlot(inventory, slot, itemId, character.equipment, resolve),
   };
 }
 

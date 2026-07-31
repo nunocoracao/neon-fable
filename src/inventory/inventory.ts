@@ -2,7 +2,9 @@ import { requireItem } from "../data/items";
 import {
   InventoryError,
   isStackable,
+  storedDye,
   type ItemResolver,
+  type OutfitDye,
 } from "./items";
 import { storedMods, type ModSlots } from "./mods";
 
@@ -26,6 +28,15 @@ export interface ItemStack {
    * written before weapons had sockets contains.
    */
   mods?: (string | null)[];
+  /**
+   * Color rubbed into *this copy* of an outfit (see
+   * src/inventory/dye.ts) — the outfit's counterpart of `mods`, and
+   * per-copy for the same reason: two of the same coat are two coats
+   * the moment one of them is green. Absent means factory colors, which
+   * is every outfit any save written before the chapel sold dye
+   * contains.
+   */
+  dye?: OutfitDye;
 }
 
 export interface InventoryState {
@@ -75,19 +86,29 @@ export function addItem(
   return { stacks: [...inventory.stacks, ...copies] };
 }
 
+/** The per-copy state a piece of gear can carry into the bag. */
+export interface GearInstance {
+  /** Parts fitted to this weapon copy, in socket order. */
+  mods?: ModSlots;
+  /** Color rubbed into this outfit copy. */
+  dye?: OutfitDye;
+}
+
 /**
  * Adds one copy of a piece of gear, keeping the per-copy state it
- * carried. This is how a modded weapon survives a round trip through
- * the inventory: unequipping puts the parts back on the stack, and
- * equipping takes them off it again (see takeCopy).
+ * carried. This is how a modded weapon — or a dyed coat — survives a
+ * round trip through the inventory: unequipping puts the parts (and the
+ * color) back on the stack, and equipping takes them off it again (see
+ * takeCopy).
  *
- * An all-empty set of parts is stored as none at all, so a weapon that
- * has never been to a bench serializes exactly as it always did.
+ * An all-empty set of parts, and a dye naming no channel, are stored as
+ * nothing at all, so a weapon that has never been to a bench and a coat
+ * that has never been dyed serialize exactly as they always did.
  */
 export function addGear(
   inventory: InventoryState,
   itemId: string,
-  mods: ModSlots = [],
+  instance: GearInstance = {},
   resolve: ItemResolver = requireItem,
 ): InventoryState {
   const item = resolve(itemId);
@@ -97,11 +118,17 @@ export function addGear(
       `"${itemId}" stacks; it carries no per-copy state`,
     );
   }
-  const stored = storedMods(mods);
+  const mods = storedMods(instance.mods ?? []);
+  const dye = storedDye(instance.dye);
   return {
     stacks: [
       ...inventory.stacks,
-      { itemId, quantity: 1, ...(stored ? { mods: stored } : {}) },
+      {
+        itemId,
+        quantity: 1,
+        ...(mods ? { mods } : {}),
+        ...(dye ? { dye } : {}),
+      },
     ],
   };
 }

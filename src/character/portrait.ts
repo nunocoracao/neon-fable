@@ -108,12 +108,21 @@ export function resolvePortraitParts(
   const eyeRemap = eyeColorRemap(must("eyeColor", appearance.eyeColor).color);
 
   // The equipped outfit tints the authored shoulder band's primary and
-  // accent channels — no per-item portrait art.
+  // accent channels — no per-item portrait art. A color rubbed into
+  // this copy of the coat (see src/inventory/dye.ts) lands on top, the
+  // same channels it repaints on the sprite, so the face in the
+  // dialogue box is never wearing a different coat than the body on the
+  // street.
   let outfitRemap: Readonly<Record<string, string>> = {};
   if (equipment.outfit !== null) {
     const item = lookupItem(equipment.outfit);
     const ref = item?.kind === "outfit" ? item.outfitLayer : undefined;
-    if (ref) outfitRemap = outfitChannelRemap(ref.primary, ref.accent);
+    if (ref) {
+      outfitRemap = {
+        ...outfitChannelRemap(ref.primary, ref.accent),
+        ...(outfitDyeRemap(equipment.outfitDye) ?? {}),
+      };
+    }
   }
 
   const build = must("build", appearance.build).build;

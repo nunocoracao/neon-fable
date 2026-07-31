@@ -29,7 +29,7 @@ function armedState(credits = 500): GameState {
     ...base.player,
     stats: { ...base.player.stats, reflexes: 8, body: 8 },
   };
-  let inventory = addGear(emptyInventory(), "wpn-rail-spitter", []);
+  let inventory = addGear(emptyInventory(), "wpn-rail-spitter", {});
   for (const modId of [
     "mod-lattice-rifling",
     "mod-smartlink-sight",

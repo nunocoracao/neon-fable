@@ -1,4 +1,5 @@
 import { InventoryError, type Item } from "../inventory/items";
+import { dyeItems } from "./dyes";
 
 /**
  * Item content. Every item id referenced anywhere (background starting
@@ -662,6 +663,10 @@ export const items: Item[] = [
       { type: "stat-mod", stat: "reflexes", amount: -1 },
     ],
   },
+  // --- Dyes ---
+  // Authored in ./dyes.ts, which also holds the chapel's shelf prices:
+  // a tin is an item like any other once it is in the bag.
+  ...dyeItems,
 ];
 
 const itemsById = new Map(items.map((item) => [item.id, item]));

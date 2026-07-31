@@ -131,6 +131,56 @@ export interface OutfitLayerRef {
   accent?: MaterialName;
 }
 
+/**
+ * A recolor of the outfit layer's two material channels, overriding the
+ * ones the worn item declares. This is how one issued coat serves a
+ * whole look family: a crew's colors are the accent channel, a
+ * different cloth is the primary. Absent channels keep the item's own
+ * materials, so a dye that names only an accent leaves the cloth alone.
+ *
+ * Two things wear one: an authored look (see CharacterVisual.outfitDye
+ * — a crew's colors, fixed by the content that declares them) and a
+ * single copy of a player's outfit (see ItemStack.dye — a tin bought at
+ * the chapel and rubbed into that coat). The second never reaches the
+ * first: an override lives on an item instance, and no NPC has one.
+ */
+export interface OutfitDye {
+  readonly primary?: MaterialName;
+  readonly accent?: MaterialName;
+}
+
+/** True when a dye names at least one channel to repaint. */
+export function dyesAnything(dye: OutfitDye | undefined): dye is OutfitDye {
+  return !!dye && (dye.primary !== undefined || dye.accent !== undefined);
+}
+
+/**
+ * The color as it should be *stored*: a dye naming no channel is stored
+ * as nothing at all, so an undyed outfit serializes exactly as it did
+ * before the chapel sold color. Named channels are copied out, so a
+ * stored value never aliases an item's authored data.
+ */
+export function storedDye(dye: OutfitDye | undefined): OutfitDye | undefined {
+  if (!dyesAnything(dye)) return undefined;
+  return {
+    ...(dye.primary !== undefined ? { primary: dye.primary } : {}),
+    ...(dye.accent !== undefined ? { accent: dye.accent } : {}),
+  };
+}
+
+/**
+ * A tin of outfit color. Applying one is cosmetic and nothing else: it
+ * writes an OutfitDye onto the copy of the outfit it is rubbed into
+ * (see src/inventory/dye.ts), changing no figure the fight or any gate
+ * ever reads. Tins are consumed by the application, so a look that
+ * keeps changing keeps costing.
+ */
+export interface DyeItem extends ItemBase {
+  kind: "dye";
+  /** The channels this tin repaints; at least one, or it dyes nothing. */
+  colors: OutfitDye;
+}
+
 export interface OutfitItem extends ItemBase {
   kind: "outfit";
   /** Flat damage reduction while worn. */
@@ -189,6 +239,7 @@ export type Item =
   | ConsumableItem
   | EnhancementItem
   | ModItem
+  | DyeItem
   | MiscItem;
 
 /**
@@ -205,7 +256,12 @@ export type EffectBearingItem =
 
 /** True for the kinds that carry an `effects` list. */
 export function bearsEffects(item: Item): item is EffectBearingItem {
-  return item.kind !== "consumable" && item.kind !== "misc";
+  return (
+    item.kind === "weapon" ||
+    item.kind === "outfit" ||
+    item.kind === "enhancement" ||
+    item.kind === "mod"
+  );
 }
 
 /**
@@ -216,14 +272,18 @@ export function bearsEffects(item: Item): item is EffectBearingItem {
 export type ItemResolver = (id: string) => Item;
 
 /**
- * Consumables, misc items, and loose mods stack; worn gear is tracked
- * one copy per stack, because a copy can differ from its fellows (a
- * weapon carries the parts fitted to it). A loose mod carries nothing,
+ * Consumables, misc items, loose mods and unopened dye tins stack; worn
+ * gear is tracked one copy per stack, because a copy can differ from
+ * its fellows (a weapon carries the parts fitted to it, an outfit the
+ * color rubbed into it). A loose mod or a sealed tin carries nothing,
  * so two of them are genuinely the same thing.
  */
 export function isStackable(item: Item): boolean {
   return (
-    item.kind === "consumable" || item.kind === "misc" || item.kind === "mod"
+    item.kind === "consumable" ||
+    item.kind === "misc" ||
+    item.kind === "mod" ||
+    item.kind === "dye"
   );
 }
 
@@ -247,6 +307,10 @@ export type InventoryErrorCode =
   | "socket-occupied"
   /** Nothing is fitted there to take out. */
   | "socket-empty"
+  /** That outfit has no cloth to dye (no sprite layer of its own). */
+  | "not-dyeable"
+  /** Asked to strip factory colors back onto an outfit wearing none. */
+  | "not-dyed"
   /** The bench's fee is more than the player is carrying. */
   | "insufficient-credits";
 
