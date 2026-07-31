@@ -14,6 +14,7 @@ import {
   canAccess,
   clampReputation,
   deriveReputation,
+  dominantFaction,
   emptyReputation,
   reputationOf,
   sumStanding,
@@ -132,6 +133,50 @@ describe("canAccess", () => {
 
   it("treats an unknown band as a door that never opens", () => {
     expect(canAccess(reputation, "court", "beloved" as never)).toBe(false);
+  });
+});
+
+describe("dominantFaction", () => {
+  const standing = (delta: Parameters<typeof applyStanding>[1]) =>
+    applyStanding(emptyReputation(), delta);
+
+  it("names the one power standing highest", () => {
+    expect(dominantFaction(standing({ court: 62, auric: 25 }))).toBe("court");
+    expect(dominantFaction(standing({ auric: 65, market: 30 }))).toBe("auric");
+    expect(dominantFaction(standing({ market: 44 }))).toBe("market");
+  });
+
+  it("names nobody when the city has no opinion worth calling on", () => {
+    expect(dominantFaction(emptyReputation())).toBeNull();
+    // Highest of three, and still only a face they have seen.
+    expect(dominantFaction(standing({ court: 19, market: 4 }))).toBeNull();
+  });
+
+  it("names nobody when the top is a tie", () => {
+    expect(dominantFaction(standing({ court: 40, market: 40 }))).toBeNull();
+    expect(
+      dominantFaction(standing({ court: 40, market: 40, auric: 40 })),
+    ).toBeNull();
+  });
+
+  it("lets a clear leader break a tie beneath it", () => {
+    expect(
+      dominantFaction(standing({ court: 40, market: 40, auric: 55 })),
+    ).toBe("auric");
+  });
+
+  it("ignores how badly the others are doing", () => {
+    // Being hated by two powers does not make the third one yours.
+    expect(dominantFaction(standing({ court: 10, auric: -80, market: -60 })))
+      .toBeNull();
+  });
+
+  it("takes its floor from content, band or number", () => {
+    const reputation = standing({ market: 30, court: 10 });
+    expect(dominantFaction(reputation, "trusted")).toBeNull();
+    expect(dominantFaction(reputation, "neutral")).toBe("market");
+    expect(dominantFaction(reputation, 31)).toBeNull();
+    expect(dominantFaction(reputation, 30)).toBe("market");
   });
 });
 
