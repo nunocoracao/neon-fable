@@ -5,7 +5,9 @@ import {
   TELEGRAPH_ROLES,
   movePreview,
   telegraphHover,
+  SURGE_ARM_TURNS,
   type CombatActionKind,
+  type CombatState,
 } from "../combat";
 import { makeCombat, makeCombatant } from "../combat/testSupport";
 import { requireAbility } from "../data/abilities";
@@ -19,6 +21,7 @@ import {
   damageRangeLabel,
   hpLabel,
   initiativeChips,
+  staticSurgeWarning,
   targetCard,
   telegraphChip,
   telegraphReasonText,
@@ -437,5 +440,60 @@ describe("damageRangeLabel", () => {
   it("reads as one figure when nothing can miss, and a span when it can", () => {
     expect(damageRangeLabel(4, 4)).toBe("4 dmg");
     expect(damageRangeLabel(0, 4)).toBe("0–4 dmg");
+  });
+});
+
+describe("the static surge warning", () => {
+  const fight = (surge: CombatState["surge"]): CombatState =>
+    makeCombat(
+      [
+        makeCombatant({ id: "player", kind: "player" }),
+        makeCombatant({ id: "foe" }),
+      ],
+      { surge },
+    );
+
+  it("says nothing at all when there is no noise to warn about", () => {
+    expect(staticSurgeWarning(fight(null))).toBeNull();
+    expect(staticSurgeWarning(fight(undefined))).toBeNull();
+  });
+
+  it("counts the quiet turns down while the noise is still building", () => {
+    const state = fight({
+      combatantId: "player",
+      charge: 1,
+      armed: false,
+      spent: false,
+    });
+    expect(staticSurgeWarning(state)).toBe(
+      `Static building — ${SURGE_ARM_TURNS - 1} turns until it peaks.`,
+    );
+  });
+
+  it("names the answer once it arms, because that is the whole telegraph", () => {
+    const state = fight({
+      combatantId: "player",
+      charge: SURGE_ARM_TURNS,
+      armed: true,
+      spent: false,
+    });
+    const line = staticSurgeWarning(state);
+    expect(line).toContain("armed");
+    expect(line).toContain("unspent");
+  });
+
+  it("falls silent once it has been settled, and once the fight is over", () => {
+    expect(
+      staticSurgeWarning(
+        fight({ combatantId: "player", charge: 0, armed: false, spent: true }),
+      ),
+    ).toBeNull();
+    const armed = fight({
+      combatantId: "player",
+      charge: SURGE_ARM_TURNS,
+      armed: true,
+      spent: false,
+    });
+    expect(staticSurgeWarning({ ...armed, status: "victory" })).toBeNull();
   });
 });

@@ -26,10 +26,15 @@ import {
   shardPickupToast,
   standingNote,
   signedNumber,
+  staticBandLabel,
+  staticEffectNotes,
+  staticLine,
+  staticProjection,
   slotDisplayName,
   statLabel,
   uninstallWarning,
 } from "./format";
+import { readStatic } from "../inventory/staticLoad";
 
 const knife: Item = {
   id: "knife",
@@ -59,6 +64,7 @@ const optic: EnhancementItem = {
   description: "",
   slot: "eyes",
   neuralCost: 2,
+  staticLoad: 2,
   effects: [
     { type: "stat-mod", stat: "cool", amount: -1 },
     { type: "grant-ability", abilityId: "ability-x" },
@@ -82,19 +88,28 @@ describe("requirementLabel", () => {
     );
   });
 
-  it("formats item requirements with resolved names and quantities", () => {
+  it("names a Static gate in the word the character screen uses", () => {
+    expect(requirementLabel({ type: "static", band: "loud" })).toBe(
+      "[Static: Loud+]",
+    );
     expect(
-      requirementLabel({ type: "item", itemId: "knife" }, lookup),
-    ).toBe("[Requires: Knife]");
+      requirementLabel({ type: "static", band: "humming", mode: "at-most" }),
+    ).toBe("[Static: Humming at most]");
+  });
+
+  it("formats item requirements with resolved names and quantities", () => {
+    expect(requirementLabel({ type: "item", itemId: "knife" }, lookup)).toBe(
+      "[Requires: Knife]",
+    );
     expect(
       requirementLabel({ type: "item", itemId: "knife", quantity: 2 }, lookup),
     ).toBe("[Requires: 2× Knife]");
   });
 
   it("falls back to the raw id for unknown items", () => {
-    expect(
-      requirementLabel({ type: "item", itemId: "mystery" }, lookup),
-    ).toBe("[Requires: mystery]");
+    expect(requirementLabel({ type: "item", itemId: "mystery" }, lookup)).toBe(
+      "[Requires: mystery]",
+    );
   });
 
   it("formats enhancement requirements", () => {
@@ -109,7 +124,11 @@ describe("requirementLabel", () => {
 
   it("formats flag requirements", () => {
     expect(
-      requirementLabel({ type: "flag-equals", key: "door-entry", value: "corp" }),
+      requirementLabel({
+        type: "flag-equals",
+        key: "door-entry",
+        value: "corp",
+      }),
     ).toBe("[door-entry: corp]");
     expect(
       requirementLabel({ type: "flag-at-least", key: "rep", value: 3 }),
@@ -184,8 +203,12 @@ describe("pointBuyErrorMessage", () => {
 describe("item formatting", () => {
   it("summarizes each item kind", () => {
     expect(itemSummary(knife)).toBe("Melee weapon · 4 dmg");
-    expect(itemSummary(pistol)).toBe("Ranged weapon · 5 dmg · needs Reflexes 5");
-    expect(itemSummary(optic)).toBe("Cyberware · Eyes · 2 neural load");
+    expect(itemSummary(pistol)).toBe(
+      "Ranged weapon · 5 dmg · needs Reflexes 5",
+    );
+    expect(itemSummary(optic)).toBe(
+      "Cyberware · Eyes · 2 neural load · +2 Static",
+    );
     expect(
       itemSummary({
         id: "patch",
@@ -205,7 +228,13 @@ describe("item formatting", () => {
       }),
     ).toBe("Consumable · +2 Reflexes for 3 turns (combat only)");
     expect(
-      itemSummary({ id: "m", kind: "misc", name: "M", description: "", tags: [] }),
+      itemSummary({
+        id: "m",
+        kind: "misc",
+        name: "M",
+        description: "",
+        tags: [],
+      }),
     ).toBe("Item");
   });
 
@@ -225,7 +254,9 @@ describe("item formatting", () => {
           : undefined,
       ),
     ).toEqual(["-1 Cool", "Grants Crush", 'Unlocks "optic-scan" dialogue']);
-    expect(itemEffectLabels(optic, () => undefined)[1]).toBe("Grants ability-x");
+    expect(itemEffectLabels(optic, () => undefined)[1]).toBe(
+      "Grants ability-x",
+    );
   });
 
   it("warns about extraction trauma from the item's neural cost", () => {
@@ -244,7 +275,9 @@ describe("misc labels", () => {
   });
 
   it("formats stat bonuses in stat order", () => {
-    expect(formatBonuses({ reflexes: 1, body: 1 })).toBe("+1 Body, +1 Reflexes");
+    expect(formatBonuses({ reflexes: 1, body: 1 })).toBe(
+      "+1 Body, +1 Reflexes",
+    );
     expect(formatBonuses({})).toBe("");
   });
 
@@ -423,7 +456,9 @@ describe("combat log formatting", () => {
         damage: 2,
         stunTurns: 1,
       }),
-    ).toBe("Vex hits Static Drone with Stun Strike for 2 damage, stunning them.");
+    ).toBe(
+      "Vex hits Static Drone with Stun Strike for 2 damage, stunning them.",
+    );
     expect(
       line({
         type: "ability-used",
@@ -438,7 +473,11 @@ describe("combat log formatting", () => {
 
   it("describes items, healing, and boosts", () => {
     expect(
-      line({ type: "item-used", combatantId: "player", itemId: "con-trauma-patch" }),
+      line({
+        type: "item-used",
+        combatantId: "player",
+        itemId: "con-trauma-patch",
+      }),
     ).toBe("Vex uses a Trauma Patch.");
     expect(line({ type: "healed", combatantId: "player", amount: 7 })).toBe(
       "Vex recovers 7 HP.",
@@ -469,7 +508,9 @@ describe("combat log formatting", () => {
       "Static Drone goes down.",
     );
     expect(line({ type: "combat-ended", result: "victory" })).toMatch(/down/);
-    expect(line({ type: "combat-ended", result: "defeat" })).toMatch(/collapse/);
+    expect(line({ type: "combat-ended", result: "defeat" })).toMatch(
+      /collapse/,
+    );
     expect(line({ type: "combat-ended", result: "fled" })).toMatch(/clear/);
   });
 
@@ -526,7 +567,9 @@ describe("standingNote", () => {
 
   it("says nothing about a shift that changed no word", () => {
     expect(
-      standingNote([{ ...crossing, to: 18, toBand: "neutral", bandChanged: false }]),
+      standingNote([
+        { ...crossing, to: 18, toBand: "neutral", bandChanged: false },
+      ]),
     ).toBe("");
     expect(standingNote([])).toBe("");
   });
@@ -569,5 +612,78 @@ describe("memory shard copy", () => {
     expect(shardPickupToast("Three Parishes, One Voice", 12, 12)).toContain(
       "The Grey Choir is whole",
     );
+  });
+});
+
+describe("Static", () => {
+  it("captions the meter with the level and the band", () => {
+    expect(staticLine(readStatic(0))).toBe("Static 0 — Clear");
+    expect(staticLine(readStatic(6))).toBe("Static 6 — Loud");
+    expect(staticBandLabel("screaming")).toBe("Screaming");
+  });
+
+  it("says nothing about the bands that cost nothing", () => {
+    expect(staticEffectNotes(readStatic(0))).toEqual([]);
+    expect(staticEffectNotes(readStatic(3))).toEqual([]);
+  });
+
+  it("lists what a costly band costs, in checkable terms", () => {
+    expect(staticEffectNotes(readStatic(6))).toEqual([
+      "-1 Cool in conversation",
+      "Opens chrome-affinity talk",
+    ]);
+    const screaming = staticEffectNotes(readStatic(10));
+    expect(screaming).toContain("-2 Cool in conversation");
+    expect(screaming).toContain("-1 initiative");
+    expect(screaming).toContain("Static surge, once a fight");
+  });
+
+  it("projects a move with its sign, its total, and any band it crosses", () => {
+    expect(
+      staticProjection({
+        from: readStatic(2),
+        to: readStatic(6),
+        delta: 4,
+        bandChanges: true,
+      }),
+    ).toBe("+4 Static → 6 · Loud");
+    expect(
+      staticProjection({
+        from: readStatic(0),
+        to: readStatic(2),
+        delta: 2,
+        bandChanges: false,
+      }),
+    ).toBe("+2 Static → 2");
+    expect(
+      staticProjection({
+        from: readStatic(2),
+        to: readStatic(2),
+        delta: 0,
+        bandChanges: false,
+      }),
+    ).toBe("No change to Static");
+  });
+});
+
+describe("combat log lines for the surge", () => {
+  const nameOf = (id: string) => (id === "player" ? "Vex" : id);
+
+  it("turns each surge event into a sentence that says what to do", () => {
+    const armed = combatEventText(
+      { type: "static-armed", combatantId: "player" },
+      nameOf,
+    );
+    expect(armed).toContain("Vex");
+    expect(armed).toContain("bleed it off");
+    expect(
+      combatEventText({ type: "static-vented", combatantId: "player" }, nameOf),
+    ).toContain("settles");
+    expect(
+      combatEventText(
+        { type: "static-surge", combatantId: "player", stunTurns: 1 },
+        nameOf,
+      ),
+    ).toContain("Static surges");
   });
 });

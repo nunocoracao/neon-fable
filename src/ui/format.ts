@@ -10,6 +10,7 @@ import { getAbility, type Ability } from "../data/abilities";
 import { getCompanion } from "../data/companions";
 import { getFaction } from "../data/factions";
 import { getItem } from "../data/items";
+import { staticBand, type StaticBand } from "../data/static";
 import { UNINSTALL_TRAUMA_PER_LOAD } from "../inventory/equipment";
 import { bearsEffects } from "../inventory/items";
 import type {
@@ -20,6 +21,7 @@ import type {
   ModSocketKind,
   OutfitDye,
 } from "../inventory/items";
+import type { StaticReading, StaticShift } from "../inventory/staticLoad";
 import type { MaterialName } from "../iso/art/palette";
 import type { CombatEvent } from "../combat/types";
 import type { InteractableSpriteId, MapInteraction } from "../iso";
@@ -112,6 +114,12 @@ export function requirementLabel(
       return `[${statLabel(requirement.stat)} ${requirement.value}]`;
     case "background":
       return `[Background: ${requirement.tag}]`;
+    case "static":
+      // Named in the same word the character screen shows, so a locked
+      // door can be read straight off your own Static meter.
+      return requirement.mode === "at-most"
+        ? `[Static: ${staticBandLabel(requirement.band)} at most]`
+        : `[Static: ${staticBandLabel(requirement.band)}+]`;
     case "item": {
       const name = lookupItem(requirement.itemId)?.name ?? requirement.itemId;
       const quantity = requirement.quantity ?? 1;
@@ -212,7 +220,13 @@ export function itemSummary(item: Item): string {
         : `Consumable · ${signedNumber(item.effect.amount)} ` +
             `${statLabel(item.effect.stat)} for ${item.effect.turns} turns (combat only)`;
     case "enhancement":
-      return `Cyberware · ${slotLabel(item.slot)} · ${item.neuralCost} neural load`;
+      // Both costs on one line, and the dampener says which way it
+      // pulls: a shelf label that only quoted neural load would price
+      // half the decision.
+      return (
+        `Cyberware · ${slotLabel(item.slot)} · ${item.neuralCost} neural ` +
+        `load · ${signedNumber(item.staticLoad)} Static`
+      );
     case "mod":
       return `Weapon mod · ${socketLabel(item.socket)} socket`;
     case "dye":
@@ -308,6 +322,52 @@ export function modEffectLabel(
     case "crit-share":
       return effect.amount < 0 ? "Crits land sooner" : "Crits land later";
   }
+}
+
+/* --- Static ---------------------------------------------------------- */
+
+/** A band in the one word the whole game calls it by. */
+export function staticBandLabel(band: StaticBand): string {
+  return staticBand(band).label;
+}
+
+/** "Static 6 — Loud": the meter's own caption. */
+export function staticLine(reading: StaticReading): string {
+  return `Static ${reading.level} — ${reading.def.label}`;
+}
+
+/**
+ * What the current band is costing, in the concrete terms a player can
+ * check against a locked door. Empty for the two quiet bands, which is
+ * the honest answer: they cost nothing.
+ */
+export function staticEffectNotes(reading: StaticReading): string[] {
+  const { coolPenalty, initiativePenalty, chromeAffinity, surge } =
+    reading.def.effects;
+  const notes: string[] = [];
+  if (coolPenalty > 0) {
+    notes.push(`${signedNumber(-coolPenalty)} Cool in conversation`);
+  }
+  if (chromeAffinity) notes.push("Opens chrome-affinity talk");
+  if (initiativePenalty > 0) {
+    notes.push(`${signedNumber(-initiativePenalty)} initiative`);
+  }
+  if (surge) notes.push("Static surge, once a fight");
+  return notes;
+}
+
+/**
+ * What an install would do to the noise, said before anybody commits:
+ * the projected level always, and the band it lands in when the move
+ * crosses one — "+4 Static → Loud". A dampener reads the same way with
+ * the sign the other way round, which is the whole pitch for one.
+ */
+export function staticProjection(shift: StaticShift): string {
+  const move =
+    shift.delta === 0
+      ? "No change to Static"
+      : `${signedNumber(shift.delta)} Static → ${shift.to.level}`;
+  return shift.bandChanges ? `${move} · ${shift.to.def.label}` : move;
 }
 
 /** Trade-off warning shown before confirming a cyberware extraction. */
@@ -540,6 +600,20 @@ export function combatEventText(
         ? `${nameOf(event.combatantId)} looses ${ability} into empty ground.`
         : `${nameOf(event.combatantId)} looses ${ability}.`;
     }
+    case "static-armed":
+      // The warning has to name the answer, or it is not a telegraph:
+      // one turn, hands down, and the noise goes nowhere.
+      return (
+        `${nameOf(event.combatantId)}'s chrome is howling — hold the ` +
+        `next turn's action to bleed it off, or lose the turn after it.`
+      );
+    case "static-vented":
+      return `${nameOf(event.combatantId)} rides the static out. It settles.`;
+    case "static-surge":
+      return (
+        `Static surges through ${nameOf(event.combatantId)} — every ` +
+        `implant firing at once.`
+      );
     case "item-used": {
       const item = lookupItem(event.itemId)?.name ?? event.itemId;
       return `${nameOf(event.combatantId)} uses a ${item}.`;

@@ -13,6 +13,7 @@ import {
   effectiveArmor,
   isGlancingBlow,
   isPlayerControlled,
+  isSurgeArmed,
   itemOptions,
   reachableTiles,
   resolveCombat,
@@ -59,6 +60,7 @@ import {
   actionForHotkey,
   actionButtons,
   initiativeChips,
+  staticSurgeWarning,
   targetCard,
   telegraphChip,
   telegraphTileViews,
@@ -309,6 +311,18 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     for (const text of parts) {
       const span = document.createElement("span");
       span.textContent = text;
+      statusEl.append(span);
+    }
+    // The chrome, when there is chrome to warn about. Last on the row
+    // and marked, because it is the only thing here that is a
+    // countdown rather than a reading.
+    const surge = staticSurgeWarning(combat);
+    if (surge !== null) {
+      const span = document.createElement("span");
+      span.className = isSurgeArmed(combat)
+        ? "nf-combat-static nf-combat-static-armed"
+        : "nf-combat-static";
+      span.textContent = surge;
       statusEl.append(span);
     }
   }

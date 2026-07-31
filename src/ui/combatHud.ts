@@ -11,8 +11,10 @@ import {
   itemOptions,
   manhattan,
   movePreview,
+  pendingSurge,
   playerCombatant,
   resolveTelegraphTiles,
+  surgeTurnsToArm,
   type AbilityPreview,
   type ActionBlockReason,
   type CombatActionKind,
@@ -153,6 +155,32 @@ export function combatantStatuses(
 /** The badge label for a condition family (also its tooltip). */
 export function statusLabel(family: StatusFamilyId): string {
   return STATUS_MARKERS[family].label;
+}
+
+/* --- Static surge ----------------------------------------------------- */
+
+/**
+ * The line the HUD carries about the player's cyberware noise, or null
+ * when there is nothing to say — which is every fight below the
+ * screaming band, and every fight after the surge has been settled.
+ *
+ * Two states, and both are actionable. While the noise is still
+ * building the line is a countdown, so a player can spend the quiet
+ * turns knowing exactly how many they have. Once it arms the line is
+ * the instruction: this turn's action is the price of not losing the
+ * next turn entirely. That is the whole telegraph — the engine hands
+ * out no surprises, only a clock (see src/combat/surge.ts).
+ */
+export function staticSurgeWarning(state: CombatState): string | null {
+  if (state.status !== "active") return null;
+  const surge = pendingSurge(state);
+  if (!surge) return null;
+  if (surge.armed) {
+    return "Static armed — end this turn with your action unspent to bleed it off.";
+  }
+  const turns = surgeTurnsToArm(state);
+  if (turns === null) return null;
+  return `Static building — ${turns} turn${turns === 1 ? "" : "s"} until it peaks.`;
 }
 
 /* --- Action bar ------------------------------------------------------ */

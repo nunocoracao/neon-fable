@@ -21,14 +21,25 @@ import {
   uninstallWarning,
 } from "./format";
 import type { OverlayHandle } from "./overlay";
-import { portraitCanvas } from "./portraits";
+import { flickeringPortraitCanvas, portraitCanvas } from "./portraits";
 import type { Session } from "./session";
+import {
+  installPreviewRow,
+  staticMeter,
+  uninstallPreviewRow,
+} from "./staticModel";
 
 /**
  * Inventory panel: carried items, weapon/outfit slots, cyber install
- * points, and the neural-load meter. Every action dispatches into the
- * pure inventory functions; slot and capacity rules live there, and
- * their errors surface here as messages.
+ * points, and the two meters chrome is measured on — neural load (what
+ * the body can carry) and Static (how loudly it complains). Every
+ * action dispatches into the pure inventory functions; slot and
+ * capacity rules live there, and their errors surface here as messages.
+ *
+ * Nothing on this panel computes a Static figure of its own: the meter,
+ * the band under an occupied slot, and the projection on an install
+ * button all come from ./staticModel.ts, so what an install is promised
+ * to cost is what installing it costs.
  */
 export interface InventoryOverlayOptions {
   session: Session;
@@ -115,6 +126,45 @@ export function createInventoryOverlay(
 
     status.append(hp, credits, neural);
     container.append(status);
+    renderStatic(container);
+  }
+
+  /**
+   * The noise, under the load meter: the band by name, a bar that pins
+   * full at screaming, what the band is currently costing, and the line
+   * about what it feels like. The number is shown as well as the band —
+   * unlike faction standing, Static is a figure the player does
+   * arithmetic on every time they consider an implant.
+   */
+  function renderStatic(container: HTMLElement): void {
+    const view = staticMeter(session.state.player);
+    const section = document.createElement("div");
+    section.className = "nf-static";
+    section.dataset.band = view.band;
+
+    const head = document.createElement("div");
+    head.className = "nf-static-head";
+    const label = document.createElement("span");
+    label.className = "nf-static-label";
+    label.textContent = view.label;
+    const band = document.createElement("span");
+    band.className = `nf-static-band nf-static-${view.band}`;
+    band.textContent = view.notes.join(" · ");
+    head.append(label, band);
+
+    const track = document.createElement("div");
+    track.className = "nf-meter nf-static-meter";
+    const fill = document.createElement("div");
+    fill.className = "nf-static-fill";
+    fill.style.width = `${Math.round(view.fill * 100)}%`;
+    track.append(fill);
+
+    const blurb = document.createElement("div");
+    blurb.className = "nf-item-summary";
+    blurb.textContent = view.blurb;
+
+    section.append(head, track, blurb);
+    container.append(section);
   }
 
   function renderEquipment(container: HTMLElement): void {
@@ -203,6 +253,16 @@ export function createInventoryOverlay(
         }
       }
       section.append(row);
+      // What pulling it would leave behind, on the same terms the
+      // carried shelf offers an install: the extraction confirm below
+      // already warns about the trauma, and this is the other half of
+      // the price.
+      if (itemId) {
+        const quieter = document.createElement("div");
+        quieter.className = "nf-item-effects";
+        quieter.textContent = `Pulling it: ${uninstallPreviewRow(player, slot).projection}`;
+        section.append(quieter);
+      }
     }
     container.append(section);
   }
@@ -301,6 +361,17 @@ export function createInventoryOverlay(
             ),
           );
         } else if (item.kind === "enhancement") {
+          // The projected band before the commit, not after it: an
+          // install is permanent-ish and extraction hurts, so the one
+          // moment this figure is worth anything is now.
+          const projected = installPreviewRow(player, item.id);
+          const preview = document.createElement("div");
+          preview.className = projected.quiets
+            ? "nf-item-effects nf-static-quiets"
+            : "nf-item-effects";
+          preview.dataset.band = projected.band;
+          preview.textContent = projected.projection;
+          card.append(preview);
           card.append(
             actionButton("Install", () =>
               apply(() => installEnhancement(player, inventory, item.id), "install"),
@@ -333,7 +404,15 @@ export function createInventoryOverlay(
     const identity = document.createElement("div");
     identity.className = "nf-inventory-identity";
     const { player } = session.state;
-    identity.append(portraitCanvas(player.appearance, player.equipment));
+    // A screaming band tears the face it belongs to. The band is
+    // already said in words on the meter below; this is the same fact
+    // where the player is actually looking.
+    const noisy = staticMeter(player).band === "screaming";
+    identity.append(
+      noisy
+        ? flickeringPortraitCanvas(player.appearance, player.equipment)
+        : portraitCanvas(player.appearance, player.equipment),
+    );
     const title = document.createElement("h2");
     title.textContent = "Inventory";
     identity.append(title);
