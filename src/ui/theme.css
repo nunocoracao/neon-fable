@@ -1357,6 +1357,17 @@ body::after {
   border-bottom: 1px solid var(--nf-border);
 }
 
+/* The "Previously" replay line: part of the list, but not a slot. */
+.nf-save-previously {
+  border-bottom: none;
+  margin-top: 0.4rem;
+  border-top: 1px solid var(--nf-border);
+}
+
+.nf-save-previously .nf-save-slot {
+  color: var(--nf-glow-amber);
+}
+
 .nf-save-slot {
   font-family: var(--nf-font-display);
   letter-spacing: 0.1em;
@@ -2054,6 +2065,77 @@ canvas.nf-action-glyph {
   text-transform: uppercase;
   color: var(--nf-glow-amber);
   margin: 0.8rem 0 0.1rem;
+}
+
+/* --- Act interludes --- */
+
+/* A tinted still of the district: the live scene stays behind it, dimmed
+   hard enough to read as a held frame rather than a running map. */
+.nf-interlude-backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      120% 90% at 50% 15%,
+      var(--nf-interlude-tint, rgba(46, 230, 214, 0.18)) 0%,
+      rgba(10, 10, 18, 0.86) 55%,
+      rgba(5, 6, 12, 0.96) 100%
+    );
+}
+
+.nf-interlude-tone-cyan {
+  --nf-interlude-tint: rgba(46, 230, 214, 0.2);
+}
+
+.nf-interlude-tone-amber {
+  --nf-interlude-tint: rgba(240, 180, 41, 0.2);
+}
+
+.nf-interlude-tone-magenta {
+  --nf-interlude-tint: rgba(230, 62, 143, 0.2);
+}
+
+.nf-interlude-card {
+  position: relative;
+  max-width: 36rem;
+  max-height: 85vh;
+  overflow-y: auto;
+  text-align: center;
+}
+
+.nf-interlude-place {
+  font-family: var(--nf-font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--nf-ink-dim);
+  margin-bottom: 0.5rem;
+}
+
+.nf-interlude-beats {
+  list-style: none;
+  margin: 1rem 0 0.5rem;
+  padding: 0;
+}
+
+.nf-interlude-beat {
+  margin: 0.9rem 0;
+  line-height: 1.55;
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 420ms ease,
+    transform 420ms ease;
+}
+
+.nf-interlude-beat-shown {
+  opacity: 1;
+  transform: none;
+}
+
+.nf-interlude-hint {
+  font-size: 0.75rem;
+  margin: 0.5rem 0 0;
 }
 
 /* --- Endings codex --- */

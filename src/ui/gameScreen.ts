@@ -8,10 +8,19 @@ import {
   getEncounter,
   getEnding,
   getMap,
+  interludes,
   type ChapterEnding,
 } from "../data";
 import { availablePoints } from "../character";
-import { composeEpilogue, isWounded } from "../narrative";
+import {
+  composeEpilogue,
+  composeInterlude,
+  isWounded,
+  latestInterlude,
+  markInterludeSeen,
+  pendingInterlude,
+  type Interlude,
+} from "../narrative";
 import {
   activeMember,
   carryoverAppearance,
@@ -40,6 +49,7 @@ import { createBarkLayer, type BarkLayerHandle } from "./barkLayer";
 import { COMBAT_RESUME_FLAG, createCombatScreen } from "./combatScreen";
 import { createDialogueOverlay } from "./dialogueOverlay";
 import { createEpilogueScreen } from "./epilogueScreen";
+import { createInterludeOverlay } from "./interludeOverlay";
 import { createInventoryOverlay } from "./inventoryOverlay";
 import { focusFirst, installListNav } from "./focus";
 import { createMainMenuScreen } from "./mainMenu";
@@ -375,7 +385,11 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     const menu = document.createElement("div");
     menu.className = "nf-menu";
     const entries: Array<[string, () => void]> = [
-      ["Keep Exploring", closeOverlay],
+      // Leaving the chapter's own panel is where the act boundary
+      // actually lands, so the interlude takes over from it directly.
+      ["Keep Exploring", () => {
+        if (!playPendingInterlude()) closeOverlay();
+      }],
       ["Main Menu", () => showScreen(createMainMenuScreen())],
     ];
     if (availablePoints(session.state) > 0) {
@@ -391,6 +405,40 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     panel.append(menu);
     el.append(panel);
     openOverlay("menu", { el, destroy: () => el.remove() });
+  }
+
+  /**
+   * Plays one act-boundary vignette. `firstTime` marks it seen (and
+   * autosaves, so quitting on the card does not queue it up again);
+   * a replay off the save screen leaves the run's flags alone.
+   */
+  function openInterlude(interlude: Interlude, firstTime: boolean): void {
+    if (firstTime) {
+      session.state = markInterludeSeen(session.state, interlude);
+      autosave(session);
+    }
+    openOverlay(
+      "menu",
+      createInterludeOverlay({
+        interlude: composeInterlude(session.state, interlude),
+        reducedMotion: settings.get().reducedMotion,
+        onClose: closeOverlay,
+      }),
+    );
+  }
+
+  /**
+   * Shows the vignette this run owes, if it owes one, and reports
+   * whether it took over the screen. Asked at the two moments an act
+   * boundary can be crossed on: leaving the chapter-end panel, and
+   * arriving on a map with the boundary already behind you — which is
+   * how a run that quit on the chapter card still gets its interlude.
+   */
+  function playPendingInterlude(): boolean {
+    const due = pendingInterlude(session.state, interludes);
+    if (!due) return false;
+    openInterlude(due, true);
+    return true;
   }
 
   function openInventory(): void {
@@ -446,6 +494,11 @@ export function createGameScreen(options: GameScreenOptions): Screen {
           session.state = state;
           showScreen(createGameScreen({ session }));
         },
+        // "Previously": the last boundary this save is past, replayed
+        // on demand. Nothing is recorded — the vignette is derived from
+        // the flags the save already carries.
+        latestInterlude: latestInterlude(session.state, interludes),
+        onReplayInterlude: (interlude) => openInterlude(interlude, false),
         onClose: closeOverlay,
       }),
     );
@@ -681,6 +734,11 @@ export function createGameScreen(options: GameScreenOptions): Screen {
 
       if (options.dialogueNodeId) {
         openDialogue(options.dialogueNodeId);
+      } else {
+        // A boundary crossed but never played — quit on the chapter
+        // card, or a save reopened past it — gets its breath here,
+        // before the district is handed back to the player.
+        playPendingInterlude();
       }
     },
 
