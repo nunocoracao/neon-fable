@@ -44,6 +44,20 @@ export const act2Arc: StoryArc = {
         "they've been at it a while — and as you cross the glow-tiles, " +
         "the waiting stops.",
       location: "cinder-row:plaza",
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"Reclamation.\" She reads the crest twice. \"That's the " +
+            "word they used on the Quays. Nobody reclaimed anything.\"",
+        },
+        {
+          companionId: "sill",
+          text:
+            "\"A cordon is a legal instrument, not a wall,\" he says. " +
+            "\"Which means it was filed. Which means it can be answered.\"",
+        },
+      ],
       choices: [
         {
           id: "quiet",
@@ -787,6 +801,22 @@ export const act2Arc: StoryArc = {
         "rises the Cordon core — a ring of mandate machinery, lit like " +
         "a verdict.",
       location: "exchange:concourse",
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"They're walking them out so nobody's hands are near the " +
+            "valves,\" she says. \"That's not evacuation. I've seen " +
+            "evacuation.\"",
+        },
+        {
+          companionId: "sill",
+          text:
+            "\"Exit processing,\" he repeats, without inflection. \"I " +
+            "certified this floor for nine years. Those galleries have " +
+            "names. I know most of them.\"",
+        },
+      ],
       choices: [
         { id: "crew", label: "Look in on the penned vent crews.", target: "a2-vent-crew" },
         { id: "gallery", label: "Study the cycler gallery terminal.", target: "a2-vent-gallery" },
@@ -819,6 +849,7 @@ export const act2Arc: StoryArc = {
             { type: "set-flag", key: "crew-warned", value: true },
             { type: "add-item", itemId: "con-field-kit" },
           ],
+          reactions: ["mercy"],
         },
         {
           id: "wrench",
@@ -830,6 +861,7 @@ export const act2Arc: StoryArc = {
             { type: "set-flag", key: "crew-freed", value: true },
             { type: "increment-flag", key: "steps-goodwill" },
           ],
+          reactions: ["mercy", "defiance"],
         },
         {
           id: "back",
@@ -889,6 +921,7 @@ export const act2Arc: StoryArc = {
             { type: "set-flag", key: "proxy-known", value: true },
             { type: "set-flag", key: "knows-ducts", value: true },
           ],
+          reactions: ["record"],
         },
         {
           id: "reroute",
@@ -900,11 +933,13 @@ export const act2Arc: StoryArc = {
             { type: "set-flag", key: "cyclers-stalled", value: true },
             { type: "increment-flag", key: "steps-goodwill" },
           ],
+          reactions: ["mercy", "defiance"],
         },
         {
           id: "read",
           label: "Read the schedule to the end.",
           target: "a2-vent-schedule",
+          reactions: ["record"],
         },
         {
           id: "back",
@@ -1005,6 +1040,7 @@ export const act2Arc: StoryArc = {
           label: "Take the arc lash off its hook.",
           target: "a2-vent-arrival",
           effects: [{ type: "add-item", itemId: "wpn-arc-lash" }],
+          reactions: ["salvage"],
         },
         {
           id: "take-projector",
@@ -1013,6 +1049,7 @@ export const act2Arc: StoryArc = {
           requirements: [{ type: "stat", stat: "tech", value: 6 }],
           ifUnavailable: "disabled",
           effects: [{ type: "add-item", itemId: "wpn-spindle-projector" }],
+          reactions: ["salvage"],
         },
         {
           id: "crew-split",
@@ -1182,6 +1219,20 @@ export const act2Arc: StoryArc = {
         "embarrassed. Corrections simply complete.\" Beyond the doors, " +
         "something vast cycles up with a sound like a held breath.",
       location: "exchange:core-ring",
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"He's on a speaker,\" she says, disgusted. \"He isn't " +
+            "even in the building and he's still the loudest thing in it.\"",
+        },
+        {
+          companionId: "sill",
+          text:
+            "\"'A correction,'\" he quotes, writing it down verbatim. " +
+            "\"Say it again, Director. Slower.\"",
+        },
+      ],
       choices: [
         {
           id: "breach-court",

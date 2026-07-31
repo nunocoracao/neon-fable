@@ -14,7 +14,7 @@ import {
   setActiveCompanion,
   type GameState,
 } from "../../state";
-import { getCompanion } from "../companions";
+import { REACTION_TAGS, getCompanion } from "../companions";
 import { epilogueVignettes } from "../epilogues";
 import { act2Arc } from "./act2";
 import { companionsArc } from "./companions";
@@ -280,6 +280,76 @@ describe("the coolant vault call", () => {
       expect(node(id).choices.map((c) => c.target)).toEqual([
         "a2-vent-arrival",
       ]);
+    }
+  });
+});
+
+describe("the crew talking over the story", () => {
+  const commented = storyArcs.flatMap((arc) =>
+    arc.nodes.flatMap((arcNode) =>
+      (arcNode.comments ?? []).map((comment) => ({
+        nodeId: arcNode.id,
+        companionId: comment.companionId,
+        text: comment.text,
+      })),
+    ),
+  );
+
+  it("gives both of them a line on every major beat of the three acts", () => {
+    // The chapter openings, the beat before each climax, and the
+    // climaxes themselves: whoever the player brought has something to
+    // say at every point the story turns.
+    for (const nodeId of [
+      "a1-start",
+      "a1-deck-entry",
+      "a1-alarm",
+      "a2-start",
+      "a2-vent-arrival",
+      "a2-core-door",
+      "a3-start",
+      "a3-spire-arrival",
+      "a3-muster",
+    ]) {
+      const speakers = commented
+        .filter((comment) => comment.nodeId === nodeId)
+        .map((comment) => comment.companionId);
+      expect(speakers.sort(), `${nodeId} banter`).toEqual(["sill", "vesper"]);
+    }
+  });
+
+  it("writes both of them real lines, not a placeholder each", () => {
+    for (const companionId of ["vesper", "sill"]) {
+      const lines = commented.filter((c) => c.companionId === companionId);
+      expect(lines.length, companionId).toBeGreaterThanOrEqual(10);
+      for (const line of lines) {
+        expect(line.text.length, `${companionId}@${line.nodeId}`).toBeGreaterThan(
+          40,
+        );
+      }
+    }
+  });
+});
+
+describe("the reaction tags, over the authored story", () => {
+  const tagged = storyArcs.flatMap((arc) =>
+    arc.nodes.flatMap((arcNode) =>
+      arcNode.choices.flatMap((choice) =>
+        (choice.reactions ?? []).map((tag) => ({ arcId: arc.id, tag })),
+      ),
+    ),
+  );
+
+  it("puts every tag in play somewhere a player will meet it", () => {
+    const used = new Set(tagged.map((entry) => entry.tag));
+    for (const tag of REACTION_TAGS) {
+      expect(used.has(tag), `nothing in the game is tagged "${tag}"`).toBe(true);
+    }
+  });
+
+  it("spreads them across the chapters and the districts", () => {
+    const arcs = new Set(tagged.map((entry) => entry.arcId));
+    for (const arcId of ["act1", "act2", "vertical-market", "flooded-quays"]) {
+      expect(arcs.has(arcId), `no tagged choice in ${arcId}`).toBe(true);
     }
   });
 });

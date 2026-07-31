@@ -36,6 +36,20 @@ export const act1Arc: StoryArc = {
         "Greywater ran backwards last night. Backwards. People woke up " +
         "with the water over their door-sills.\"",
       location: "cinder-row:plaza",
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"Backwards.\" She has stopped walking. \"Pumps don't run " +
+            "backwards. Somebody runs them backwards.\"",
+        },
+        {
+          companionId: "sill",
+          text:
+            "\"Reverse flow is a two-key operation,\" he says, quietly. " +
+            "\"There is a name on the second key. There always is.\"",
+        },
+      ],
       choices: [
         {
           id: "quiet-now",
@@ -193,6 +207,7 @@ export const act1Arc: StoryArc = {
           target: "a1-sable-kept",
           requirements: [{ type: "item", itemId: "msc-cracked-spike" }],
           effects: [{ type: "set-flag", key: "only-copy", value: true }],
+          reactions: ["deception", "record"],
         },
         {
           id: "just-job",
@@ -956,6 +971,20 @@ export const act1Arc: StoryArc = {
         "can see the Court's siphon taps bleeding the mains — and " +
         "every place a charge, or a closure order, would go.",
       location: "greywater:pump-deck",
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"Six throats.\" She looks down one of them for a long " +
+            "moment. \"That's not drainage. That's a decision.\"",
+        },
+        {
+          companionId: "sill",
+          text:
+            "\"Every gauge on this deck logs to a schedule,\" he says, " +
+            "already writing. \"Which means somebody signed the red line.\"",
+        },
+      ],
       choices: [
         {
           id: "mark",
@@ -965,6 +994,7 @@ export const act1Arc: StoryArc = {
             { type: "flag-equals", key: "act1-side", value: "court" },
           ],
           effects: [{ type: "set-flag", key: "charges-marked", value: true }],
+          reactions: ["defiance"],
         },
         {
           id: "siphon-deal",
@@ -974,6 +1004,7 @@ export const act1Arc: StoryArc = {
             { type: "flag-equals", key: "voss-deal", value: true },
           ],
           effects: [{ type: "set-flag", key: "siphon-pulled", value: true }],
+          reactions: ["procedure"],
         },
         {
           id: "siphon-string",
@@ -983,12 +1014,14 @@ export const act1Arc: StoryArc = {
             { type: "flag-equals", key: "voss-string", value: true },
           ],
           effects: [{ type: "set-flag", key: "siphon-pulled", value: true }],
+          reactions: ["deception"],
         },
         {
           id: "scout",
           label: "Touch nothing. Memorize everything.",
           target: "a1-deck-out",
           effects: [{ type: "set-flag", key: "deck-scouted", value: true }],
+          reactions: ["record"],
         },
       ],
     },
@@ -1019,6 +1052,23 @@ export const act1Arc: StoryArc = {
         "Auric moved the schedule. The Undertow flushes TONIGHT. " +
         "Whatever you were going to do, the deciding part is over.",
       location: "greywater:terraces",
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"Bell like that on the Quays means the water's already in " +
+            "the stair.\" She checks her spool without looking at it. " +
+            "\"Tell me where to stand.\"",
+        },
+        {
+          companionId: "sill",
+          text:
+            "\"They moved the schedule,\" he says, and there is " +
+            "something almost like relief in it. \"Schedules are " +
+            "amended in writing. Whatever happens tonight, it is " +
+            "already a document.\"",
+        },
+      ],
       choices: [
         {
           id: "court",
@@ -1071,6 +1121,7 @@ export const act1Arc: StoryArc = {
             { type: "set-flag", key: "betrayed-court", value: true },
             { type: "travel", mapId: "cinder-plaza" },
           ],
+          reactions: ["deception"],
         },
         {
           id: "crown-betray-voss",
@@ -1084,6 +1135,7 @@ export const act1Arc: StoryArc = {
             { type: "set-flag", key: "betrayed-voss", value: true },
             { type: "travel", mapId: "cinder-plaza" },
           ],
+          reactions: ["deception", "defiance"],
         },
         {
           id: "find-sable",

@@ -628,6 +628,7 @@ export const marketArc: StoryArc = {
             { type: "credits", amount: 25 },
             { type: "set-flag", key: "market-locker", value: "forced" },
           ],
+          reactions: ["salvage"],
         },
         {
           id: "pick",
@@ -640,6 +641,7 @@ export const marketArc: StoryArc = {
             { type: "credits", amount: 25 },
             { type: "set-flag", key: "market-locker", value: "picked" },
           ],
+          reactions: ["salvage"],
         },
         {
           id: "leave-locker",

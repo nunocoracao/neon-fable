@@ -50,6 +50,22 @@ export const act3Arc: StoryArc = {
       // for the rest of the act's business on the hub, so every
       // Succession beat plays on a colder, darker Cinder Row.
       dayPhase: "late",
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"Every screen at once,\" she says. \"You know what that " +
+            "costs? That's not a message. That's somebody showing you " +
+            "the size of their hand.\"",
+        },
+        {
+          companionId: "sill",
+          text:
+            "\"Title transfer at dawn,\" he reads, and for once he does " +
+            "not write it down. \"That is nine hours to file against a " +
+            "succession. It has been done in six.\"",
+        },
+      ],
       choices: [
         {
           id: "quiet",
@@ -510,6 +526,20 @@ export const act3Arc: StoryArc = {
         "crown floors burn white: something up there is awake, and " +
         "counting.",
       location: "spire:concourse",
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"Half the Sprawl came to watch their landlord change,\" " +
+            "she says. \"Nobody came to watch the water.\"",
+        },
+        {
+          companionId: "sill",
+          text:
+            "\"I was struck off on the ninetieth floor of that,\" he " +
+            "says, looking straight up. \"By notice. Under a door.\"",
+        },
+      ],
       choices: [
         {
           id: "collectors",
@@ -738,6 +768,22 @@ export const act3Arc: StoryArc = {
         "white. Word of you moves through it faster than you do. " +
         "Some faces you know are here. Who came says everything.",
       location: "spire:concourse",
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"Districts by lantern, crews by their belts,\" she says, " +
+            "reading the crowd like a haul. \"Every one of them here " +
+            "for the same reason and none of them saying it.\"",
+        },
+        {
+          companionId: "sill",
+          text:
+            "\"Half of these people have given me a statement,\" he " +
+            "says, very quietly. \"They are all going to notice I am " +
+            "standing next to you.\"",
+        },
+      ],
       choices: [
         {
           id: "sappers",
