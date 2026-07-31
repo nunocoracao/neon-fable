@@ -82,6 +82,7 @@ export function applyEffect(
         : state;
     case "open-stylist":
     case "open-workbench":
+    case "open-vendor":
     case "goto":
     case "end":
       return state;

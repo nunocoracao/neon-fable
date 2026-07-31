@@ -182,6 +182,36 @@ describe("validateArc", () => {
     );
   });
 
+  it("flags a door onto a counter nobody keeps", () => {
+    const arc = arcWith({
+      nodes: [
+        {
+          id: "a",
+          text: "",
+          choices: [
+            {
+              id: "trade",
+              label: "",
+              target: "b",
+              effects: [{ type: "open-vendor", vendorId: "nobody-at-all" }],
+            },
+          ],
+        },
+        {
+          id: "b",
+          text: "",
+          choices: [{ id: "stop", label: "", effects: [{ type: "end" }] }],
+        },
+      ],
+    });
+    expect(validateArc(arc)).toContainEqual(
+      expect.objectContaining({
+        code: "unknown-vendor",
+        detail: expect.stringContaining("nobody-at-all"),
+      }),
+    );
+  });
+
   it("flags reaction tags no companion could ever feel", () => {
     const arc = arcWith({
       nodes: [

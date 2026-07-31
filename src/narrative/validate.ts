@@ -1,4 +1,5 @@
 import { REACTION_TAGS, getCompanion } from "../data/companions";
+import { getVendor } from "../data/economy";
 import { getEncounter } from "../data/encounters";
 import { REPUTATION_BAND_IDS, getFaction } from "../data/factions";
 import { getItem } from "../data/items";
@@ -24,7 +25,8 @@ export type ArcIssueCode =
   | "unknown-companion"
   | "unknown-reaction"
   | "unknown-faction"
-  | "unknown-band";
+  | "unknown-band"
+  | "unknown-vendor";
 
 export interface ArcIssue {
   code: ArcIssueCode;
@@ -251,6 +253,16 @@ export function validateArc(arc: StoryArc): ArcIssue[] {
             detail:
               `Choice "${choice.id}" on node "${node.id}" starts ` +
               `unknown encounter "${effect.encounterId}"`,
+          });
+        }
+        if (effect.type === "open-vendor" && !getVendor(effect.vendorId)) {
+          issues.push({
+            code: "unknown-vendor",
+            nodeId: node.id,
+            choiceId: choice.id,
+            detail:
+              `Choice "${choice.id}" on node "${node.id}" opens ` +
+              `unknown vendor "${effect.vendorId}"`,
           });
         }
         if (effect.type === "travel" && !getMap(effect.mapId)) {

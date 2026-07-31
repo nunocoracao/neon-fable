@@ -156,6 +156,19 @@ export const marketArc: StoryArc = {
       location: "vertical-market:north-row",
       choices: [
         {
+          // The boards' bonded counter. Quill books everything, which is
+          // why it costs more across the counter and pays more into your
+          // hand than anything on the Row — the spread is a property of
+          // the counter, not of the goods (see src/data/economy.ts).
+          id: "quill-trade",
+          label: "\"Storage. And whatever's booked in against it.\"",
+          target: "vm-broker",
+          effects: [
+            { type: "open-vendor", vendorId: "vm-broker-counter" },
+            { type: "set-flag", key: "ledger-known", value: true },
+          ],
+        },
+        {
           id: "pitch",
           label: "\"What does a pitch on these boards cost?\"",
           target: "vm-broker-rates",

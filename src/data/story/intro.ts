@@ -1,5 +1,4 @@
 import type { StoryArc } from "../../narrative/types";
-import { vendorChoices } from "../world";
 
 /**
  * Demo arc: a first job in the Meridian Sprawl. Scaffold content proving
@@ -150,14 +149,24 @@ export const introArc: StoryArc = {
         "customs-auction wrap, a surgery case sweating cold. \"Post-flood " +
         "prices,\" they say. \"You're the reason there's a market.\"",
       location: "cinder-row:wet-market",
-      // The shelf is stock, and stock is a fact about the city — what
-      // the Cordon coming down put on the street, what a live warrant
-      // takes off it, what the boards will consign to somebody they
-      // like (see VENDOR_STOCK in ../world.ts). Generated rather than
-      // listed so the offer a player is shown and the stock the world
-      // layer says is carried are one decision, made once.
+      // What is under the oilcloth is a fact about the city — what the
+      // Cordon coming down put on the street, what a live warrant takes
+      // off it, what the boards will consign to somebody they like (see
+      // VENDOR_STOCK in ../world.ts) — and what it costs is a fact about
+      // the counter and about you (src/economy/). Neither is authored
+      // here: the scene only opens the shelf.
       choices: [
-        ...vendorChoices("wet-market-back", "wet-market-back"),
+        {
+          id: "trade",
+          label: "Trade across the oilcloth.",
+          // The counter screen replaces the dialogue and resumes here,
+          // so a second round of haggling and buying is one Esc away.
+          target: "wet-market-back",
+          effects: [
+            { type: "open-vendor", vendorId: "wet-market-back" },
+            { type: "set-flag", key: "back-shelf-known", value: true },
+          ],
+        },
         {
           id: "done",
           label: "\"Another time.\"",

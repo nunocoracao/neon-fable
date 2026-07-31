@@ -50,6 +50,8 @@ export interface DialogueOverlayOptions {
   onStylist(resumeNodeId: string | null): void;
   /** An open-workbench effect fired; same handoff as the stylist's. */
   onWorkbench(resumeNodeId: string | null): void;
+  /** An open-vendor effect fired; same handoff, carrying whose counter. */
+  onVendor(vendorId: string, resumeNodeId: string | null): void;
   /** An end marker fired. */
   onEnded(endingId: string | undefined): void;
   /** The node chain ran out without an end marker. */
@@ -297,6 +299,10 @@ export function createDialogueOverlay(
     }
     if (outcome.workbench) {
       options.onWorkbench(outcome.nextNodeId);
+      return;
+    }
+    if (outcome.vendorId) {
+      options.onVendor(outcome.vendorId, outcome.nextNodeId);
       return;
     }
     if (outcome.ended) {

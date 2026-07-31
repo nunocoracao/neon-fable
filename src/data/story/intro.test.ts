@@ -7,6 +7,7 @@ import {
   requireNode,
   validateArc,
 } from "../../narrative";
+import { buyFromVendor, vendorShelf } from "../../economy";
 import { createNewGame, type GameState } from "../../state";
 import { introArc } from "./intro";
 
@@ -72,16 +73,30 @@ describe("intro arc gating", () => {
   it("prices tier-2 gear beyond starting money, purchasable when rich", () => {
     const state = makeState("gutter-courier");
     state.flags["act1-complete"] = true;
-    const shelf = requireNode(introArc, "wet-market-back");
-    // Fresh-out-of-Act-1 pockets: every buy shows as disabled.
-    const broke = availableChoices(state, shelf);
-    for (const p of broke) {
-      if (p.choice.id.startsWith("buy-")) expect(p.enabled).toBe(false);
+    state.flags["package-delivered"] = true;
+    // Fresh-out-of-Act-1 pockets: nothing on the shelf is affordable.
+    for (const line of vendorShelf(state, "wet-market-back")) {
+      expect(line.affordable, line.entry.id).toBe(false);
     }
-    state.credits = 500;
-    const bought = take(state, "wet-market-back", "buy-rail-spitter");
+    const rich = { ...state, credits: 500 };
+    const bought = buyFromVendor(rich, "wet-market-back", "buy-rail-spitter");
     expect(hasItem(bought.state.inventory, "wpn-rail-spitter")).toBe(true);
     expect(bought.state.credits).toBe(500 - 320);
+  });
+
+  it("opens the back shelf as a counter rather than a list of buys", () => {
+    const shelf = requireNode(introArc, "wet-market-back");
+    const trade = shelf.choices.find((choice) => choice.id === "trade");
+    expect(trade?.effects).toContainEqual({
+      type: "open-vendor",
+      vendorId: "wet-market-back",
+    });
+    // The counter reopens the scene it was opened from, so a second
+    // round of trading is one Esc away.
+    expect(trade?.target).toBe("wet-market-back");
+    const outcome = take(makeState("gutter-courier"), "wet-market-back", "trade");
+    expect(outcome.vendorId).toBe("wet-market-back");
+    expect(outcome.nextNodeId).toBe("wet-market-back");
   });
 
   it("item-gates the bouncer bribe on carrying a trauma patch", () => {

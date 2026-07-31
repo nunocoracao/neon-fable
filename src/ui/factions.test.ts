@@ -80,6 +80,7 @@ function openDialogue(): void {
     onTravel: () => {},
     onStylist: () => {},
     onWorkbench: () => {},
+    onVendor: () => {},
     onEnded: () => {},
     onComplete: () => {},
   });
