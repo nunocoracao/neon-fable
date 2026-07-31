@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { InventoryError } from "../inventory/items";
+import { InventoryError, MOD_SOCKET_KINDS } from "../inventory/items";
+import { weaponSockets } from "../inventory/mods";
+import { getAbility } from "./abilities";
 import { layerArtGrid } from "../iso/art/layers";
 import { BODY_BUILD_IDS, BODY_VIEW_IDS } from "../iso/art/layers/body";
 import { cyberArtId } from "../iso/art/layers/cyberware";
@@ -7,6 +9,8 @@ import { outfitArtId } from "../iso/art/layers/outfits";
 import { weaponArtId } from "../iso/art/layers/weapons";
 import { MATERIAL_RAMPS } from "../iso/art/palette";
 import { backgrounds } from "./backgrounds";
+import { storyArcs } from "./story";
+import { VENDOR_STOCK } from "./world";
 import { getItem, items, requireItem } from "./items";
 
 describe("item content", () => {
@@ -21,6 +25,77 @@ describe("item content", () => {
     expect(byKind("outfit").length).toBeGreaterThanOrEqual(5);
     expect(byKind("consumable").length).toBeGreaterThanOrEqual(2);
     expect(byKind("enhancement").length).toBeGreaterThanOrEqual(7);
+    expect(byKind("mod").length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("sockets every weapon by tier, with kinds its silhouette could carry", () => {
+    for (const item of items) {
+      if (item.kind !== "weapon") continue;
+      const sockets = weaponSockets(item);
+      // One on a starter, two on tier-2 and signature hardware. A
+      // weapon with none would be a weapon the bench cannot help.
+      expect(sockets.length, item.id).toBeGreaterThanOrEqual(1);
+      expect(sockets.length, item.id).toBeLessThanOrEqual(2);
+      expect(sockets.length, item.id).toBe(item.damage >= 6 ? 2 : 1);
+      for (const socket of sockets) {
+        expect(MOD_SOCKET_KINDS, item.id).toContain(socket);
+      }
+      // Nothing swung has a barrel to thread. (The reverse does not
+      // hold: a lash and a grapnel are "ranged" and are all grip.)
+      if (item.rangeType === "melee") {
+        expect(sockets, item.id).not.toContain("barrel");
+      }
+      // One of each kind at most: two barrels is not a weapon.
+      expect(new Set(sockets).size, item.id).toBe(sockets.length);
+    }
+  });
+
+  it("makes every mod a trade, fits a real socket, and shows on the weapon", () => {
+    const sockets = new Set<string>();
+    for (const item of items) {
+      if (item.kind !== "mod") continue;
+      sockets.add(item.socket);
+      expect(MOD_SOCKET_KINDS, item.id).toContain(item.socket);
+      // A modded weapon has to read as modded.
+      expect(item.accent, `${item.id} needs an accent`).toBeDefined();
+      if (item.accent) {
+        expect(MATERIAL_RAMPS[item.accent], item.id).toBeDefined();
+      }
+      // Every part costs something: a mod that only gives is a stat
+      // stick with a screw thread. The exception is a part whose whole
+      // effect is conditional (armor pierce is worth nothing against
+      // an unarmored target) or which spends the action it grants.
+      const gives = item.effects.some(
+        (effect) =>
+          (effect.type === "stat-mod" && effect.amount > 0) ||
+          (effect.type === "weapon-damage" && effect.amount > 0) ||
+          (effect.type === "accuracy" && effect.amount > 0) ||
+          (effect.type === "weapon-range" && effect.amount > 0) ||
+          (effect.type === "crit-share" && effect.amount < 0) ||
+          effect.type === "grant-ability",
+      );
+      const takes = item.effects.some(
+        (effect) =>
+          (effect.type === "stat-mod" && effect.amount < 0) ||
+          (effect.type === "weapon-damage" && effect.amount < 0) ||
+          (effect.type === "accuracy" && effect.amount < 0) ||
+          (effect.type === "weapon-range" && effect.amount < 0) ||
+          (effect.type === "crit-share" && effect.amount > 0),
+      );
+      const conditional = item.effects.some(
+        (effect) => effect.type === "armor-pierce",
+      );
+      expect(gives || conditional, `${item.id} does nothing`).toBe(true);
+      expect(takes || conditional, `${item.id} costs nothing`).toBe(true);
+      // Every ability a part grants has to exist.
+      for (const effect of item.effects) {
+        if (effect.type === "grant-ability") {
+          expect(getAbility(effect.abilityId), item.id).toBeDefined();
+        }
+      }
+    }
+    // Every socket kind a weapon offers has parts that fit it.
+    expect(sockets).toEqual(new Set(MOD_SOCKET_KINDS));
   });
 
   it("covers every install slot across enhancements", () => {
@@ -70,6 +145,30 @@ describe("item content", () => {
       expect(item?.kind, id).toBe("enhancement");
       if (item?.kind !== "enhancement") continue;
       expect(item.neuralCost).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("puts every authored mod somewhere a player can actually get it", () => {
+    // Loot (an add-item effect anywhere in the story) or vendor stock.
+    // A part nobody can obtain is content that does not exist.
+    const fromStory = new Set(
+      storyArcs.flatMap((arc) =>
+        arc.nodes.flatMap((node) =>
+          node.choices.flatMap((choice) =>
+            (choice.effects ?? []).flatMap((effect) =>
+              effect.type === "add-item" ? [effect.itemId] : [],
+            ),
+          ),
+        ),
+      ),
+    );
+    const fromVendors = new Set(VENDOR_STOCK.map((entry) => entry.itemId));
+    for (const item of items) {
+      if (item.kind !== "mod") continue;
+      expect(
+        fromStory.has(item.id) || fromVendors.has(item.id),
+        `${item.id} is not placed in loot or stock`,
+      ).toBe(true);
     }
   });
 
