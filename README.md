@@ -44,6 +44,11 @@ entry that drops you on the hub map without a character).
   Enter to take the focused choice. Greyed-out choices show the
   requirement you're missing in brackets, e.g. `[Tech 6]`. Choices have
   real consequences: flags, credits, items, fights, travel, endings.
+- **Crew** — companions you recruit walk with you one at a time. `C`
+  opens the Crew panel: swap who comes along between jobs, see where
+  each of them stands with you, and hear out anyone who has earned a
+  word in private. What you choose in front of them moves that
+  standing, and the two of them do not want the same things.
 - **HUD & overlays** — `I` opens the inventory, `M` collapses or expands
   the corner minimap, `Esc` opens the pause menu (or closes the open
   overlay). Saves live in the pause menu; the game also autosaves on
@@ -259,10 +264,14 @@ A `StoryArc` is a list of nodes; each node has `speaker`, `text`, and
 `choices`. Choices carry:
 
 - `requirements` — stat / item / enhancement / background / flag /
-  credits / companion gates. `ifUnavailable: "disabled"` shows the
-  choice greyed out with the requirement label; the default hides it.
-  A `companion` requirement asks whether somebody is `"active"` (with
-  you now, the default) or merely `"recruited"` (ever joined).
+  credits / companion / loyalty gates. `ifUnavailable: "disabled"` shows
+  the choice greyed out with the requirement label; the default hides
+  it. A `companion` requirement asks whether somebody is `"active"`
+  (with you now, the default) or merely `"recruited"` (ever joined); a
+  `loyalty` requirement asks where they stand (`"at-least"` by default,
+  `"at-most"` for the beat somebody only raises when it has gone
+  badly); `flag-unset` is the "not yet" gate a scene closes itself
+  with once it has recorded its own outcome.
 - `effects` — `set-flag`, `increment-flag`, `add-item` / `remove-item`,
   `credits` (grants or spends, clamped at zero — gate purchases with a
   `credits` requirement), `start-combat` (launches the encounter, then
@@ -271,6 +280,15 @@ A `StoryArc` is a list of nodes; each node has `speaker`, `text`, and
   the party — idempotent, so re-recruiting only un-benches),
   `companion-loyalty` (moves their standing; a no-op for somebody not
   in the party), `goto`, and `end` (optionally with an `endingId`).
+
+A choice may also carry `reactions`: tags naming what *kind* of act it
+is (`mercy`, `salvage`, `defiance`, `record`, `procedure`,
+`deception`). Every companion standing with the player when it is taken
+scores the tags against their own `values` and their loyalty moves by
+the total — so a beat is tagged once and each companion reads it their
+own way. Tag the act, never the person; reach for a
+`companion-loyalty` effect only when a beat really is about one
+specific somebody.
 
 A node may also carry `comments`: companion asides, each tagged with a
 `companionId` and its own optional `requirements`. The dialogue box
@@ -282,8 +300,8 @@ always did when nobody is along.
 Register new arcs in `src/data/story/index.ts` so `findArcByNode` can
 route to them. `validateArc` (run over every arc in `validate.test.ts`)
 checks that every choice target, item id, encounter id, travel map id,
-companion id, and flag reference resolves — a broken reference fails
-the suite, not the player.
+companion id, reaction tag, and flag reference resolves — a broken
+reference fails the suite, not the player.
 
 ### Companions (`src/data/companions.ts`, `src/state/party.ts`)
 
@@ -294,7 +312,19 @@ compose through the same layered appearance pipeline as everybody else
 portrait. Recruiting seeds a `PartyMember` from that record onto
 `GameState.party`; content is only ever the seed, so rebalancing a
 companion never rewrites a save. `recruited` is permanent, `active`
-is revocable, and both hp and loyalty persist between fights.
+is revocable, and both hp and loyalty persist between fights. A
+companion also declares `values` — what they make of each reaction tag
+— which is the whole of the loyalty system's content side.
+
+One companion is out at a time. `setActiveCompanion` takes one out and
+benches the rest (and recruiting routes through it, so joining and
+switching are the same operation); the Crew panel on the HUD — `C` — is
+where the player swaps between jobs. Loyalty moves through choice
+`reactions`, and each companion declares one `personalScene`: a node
+id, the loyalty that opens it, and the flag its fork writes.
+`personalSceneReady` is what the panel offers the conversation from,
+and the crew arc (`src/data/story/companions.ts`) gates the same scene
+on the same three conditions in content — keep the two in step.
 
 In exploration the active companion trails the player's own footsteps
 a couple of tiles back (`src/iso/follow.ts` — breadcrumbs, no
