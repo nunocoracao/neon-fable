@@ -20,6 +20,7 @@ export type {
   GotoEffect,
   IncrementFlagEffect,
   ItemRequirement,
+  LoyaltyRequirement,
   OpenStylistEffect,
   RecruitCompanionEffect,
   RemoveItemEffect,
@@ -38,6 +39,16 @@ export {
   type CompanionAside,
 } from "./companions";
 export { applyEffect, applyEffects } from "./effects";
+export {
+  applyLoyaltyChanges,
+  choiceLoyaltyChanges,
+  personalSceneReady,
+  reactionChanges,
+  reactionTotal,
+  readyPersonalScenes,
+  witnesses,
+  type LoyaltyChange,
+} from "./loyalty";
 export {
   NarrativeError,
   applyChoice,

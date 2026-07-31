@@ -1,4 +1,4 @@
-import { getCompanion } from "../data/companions";
+import { REACTION_TAGS, getCompanion } from "../data/companions";
 import { getEncounter } from "../data/encounters";
 import { getItem } from "../data/items";
 import { getMap } from "../data/maps";
@@ -20,7 +20,8 @@ export type ArcIssueCode =
   | "unknown-item"
   | "unknown-encounter"
   | "unknown-map"
-  | "unknown-companion";
+  | "unknown-companion"
+  | "unknown-reaction";
 
 export interface ArcIssue {
   code: ArcIssueCode;
@@ -48,7 +49,9 @@ function referencedItemIds(choice: Choice): string[] {
 function referencedCompanionIds(choice: Choice): string[] {
   const ids: string[] = [];
   for (const req of choice.requirements ?? []) {
-    if (req.type === "companion") ids.push(req.companionId);
+    if (req.type === "companion" || req.type === "loyalty") {
+      ids.push(req.companionId);
+    }
   }
   for (const effect of choice.effects ?? []) {
     if (
@@ -151,6 +154,20 @@ export function validateArc(arc: StoryArc): ArcIssue[] {
             detail:
               `Choice "${choice.id}" on node "${node.id}" references ` +
               `unknown item "${itemId}"`,
+          });
+        }
+      }
+      // A tag nobody has a value for is a reaction that can never be
+      // felt — usually a typo, always a line of content doing nothing.
+      for (const tag of choice.reactions ?? []) {
+        if (!(REACTION_TAGS as readonly string[]).includes(tag)) {
+          issues.push({
+            code: "unknown-reaction",
+            nodeId: node.id,
+            choiceId: choice.id,
+            detail:
+              `Choice "${choice.id}" on node "${node.id}" is tagged with ` +
+              `unknown reaction "${tag}"`,
           });
         }
       }

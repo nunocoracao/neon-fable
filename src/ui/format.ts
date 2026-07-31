@@ -77,6 +77,12 @@ export function requirementLabel(
       return requirement.status === "recruited"
         ? `[Knows: ${companionName(requirement.companionId)}]`
         : `[With: ${companionName(requirement.companionId)}]`;
+    case "loyalty":
+      // Where somebody stands is their business: the label names the
+      // person and the direction, never the number behind the curtain.
+      return requirement.mode === "at-most"
+        ? `[${companionName(requirement.companionId)} has had enough]`
+        : `[${companionName(requirement.companionId)} trusts you]`;
   }
 }
 

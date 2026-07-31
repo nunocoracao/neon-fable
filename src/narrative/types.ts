@@ -1,5 +1,6 @@
 import type { StatKey } from "../character/stats";
 import type { ExpressionId } from "../data/appearance";
+import type { ReactionTag } from "../data/companions";
 import type { DayPhaseId } from "../iso/tilemap";
 import type { FlagValue } from "../state/flags";
 
@@ -19,7 +20,8 @@ export type Requirement =
   | EnhancementRequirement
   | BackgroundRequirement
   | CreditsRequirement
-  | CompanionRequirement;
+  | CompanionRequirement
+  | LoyaltyRequirement;
 
 /** Flag must exist and strictly equal the given value. */
 export interface FlagEqualsRequirement {
@@ -77,6 +79,22 @@ export interface CompanionRequirement {
   type: "companion";
   companionId: string;
   status?: "recruited" | "active";
+}
+
+/**
+ * How a companion stands with the player. `mode` defaults to
+ * "at-least" (they think this well of you); "at-most" is the other
+ * side of the same gate, for the beat somebody only raises when it has
+ * gone badly. Somebody never recruited stands at nothing, so an
+ * at-least gate on a positive figure is closed to a player who never
+ * met them and an at-most gate is not — pair it with a `companion`
+ * requirement when the scene needs them in the room.
+ */
+export interface LoyaltyRequirement {
+  type: "loyalty";
+  companionId: string;
+  value: number;
+  mode?: "at-least" | "at-most";
 }
 
 /** A state change a choice applies when taken. */
@@ -198,6 +216,16 @@ export interface Choice {
   target?: string;
   requirements?: Requirement[];
   effects?: Effect[];
+  /**
+   * What kind of act this choice is. Every companion standing with the
+   * player when it is taken scores the tags against their own values
+   * (src/data/companions.ts) and their loyalty moves by the total —
+   * so a beat is tagged once and each companion reads it their own
+   * way, instead of the content naming names. Use a
+   * `companion-loyalty` effect instead when a beat is about one
+   * specific person rather than about the kind of thing it is.
+   */
+  reactions?: ReactionTag[];
   /** Presentation when requirements fail; defaults to "hidden". */
   ifUnavailable?: UnavailablePresentation;
 }

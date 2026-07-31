@@ -2,6 +2,11 @@ import { requireItem } from "../data/items";
 import type { ItemResolver } from "../inventory/items";
 import type { GameState } from "../state/gameState";
 import { applyEffects } from "./effects";
+import {
+  applyLoyaltyChanges,
+  choiceLoyaltyChanges,
+  type LoyaltyChange,
+} from "./loyalty";
 import { checkRequirements } from "./requirements";
 import type { Choice, StoryArc, StoryNode } from "./types";
 
@@ -87,12 +92,22 @@ export interface ChoiceOutcome {
   ended: boolean;
   /** Ending id from the end marker, when it carried one. */
   endingId?: string;
+  /**
+   * What the choice moved for the companions who watched it take —
+   * already folded into `state`, and surfaced so the UI can say so.
+   */
+  loyalty: LoyaltyChange[];
 }
 
 /**
  * Takes a choice: verifies it exists and its requirements pass, applies
  * its effects immutably, and resolves the next node (the choice's target,
  * unless a goto or end marker overrides it).
+ *
+ * Loyalty is read off the party *before* the effects — the people who
+ * were standing there when the choice was made are the ones who saw it
+ * — and written after them, so a beat that recruits somebody does not
+ * have them approving of a scene they walked in on.
  */
 export function applyChoice(
   state: GameState,
@@ -114,7 +129,11 @@ export function applyChoice(
     );
   }
 
-  const nextState = applyEffects(state, choice.effects, resolve);
+  const loyalty = choiceLoyaltyChanges(state, choice);
+  const nextState = applyLoyaltyChanges(
+    applyEffects(state, choice.effects, resolve),
+    loyalty,
+  );
 
   let nextNodeId: string | null = choice.target ?? null;
   let encounterId: string | null = null;
@@ -142,5 +161,6 @@ export function applyChoice(
     stylist,
     ended,
     endingId,
+    loyalty,
   };
 }
