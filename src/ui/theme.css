@@ -1131,6 +1131,101 @@ body::after {
   gap: 2rem;
 }
 
+/* Left column of the character panel: gear over standings. */
+.nf-inventory-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.nf-faction-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--nf-border);
+}
+
+.nf-faction-row .nf-item-name {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.nf-faction-band {
+  font-family: var(--nf-font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--nf-ink-dim);
+}
+
+.nf-band-hostile {
+  color: var(--nf-danger);
+}
+
+.nf-band-cold {
+  color: var(--nf-glow-magenta);
+}
+
+.nf-band-warm {
+  color: var(--nf-glow-amber);
+}
+
+.nf-band-trusted {
+  color: var(--nf-glow-cyan);
+}
+
+/* Bipolar meter: nothing is the middle of the track, and a hard tick
+   marks it, so a bar leaning left reads as a debt rather than a blank. */
+.nf-standing-meter {
+  position: relative;
+  max-width: none;
+  width: 100%;
+}
+
+.nf-standing-meter::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--nf-border);
+}
+
+/* Segmented fill, same chunky LED blocks as the neural meter. */
+.nf-standing-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    to right,
+    var(--nf-glow-cyan) 0,
+    var(--nf-glow-cyan) 6px,
+    var(--nf-outline) 6px,
+    var(--nf-outline) 8px
+  );
+  transition: width 150ms steps(4, end);
+}
+
+.nf-standing-negative {
+  background: repeating-linear-gradient(
+    to right,
+    var(--nf-danger) 0,
+    var(--nf-danger) 6px,
+    var(--nf-outline) 6px,
+    var(--nf-outline) 8px
+  );
+}
+
+.nf-standing-none {
+  background: none;
+}
+
 .nf-slot-row {
   display: flex;
   align-items: center;
@@ -1393,6 +1488,16 @@ body::after {
   font-size: 0.7rem;
   letter-spacing: 0.05em;
   color: var(--nf-glow-cyan);
+}
+
+/* The city changing its mind about you — said once, on the beat after. */
+.nf-dialogue-standing {
+  margin: 0.35rem 0 0;
+  font-family: var(--nf-font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--nf-glow-amber);
 }
 
 .nf-init-player {
