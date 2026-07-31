@@ -40,13 +40,15 @@ import { INTERACTABLE_ART } from "./interactables";
 import { popupTextGrid } from "./popupFont";
 import { STATUS_MARKER_ART } from "./statusMarkers";
 import { BODY_FRAME } from "./layers/body";
-import { muzzlePoint } from "./layers/attack";
 import {
-  attackClassFor,
-  composedCharacterGrid,
-  composedFrameKey,
-  type ComposedCharacter,
-} from "./layers";
+  characterArt,
+  entityAttackClass,
+  entityFrameKey,
+  entityGrid,
+  entityMuzzlePoint,
+  type EntityArt,
+} from "./entity";
+import { type ComposedCharacter } from "./layers";
 import { bakeGlow } from "./glow";
 import { ART_SCALE, bakeSilhouette, bakeSprite, spriteBytes } from "./pixel";
 import { PROP_ART } from "./props";
@@ -129,11 +131,14 @@ export interface PixelArtSpriteOptions {
    */
   player?: () => ComposedCharacter;
   /**
-   * Composed descriptor per non-player entity sprite id (enemy
-   * archetype ids in combat). Undefined ids fall back to the stock
-   * look; callers should memoize per id.
+   * Art per non-player entity sprite id (enemy look ids in combat,
+   * ambient pedestrian ids on the street). Returns the typed
+   * sprite-kind union, so an id may resolve to a composed person or to
+   * an authored non-humanoid chassis and nothing here has to know
+   * which. Undefined ids fall back to the stock look; callers should
+   * memoize per id.
    */
-  entity?: (id: string) => ComposedCharacter | undefined;
+  entity?: (id: string) => EntityArt | undefined;
   /**
    * Composed descriptor for the NPC interactable at a map position
    * (authored named looks or stable seeded ambient variety). Callers
@@ -194,21 +199,22 @@ export function createPixelArtSprites(
   const player = (): ComposedCharacter =>
     options?.player?.() ?? FALLBACK_CHARACTER;
 
-  const descriptorFor = (id: string): ComposedCharacter =>
+  const descriptorFor = (id: string): EntityArt =>
     id === "player"
-      ? player()
-      : options?.entity?.(id) ?? FALLBACK_CHARACTER;
+      ? characterArt(player())
+      : options?.entity?.(id) ?? characterArt(FALLBACK_CHARACTER);
 
   /**
    * Which frame of which set a pose shows. The attack sets are per
-   * weapon class, so the choice needs the descriptor — the same
-   * descriptor the bake key already serializes.
+   * weapon class (per chassis, for the things that were never people),
+   * so the choice needs the art — the same art the bake key already
+   * serializes.
    */
   function composedPose(
-    descriptor: ComposedCharacter,
+    descriptor: EntityArt,
     pose: EntityPose,
   ): { state: MotionState; frame: number } {
-    return selectMotionFrame(attackClassFor(descriptor), pose);
+    return selectMotionFrame(entityAttackClass(descriptor), pose);
   }
 
   /**
@@ -224,16 +230,17 @@ export function createPixelArtSprites(
     return state === "react" && pose.reaction ? pose.reaction : undefined;
   }
 
-  // Bake keys serialize the descriptor itself, so entities that look
-  // alike (three of the same enemy archetype) share one baked canvas.
-  function composedSprite(descriptor: ComposedCharacter, pose: EntityPose): Sprite {
+  // Bake keys serialize the art itself, so entities that look alike
+  // (two spawns wearing the same record of an archetype's look family)
+  // share one baked canvas.
+  function composedSprite(descriptor: EntityArt, pose: EntityPose): Sprite {
     const { state, frame } = composedPose(descriptor, pose);
     const variant = poseVariant(state, pose);
     return cached(
-      `entity:${composedFrameKey(descriptor, pose.facing, state, frame, variant)}`,
+      `entity:${entityFrameKey(descriptor, pose.facing, state, frame, variant)}`,
       () =>
         bakeSprite(
-          composedCharacterGrid(descriptor, pose.facing, state, frame, variant),
+          entityGrid(descriptor, pose.facing, state, frame, variant),
           BODY_FRAME.anchorX,
           BODY_FRAME.anchorY,
           palette,
@@ -284,11 +291,10 @@ export function createPixelArtSprites(
       if (id === "npc") {
         // Idle facing the camera; the position hash de-syncs breathing.
         const phase = hash2(x, y) % 1000;
-        return composedSprite(options?.npc?.(x, y) ?? FALLBACK_CHARACTER, {
-          facing: "s",
-          moving: false,
-          timeMs: timeMs + phase,
-        });
+        return composedSprite(
+          characterArt(options?.npc?.(x, y) ?? FALLBACK_CHARACTER),
+          { facing: "s", moving: false, timeMs: timeMs + phase },
+        );
       }
       const art = INTERACTABLE_ART[id];
       // A door mid-swing leaves the idle loop entirely: the opening
@@ -318,17 +324,19 @@ export function createPixelArtSprites(
         // Same pose the sprite lookup would pick, so the outline sits
         // exactly on the shape it is tracing.
         const phase = hash2(x, y) % 1000;
-        const descriptor = options?.npc?.(x, y) ?? FALLBACK_CHARACTER;
+        const descriptor = characterArt(
+          options?.npc?.(x, y) ?? FALLBACK_CHARACTER,
+        );
         const { state, frame } = composedPose(descriptor, {
           facing: "s",
           moving: false,
           timeMs: timeMs + phase,
         });
         return untinted(
-          `outline:${color}:${composedFrameKey(descriptor, "s", state, frame)}`,
+          `outline:${color}:${entityFrameKey(descriptor, "s", state, frame)}`,
           () =>
             bakeSilhouette(
-              composedCharacterGrid(descriptor, "s", state, frame),
+              entityGrid(descriptor, "s", state, frame),
               color,
               BODY_FRAME.anchorX,
               BODY_FRAME.anchorY,
@@ -349,16 +357,11 @@ export function createPixelArtSprites(
     },
 
     attackClass(id: EntitySpriteId): AttackClassId {
-      return attackClassFor(descriptorFor(id));
+      return entityAttackClass(descriptorFor(id));
     },
 
     muzzleOffset(id: EntitySpriteId, facing: Facing): { x: number; y: number } {
-      const descriptor = descriptorFor(id);
-      const point = muzzlePoint(
-        attackClassFor(descriptor),
-        descriptor.build,
-        facing,
-      );
+      const point = entityMuzzlePoint(descriptorFor(id), facing);
       // Art pixels relative to the sprite's own anchor, in screen scale —
       // the scene adds this straight onto the entity's screen position.
       return {
@@ -422,10 +425,10 @@ export function createPixelArtSprites(
       const { state, frame } = composedPose(descriptor, pose);
       const variant = poseVariant(state, pose);
       return untinted(
-        `flash:${composedFrameKey(descriptor, pose.facing, state, frame, variant)}`,
+        `flash:${entityFrameKey(descriptor, pose.facing, state, frame, variant)}`,
         () =>
           bakeSilhouette(
-            composedCharacterGrid(descriptor, pose.facing, state, frame, variant),
+            entityGrid(descriptor, pose.facing, state, frame, variant),
             FLASH_COLOR,
             BODY_FRAME.anchorX,
             BODY_FRAME.anchorY,

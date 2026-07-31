@@ -13,6 +13,7 @@ import { ART_SCALE } from "./pixel";
 import { PROP_ART } from "./props";
 import { SETPIECE_ART } from "./setpieces";
 import { skinToneRemap, type ComposedCharacter } from "./layers";
+import { characterArt } from "./entity";
 import { createPixelArtSprites, type PixelArtSprites } from "./provider";
 import { TILE_ART } from "./tiles";
 import { SPLASH_ANCHOR_X, SPLASH_ANCHOR_Y } from "./weather";
@@ -172,7 +173,7 @@ describe("createPixelArtSprites cache", () => {
       layers: [{ slot: "body", art: "heavy", remap: skinToneRemap(2) }],
     };
     const sprites = createPixelArtSprites({
-      entity: (id) => (id === "rogue" ? rogue : undefined),
+      entity: (id) => (id === "rogue" ? characterArt(rogue) : undefined),
     });
     const pose = { facing: "e" as const, moving: false, timeMs: 0 };
     const first = sprites.entity("player", pose);
