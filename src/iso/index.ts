@@ -16,11 +16,16 @@ export {
 } from "./coords";
 export { compareDrawables, depthOf, sortDrawables, type DrawLayer, type Drawable } from "./depth";
 export {
+  SCENE_SPEAKER_KINDS,
   type IsoFocusHint,
   type IsoFocusHintHandler,
   type IsoInteractionEvent,
   type IsoInteractionHandler,
   type MapInteraction,
+  type SceneSpeaker,
+  type SceneSpeakerFrame,
+  type SceneSpeakerHandler,
+  type SceneSpeakerKind,
 } from "./events";
 export {
   DEFAULT_OUTLINE_PALETTE,

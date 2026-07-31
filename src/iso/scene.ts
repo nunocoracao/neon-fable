@@ -26,6 +26,7 @@ import {
   initialCamera,
   mapPixelBounds,
   viewportToWorld,
+  worldToViewport,
   type Camera,
 } from "./camera";
 import { observeDevicePixelRatio } from "./dpr";
@@ -42,6 +43,9 @@ import type {
   IsoFocusHint,
   IsoFocusHintHandler,
   IsoInteractionHandler,
+  SceneSpeaker,
+  SceneSpeakerFrame,
+  SceneSpeakerHandler,
 } from "./events";
 import type { MinimapView } from "./minimap";
 import { findPath, findPathToAdjacent } from "./path";
@@ -80,6 +84,14 @@ export interface IsoSceneOptions {
    * HUD it feeds.
    */
   onView?: (view: MinimapView) => void;
+  /**
+   * Called every frame with everyone on the map who could be given a
+   * line to say, and where their head is on screen. The scene knows
+   * where figures stand; what any of them would say is content the
+   * shell resolves (see src/ui/barkLayer.ts), so this layer stays free
+   * of narrative code.
+   */
+  onSpeakers?: SceneSpeakerHandler;
   sprites?: SpriteProvider;
   /**
    * Populate the map's declared ambient crowd (default true). Off gives
@@ -129,6 +141,12 @@ export interface IsoScene {
 
 /** Tiles per second the player walks. */
 const WALK_SPEED = 3.5;
+/**
+ * World-screen pixels above a tile's center that a speaker's chip is
+ * anchored at: clear of the head of a 48-pixel-tall figure standing on
+ * it, so a line never covers the face saying it.
+ */
+const SPEAKER_ANCHOR_LIFT = 92;
 /** Pointer travel in px beyond which a press becomes a camera pan. */
 const PAN_THRESHOLD = 5;
 /** Keys that trigger whatever the scene has in focus. */
@@ -210,6 +228,12 @@ export function createIsoScene(
    */
   let cameraSettled = false;
   let hoverTile: TilePoint | null = null;
+  /**
+   * Frame-clock ms the player last came to a stop, or null while they
+   * are walking. How long somebody has stood still is what tells the
+   * shell they are *listening* to whoever they are stood next to.
+   */
+  let stillSince: number | null = null;
 
   // Pointer state for distinguishing click from drag-pan.
   let pointerDown = false;
@@ -468,6 +492,92 @@ export function createIsoScene(
     };
   }
 
+  /**
+   * Where a figure standing at a world position wants its chip: the
+   * point above its head, in viewport CSS pixels. The lift is applied
+   * in world-screen units before the camera transform, so a chip keeps
+   * its distance from the head at every zoom level.
+   */
+  function speakerAnchor(position: WorldPoint): {
+    x: number;
+    y: number;
+    onScreen: boolean;
+  } {
+    const screen = worldToScreen(position.x, position.y);
+    const point = worldToViewport(
+      camera,
+      viewportW,
+      viewportH,
+      zoom,
+      screen.sx,
+      screen.sy - SPEAKER_ANCHOR_LIFT,
+    );
+    return {
+      x: point.x,
+      y: point.y,
+      onScreen:
+        point.x >= 0 && point.x <= viewportW && point.y >= 0 && point.y <= viewportH,
+    };
+  }
+
+  /**
+   * Everyone on the map who could be given a line this frame: the
+   * crowd, the named people the map stands there, and whoever is
+   * walking with the player. Props, ways out, and terminals are
+   * furniture and never appear here.
+   */
+  function collectSpeakers(): SceneSpeaker[] {
+    const speakers: SceneSpeaker[] = [];
+
+    for (const ped of crowd.pedestrians) {
+      const anchor = speakerAnchor(ped.position);
+      speakers.push({
+        id: ped.id,
+        kind: "pedestrian",
+        refId: null,
+        zoneId: ped.zoneId,
+        distance: tileDistance(playerTile, ped.tile),
+        anchorX: anchor.x,
+        anchorY: anchor.y,
+        onScreen: anchor.onScreen,
+      });
+    }
+
+    for (const interactable of map.interactables) {
+      if (interactable.spriteId !== "npc") continue;
+      const anchor = speakerAnchor({ x: interactable.x, y: interactable.y });
+      speakers.push({
+        id: `npc:${interactable.id}`,
+        kind: "npc",
+        refId: interactable.id,
+        zoneId: null,
+        distance: tileDistance(playerTile, interactable),
+        anchorX: anchor.x,
+        anchorY: anchor.y,
+        onScreen: anchor.onScreen,
+      });
+    }
+
+    if (follower && followerSpriteId) {
+      const anchor = speakerAnchor(follower.position);
+      speakers.push({
+        id: "companion",
+        kind: "companion",
+        refId: followerSpriteId,
+        zoneId: null,
+        distance: tileDistance(playerTile, {
+          x: Math.round(follower.position.x),
+          y: Math.round(follower.position.y),
+        }),
+        anchorX: anchor.x,
+        anchorY: anchor.y,
+        onScreen: anchor.onScreen,
+      });
+    }
+
+    return speakers;
+  }
+
   /** Trigger whatever is in focus, if it is close enough to reach. */
   function interactWithFocus(): void {
     if (walkQueue.length > 0 || !focus?.inRange) return;
@@ -556,6 +666,21 @@ export function createIsoScene(
         : null,
     };
     renderScene(ctx!, sprites, view);
+    if (options.onSpeakers) {
+      // The bark clock is the real one, not the frozen animation clock:
+      // reduced motion stills the picture, and a line somebody says is
+      // words rather than movement.
+      stillSince = walkQueue.length > 0 ? null : (stillSince ?? time);
+      const frame: SceneSpeakerFrame = {
+        timeMs: time,
+        mapId: map.id,
+        weather: weather?.id ?? map.weather ?? "clear",
+        dayPhase,
+        speakers: collectSpeakers(),
+        lingerMs: stillSince === null ? 0 : time - stillSince,
+      };
+      options.onSpeakers(frame);
+    }
     options.onView?.({
       playerTile,
       facing: playerFacing,
