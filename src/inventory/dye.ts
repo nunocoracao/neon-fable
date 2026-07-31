@@ -238,16 +238,14 @@ export function applyDye(
       `"${target.item.id}" has no cloth of its own to dye`,
     );
   }
-  // Carrying it is checked before anything is written, so a refusal
-  // leaves the coat exactly as it was.
-  const spent = removeItem(counter.inventory, dyeId, 1);
-  const moved = withDye(
-    { ...counter, inventory: spent },
-    ref,
-    target.item,
-    dyeColors(tin),
-  );
-  return { ...counter, ...moved };
+  // The colour goes on before the tin comes out of the bag: a carried
+  // coat is addressed by stack index, and spending the tin first would
+  // shift the very index the coat is named by.
+  const painted = withDye(counter, ref, target.item, dyeColors(tin));
+  // Throws when the tin is not carried — and a throw returns nothing,
+  // so the coat is left exactly as it was.
+  const spent = removeItem(painted.inventory, dyeId, 1);
+  return { ...counter, ...painted, inventory: spent };
 }
 
 /**

@@ -1,12 +1,15 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  CHAPEL_DYE_SHELF,
   COSMETIC_APPEARANCE_TABS,
   IDENTITY_CATEGORIES,
   RESTYLE_PRICE,
   RESTYLE_REFUSAL,
   appearanceCatalogs,
+  chapelDyePrice,
 } from "../data";
+import { addItem } from "../inventory";
 import { createMemoryStorage, createNewGame, type GameState } from "../state";
 import { createSession, type Session } from "./session";
 import { createStylistOverlay } from "./stylistOverlay";
@@ -18,6 +21,10 @@ import type { OverlayHandle } from "./overlay";
  * is the shared picker running on the cosmetic tab config (identity
  * categories absent), Confirm routes through the pure restyle rules
  * (payment gate, deduction), and Cancel is a true no-op on GameState.
+ *
+ * The colour counter is the deliberate exception and is covered here
+ * too: a tin is bought and applied on the click, so Cancel drops the
+ * look being tried on without refunding the paint.
  */
 
 /** A value whose every property/call yields another such value — enough to
@@ -65,6 +72,18 @@ function pickThumb(category: string, id: string): void {
   );
   if (!button) throw new Error(`no ${category} option "${id}" rendered`);
   button.click();
+}
+
+function dyeButtons(): HTMLButtonElement[] {
+  return [...document.querySelectorAll<HTMLButtonElement>(".nf-dye-tin")];
+}
+
+function dyeButton(dyeId: string): HTMLButtonElement {
+  const button = document.querySelector<HTMLButtonElement>(
+    `.nf-dye-tin[data-dye="${dyeId}"]`,
+  );
+  if (!button) throw new Error(`no dye row for "${dyeId}"`);
+  return button;
 }
 
 function buttonLabelled(text: string): HTMLButtonElement {
@@ -166,6 +185,85 @@ describe("stylist overlay", () => {
     confirm.click();
     expect(session.state).toBe(state);
     expect(closed).toBe(false);
+  });
+
+  it("shows the whole shelf on the colour counter", () => {
+    mount(makeState(500));
+    expect(dyeButtons().map((b) => b.dataset.dye)).toEqual(
+      CHAPEL_DYE_SHELF.map((entry) => entry.itemId),
+    );
+    expect(document.querySelector(".nf-dye-target")?.textContent).toContain(
+      "Factory colours",
+    );
+  });
+
+  it("buys a tin and paints the coat on the spot", () => {
+    const price = chapelDyePrice("dye-cinder-black") ?? 0;
+    mount(makeState(500));
+    dyeButton("dye-cinder-black").click();
+
+    expect(session.state.player.equipment.outfitDye).toEqual({
+      primary: "darkFabric",
+      accent: "hazardAmber",
+    });
+    expect(session.state.credits).toBe(500 - price);
+    // The tin was used up by the application, not left in the bag.
+    expect(
+      session.state.inventory.stacks.some(
+        (stack) => stack.itemId === "dye-cinder-black",
+      ),
+    ).toBe(false);
+    expect(stateChanges).toBe(1);
+    // The counter re-reads: the same tin is now the colour being worn.
+    expect(dyeButton("dye-cinder-black").disabled).toBe(true);
+    expect(document.querySelector(".nf-dye-target")?.textContent).toContain(
+      "black cloth · amber trim",
+    );
+  });
+
+  it("applies a found tin for free", () => {
+    const state = makeState(0);
+    mount({
+      ...state,
+      inventory: addItem(state.inventory, "dye-last-mile", 1),
+    });
+    const button = dyeButton("dye-last-mile");
+    expect(button.textContent).toContain("Apply — carried");
+    button.click();
+    expect(session.state.credits).toBe(0);
+    expect(session.state.player.equipment.outfitDye).toEqual({
+      primary: "hologramBlue",
+      accent: "neonCyan",
+    });
+  });
+
+  it("greys out what an empty purse cannot buy", () => {
+    mount(makeState(0));
+    expect(dyeButtons().every((b) => b.disabled)).toBe(true);
+    // And clicking a dead row changes nothing.
+    const before = session.state;
+    dyeButton("dye-cinder-black").click();
+    expect(session.state).toBe(before);
+  });
+
+  it("strips back to factory colours for free, then hides the option", () => {
+    mount(makeState(500));
+    dyeButton("dye-cinder-black").click();
+    const credits = session.state.credits;
+    buttonLabelled("Strip to factory colours").click();
+    expect(session.state.player.equipment.outfitDye).toBeUndefined();
+    expect(session.state.credits).toBe(credits);
+    expect(document.querySelector(".nf-dye-strip")).toBeNull();
+  });
+
+  it("keeps a colour that was paid for when the look is cancelled", () => {
+    mount(makeState(500));
+    dyeButton("dye-cinder-black").click();
+    pickThumb("hairStyle", "mohawk");
+    buttonLabelled("Cancel").click();
+    // The draft look is dropped; the purchase is not.
+    expect(session.state.player.appearance.hairStyle).not.toBe("mohawk");
+    expect(session.state.player.equipment.outfitDye).toBeDefined();
   });
 
   it("quotes the data-defined fee on the confirm button and header", () => {

@@ -14,6 +14,7 @@ import {
 } from "../inventory";
 import { factionRows } from "./factionModel";
 import {
+  dyeChannelSummary,
   itemEffectLabels,
   itemSummary,
   slotLabel,
@@ -153,6 +154,14 @@ export function createInventoryOverlay(
           parts.textContent = `Fitted: ${fitted.map((m) => m.name).join(" · ")}`;
           section.append(parts);
         }
+      }
+      // And what colour the coat was painted, on the same terms: the
+      // chapel's chair is the only place that changes it.
+      if (slot === "outfit" && player.equipment.outfitDye) {
+        const dyed = document.createElement("div");
+        dyed.className = "nf-item-effects";
+        dyed.textContent = `Dyed: ${dyeChannelSummary(player.equipment.outfitDye)}`;
+        section.append(dyed);
       }
     }
 
