@@ -1,4 +1,5 @@
 import type { Ability, AbilityArea } from "../data/abilities";
+import { bodyCovers } from "./footprint";
 import { inBounds, manhattan } from "./grid";
 import { manhattanPath } from "./legal";
 import { isAlive } from "./state";
@@ -65,6 +66,10 @@ export function abilityAreaTiles(
  * Every living body the ability would reach, the one aimed at first and
  * the rest in combatant order. Only the caster's opponents are caught:
  * a blast is not friendly fire, however wide it is.
+ *
+ * A body is caught when the shape touches *any* tile it stands on, so a
+ * shot down one flank of a chassis catches the chassis — the block is
+ * the target, not the corner it is anchored on.
  */
 export function abilityImpact(
   state: CombatState,
@@ -72,9 +77,12 @@ export function abilityImpact(
   ability: Ability,
   target: Combatant,
 ): Combatant[] {
-  const covered = new Set(
-    abilityAreaTiles(state, actor, ability, target.position).map(key),
-  );
+  const covered = abilityAreaTiles(state, actor, ability, target.position);
+  const keys = new Set(covered.map(key));
+  const touches = (c: Combatant): boolean =>
+    c.footprint
+      ? covered.some((tile) => bodyCovers(c, tile))
+      : keys.has(key(c.position));
   return [
     target,
     ...state.combatants.filter(
@@ -82,7 +90,7 @@ export function abilityImpact(
         c.id !== target.id &&
         c.kind !== actor.kind &&
         isAlive(c) &&
-        covered.has(key(c.position)),
+        touches(c),
     ),
   ];
 }

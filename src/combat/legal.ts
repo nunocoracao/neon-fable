@@ -7,7 +7,8 @@ import {
   hitChance,
   weaponRange,
 } from "./damage";
-import { inBounds, isOccupied, manhattan } from "./grid";
+import { bodyGap } from "./footprint";
+import { canStand, manhattan } from "./grid";
 import { activeCombatant, combatStat, isAlive, livingEnemies } from "./state";
 import type { CombatState, GridPosition } from "./types";
 
@@ -56,7 +57,13 @@ function mainActionAvailable(state: CombatState): boolean {
   return state.status === "active" && !state.actionUsed;
 }
 
-/** Tiles the active combatant may move to with its remaining budget. */
+/**
+ * Anchor tiles the active combatant may move to with its remaining
+ * budget. For anything a tile wide these are the tiles it can stand on;
+ * for a bigger body they are the corners its whole block fits into, so a
+ * 2×2 chassis is never offered a step that would put it half off the
+ * arena or half inside somebody else.
+ */
 export function reachableTiles(state: CombatState): GridPosition[] {
   if (state.status !== "active" || state.moveRemaining <= 0) return [];
   const actor = activeCombatant(state);
@@ -68,8 +75,7 @@ export function reachableTiles(state: CombatState): GridPosition[] {
       if (
         cost > 0 &&
         cost <= state.moveRemaining &&
-        inBounds(state.grid, tile) &&
-        !isOccupied(state.combatants, tile, actor.id)
+        canStand(state.grid, state.combatants, tile, actor.footprint, actor.id)
       ) {
         tiles.push(tile);
       }
@@ -88,7 +94,9 @@ export function attackOptions(state: CombatState): AttackOption[] {
     .filter((c) => c.kind !== actor.kind && isAlive(c))
     .map((target) => ({
       targetId: target.id,
-      distance: manhattan(actor.position, target.position),
+      // Block to block: pressed against a chassis anywhere along it is
+      // melee reach, whichever of its four tiles you are beside.
+      distance: bodyGap(actor, target),
       hitChance: hitChance(attackStat, combatStat(target, "reflexes")),
       damage: attackDamage(actor.weapon, attackStat, target.armor),
     }))
@@ -120,7 +128,7 @@ export function abilityOptions(state: CombatState): AbilityOption[] {
             (c) =>
               c.kind !== actor.kind &&
               isAlive(c) &&
-              manhattan(actor.position, c.position) <= ability.range,
+              bodyGap(actor, c) <= ability.range,
           )
           .map((target) => ({
             targetId: target.id,

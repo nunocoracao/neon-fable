@@ -68,6 +68,7 @@ export function createCombat(
     position: { ...encounter.playerStart },
     boosts: [],
     stunTurns: 0,
+    charge: null,
     cooldowns: {},
     consumables: playerConsumables(state, resolve),
   };
@@ -91,8 +92,13 @@ export function createCombat(
       armor: enemy.armor,
       abilityIds: [...enemy.abilityIds],
       position: { ...spawn.position },
+      // How much floor the archetype stands on. Absent on almost
+      // everything (one tile, as it always was); a security chassis
+      // carries a block, and every grid rule reads it (see ./footprint).
+      ...(enemy.footprint ? { footprint: { ...enemy.footprint } } : {}),
       boosts: [],
       stunTurns: 0,
+      charge: null,
       cooldowns: {},
       consumables: [],
     };

@@ -31,7 +31,41 @@ export {
   weaponRange,
   type AbilityHit,
 } from "./damage";
-export { inBounds, isOccupied, manhattan, moveSpeed } from "./grid";
+export {
+  chargeImpact,
+  isCharged,
+  isUnderThreat,
+  pendingCharge,
+  pendingCharges,
+  threatenedTiles,
+  windUpTurns,
+} from "./charge";
+export {
+  SINGLE_TILE,
+  bodiesOverlap,
+  bodyCovers,
+  bodyGap,
+  bodyTiles,
+  footprintCenter,
+  footprintCovers,
+  footprintFits,
+  footprintGap,
+  footprintOf,
+  footprintTiles,
+  footprintsOverlap,
+  isMultiTile,
+  tileGap,
+  type FootprintBody,
+} from "./footprint";
+export {
+  canStand,
+  combatantAt,
+  inBounds,
+  isBlocked,
+  isOccupied,
+  manhattan,
+  moveSpeed,
+} from "./grid";
 export {
   abilityOptions,
   attackOptions,
@@ -71,6 +105,7 @@ export {
   telegraphHover,
   telegraphTargetAt,
   telegraphTiles,
+  threatTiles,
   type TelegraphHover,
   type TelegraphIntent,
   type TelegraphReason,
@@ -90,6 +125,7 @@ export {
 export {
   CombatError,
   type ActiveBoost,
+  type ChargedAction,
   type CombatAction,
   type CombatConsumable,
   type CombatErrorCode,

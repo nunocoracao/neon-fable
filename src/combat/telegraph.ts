@@ -1,9 +1,11 @@
 import { requireAbility } from "../data/abilities";
 import { abilityAreaTiles } from "./area";
+import { threatenedTiles } from "./charge";
 import { weaponRange } from "./damage";
-import { inBounds, isOccupied, manhattan } from "./grid";
+import { bodyGap, bodyTiles, tileGap } from "./footprint";
+import { canStand, combatantAt, inBounds, isBlocked, manhattan } from "./grid";
 import { manhattanPath, reachableTiles } from "./legal";
-import { activeCombatant, isAlive } from "./state";
+import { activeCombatant } from "./state";
 import { outcomesFor, type OutcomePreview, type PreviewIntent } from "./preview";
 import type { Combatant, CombatState, GridPosition } from "./types";
 
@@ -42,6 +44,14 @@ export const TELEGRAPH_ROLES = [
   "path",
   /** Exactly what the aimed action would touch. */
   "impact",
+  /**
+   * Ground somebody else has already promised: a wind-up declared and
+   * not yet thrown (see ./charge.ts). Unlike every other role this one
+   * does not depend on what the player has open — a charge is a fact
+   * about the board, and standing on it is a decision the player has to
+   * be able to make with their hands empty.
+   */
+  "threat",
   /** Pointed at, and refused. */
   "denied",
 ] as const;
@@ -140,17 +150,23 @@ function telegraphActor(
   return { actor };
 }
 
-/** Every tile within `range` of a point that is actually on the grid. */
+/**
+ * Every tile within `range` of a body that is actually on the grid, the
+ * tiles it is standing on excluded — reach is measured from whichever of
+ * its tiles is nearest, so a chassis reaches around itself rather than
+ * out of one corner.
+ */
 function tilesWithin(
   state: CombatState,
-  from: GridPosition,
+  actor: Combatant,
   range: number,
 ): GridPosition[] {
   const tiles: GridPosition[] = [];
   for (let y = 0; y < state.grid.height; y++) {
     for (let x = 0; x < state.grid.width; x++) {
       const tile = { x, y };
-      if (manhattan(from, tile) <= range) tiles.push(tile);
+      const gap = tileGap(actor, tile);
+      if (gap > 0 && gap <= range) tiles.push(tile);
     }
   }
   return tiles;
@@ -161,9 +177,12 @@ function bodyAt(
   state: CombatState,
   tile: GridPosition,
 ): Combatant | undefined {
-  return state.combatants.find(
-    (c) => isAlive(c) && c.position.x === tile.x && c.position.y === tile.y,
-  );
+  return combatantAt(state.combatants, tile);
+}
+
+/** Every tile the acting combatant is standing on, as its own role. */
+function originTiles(actor: Combatant): TelegraphTile[] {
+  return bodyTiles(actor).map((tile) => ({ ...tile, role: "origin" as const }));
 }
 
 /**
@@ -181,12 +200,12 @@ export function telegraphField(
   const resolved = telegraphActor(state);
   if (!("actor" in resolved)) return [];
   const { actor } = resolved;
-  const origin: TelegraphTile = { ...actor.position, role: "origin" };
+  const origin = originTiles(actor);
 
   if (intent.kind === "move") {
     if (state.moveRemaining <= 0) return [];
     return [
-      origin,
+      ...origin,
       ...reachableTiles(state).map(
         (tile): TelegraphTile => ({ ...tile, role: "reach" }),
       ),
@@ -198,25 +217,35 @@ export function telegraphField(
   if (intent.kind === "attack") {
     const range = weaponRange(actor.weapon.rangeType);
     return [
-      origin,
-      ...tilesWithin(state, actor.position, range)
-        .filter((tile) => manhattan(actor.position, tile) > 0)
-        .map((tile): TelegraphTile => ({ ...tile, role: "range" })),
+      ...origin,
+      ...tilesWithin(state, actor, range).map(
+        (tile): TelegraphTile => ({ ...tile, role: "range" }),
+      ),
     ];
   }
 
   if (!actor.abilityIds.includes(intent.abilityId)) return [];
   if ((actor.cooldowns[intent.abilityId] ?? 0) > 0) return [];
   const ability = requireAbility(intent.abilityId);
-  // A self-boost reaches nowhere; the caster's own tile is the whole
+  // A self-boost reaches nowhere; the caster's own tiles are the whole
   // telegraph, which is exactly the truth about it.
-  if (ability.effect.type === "boost") return [origin];
+  if (ability.effect.type === "boost") return origin;
   return [
-    origin,
-    ...tilesWithin(state, actor.position, ability.range)
-      .filter((tile) => manhattan(actor.position, tile) > 0)
-      .map((tile): TelegraphTile => ({ ...tile, role: "range" })),
+    ...origin,
+    ...tilesWithin(state, actor, ability.range).map(
+      (tile): TelegraphTile => ({ ...tile, role: "range" }),
+    ),
   ];
+}
+
+/**
+ * The ground already promised by every wind-up in flight, tinted as the
+ * threat it is. Independent of what the player has open — see the
+ * "threat" role above.
+ */
+export function threatTiles(state: CombatState): TelegraphTile[] {
+  if (state.status !== "active") return [];
+  return threatenedTiles(state).map((tile) => ({ ...tile, role: "threat" }));
 }
 
 /** The move telegraph for one hovered tile. */
@@ -228,8 +257,14 @@ function moveHover(
   if (state.moveRemaining <= 0) return emptyHover(tile, "no-steps");
   const cost = manhattan(actor.position, tile);
   if (cost === 0) return emptyHover(tile, "same-tile");
-  if (isOccupied(state.combatants, tile, actor.id)) {
+  // Asked of the block, not the corner: a body that would end up half
+  // off the arena is refused for being off the grid, and one that would
+  // end up inside somebody for being occupied.
+  if (isBlocked(state.combatants, tile, actor.footprint, actor.id)) {
     return emptyHover(tile, "occupied");
+  }
+  if (!canStand(state.grid, state.combatants, tile, actor.footprint, actor.id)) {
+    return emptyHover(tile, "off-grid");
   }
   if (cost > state.moveRemaining) return emptyHover(tile, "out-of-range");
   const path = manhattanPath(actor.position, tile);
@@ -271,9 +306,10 @@ function aimHover(
       ? { kind: "attack" }
       : { kind: "ability", abilityId: intent.abilityId };
 
-  // A self-boost is aimed at nobody: its one legal tile is the caster's.
+  // A self-boost is aimed at nobody: its only legal tiles are the ones
+  // the caster is standing on.
   if (ability?.effect.type === "boost") {
-    if (manhattan(actor.position, tile) > 0) {
+    if (tileGap(actor, tile) > 0) {
       return emptyHover(tile, "self-only");
     }
     const outcomes = outcomesFor(state, previewIntent, actor.id);
@@ -285,7 +321,7 @@ function aimHover(
       path: [],
       cost: null,
       stepsLeft: null,
-      impact: [{ ...actor.position }],
+      impact: bodyTiles(actor),
       outcomes,
       targetId: actor.id,
     };
@@ -296,7 +332,7 @@ function aimHover(
   const reach = ability
     ? ability.range
     : weaponRange(actor.weapon.rangeType);
-  if (manhattan(actor.position, body.position) > reach) {
+  if (bodyGap(actor, body) > reach) {
     return emptyHover(tile, "out-of-range");
   }
   const outcomes = outcomesFor(state, previewIntent, body.id);
@@ -309,10 +345,11 @@ function aimHover(
     cost: null,
     stepsLeft: null,
     // The tiles the shape covers, not merely the bodies on them: an
-    // area that catches one body still shows the ground it swept.
+    // area that catches one body still shows the ground it swept, and a
+    // single blow on a chassis marks the whole chassis.
     impact: ability
       ? abilityAreaTiles(state, actor, ability, body.position)
-      : [{ ...body.position }],
+      : bodyTiles(body),
     outcomes,
     targetId: body.id,
   };
@@ -342,17 +379,19 @@ export function telegraphHover(
 }
 
 /**
- * Every tinted tile right now: the standing field, then whatever the
- * cursor adds on top of it. Later entries win, so a previewed path
- * overwrites the reach it runs through and a refusal overwrites
- * whatever it was refused on.
+ * Every tinted tile right now: the standing field, the ground already
+ * promised by a wind-up, then whatever the cursor adds on top of both.
+ * Later entries win, so a previewed path overwrites the reach it runs
+ * through, a refusal overwrites whatever it was refused on, and a threat
+ * survives the context tints it sits inside — but not the hot ones,
+ * because a player aiming has already been told about the threat.
  */
 export function telegraphTiles(
   state: CombatState,
   intent: TelegraphIntent,
   hover: TelegraphHover | null,
 ): TelegraphTile[] {
-  const tiles = telegraphField(state, intent);
+  const tiles = [...telegraphField(state, intent), ...threatTiles(state)];
   if (!hover) return tiles;
   if (hover.valid) {
     for (const tile of hover.path) tiles.push({ ...tile, role: "path" });
