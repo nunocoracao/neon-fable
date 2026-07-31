@@ -271,7 +271,10 @@ A `StoryArc` is a list of nodes; each node has `speaker`, `text`, and
   `loyalty` requirement asks where they stand (`"at-least"` by default,
   `"at-most"` for the beat somebody only raises when it has gone
   badly); `flag-unset` is the "not yet" gate a scene closes itself
-  with once it has recorded its own outcome.
+  with once it has recorded its own outcome, and `flag-set` is its
+  mirror — "you have been here", whatever the flag ended up saying,
+  which is how a later beat reads a one-flag-several-values record
+  without carrying one choice per value.
 - `effects` — `set-flag`, `increment-flag`, `add-item` / `remove-item`,
   `credits` (grants or spends, clamped at zero — gate purchases with a
   `credits` requirement), `start-combat` (launches the encounter, then
@@ -316,6 +319,34 @@ target only resolves inside one arc. Each ending declares its own flag,
 payout, and intended faction swing in `LAST_MILE_OUTCOMES` — the
 contract the faction-reputation work reads, so the outcome and what it
 is worth are named in one place instead of two.
+
+"Under the Waterline" (`src/data/story/underWaterline.ts`) is the same
+shape one turn harder: it forks at its *first* choice into two roads
+that share no node — help the Flooded Quays' diver, or sell the
+conversation to the crew squeezing her — and carries three exclusive
+settlements between them. Its seven ways into the drowned bonded store
+are the reference for spreading gates across builds (Body, Reflexes,
+Tech, an installed enhancement, Cool, the district's own gated
+container via `flag-set`, and one road open to anybody), and its
+`UNDER_WATERLINE_OUTCOMES` adds one field to the same contract:
+`platform`, the lasting change the settlement makes to the district.
+
+### Map dressing (`src/data/mapDressing.ts`)
+
+How a settled quest changes a district for good. `dressMap(map, flags)`
+is a pure join between an authored map and a run's state: a table of
+flag-conditional rewrites, applied once at scene mount, that can
+re-label an interactable, put a different face on it, and change which
+story node it opens. It deliberately cannot move, add, or remove one —
+position, sprite kind, and exits are what the map lint is written
+against, so leaving them alone keeps reachability, walkability, and the
+minimap true of every dressed variant for free (`mapDressing.test.ts`
+pins exactly that). Because it resolves at mount, a change earned in a
+conversation is waiting the next time the player walks in rather than
+swapping under their feet. Build the table from the content that owns
+the flags — the quays' entry is derived from
+`UNDER_WATERLINE_OUTCOMES.platform` — so a map can never drift from the
+ending that changed it.
 
 ### Companions (`src/data/companions.ts`, `src/state/party.ts`)
 
