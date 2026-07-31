@@ -186,6 +186,55 @@ const stashFrame = (plate: string): string[] => [
 const stashClosed = stashFrame("06TTT60");
 const stashGlint = stashFrame("0T9h9T0");
 
+/* --- Memory shard: a crystalline data chip standing in a salvaged
+ * chrome clip, 24×28. The glass body is authored once and the loop is
+ * pure recolor — the seam dims, then catches the light — so the chip
+ * reads as glinting without a pixel ever leaving the silhouette. --- */
+
+/**
+ * Opaque width of the chip at each row, top to bottom: a blade that
+ * comes to a point and broadens into its clip. Even numbers only, so
+ * every row centers in the 24-wide frame.
+ */
+const SHARD_WIDTHS: readonly number[] = [
+  4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 10, 8, 6,
+];
+
+/**
+ * One row of the chip: an outline either side, a lit left face, a
+ * shaded right one, and the index seam burning down the middle — the
+ * part that actually carries the record.
+ */
+const shardRow = (w: number): string => {
+  const inner = w - 2;
+  const half = inner / 2;
+  let body = "";
+  for (let i = 0; i < inner; i++) {
+    if (inner >= 4 && (i === half - 1 || i === half)) body += "g";
+    else if (i === 0) body += "h";
+    else body += i < half ? "U" : "f";
+  }
+  const pad = (24 - w) / 2;
+  return gap(pad) + "0" + body + "0" + gap(pad);
+};
+
+const shardLit: string[] = [
+  ...SHARD_WIDTHS.map(shardRow),
+  // The clip: a scavenged chrome bracket somebody wedged it into.
+  gap(5) + "0" + "T".repeat(12) + "0" + gap(5),
+  gap(5) + "0" + "6".repeat(12) + "0" + gap(5),
+  gap(6) + "0" + "6".repeat(10) + "0" + gap(6),
+  gap(7) + "0".repeat(10) + gap(7),
+  gap(4) + "z".repeat(16) + gap(4),
+  gap(7) + "z".repeat(10) + gap(7),
+];
+
+/** Between winks the seam is banked and the glass goes flat. */
+const shardDim = remapped(shardLit, { h: "U", U: "f", g: "i" });
+
+/** The wink itself: the whole body catches on the seam for one beat. */
+const shardGlint = remapped(shardLit, { U: "h", f: "U", g: "9" });
+
 /* --- Exit: flat ground marker filling the tile diamond, 64×32 — a
  * dark light-strip ring with marching cyan chips and a double
  * up-chevron at the center. Stays tile-height so it reads as an
@@ -294,6 +343,16 @@ export const INTERACTABLE_ART: Readonly<
     anchorX: 20,
     anchorY: 16,
     frameMs: 340,
+  },
+  shard: {
+    // Banked, banked, lit, wink: a chip you catch out of the corner of
+    // your eye rather than one that announces itself.
+    frames: [shardDim, shardDim, shardLit, shardGlint],
+    anchorX: 12,
+    anchorY: 25,
+    frameMs: 300,
+    // A chip's worth of cyan on the ground around it.
+    glow: [{ color: "g", radius: 10, intensity: 0.22, offsetX: 0, offsetY: -14 }],
   },
   exit: {
     frames: [exitFrame(0, "i"), exitFrame(1, "g"), exitFrame(2, "h")],

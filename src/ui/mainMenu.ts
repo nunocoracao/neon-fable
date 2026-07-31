@@ -102,7 +102,7 @@ export function createMainMenuScreen(): Screen {
 
       const codex = document.createElement("button");
       codex.className = "nf-button";
-      codex.textContent = "Endings Codex";
+      codex.textContent = "Codex";
       codex.addEventListener("click", () =>
         showScreen(
           createCodexScreen({

@@ -24,6 +24,7 @@ export {
   clampMetaProgress,
   deriveCodex,
   deriveEpilogueCodex,
+  deriveLoreCodex,
   emptyMetaProgress,
   loadMetaProgress,
   mergeMetaProgress,
@@ -31,6 +32,8 @@ export {
   parseMetaProgress,
   recordCompletion,
   recordCompletionToStorage,
+  recordShard,
+  recordShardToStorage,
   saveMetaProgress,
   serializeMetaProgress,
   type CodexEntry,
@@ -38,9 +41,20 @@ export {
   type CompletionRecord,
   type EpilogueCodexEntry,
   type EpilogueCodexView,
+  type LoreCodexEntry,
+  type LoreCodexView,
   type MetaProgress,
   type MetaStorage,
 } from "./meta";
+export {
+  clampLore,
+  collectShard,
+  collectedCount,
+  collectedShards,
+  emptyLore,
+  hasShard,
+  type LoreState,
+} from "./lore";
 export {
   PartyError,
   activeMember,

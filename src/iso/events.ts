@@ -13,7 +13,13 @@ import type {
 
 export type MapInteraction =
   | { kind: "dialogue"; nodeId: string }
-  | { kind: "combat"; encounterId: string };
+  | { kind: "combat"; encounterId: string }
+  /**
+   * A memory shard lying on the map. The iso layer forwards the id and
+   * nothing else — whether the shard opens, what it says, and where it
+   * is filed are all the shell's business (see src/data/lore.ts).
+   */
+  | { kind: "lore"; shardId: string };
 
 /** Emitted with the id of the interactable that triggered it. */
 export interface IsoInteractionEvent {

@@ -293,6 +293,7 @@ const INTERACT_VERBS: Readonly<Record<InteractableSpriteId, string>> = {
   door: "open",
   terminal: "use",
   stash: "search",
+  shard: "pick up",
   exit: "take",
 };
 
@@ -339,6 +340,32 @@ export function interactPrompt(hint: InteractPromptInput): string | null {
   }
   const verb = interactVerb(hint.spriteId, hint.kind);
   return `${INTERACT_KEY_LABEL} — ${verb} ${interactName(hint.label)}${destination}`;
+}
+
+/** A shard's slot number in the codex, zero-padded: 1 reads as "01". */
+export function shardNumber(index: number): string {
+  return String(index).padStart(2, "0");
+}
+
+/** What a locked codex slot says: the district, and nothing else. */
+export function shardLockedHint(district: string): string {
+  return `Recovered somewhere in ${district}.`;
+}
+
+/**
+ * The line that goes up when a chip is picked up. Names what was found
+ * and where it went, counts the set, and marks the twelfth — which is
+ * the only moment the codex has anything extra to show.
+ */
+export function shardPickupToast(
+  title: string,
+  found: number,
+  total: number,
+): string {
+  const tally = `${found}/${total}`;
+  return found >= total
+    ? `Memory shard recovered — "${title}" (${tally}). The Grey Choir is whole; read it in the codex.`
+    : `Memory shard recovered — "${title}" (${tally}). Filed in the codex.`;
 }
 
 export function pointsLabel(amount: number): string {

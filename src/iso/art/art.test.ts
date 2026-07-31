@@ -914,7 +914,7 @@ describe("signage (native hi-res)", () => {
   });
 });
 
-const INTERACTABLE_IDS = ["door", "terminal", "stash", "exit"] as const;
+const INTERACTABLE_IDS = ["door", "terminal", "stash", "shard", "exit"] as const;
 
 /**
  * The hit-flash/outline silhouette of a grid: every pixel bakeSilhouette
@@ -994,7 +994,7 @@ describe("interactable art (native hi-res)", () => {
   });
 
   it("standing sprites ground with a soft z shadow; the exit lies flat in its tile", () => {
-    for (const id of ["door", "terminal", "stash"] as const) {
+    for (const id of ["door", "terminal", "stash", "shard"] as const) {
       expect(INTERACTABLE_ART[id].frames[0]?.join("").includes("z"), id).toBe(
         true,
       );

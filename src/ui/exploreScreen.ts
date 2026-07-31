@@ -87,7 +87,9 @@ export function createExploreScreen(options: ExploreScreenOptions): Screen {
           const detail =
             event.interaction.kind === "dialogue"
               ? `dialogue → ${event.interaction.nodeId}`
-              : `combat → ${event.interaction.encounterId}`;
+              : event.interaction.kind === "lore"
+                ? `lore → ${event.interaction.shardId}`
+                : `combat → ${event.interaction.encounterId}`;
           readout.textContent = `${event.interactableId}: ${detail}`;
         },
       });

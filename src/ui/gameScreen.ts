@@ -1,6 +1,7 @@
 import { audio } from "../audio";
 import {
   HUB_MAP_ID,
+  LORE_SHARDS,
   companionSpriteId,
   epilogueThreads,
   epilogueVignettes,
@@ -8,6 +9,7 @@ import {
   getEncounter,
   getEnding,
   getMap,
+  getShard,
   interludes,
   type ChapterEnding,
 } from "../data";
@@ -25,9 +27,14 @@ import {
   activeMember,
   carryoverAppearance,
   carryoverCandidates,
+  collectShard,
+  collectedCount,
+  hasShard,
   recordCompletionToStorage,
+  recordShardToStorage,
   type GameState,
 } from "../state";
+import { shardOpens } from "../world";
 import {
   ENTRY_SPAWN_ID,
   createIsoScene,
@@ -39,7 +46,8 @@ import {
   type IsoScene,
 } from "../iso";
 import { settings } from "../settings";
-import { interactPrompt } from "./format";
+import { interactPrompt, shardPickupToast } from "./format";
+import { createCodexScreen } from "./codexScreen";
 import { resolveDistrict } from "./district";
 import { runMapTransition, type MapTransitionHandle } from "./mapTransition";
 import { npcSpriteSource, sceneSpriteSource } from "./entitySprites";
@@ -441,6 +449,44 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     return true;
   }
 
+  /**
+   * Picking a memory shard up off the street. Three outcomes, and the
+   * toast is the whole of the feedback: a sealed chip says what would
+   * open it and stays where it is; one already in hand says so; a fresh
+   * one is filed in the run *and* mirrored into meta-progress, so the
+   * codex remembers it whether or not this run is ever finished.
+   *
+   * The chip stays on the map for the rest of this visit — the map is
+   * resolved at mount (see ./district.ts) — and is gone the next time
+   * the player walks in, because a collected shard is not placed.
+   */
+  function pickUpShard(shardId: string): void {
+    const shard = getShard(shardId);
+    if (!shard) {
+      console.error(`Unknown lore shard "${shardId}" — nothing picked up`);
+      return;
+    }
+    if (!shardOpens(session.state, shard)) {
+      audio.play("ui-cancel");
+      showToast(shard.sealed ?? "The chip's index refuses to open.");
+      return;
+    }
+    if (hasShard(session.state.lore, shard.id)) {
+      showToast(`"${shard.title}" is already in the codex.`);
+      return;
+    }
+    session.state = collectShard(session.state, shard.id);
+    recordShardToStorage(shard.id, session.storage);
+    autosave(session);
+    showToast(
+      shardPickupToast(
+        shard.title,
+        collectedCount(session.state.lore),
+        LORE_SHARDS.length,
+      ),
+    );
+  }
+
   function openInventory(): void {
     openOverlay(
       "inventory",
@@ -526,6 +572,19 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     const entries: Array<[string, () => void]> = [
       ["Resume", closeOverlay],
       ["Save / Load", openSaves],
+      // The codex full-screen, carrying the run so the shard section
+      // can show what this character is holding beside what the player
+      // has ever found. Back remounts the district.
+      [
+        "Codex",
+        () =>
+          showScreen(
+            createCodexScreen({
+              state: session.state,
+              onBack: () => showScreen(createGameScreen({ session })),
+            }),
+          ),
+      ],
       ["Settings", openSettings],
       [
         "Quit to Main Menu",
@@ -710,6 +769,8 @@ export function createGameScreen(options: GameScreenOptions): Screen {
             map.interactables.find((i) => i.id === event.interactableId) ?? null;
           if (event.interaction.kind === "dialogue") {
             openDialogue(event.interaction.nodeId);
+          } else if (event.interaction.kind === "lore") {
+            pickUpShard(event.interaction.shardId);
           } else {
             showScreen(
               createCombatScreen({

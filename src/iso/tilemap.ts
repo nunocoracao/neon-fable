@@ -212,6 +212,9 @@ export type InteractableSpriteId =
   | "door"
   | "terminal"
   | "stash"
+  // A memory shard: the one interactable no map authors by hand — they
+  // are placed from lore content (see src/world/shards.ts).
+  | "shard"
   | "exit";
 
 /**

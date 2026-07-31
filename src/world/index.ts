@@ -13,6 +13,12 @@ export {
 } from "./state";
 export { liveReactions, populateMap, reactionLive } from "./population";
 export {
+  mapShards,
+  placeShards,
+  shardInteractable,
+  shardOpens,
+} from "./shards";
+export {
   eligibleHeadlines,
   newsStrip,
   rotateHeadlines,
