@@ -73,6 +73,19 @@ entry that drops you on the hub map without a character).
   neural…) and cost neural load against your capacity; uninstalling one
   destroys it and deals trauma. Installed enhancements can unlock
   dialogue and grant combat abilities.
+- **Static** — the second price of chrome, and the one nothing caps.
+  Every implant carries a Static load; the loads on what you have
+  installed sum into a level banded **Clear → Humming → Loud →
+  Screaming**, shown as a meter on `I`. The quiet bands cost nothing.
+  **Loud** costs a point of Cool *in conversation only* (the fight
+  reads your full figure) and opens doors that are shut to a clean
+  face — some people read chrome as a pledge. **Screaming** drops you a
+  place in initiative and builds a **static surge**: after a few turns
+  the HUD warns you it has armed, and it takes your next turn unless
+  you spend one turn without using your main action to bleed it off.
+  There is no dice roll anywhere in it. Patch's clinic sells
+  **dampeners** — implants with a negative load — but they occupy a
+  socket, so quiet is always bought with something you wanted to wear.
 - **Chapters & advancement** — each act starts from a hub NPC on the
   plaza (Flick for Act 1, a messenger for Act 2, the watcher under the
   dead screens for Act 3 — each appears once the previous act is done).
@@ -149,6 +162,17 @@ plus content from `src/data/`); rendering and DOM code stay thin.
   applied at the Chrome Chapel lives on the copy (`ItemStack.dye` /
   `EquipmentState.outfitDye`) and only ever reaches the sprite and
   portrait remaps — never a figure (`src/inventory/dye.ts`).
+- **Static** (`src/inventory/staticLoad.ts`) — derived, never stored: a
+  pure sum over installed enhancements banded by the table in
+  `src/data/static.ts`, so a save written before the system existed
+  reads a band the moment it loads and pulling an implant lowers the
+  noise by arithmetic. Band effects are read as data by the systems
+  that pay them — `dialogueStats` takes the Cool penalty for
+  `checkRequirement`, `createCombat` snapshots the initiative shift
+  onto `Combatant.initiativeMod`, and `src/combat/surge.ts` runs the
+  surge. Preview and meter go through the same derivation
+  (`src/ui/staticModel.ts`), so an install button cannot promise a band
+  installing does not deliver.
 - **Iso scene** (`src/iso/`) — 2:1 diamond tiles, painter's-order depth
   sort, BFS pathfinding, and a combat arena scene with walk tweens, HP
   bars, and floating damage text. Presentation only: it never imports
@@ -184,7 +208,8 @@ cross-references, so `npm test` is the authoring safety net.
 ### Items (`src/data/items.ts`)
 
 Add an `Item` to the `items` array. Kinds: `weapon`, `outfit`,
-`consumable`, `enhancement` (with a body `slot` and `neuralCost`),
+`consumable`, `enhancement` (with a body `slot`, a `neuralCost`, and a
+`staticLoad`),
 `mod`, `dye`, and `misc`. Gear carries typed `effects` (`stat-mod`,
 `grant-ability`, `unlock-dialogue`). `items.test.ts` checks id
 uniqueness and slot coverage.
@@ -208,6 +233,27 @@ Fitting is free; pulling a part back out costs `MOD_REMOVAL_FEE` and
 returns it intact. Both are only reachable through the workbench
 screen, which a choice opens with the `open-workbench` effect — "only
 at a bench" is enforced by there being no other door.
+
+#### Static loads and dampeners
+
+Every `enhancement` declares a `staticLoad`: how much neural noise it
+adds while installed. Loads track how much of a person the implant
+replaces rather than how good it is, and the bands they fall into —
+floors, labels, and exactly what each band costs — are the table in
+`src/data/static.ts`. Retuning a band is a change to that table and
+nowhere else; nothing switches on a band id.
+
+A **dampener** is not a new item kind. It is an enhancement with a
+*negative* load, which is what makes it cost a socket and a share of
+neural capacity like everything else — the trade is that wearing one
+always means not wearing something else. `static.test.ts` enforces that
+every implant is priced, that dampeners exist in more than one slot and
+cost real capacity, and that the hardware in the catalog can actually
+reach every band.
+
+Content gates on the band with the `static` requirement (`band`, plus
+`mode: "at-most"` for the beat that needs a face nobody can hear
+coming) — never on the level, so a gate survives a retune.
 
 #### Outfit dyes
 
