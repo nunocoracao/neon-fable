@@ -341,6 +341,55 @@ body::after {
   opacity: 1;
 }
 
+/* Ambient barks: small speech chips over the heads of the people on
+   the map. Decoration end to end — the layer takes no pointer events,
+   holds nothing focusable, and is aria-hidden in markup, so a chip can
+   never eat the click that would talk to whoever is under it. */
+.nf-bark-layer {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.nf-bark-chip {
+  position: absolute;
+  /* Anchored at the point above the speaker's head: centred on it, and
+     sitting entirely above it. */
+  transform: translate(-50%, -100%);
+  max-width: 15rem;
+  padding: 0.25rem 0.5rem;
+  font-family: var(--nf-font-display);
+  font-size: 0.7rem;
+  line-height: 1.25;
+  letter-spacing: 0.03em;
+  color: var(--nf-ink);
+  background: rgba(10, 10, 18, 0.88);
+  border: 2px solid var(--nf-border);
+  box-shadow: var(--nf-shadow-hard);
+  pointer-events: none;
+  /* The scheduler owns the fade; the element only carries the value. */
+  opacity: 0;
+}
+
+/* The tail: a hard pixel wedge under the chip, pointing at the speaker,
+   drawn in the border colour so it reads as part of the box. */
+.nf-bark-chip::after {
+  content: "";
+  position: absolute;
+  /* Overlaps the chip's own bottom border by half its diagonal, so the
+     wedge reads as part of the box rather than a square stuck under it. */
+  bottom: -4px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  background: rgba(10, 10, 18, 0.88);
+  border-right: 2px solid var(--nf-border);
+  border-bottom: 2px solid var(--nf-border);
+  transform: rotate(45deg);
+}
+
 /* Interact affordance: what is in front of you and which key acts on
    it. Sits just above the toast lane so the two never overlap. */
 .nf-interact-prompt {
