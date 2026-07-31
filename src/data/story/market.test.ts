@@ -1,4 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { fixtureCharacter } from "../../character/testSupport";
+import { applyChoice, companionAside } from "../../narrative";
+import {
+  activeMember,
+  createNewGame,
+  getMember,
+  recruitCompanion,
+  type GameState,
+} from "../../state";
 import { getEncounter } from "../encounters";
 import { HUB_MAP_ID, requireMap } from "../maps";
 import { storyArcs } from "./index";
@@ -61,6 +70,7 @@ describe("vertical market arc", () => {
       i.interaction.kind === "dialogue" ? i.interaction.nodeId : "",
     );
     expect(opened.sort()).toEqual([
+      "vm-auditor",
       "vm-broker",
       "vm-fixer",
       "vm-stair",
@@ -70,6 +80,7 @@ describe("vertical market arc", () => {
       (choice) => (choice.target ? [choice.target] : []),
     );
     expect(arrivalTargets.sort()).toEqual([
+      "vm-auditor",
       "vm-broker",
       "vm-fixer",
       "vm-stair",
@@ -79,8 +90,9 @@ describe("vertical market arc", () => {
 
   it("keeps its colour self-contained: no act flags, no combat, no items out", () => {
     // The broker's board and the fixer's contracts are later work. This
-    // arc may only leave `market-known` behind, and the locker's own
-    // record of how it was opened.
+    // arc may only leave `market-known` behind, the locker's own record
+    // of how it was opened, and Deacon Sill's — how he was met, whether
+    // he came, and whether he was turned down. Nothing an act reads.
     const flags = allChoices.flatMap(({ choice }) =>
       (choice.effects ?? []).flatMap((effect) =>
         effect.type === "set-flag" || effect.type === "increment-flag"
@@ -88,16 +100,25 @@ describe("vertical market arc", () => {
           : [],
       ),
     );
-    expect([...new Set(flags)].sort()).toEqual(["market-known", "market-locker"]);
+    expect([...new Set(flags)].sort()).toEqual([
+      "market-known",
+      "market-locker",
+      "sill-declined",
+      "sill-joined",
+      "sill-met",
+    ]);
     for (const { choice } of allChoices) {
       for (const effect of choice.effects ?? []) {
         expect(effect.type, `${choice.id}`).not.toBe("start-combat");
         expect(effect.type, `${choice.id}`).not.toBe("remove-item");
       }
       for (const requirement of choice.requirements ?? []) {
-        // Gating is on the character, never on story state, so the
-        // district plays the same in every act and on a fresh run.
-        expect(requirement.type, `${choice.id}`).toBe("stat");
+        // Gating is on the character — a stat or where they came from —
+        // never on story state, so the district plays the same in every
+        // act and on a fresh run.
+        expect(["stat", "background"], `${choice.id}`).toContain(
+          requirement.type,
+        );
       }
     }
   });
@@ -130,6 +151,124 @@ describe("vertical market arc", () => {
       );
       const canMoveOn = node.choices.some((choice) => choice.target);
       expect(canEnd || canMoveOn, `node ${node.id} traps the player`).toBe(true);
+    }
+  });
+});
+
+/** Plays a route of choice ids from a node, returning the state after. */
+function playRoute(
+  start: GameState,
+  entryNodeId: string,
+  choiceIds: string[],
+): GameState {
+  let state = start;
+  let nodeId: string | null = entryNodeId;
+  for (const choiceId of choiceIds) {
+    const node = nodesById.get(nodeId ?? "");
+    if (!node) throw new Error(`no node "${nodeId}" for choice "${choiceId}"`);
+    const outcome = applyChoice(state, node, choiceId);
+    state = outcome.state;
+    nodeId = outcome.nextNodeId;
+  }
+  return state;
+}
+
+function freshRunner(): GameState {
+  return createNewGame({ character: fixtureCharacter({}), seed: 21 });
+}
+
+describe("Deacon Sill's recruitment", () => {
+  it("is reachable on foot and from the arrival beat alike", () => {
+    const market = requireMap("vertical-market");
+    const npc = market.interactables.find((i) => i.id === "market-auditor");
+    expect(npc?.interaction).toEqual({ kind: "dialogue", nodeId: "vm-auditor" });
+    expect(
+      (nodesById.get("vm-arrival")?.choices ?? []).some(
+        (choice) => choice.target === "vm-auditor",
+      ),
+    ).toBe(true);
+  });
+
+  it("takes the witness aboard, and remembers being believed", () => {
+    const state = playRoute(freshRunner(), "vm-auditor", [
+      "sill-give",
+      "witness-on",
+      "join-yes",
+    ]);
+    const member = getMember(state.party, "sill")!;
+    expect(member.recruited).toBe(true);
+    expect(member.active).toBe(true);
+    expect(member.loyalty).toBe(2);
+    expect(state.flags["sill-met"]).toBe("witnessed");
+    expect(state.flags["sill-joined"]).toBe("witnessed");
+  });
+
+  it("takes the retainer aboard, and remembers being bought", () => {
+    const state = playRoute(freshRunner(), "vm-auditor", [
+      "sill-price",
+      "price-take",
+      "terms-yes",
+    ]);
+    const member = getMember(state.party, "sill")!;
+    expect(member.recruited).toBe(true);
+    // Same companion, same kit — a different opening standing, which is
+    // the whole point of the fork.
+    expect(member.loyalty).toBe(-1);
+    expect(state.flags["sill-joined"]).toBe("priced");
+  });
+
+  it("lets the player walk away from both roads without him", () => {
+    for (const route of [
+      ["sill-give", "witness-on", "join-no"],
+      ["sill-price", "price-take", "terms-no"],
+      ["sill-leave"],
+    ]) {
+      const state = playRoute(freshRunner(), "vm-auditor", route);
+      expect(getMember(state.party, "sill"), route.join(">")).toBeUndefined();
+    }
+  });
+
+  it("benches whoever was already walking with the player", () => {
+    const crewed: GameState = {
+      ...freshRunner(),
+      party: recruitCompanion(freshRunner().party, "vesper"),
+    };
+    const state = playRoute(crewed, "vm-auditor", [
+      "sill-give",
+      "witness-on",
+      "join-yes",
+    ]);
+    expect(activeMember(state.party)?.companionId).toBe("sill");
+    // Stepped back, not dropped: she is still in the party to switch to.
+    expect(getMember(state.party, "vesper")!.recruited).toBe(true);
+    expect(getMember(state.party, "vesper")!.active).toBe(false);
+  });
+
+  it("gives Kade something to say about the man in the tower suit", () => {
+    const meeting = nodesById.get("vm-auditor")!;
+    const alone = freshRunner();
+    const crewed: GameState = {
+      ...alone,
+      party: recruitCompanion(alone.party, "vesper"),
+    };
+    expect(companionAside(meeting, alone)).toBeNull();
+    expect(companionAside(meeting, crewed)?.companionId).toBe("vesper");
+  });
+
+  it("does not read a companion, so his pitch plays the same alone", () => {
+    // He is the second companion, not the second half of the first:
+    // nothing in his chain gates on who else is with you.
+    const auditorNodes = marketArc.nodes.filter((node) =>
+      node.id.startsWith("vm-auditor"),
+    );
+    for (const node of auditorNodes) {
+      for (const choice of node.choices) {
+        for (const requirement of choice.requirements ?? []) {
+          expect(requirement.type, `${node.id}/${choice.id}`).not.toBe(
+            "companion",
+          );
+        }
+      }
     }
   });
 });
