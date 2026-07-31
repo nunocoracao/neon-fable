@@ -2887,3 +2887,169 @@ canvas.nf-action-glyph {
   text-align: center;
   overflow-wrap: anywhere;
 }
+
+/* --- Breach (the signal-tracing minigame) ---
+   A terminal's own screen, so it reads colder and harder than the rest
+   of the UI: a lattice of square cells on a black field, the routed
+   path burning cyan, watchdogs in the danger red, and the buffer as a
+   bar that visibly empties. Hard edges throughout — no blur, no
+   rounding, and the glyphs are the whole of the iconography. */
+
+.nf-breach {
+  width: min(46rem, calc(100vw - 3rem));
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+}
+
+.nf-breach-kicker {
+  font-family: var(--nf-font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nf-glow-cyan);
+  margin: 0 0 0.5rem;
+}
+
+/* What the core holds — the sentence the player came for. */
+.nf-breach-prize {
+  border-left: 3px solid var(--nf-glow-amber);
+  padding-left: 0.75rem;
+  color: var(--nf-ink);
+}
+
+.nf-breach-buffer {
+  font-family: var(--nf-font-display);
+  color: var(--nf-glow-amber);
+}
+
+.nf-breach-notes {
+  margin: 0.25rem 0 0.75rem;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  color: var(--nf-glow-cyan);
+}
+
+.nf-breach-meters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-family: var(--nf-font-display);
+  font-size: 0.85rem;
+  color: var(--nf-ink-dim);
+}
+
+.nf-breach-meter-buffer {
+  color: var(--nf-glow-amber);
+}
+
+.nf-breach-bar {
+  height: 6px;
+  margin: 0.4rem 0 0.9rem;
+  background: var(--nf-bg-deep);
+  border: 2px solid var(--nf-border);
+}
+
+.nf-breach-bar-fill {
+  height: 100%;
+  background: var(--nf-glow-amber);
+}
+
+.nf-breach-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--nf-breach-columns, 6), minmax(0, 1fr));
+  gap: 4px;
+  background: var(--nf-outline);
+  border: 2px solid var(--nf-border);
+  padding: 4px;
+}
+
+/* One node. Square, so the lattice reads as a grid rather than a form. */
+.nf-breach-cell {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 0;
+  background: var(--nf-bg-raised);
+  border: 2px solid var(--nf-border);
+  color: var(--nf-ink-dim);
+  font: inherit;
+  cursor: pointer;
+}
+
+.nf-breach-glyph {
+  font-family: var(--nf-font-display);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.nf-breach-yield {
+  font-size: 0.65rem;
+  color: var(--nf-ink-dim);
+}
+
+/* A hop you can actually take right now. */
+.nf-breach-cell.nf-breach-open {
+  border-color: var(--nf-glow-cyan);
+  color: var(--nf-ink);
+}
+
+.nf-breach-cell:focus-visible {
+  outline: 2px solid var(--nf-glow-magenta);
+  outline-offset: 2px;
+}
+
+/* The route behind you, and the node you are standing on. */
+.nf-breach-cell.nf-breach-routed {
+  background: #14313a;
+  border-color: var(--nf-glow-cyan);
+  color: var(--nf-ink);
+}
+
+.nf-breach-cell.nf-breach-head {
+  background: var(--nf-glow-cyan);
+  border-color: var(--nf-ink);
+  color: var(--nf-outline);
+}
+
+.nf-breach-cell.nf-breach-head .nf-breach-yield {
+  color: var(--nf-outline);
+}
+
+/* Watchdog logic, once it can be seen at all: the one red on the grid. */
+.nf-breach-cell.nf-breach-trace {
+  border-color: var(--nf-danger);
+  color: var(--nf-danger);
+}
+
+.nf-breach-cell.nf-breach-trace .nf-breach-yield {
+  color: var(--nf-danger);
+}
+
+.nf-breach-cell.nf-breach-dead {
+  background: var(--nf-bg-deep);
+  border-color: var(--nf-bg-deep);
+  color: #33334d;
+  cursor: default;
+}
+
+.nf-breach-cell.nf-breach-entry,
+.nf-breach-cell.nf-breach-core {
+  color: var(--nf-glow-amber);
+  border-color: var(--nf-glow-amber);
+}
+
+.nf-breach-actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.nf-breach-payout {
+  margin: 0.25rem 0 0.75rem;
+  padding-left: 1.1rem;
+  color: var(--nf-glow-amber);
+}

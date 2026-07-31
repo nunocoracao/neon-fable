@@ -3,6 +3,7 @@ import {
   HUB_MAP_ID,
   LORE_SHARDS,
   companionSpriteId,
+  getBreachContext,
   epilogueThreads,
   epilogueVignettes,
   findArcByNode,
@@ -56,6 +57,7 @@ import { createAdvancementOverlay } from "./advancementOverlay";
 import { createPerkOverlay } from "./perkOverlay";
 import { pickLabel } from "./perkModel";
 import { createBarkLayer, type BarkLayerHandle } from "./barkLayer";
+import { createBreachOverlay } from "./breachOverlay";
 import { COMBAT_RESUME_FLAG, createCombatScreen } from "./combatScreen";
 import { createDialogueOverlay } from "./dialogueOverlay";
 import { createEpilogueScreen } from "./epilogueScreen";
@@ -93,6 +95,7 @@ export interface GameScreenOptions {
 
 type OverlayKind =
   | "dialogue"
+  | "breach"
   | "inventory"
   | "party"
   | "advance"
@@ -533,6 +536,36 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     );
   }
 
+  /**
+   * A terminal offering a run at Breach. The overlay owns the whole
+   * flow — briefing, lattice, report — and folds the result into the
+   * run itself the moment it stops; what is left here is the two things
+   * only the shell can do: put the autosave down over the new state,
+   * and mirror a chip the run pulled out into meta-progress, exactly as
+   * picking one up off the floor does.
+   */
+  function openBreachTerminal(contextId: string): void {
+    if (!getBreachContext(contextId)) {
+      console.error(`Unknown breach context "${contextId}" — nothing opened`);
+      return;
+    }
+    openOverlay(
+      "breach",
+      createBreachOverlay({
+        session,
+        contextId,
+        onStateChange: refreshHud,
+        onSettled(settlement) {
+          if (settlement.filedShardId) {
+            recordShardToStorage(settlement.filedShardId, session.storage);
+          }
+          autosave(session);
+        },
+        onClose: closeOverlay,
+      }),
+    );
+  }
+
   function openInventory(): void {
     openOverlay(
       "inventory",
@@ -666,26 +699,36 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     openOverlay("menu", { el, destroy: () => el.remove() });
   }
 
+  /**
+   * Panels that own the keyboard while they are up. A conversation is
+   * one because its choices are the only thing worth pressing; a breach
+   * is one because closing it away would throw the run, and it has its
+   * own answer for every key including Escape.
+   */
+  function ownsKeyboard(): boolean {
+    return overlay?.kind === "dialogue" || overlay?.kind === "breach";
+  }
+
   function onKeyDown(event: KeyboardEvent): void {
     if (event.key === "Escape") {
-      if (overlay?.kind === "dialogue") return;
+      if (ownsKeyboard()) return;
       audio.play("ui-cancel");
       if (overlay) closeOverlay();
       else openSystemMenu();
       return;
     }
     if (event.key === "i" || event.key === "I") {
-      if (overlay?.kind === "dialogue") return;
+      if (ownsKeyboard()) return;
       if (overlay?.kind === "inventory") closeOverlay();
       else openInventory();
     }
     if (event.key === "c" || event.key === "C") {
-      if (overlay?.kind === "dialogue") return;
+      if (ownsKeyboard()) return;
       if (overlay?.kind === "party") closeOverlay();
       else openParty();
     }
     if (event.key === "p" || event.key === "P") {
-      if (overlay?.kind === "dialogue") return;
+      if (ownsKeyboard()) return;
       if (overlay?.kind === "advance") closeOverlay();
       else openAdvancement();
     }
@@ -834,6 +877,8 @@ export function createGameScreen(options: GameScreenOptions): Screen {
             openDialogue(event.interaction.nodeId);
           } else if (event.interaction.kind === "lore") {
             pickUpShard(event.interaction.shardId);
+          } else if (event.interaction.kind === "breach") {
+            openBreachTerminal(event.interaction.contextId);
           } else {
             showScreen(
               createCombatScreen({

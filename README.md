@@ -86,6 +86,22 @@ entry that drops you on the hub map without a character).
   There is no dice roll anywhere in it. Patch's clinic sells
   **dampeners** — implants with a negative load — but they occupy a
   socket, so quiet is always bought with something you wanted to wear.
+- **Breach** — four terminals across the city hold a corrupted node
+  lattice, and a Tech build can route it. Walk up to one and you get a
+  briefing (what is in the core, what your buffer is) before you commit;
+  jack in and the lattice comes up as a grid. Arrows move, Enter routes
+  the hop under the cursor, `U` backs up, `W` pulls out. Every hop costs
+  a move off the buffer, three of the same signal fragment in a row
+  refunds two, and a **trace node** bills you extra for standing on it —
+  which you will not see coming unless your Tech is high enough or you
+  are wearing a cortical lattice. Threat optics let you read what each
+  node is carrying before you take it. Backing up refunds nothing, so a
+  sprung trace is a real loss; run the buffer dry short of the core and
+  the channel locks you out for good. **One attempt per terminal**, so
+  what a failed run costs is the prize — never a route through the
+  story. Every terminal's prize has an ordinary way in as well: a locker
+  that also opens to shoulders, a chip that also lies on the floor for
+  anybody with the Tech to read it where it is.
 - **Chapters & advancement** — each act starts from a hub NPC on the
   plaza (Flick for Act 1, a messenger for Act 2, the watcher under the
   dead screens for Act 3 — each appears once the previous act is done).
@@ -118,6 +134,7 @@ src/
   combat/      # turn-based combat engine + combat UI glue
   inventory/   # items, equipment slots, cyber enhancements
   iso/         # isometric renderer, tilemap, sprites, input picking
+  minigames/   # self-contained puzzles: Breach (the node lattice)
   world/       # reactive world state: conditions, placement, news, stock
   economy/     # what things are worth: prices, haggling, vendor ledgers
   ui/          # DOM screens and components
@@ -174,6 +191,22 @@ plus content from `src/data/`); rendering and DOM code stay thin.
   surge. Preview and meter go through the same derivation
   (`src/ui/staticModel.ts`), so an install button cannot promise a band
   installing does not deliver.
+- **Breach** (`src/minigames/breach.ts`, `runner.ts`) — the lattice game
+  is pure logic with no GameState in it: `generateLattice(spec, seed)`
+  fills a grid in from a seeded RNG, `stepBreach`/`undoBreach`/
+  `withdrawBreach` advance it, and `nodeView` answers what this runner
+  can actually see. Two properties carry the whole design.
+  **Solvability is by construction**: generation carves a corridor
+  nothing corrupt is seeded onto, records the grid's own cheapest route
+  as `minCost`, and a run's budget is `minCost + difficulty.slack +
+  what the runner brings` — so "difficulty" means room for error rather
+  than a number somebody guessed, and no seed can produce a wall.
+  **The budget is monotone**: only a completed chain ever adds to it,
+  and a chain costs three hops to refund two, so a run always
+  terminates. `runner.ts` is the join with a playthrough — Tech and the
+  `optic-scan` / `machine-cant` gear channels buy buffer and sight,
+  `settleBreach` records the outcome under `breach:<id>` and pays the
+  award exactly once.
 - **Iso scene** (`src/iso/`) — 2:1 diamond tiles, painter's-order depth
   sort, BFS pathfinding, and a combat arena scene with walk tweens, HP
   bars, and floating damage text. Presentation only: it never imports
@@ -296,6 +329,49 @@ anchored at the spawn's minimum-x, minimum-y tile. Occupancy,
 movement, reach, and every telegraph read the block rather than the
 anchor (`src/combat/footprint.ts`), and `maps.test.ts` checks that
 every spawn's block fits its arena with nobody inside anyone.
+
+A spawn may also carry `absentWhenFlag`: while that flag holds true the
+body simply does not turn up, which is how work done *before* a fight
+shows up inside one (today: a Breach run that takes a drone off the
+executive floor's muster roster). The rule is deliberately narrow — a
+spawn can be absent, never added, moved, or re-statted — so an
+encounter with the flag unset is byte-for-byte the fight it always was,
+and everybody who does turn up keeps their authored slot, so the faces
+and the log names are identical either way. Never put one on the last
+body in an encounter; `setup.test.ts` fails on a fight that could empty.
+
+### Breach terminals (`src/data/breach.ts`)
+
+A `BreachContext` is one terminal: the map it stands on, a
+`difficulty` (`probe` | `guarded` | `hardened`, each a lattice spec plus
+the `slack` a run gets over the grid's own cheapest route), the copy the
+briefing shows, and its `rewards`. Place it by putting an ordinary
+interactable on the map with `interaction: { kind: "breach", contextId }`
+— `maps.test.ts` checks the context exists and that it names the map it
+is standing on.
+
+Rewards are authored as ordinary story `Effect`s and applied through the
+same `applyEffects` a dialogue choice uses, so a breach can never do
+something a scene could not; `shardId` (a memory chip pulled out of the
+stack) and `partial` (whether walking out early still pays for the data
+harvested) sit outside that list because they are not effects. The
+scaling half of the payout — credits per fragment of data, per completed
+chain — is a rule, not content, and lives in `src/minigames/runner.ts`.
+
+Two things a new terminal has to get right, both linted in
+`breach.test.ts`:
+
+- **Every flag a reward writes must be read by something.** Today that
+  means a `mapDressing` entry re-pointing a fixture at a scene in
+  `src/data/story/breach.ts`, or an encounter spawn's `absentWhenFlag`.
+  A flag nobody reads is a payout that does not exist.
+- **A breach is never the only way in.** Each terminal is attempted
+  once — the outcome is recorded under `breach:<id>` and the door will
+  not open again — so a lockout has to cost a prize rather than a route.
+  The market locker still opens to shoulders or a talked hasp, the
+  salvage cage still comes up for a back or a set of gills, and the
+  Cordon precedent still lies on the Ventworks floor for anybody with
+  the Tech to read it where it lies.
 
 ### Abilities (`src/data/abilities.ts`)
 
