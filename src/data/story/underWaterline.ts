@@ -1,3 +1,4 @@
+import { SIDE_CHAIN_STEP, scaleStanding } from "../factions";
 import type { StoryNode } from "../../narrative/types";
 
 /**
@@ -598,6 +599,11 @@ export const underWaterlineNodes: StoryNode[] = [
           { type: "credits", amount: 90 },
           { type: "add-item", itemId: "msc-longshore-ledger" },
         ],
+        // Straight off the table above, at the shared chain weight.
+        standing: scaleStanding(
+          UNDER_WATERLINE_OUTCOMES.broken.standing,
+          SIDE_CHAIN_STEP,
+        ),
         reactions: ["record", "defiance"],
       },
       {
@@ -624,6 +630,10 @@ export const underWaterlineNodes: StoryNode[] = [
           { type: "credits", amount: 240 },
           { type: "add-item", itemId: "out-tender-coat" },
         ],
+        standing: scaleStanding(
+          UNDER_WATERLINE_OUTCOMES.partner.standing,
+          SIDE_CHAIN_STEP,
+        ),
         reactions: ["deception"],
       },
       {
@@ -735,6 +745,10 @@ export const underWaterlineNodes: StoryNode[] = [
           { type: "credits", amount: 180 },
           { type: "add-item", itemId: "msc-basin-licence" },
         ],
+        standing: scaleStanding(
+          UNDER_WATERLINE_OUTCOMES.abandoned.standing,
+          SIDE_CHAIN_STEP,
+        ),
         reactions: ["deception"],
       },
       {
