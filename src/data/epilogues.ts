@@ -397,16 +397,133 @@ export const epilogueVignettes: EpilogueVignette[] = [
   //
   // No fallback on either subject, on purpose: a player who never went
   // down to the Quays or never stopped at the card table gets no line
-  // about a person they never met. The bond flags come from each
-  // companion's personal scene, the vault call from the beat where
-  // their agendas collided, and where they stand is read straight off
-  // the party record.
+  // about a person they never met. Everything else about a companion's
+  // fate is read off three things at once: the later scene's flag
+  // (vesper-close / sill-close), the personal scene's (vesper-bond /
+  // sill-bond), the vault call where their agendas collided
+  // (vent-vault-call) — and, straight off the party record, where they
+  // ended up standing.
+  //
+  // Authored order is priority, and it runs from the most specific fact
+  // about the relationship to the loosest. The last hour outranks the
+  // first one, because it happened later and knew about it; where
+  // somebody ended up standing outranks either conversation, because a
+  // run can undo an evening; and the catch-all at the bottom only asks
+  // that they travelled with you at all, so every recruited companion
+  // resolves to exactly one fate and no combination falls through.
   // ------------------------------------------------------------------
+  {
+    id: "vesper-betrayed",
+    subject: "vesper",
+    title: "Vesper Kade",
+    requires: [
+      { type: "companion", companionId: "vesper", status: "recruited" },
+      { type: "flag-equals", key: "vesper-close", value: "betrayed" },
+    ],
+    text:
+      "Kade works out the rest of the job, to the last night of it, and " +
+      "is off the wharf inside the month. Somewhere north, is the word — " +
+      "a district with no water in it, which from her is the whole " +
+      "sentence. The tin with the pencil stub stays on the ledge where " +
+      "it lived eleven years. The column runs three more weeks in a hand " +
+      "that is not hers, and then it stops, and by spring the board is " +
+      "scrubbed back to bare tin. Nobody objects.",
+  },
+  {
+    id: "vesper-warm-sworn",
+    subject: "vesper",
+    title: "Vesper Kade",
+    requires: [
+      { type: "companion", companionId: "vesper", status: "recruited" },
+      { type: "flag-equals", key: "vesper-close", value: "warm" },
+      { type: "flag-equals", key: "vesper-bond", value: "sworn" },
+      { type: "loyalty", companionId: "vesper", value: 7 },
+    ],
+    text:
+      "Two names on the tide board and two hands on the column, and a " +
+      "standing argument about whose turn it is at the place on the " +
+      "fourth level that costs double. Kade works the four streets " +
+      "nobody else will and comes up every time with something that " +
+      "used to belong to somebody, and a name for it. The nights she " +
+      "comes up with nothing she turns up anyway, with a warm parcel " +
+      "and an opinion, and makes you eat before she will say what went " +
+      "wrong.",
+  },
+  {
+    id: "vesper-warm",
+    subject: "vesper",
+    title: "Vesper Kade",
+    requires: [
+      { type: "companion", companionId: "vesper", status: "recruited" },
+      { type: "flag-equals", key: "vesper-close", value: "warm" },
+    ],
+    text:
+      "There is an after, and it turns out smaller and better than " +
+      "either of you expected: a roof, a parcel, a queue she stands in " +
+      "and complains about at length. She never asks where you have " +
+      "been. She simply arrives wherever you are with food and the " +
+      "assumption that you will eat it, and leaves the place cleaner " +
+      "than she found it, and is back the month after.",
+  },
+  {
+    id: "vesper-distant-filed",
+    subject: "vesper",
+    title: "Vesper Kade",
+    requires: [
+      { type: "companion", companionId: "vesper", status: "recruited" },
+      { type: "flag-equals", key: "vesper-close", value: "distant" },
+      { type: "flag-equals", key: "vent-vault-call", value: "filed" },
+    ],
+    text:
+      "Kade goes off the board before you do, which is fair, and " +
+      "characteristically thorough about it: bag packed, deposits " +
+      "reclaimed, nothing owed in either direction. She works the basin " +
+      "alone and prices it steeply. The one thing she still brings up, " +
+      "years on and only late, is a room of tagged lockers that stayed " +
+      "exactly where they were while a district went a month without " +
+      "rent — and she tells it fairly, and gives the other side its " +
+      "due, and changes the subject.",
+  },
+  {
+    id: "vesper-distant",
+    subject: "vesper",
+    title: "Vesper Kade",
+    requires: [
+      { type: "companion", companionId: "vesper", status: "recruited" },
+      { type: "flag-equals", key: "vesper-close", value: "distant" },
+    ],
+    text:
+      "She takes you at your word, which is what to expect from somebody " +
+      "who has never once made you repeat yourself. Kade stays on the " +
+      "water and stays good at it, and eats before every job, because " +
+      "that part was never about you. If you went looking she would not " +
+      "be hard to find. She has simply stopped being the one who does " +
+      "the looking.",
+  },
+  {
+    id: "vesper-spent",
+    subject: "vesper",
+    title: "Vesper Kade",
+    requires: [
+      { type: "companion", companionId: "vesper", status: "recruited" },
+      { type: "loyalty", companionId: "vesper", value: -2, mode: "at-most" },
+    ],
+    text:
+      "Kade sees the last of it out with the professionalism of a woman " +
+      "counting down a shift, takes her cut to the nearest tenth, and " +
+      "does not come to whatever passed for the celebration. The Quays " +
+      "keep her name a long time. Nobody down there has ever heard " +
+      "yours in the same sentence. She was worth the cut — she says so " +
+      "herself, when anyone asks, and stops there.",
+  },
   {
     id: "vesper-sworn",
     subject: "vesper",
     title: "Vesper Kade",
-    requires: [{ type: "flag-equals", key: "vesper-bond", value: "sworn" }],
+    requires: [
+      { type: "companion", companionId: "vesper", status: "recruited" },
+      { type: "flag-equals", key: "vesper-bond", value: "sworn" },
+    ],
     text:
       "The grease-pencil column on the wharf goes on, in two hands now. " +
       "Kade works the four streets nobody else will and comes up every " +
@@ -419,6 +536,7 @@ export const epilogueVignettes: EpilogueVignette[] = [
     subject: "vesper",
     title: "Vesper Kade",
     requires: [
+      { type: "companion", companionId: "vesper", status: "recruited" },
       { type: "flag-equals", key: "vent-vault-call", value: "salvage" },
     ],
     text:
@@ -432,7 +550,10 @@ export const epilogueVignettes: EpilogueVignette[] = [
     id: "vesper-parted",
     subject: "vesper",
     title: "Vesper Kade",
-    requires: [{ type: "flag-equals", key: "vesper-bond", value: "parted" }],
+    requires: [
+      { type: "companion", companionId: "vesper", status: "recruited" },
+      { type: "flag-equals", key: "vesper-bond", value: "parted" },
+    ],
     text:
       "Kade works the basin alone again, and well, and takes a cut off " +
       "everybody who goes down there after her. Somebody still writes " +
@@ -444,7 +565,9 @@ export const epilogueVignettes: EpilogueVignette[] = [
     id: "vesper-crew",
     subject: "vesper",
     title: "Vesper Kade",
-    requires: [{ type: "companion", companionId: "vesper", status: "recruited" }],
+    requires: [
+      { type: "companion", companionId: "vesper", status: "recruited" },
+    ],
     text:
       "Kade goes back to the water because that is where the work is, " +
       "and tells the story of the Cordon to anyone who buys the second " +
@@ -453,10 +576,116 @@ export const epilogueVignettes: EpilogueVignette[] = [
       "nobody who was there corrects her.",
   },
   {
+    id: "sill-betrayed",
+    subject: "sill",
+    title: "Deacon Sill",
+    requires: [
+      { type: "companion", companionId: "sill", status: "recruited" },
+      { type: "flag-equals", key: "sill-close", value: "betrayed" },
+    ],
+    text:
+      "Sill goes on taking statements, because there is nothing else he " +
+      "knows how to be, and he takes them somewhere you will not walk " +
+      "past. Nobody sees the cloth-spined ledger again: the man who " +
+      "holds that a filing is only real once it has an author spends the " +
+      "rest of his working life making certain that one never gets one. " +
+      "He says nothing against you, anywhere, to anyone. He simply " +
+      "answers exactly what he is asked, forever, and not a syllable " +
+      "beside it.",
+  },
+  {
+    id: "sill-warm-sworn",
+    subject: "sill",
+    title: "Deacon Sill",
+    requires: [
+      { type: "companion", companionId: "sill", status: "recruited" },
+      { type: "flag-equals", key: "sill-close", value: "warm" },
+      { type: "flag-equals", key: "sill-bond", value: "sworn" },
+      { type: "loyalty", companionId: "sill", value: 7 },
+    ],
+    text:
+      "The filing has an author, and the author has a witness. Sill " +
+      "takes statements from a proper office with his struck register " +
+      "number printed on the glass, and the year-six variance is the " +
+      "second document he enters under his own name — unprompted, on " +
+      "his own time, the fourteen listed by name in a hand like " +
+      "printing. Three tribunals cite him in the first year. You are in " +
+      "the file once yourself, in a single line, as the person who was " +
+      "told first.",
+  },
+  {
+    id: "sill-warm",
+    subject: "sill",
+    title: "Deacon Sill",
+    requires: [
+      { type: "companion", companionId: "sill", status: "recruited" },
+      { type: "flag-equals", key: "sill-close", value: "warm" },
+    ],
+    text:
+      "He goes back to statements, and to a queue that is not nobody any " +
+      "more, and once a season he writes to you: five lines, no " +
+      "greeting, a case number and what came of it. The cloth-spined " +
+      "ledger sits on the shelf where it can be seen from the door. " +
+      "That is the whole of it, and from Deacon Sill it is an embrace.",
+  },
+  {
+    id: "sill-distant-salvage",
+    subject: "sill",
+    title: "Deacon Sill",
+    requires: [
+      { type: "companion", companionId: "sill", status: "recruited" },
+      { type: "flag-equals", key: "sill-close", value: "distant" },
+      { type: "flag-equals", key: "vent-vault-call", value: "salvage" },
+    ],
+    text:
+      "He is correct with you to the end and correct about you " +
+      "afterwards, which is not warmth and was never offered as any. " +
+      "Sill files, teaches two clerks his hand, and declines every " +
+      "invitation to say what the Ventworks was like. The one thing he " +
+      "will state flatly, to anybody who presses, is that ninety-one " +
+      "statements were taken in that vault and the corroboration for " +
+      "them went out under somebody's arm. He does not say whose. He " +
+      "has never had to.",
+  },
+  {
+    id: "sill-distant",
+    subject: "sill",
+    title: "Deacon Sill",
+    requires: [
+      { type: "companion", companionId: "sill", status: "recruited" },
+      { type: "flag-equals", key: "sill-close", value: "distant" },
+    ],
+    text:
+      "Square, then, and square it stays. Sill keeps the pitch, the " +
+      "queue, the hand like printing, and the cloth-spined ledger in its " +
+      "case under the bench where it has always been. When your name " +
+      "comes up he confirms the facts of it, accurately, at whatever " +
+      "length is required, and volunteers nothing whatsoever.",
+  },
+  {
+    id: "sill-spent",
+    subject: "sill",
+    title: "Deacon Sill",
+    requires: [
+      { type: "companion", companionId: "sill", status: "recruited" },
+      { type: "loyalty", companionId: "sill", value: -2, mode: "at-most" },
+    ],
+    text:
+      "Sill sees the thing out and is at a different card table in a " +
+      "different market within the fortnight, sign back up, queue " +
+      "rebuilding. His account of the Ventworks, when a tribunal finally " +
+      "takes it, is complete, exact, and cites you by function rather " +
+      "than by name. He is not being cruel. He is being precise about " +
+      "what you turned out to be.",
+  },
+  {
     id: "sill-sworn",
     subject: "sill",
     title: "Deacon Sill",
-    requires: [{ type: "flag-equals", key: "sill-bond", value: "sworn" }],
+    requires: [
+      { type: "companion", companionId: "sill", status: "recruited" },
+      { type: "flag-equals", key: "sill-bond", value: "sworn" },
+    ],
     text:
       "The filing has an author, and the author does not move house. " +
       "Sill takes statements from a proper office with a proper door " +
@@ -469,7 +698,10 @@ export const epilogueVignettes: EpilogueVignette[] = [
     id: "sill-filed",
     subject: "sill",
     title: "Deacon Sill",
-    requires: [{ type: "flag-equals", key: "vent-vault-call", value: "filed" }],
+    requires: [
+      { type: "companion", companionId: "sill", status: "recruited" },
+      { type: "flag-equals", key: "vent-vault-call", value: "filed" },
+    ],
     text:
       "The coolant-vault schedule — names, serials, roster lines, the " +
       "whole ugly matched pair of lists — becomes the document every " +
@@ -481,7 +713,10 @@ export const epilogueVignettes: EpilogueVignette[] = [
     id: "sill-parted",
     subject: "sill",
     title: "Deacon Sill",
-    requires: [{ type: "flag-equals", key: "sill-bond", value: "parted" }],
+    requires: [
+      { type: "companion", companionId: "sill", status: "recruited" },
+      { type: "flag-equals", key: "sill-bond", value: "parted" },
+    ],
     text:
       "The case goes out unsigned and lands like weather: everywhere, " +
       "attributable to nobody, answerable by no one. Sill takes " +
@@ -493,7 +728,9 @@ export const epilogueVignettes: EpilogueVignette[] = [
     id: "sill-crew",
     subject: "sill",
     title: "Deacon Sill",
-    requires: [{ type: "companion", companionId: "sill", status: "recruited" }],
+    requires: [
+      { type: "companion", companionId: "sill", status: "recruited" },
+    ],
     text:
       "Sill goes back to the gallery pitch, and the sign goes back up, " +
       "and the queue is not nobody any more. People come up six levels " +

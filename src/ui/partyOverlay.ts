@@ -1,6 +1,6 @@
 import { audio } from "../audio";
 import { companionsArc, getCompanion, getItem } from "../data";
-import { readyPersonalScenes } from "../narrative";
+import { readyCompanionScenes } from "../narrative";
 import { setActiveCompanion, type PartyMember } from "../state";
 import { companionName, loyaltyLabel } from "./format";
 import type { OverlayHandle } from "./overlay";
@@ -13,9 +13,11 @@ import type { Session } from "./session";
  * nothing else — the rule that only one companion is out at a time
  * lives in setActiveCompanion, so this file never counts anybody.
  *
- * The private word opens the crew arc's hub node, which gates each
- * scene on the same three conditions personalSceneReady checks; the
- * button is only offered when at least one of them would open.
+ * The private word opens the crew arc's hub node, which gates every
+ * scene on the same conditions readyCompanionScenes checks — the one
+ * a companion earns by deciding about the player, and the quieter one
+ * they raise much later. The button is only offered when at least one
+ * of them would open.
  */
 export interface PartyOverlayOptions {
   session: Session;
@@ -37,7 +39,7 @@ export function createPartyOverlay(
   panel.className = "nf-panel nf-party";
   el.append(panel);
 
-  /** Companion ids with a personal scene waiting; recomputed per render. */
+  /** Companion ids with a scene of their own waiting; recomputed per render. */
   let ready = new Set<string>();
 
   function actionButton(
@@ -133,7 +135,7 @@ export function createPartyOverlay(
 
   function render(): void {
     ready = new Set(
-      readyPersonalScenes(session.state).map((scene) => scene.companionId),
+      readyCompanionScenes(session.state).map((scene) => scene.companionId),
     );
     panel.replaceChildren();
 

@@ -4,6 +4,7 @@ import { STAT_KEYS } from "../character/stats";
 import { getAbility } from "./abilities";
 import { cast } from "./cast";
 import {
+  BOND_OUTCOMES,
   CompanionError,
   REACTION_TAGS,
   companionLook,
@@ -118,6 +119,32 @@ describe("companion content", () => {
     const flags = companions.map((c) => c.personalScene.resolvedFlag);
     expect(new Set(nodeIds).size).toBe(nodeIds.length);
     expect(new Set(flags).size).toBe(flags.length);
+  });
+
+  it.each(companions.map((c) => [c.id, c] as const))(
+    "%s has a later, quieter hour that sits beyond the first one",
+    (_id, companion) => {
+      const { personalScene, bondScene } = companion;
+      expect(bondScene.nodeId.length).toBeGreaterThan(0);
+      expect(bondScene.nodeId).not.toBe(personalScene.nodeId);
+      // Costlier than the scene it comes after, or it is not "later".
+      expect(bondScene.loyalty).toBeGreaterThan(personalScene.loyalty);
+      expect(bondScene.progressFlag.length).toBeGreaterThan(0);
+      expect(bondScene.resolvedFlag.length).toBeGreaterThan(0);
+      expect(bondScene.resolvedFlag).not.toBe(personalScene.resolvedFlag);
+    },
+  );
+
+  it("gives every companion their own later hour and their own flag", () => {
+    const nodeIds = companions.map((c) => c.bondScene.nodeId);
+    const flags = companions.map((c) => c.bondScene.resolvedFlag);
+    expect(new Set(nodeIds).size).toBe(nodeIds.length);
+    expect(new Set(flags).size).toBe(flags.length);
+  });
+
+  it("keeps the three ways an hour can be left distinct", () => {
+    expect(new Set(BOND_OUTCOMES).size).toBe(BOND_OUTCOMES.length);
+    expect(BOND_OUTCOMES).toEqual(["warm", "distant", "betrayed"]);
   });
 
   it("keeps friendly optics: no companion wears the hostile eye cue", () => {

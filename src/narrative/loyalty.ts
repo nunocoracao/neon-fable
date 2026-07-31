@@ -128,3 +128,68 @@ export function readyPersonalScenes(state: GameState): Array<{
       nodeId: getCompanion(member.companionId)!.personalScene.nodeId,
     }));
 }
+
+/**
+ * Whether a companion is ready to raise their later, quieter scene.
+ * Five conditions, and they are the personal scene's three with two
+ * more stacked on: the earlier conversation must already have happened
+ * (whichever way it went), and the story must have got far enough that
+ * there is an "after" to ask about. As with the personal scene, the
+ * content declares the same five as the hub's gates — the panel and the
+ * scene must never disagree about "not yet".
+ */
+export function bondSceneReady(
+  state: GameState,
+  companionId: string,
+): boolean {
+  const companion = getCompanion(companionId);
+  const member = getMember(state.party, companionId);
+  if (!companion || !member?.recruited || !member.active) return false;
+  const { personalScene, bondScene } = companion;
+  if (member.loyalty < bondScene.loyalty) return false;
+  if (!(personalScene.resolvedFlag in state.flags)) return false;
+  if (!(bondScene.progressFlag in state.flags)) return false;
+  return !(bondScene.resolvedFlag in state.flags);
+}
+
+/** Which of a companion's two scenes a readiness entry names. */
+export type CompanionSceneKind = "personal" | "bond";
+
+export interface ReadyCompanionScene {
+  companionId: string;
+  nodeId: string;
+  kind: CompanionSceneKind;
+}
+
+/**
+ * Every scene waiting to be had right now, in party order. A companion
+ * can never have both open at once — the later hour wants the flag the
+ * first one writes, and the first one closes on it — so this is at most
+ * one entry each. What the crew panel offers "a word in private" from;
+ * the hub node it opens gates every scene again on the same conditions
+ * checked here.
+ */
+export function readyCompanionScenes(
+  state: GameState,
+): ReadyCompanionScene[] {
+  const ready: ReadyCompanionScene[] = [];
+  for (const member of state.party.members) {
+    const companion = getCompanion(member.companionId);
+    if (!companion) continue;
+    if (personalSceneReady(state, member.companionId)) {
+      ready.push({
+        companionId: member.companionId,
+        nodeId: companion.personalScene.nodeId,
+        kind: "personal",
+      });
+    }
+    if (bondSceneReady(state, member.companionId)) {
+      ready.push({
+        companionId: member.companionId,
+        nodeId: companion.bondScene.nodeId,
+        kind: "bond",
+      });
+    }
+  }
+  return ready;
+}

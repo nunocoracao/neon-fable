@@ -44,13 +44,17 @@ export {
 export { applyEffect, applyEffects } from "./effects";
 export {
   applyLoyaltyChanges,
+  bondSceneReady,
   choiceLoyaltyChanges,
   personalSceneReady,
   reactionChanges,
   reactionTotal,
+  readyCompanionScenes,
   readyPersonalScenes,
   witnesses,
+  type CompanionSceneKind,
   type LoyaltyChange,
+  type ReadyCompanionScene,
 } from "./loyalty";
 export {
   applyStandingChanges,

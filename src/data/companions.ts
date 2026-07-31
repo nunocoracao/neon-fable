@@ -72,6 +72,36 @@ export interface CompanionPersonalScene {
   resolvedFlag: string;
 }
 
+/**
+ * How the later, quieter hour was left. Three values, and the third is
+ * not simply the worst of the first two: `betrayed` is only reachable
+ * when the mid-game beat where the crew's agendas collided already went
+ * against this person, so it is the moment an old cost is finally
+ * itemised rather than a fresh cruelty.
+ */
+export const BOND_OUTCOMES = ["warm", "distant", "betrayed"] as const;
+
+export type BondOutcome = (typeof BOND_OUTCOMES)[number];
+
+/**
+ * The second scene: the hour a companion raises once they have already
+ * had their say and the story has moved far enough that there is an
+ * "after" worth talking about. It sits *beyond* the personal scene —
+ * that one's flag is part of the gate — and asks nothing of the plot:
+ * a rooftop meal, a ledger pushed across a table.
+ *
+ * `loyalty` is a higher threshold than the personal scene's,
+ * `progressFlag` is the story gate (the chapter that makes the question
+ * worth asking has to be behind you), and `resolvedFlag` records which
+ * BondOutcome the fork wrote — the one figure the epilogue threads read.
+ */
+export interface CompanionBondScene {
+  nodeId: string;
+  loyalty: number;
+  progressFlag: string;
+  resolvedFlag: string;
+}
+
 export interface Companion {
   id: string;
   /** Display name: dialogue speaker key, initiative chip, party UI. */
@@ -93,6 +123,8 @@ export interface Companion {
   values: CompanionValues;
   /** The scene they raise once they have decided about the player. */
   personalScene: CompanionPersonalScene;
+  /** The quieter hour they raise long after that one. */
+  bondScene: CompanionBondScene;
 }
 
 /**
@@ -184,6 +216,12 @@ export const companions: Companion[] = [
       loyalty: 4,
       resolvedFlag: "vesper-bond",
     },
+    bondScene: {
+      nodeId: "cmp-vesper-late",
+      loyalty: 7,
+      progressFlag: "act2-complete",
+      resolvedFlag: "vesper-close",
+    },
   },
   {
     id: "sill",
@@ -223,6 +261,12 @@ export const companions: Companion[] = [
       nodeId: "cmp-sill-open",
       loyalty: 4,
       resolvedFlag: "sill-bond",
+    },
+    bondScene: {
+      nodeId: "cmp-sill-late",
+      loyalty: 7,
+      progressFlag: "act2-complete",
+      resolvedFlag: "sill-close",
     },
   },
 ];
