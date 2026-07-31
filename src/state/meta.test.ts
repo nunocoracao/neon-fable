@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { fixtureAppearance } from "../character/testSupport";
 import { endings } from "../data/endings";
+import { epilogueThreads, epilogueVignettes } from "../data/epilogues";
+import { sectionRank } from "../narrative/epilogue";
 import {
   META_PROGRESS_KEY,
   META_PROGRESS_VERSION,
   clampMetaProgress,
   deriveCodex,
+  deriveEpilogueCodex,
   emptyMetaProgress,
   loadMetaProgress,
   mergeMetaProgress,
@@ -292,6 +295,84 @@ describe("codex derivation", () => {
       expect(
         ending.hint!.toLowerCase().includes(ending.title.toLowerCase()),
       ).toBe(false);
+    }
+  });
+});
+
+describe("epilogue codex derivation", () => {
+  const codexOf = (meta: MetaProgress) =>
+    deriveEpilogueCodex(epilogueThreads, epilogueVignettes, meta);
+
+  it("counts every authored thread and variant, with nothing found", () => {
+    const codex = codexOf(emptyMetaProgress());
+    expect(codex.threads).toBe(epilogueThreads.length);
+    expect(codex.total).toBe(epilogueVignettes.length);
+    expect(codex.found).toBe(0);
+    expect(codex.threadsFound).toBe(0);
+    for (const entry of codex.entries) {
+      expect(entry.title, entry.subject).toBeNull();
+      expect(entry.hint.length, entry.subject).toBeGreaterThan(0);
+      expect(entry.total, entry.subject).toBeGreaterThan(0);
+    }
+  });
+
+  it("picks up threads the content adds, without a list of its own", () => {
+    // Counting is derived, so the v2 threads are in it by construction.
+    const codex = codexOf(emptyMetaProgress());
+    const subjects = codex.entries.map((entry) => entry.subject);
+    for (const subject of ["courier", "ring", "auric", "court", "market"]) {
+      expect(subjects, subject).toContain(subject);
+    }
+    const courier = codex.entries.find((e) => e.subject === "courier")!;
+    expect(courier.total).toBe(
+      epilogueVignettes.filter((v) => v.subject === "courier").length,
+    );
+  });
+
+  it("lists threads in the epilogue's own running order", () => {
+    const ranks = codexOf(emptyMetaProgress()).entries.map((entry) =>
+      sectionRank(entry.section),
+    );
+    expect([...ranks].sort((a, b) => a - b)).toEqual(ranks);
+  });
+
+  it("unlocks a thread on its first variant and tallies the rest", () => {
+    const codex = codexOf(
+      sampleMeta({ epiloguesSeen: ["ring-broken", "ring-partner"] }),
+    );
+    const ring = codex.entries.find((entry) => entry.subject === "ring")!;
+    expect(ring.title).toBe("The Longshore");
+    expect(ring.found).toBe(2);
+    expect(codex.found).toBe(2);
+    expect(codex.threadsFound).toBe(1);
+    // Everything else stays locked to its hint.
+    const courier = codex.entries.find((e) => e.subject === "courier")!;
+    expect(courier.title).toBeNull();
+    expect(courier.found).toBe(0);
+  });
+
+  it("ignores recorded ids that no longer name a variant", () => {
+    const codex = codexOf(
+      sampleMeta({ epiloguesSeen: ["retired-variant", "ring-broken"] }),
+    );
+    expect(codex.found).toBe(1);
+    for (const entry of codex.entries) {
+      expect(entry.found, entry.subject).toBeLessThanOrEqual(entry.total);
+    }
+  });
+
+  it("keeps every locked hint free of the outcome it hides", () => {
+    for (const entry of codexOf(emptyMetaProgress()).entries) {
+      const thread = epilogueThreads.find((t) => t.subject === entry.subject)!;
+      expect(
+        entry.hint.toLowerCase().includes(thread.title.toLowerCase()),
+        entry.subject,
+      ).toBe(false);
+      for (const variant of epilogueVignettes.filter(
+        (v) => v.subject === entry.subject,
+      )) {
+        expect(variant.text.includes(entry.hint), variant.id).toBe(false);
+      }
     }
   });
 });

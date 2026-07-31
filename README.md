@@ -501,6 +501,23 @@ subject in authored order — put specific variants above their
 subject's fallback. Vignette-less subjects are omitted, which is how
 characters the player never met stay out of the epilogue.
 
+Every subject is also registered as a **thread** in `epilogueThreads`
+(same file) with a section, a heading, and a spoiler-safe codex hint.
+`composeEpilogue` selects, then orders by section — personal → chains
+→ allies → companions → factions → city — so authored order inside a
+subject is variant *priority*, while render order is the thread table.
+Adding a thread is: one table row plus its variants. Composition, the
+skip-when-untouched behaviour, and the codex's variant counting
+(`deriveEpilogueCodex` in `src/state/meta.ts`, rendered under the
+endings on the codex screen) all read those two tables, and
+`epilogue.test.ts` sweeps a spread of outcome-flag fixtures to check
+every combination composes an ordered, one-variant-per-thread epilogue.
+
+Threads a run never touched need no fallback and simply do not appear,
+which is also how content gates ahead of a system that has not landed:
+the Static thread reads `STATIC_EPILOGUE_FLAGS`, nothing writes them
+yet, and the thread is absent until the overload meter starts writing.
+
 ### Conventions
 
 - Keep logic pure: plain functions over `GameState`; UI and canvas code

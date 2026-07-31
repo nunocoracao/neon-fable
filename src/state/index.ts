@@ -23,6 +23,7 @@ export {
   META_PROGRESS_VERSION,
   clampMetaProgress,
   deriveCodex,
+  deriveEpilogueCodex,
   emptyMetaProgress,
   loadMetaProgress,
   mergeMetaProgress,
@@ -35,6 +36,8 @@ export {
   type CodexEntry,
   type CodexView,
   type CompletionRecord,
+  type EpilogueCodexEntry,
+  type EpilogueCodexView,
   type MetaProgress,
   type MetaStorage,
 } from "./meta";
