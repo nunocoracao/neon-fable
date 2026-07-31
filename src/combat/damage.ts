@@ -99,6 +99,24 @@ export function isCriticalBlow(damageDealt: number, targetMaxHp: number): boolea
   return damageDealt >= targetMaxHp * CRITICAL_DAMAGE_SHARE;
 }
 
+/**
+ * The share of a target's frame a blow has to take to land as a heavy
+ * one: a fifth, short of a critical but well past a scratch. The step
+ * between "it connected" and "that hurt".
+ */
+export const HEAVY_DAMAGE_SHARE = 1 / 5;
+
+/**
+ * Whether a landed blow hit hard enough to be felt — the same kind of
+ * reading as isCriticalBlow and isGlancingBlow, and just as inert: the
+ * engine branches on none of them. The combat camera reads this one to
+ * decide whether a hit is worth a kick of screen shake.
+ */
+export function isHeavyBlow(damageDealt: number, targetMaxHp: number): boolean {
+  if (targetMaxHp <= 0 || damageDealt <= 0) return false;
+  return damageDealt >= targetMaxHp * HEAVY_DAMAGE_SHARE;
+}
+
 /** Ability damage: flat amount, reduced by armor unless it ignores it. */
 export function abilityDamage(
   amount: number,

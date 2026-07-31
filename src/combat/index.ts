@@ -14,6 +14,7 @@ export {
   BASE_FLEE_CHANCE,
   BASE_HIT_CHANCE,
   CRITICAL_DAMAGE_SHARE,
+  HEAVY_DAMAGE_SHARE,
   MELEE_RANGE,
   RANGED_RANGE,
   UNARMED_WEAPON,
@@ -26,6 +27,7 @@ export {
   hitChance,
   isCriticalBlow,
   isGlancingBlow,
+  isHeavyBlow,
   weaponRange,
   type AbilityHit,
 } from "./damage";
