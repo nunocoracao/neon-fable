@@ -49,6 +49,12 @@ entry that drops you on the hub map without a character).
   each of them stands with you, and hear out anyone who has earned a
   word in private. What you choose in front of them moves that
   standing, and the two of them do not want the same things.
+- **Standing** — three powers keep a ledger on you: the Auric Combine,
+  the Cistern Court, and the Vertical Market. Choices that settle
+  something move where you stand with them, on a scale from Hostile to
+  Trusted. `I` shows all three with a meter that leans the way the
+  ledger does; a scene only tells you when a faction changes the word
+  it uses for you.
 - **HUD & overlays** — `I` opens the inventory, `M` collapses or expands
   the corner minimap, `Esc` opens the pause menu (or closes the open
   overlay). Saves live in the pause menu; the game also autosaves on
@@ -104,7 +110,8 @@ plus content from `src/data/`); rendering and DOM code stay thin.
 
 - **GameState** (`src/state/`) — one serializable object holding the
   player, flags, location, inventory, credits, pending encounter, the
-  party of recruited companions, and a deterministic RNG state. Saves
+  party of recruited companions, faction standing, and a deterministic
+  RNG state. Saves
   are JSON envelopes in `localStorage` slots
   (`slot1`–`slot3` + `autosave`) versioned by
   `GAME_STATE_VERSION`; bump it whenever `GameState` changes shape.
@@ -264,7 +271,8 @@ A `StoryArc` is a list of nodes; each node has `speaker`, `text`, and
 `choices`. Choices carry:
 
 - `requirements` — stat / item / enhancement / background / flag /
-  credits / companion / loyalty gates. `ifUnavailable: "disabled"` shows
+  credits / companion / loyalty / reputation gates.
+  `ifUnavailable: "disabled"` shows
   the choice greyed out with the requirement label; the default hides
   it. A `companion` requirement asks whether somebody is `"active"`
   (with you now, the default) or merely `"recruited"` (ever joined); a
@@ -274,7 +282,10 @@ A `StoryArc` is a list of nodes; each node has `speaker`, `text`, and
   with once it has recorded its own outcome, and `flag-set` is its
   mirror — "you have been here", whatever the flag ended up saying,
   which is how a later beat reads a one-flag-several-values record
-  without carrying one choice per value.
+  without carrying one choice per value. A `reputation` requirement
+  asks how a faction reads the player — give it a band id
+  (`"warm"`), not a number, so a re-tune of what an act outcome is
+  worth never silently moves a door.
 - `effects` — `set-flag`, `increment-flag`, `add-item` / `remove-item`,
   `credits` (grants or spends, clamped at zero — gate purchases with a
   `credits` requirement), `start-combat` (launches the encounter, then
@@ -293,6 +304,36 @@ own way. Tag the act, never the person; reach for a
 `companion-loyalty` effect only when a beat really is about one
 specific somebody.
 
+A choice may also carry `standing`: what taking it moves with the
+city's three factions (`auric`, `court`, `market` — see
+`src/data/factions.ts`). Standing runs −100..100 with five named bands
+and is clamped on every write; the player is only ever told when a
+shift crosses a band, and the character screen shows the band, never
+the number.
+
+Do not invent a swing at the point of use. Every recorded outcome that
+is worth something is declared once in `FACTION_STANDINGS`
+(`src/data/standings.ts`), keyed by the flag it writes, and the choice
+that writes that flag must carry exactly what the table says — a test
+in `standings.test.ts` fails on any disagreement. The reason is
+migration: a save from before factions existed is read back through
+`deriveReputation`, which sums the same table against the flags that
+run already recorded, so a playthrough must be worth the same thing
+played and re-loaded. Only ever table a **write-once** flag; one a
+later beat overwrites would be worth two different things.
+
+### Factions (`src/data/factions.ts`, `src/state/reputation.ts`)
+
+Content is the names, the blurbs, and the band table; arithmetic is
+pure state (`adjustReputation`, `bandFor`, `canAccess`,
+`deriveReputation`), and the character screen's rows come off
+`factionRows` in `src/ui/factionModel.ts`. A district chain that
+declares its outcomes' worth as relative weights (1 = a nod, 2 = a
+favour, as both side chains do) scales them into standing with
+`scaleStanding(weights, SIDE_CHAIN_STEP)` — write that expression in
+the choice rather than the multiplied literal, so the chain's own
+table stays the one place its outcomes are valued.
+
 A node may also carry `comments`: companion asides, each tagged with a
 `companionId` and its own optional `requirements`. The dialogue box
 shows the first one whose companion is active and whose requirements
@@ -303,8 +344,9 @@ always did when nobody is along.
 Register new arcs in `src/data/story/index.ts` so `findArcByNode` can
 route to them. `validateArc` (run over every arc in `validate.test.ts`)
 checks that every choice target, item id, encounter id, travel map id,
-companion id, reaction tag, and flag reference resolves — a broken
-reference fails the suite, not the player.
+companion id, reaction tag, faction id, reputation band, and flag
+reference resolves — a broken reference fails the suite, not the
+player.
 
 Side quests are flags, not a subsystem. There is no quest log: a chain
 carries one stage flag whose value *is* its state, and the beat that
@@ -316,9 +358,9 @@ installed optics, a fight in the district's arena as one road through
 the middle, and two mutually exclusive endings. Its nodes are spread
 into the market arc rather than registered separately, because a choice
 target only resolves inside one arc. Each ending declares its own flag,
-payout, and intended faction swing in `LAST_MILE_OUTCOMES` — the
-contract the faction-reputation work reads, so the outcome and what it
-is worth are named in one place instead of two.
+payout, and intended faction swing in `LAST_MILE_OUTCOMES` — read both
+by the choice that settles it and by `FACTION_STANDINGS`, so the
+outcome and what it is worth are named in one place instead of two.
 
 "Under the Waterline" (`src/data/story/underWaterline.ts`) is the same
 shape one turn harder: it forks at its *first* choice into two roads
