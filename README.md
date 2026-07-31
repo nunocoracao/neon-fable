@@ -145,7 +145,10 @@ plus content from `src/data/`); rendering and DOM code stay thin.
   queries and every tooltip quote one number without any of them
   knowing a mod exists. A part's character-facing effects (`stat-mod`,
   `grant-ability`, `unlock-dialogue`) fold in through the ordinary
-  equipment selectors.
+  equipment selectors. Outfits carry the same idea for colour: a dye
+  applied at the Chrome Chapel lives on the copy (`ItemStack.dye` /
+  `EquipmentState.outfitDye`) and only ever reaches the sprite and
+  portrait remaps — never a figure (`src/inventory/dye.ts`).
 - **Iso scene** (`src/iso/`) — 2:1 diamond tiles, painter's-order depth
   sort, BFS pathfinding, and a combat arena scene with walk tweens, HP
   bars, and floating damage text. Presentation only: it never imports
@@ -182,7 +185,7 @@ cross-references, so `npm test` is the authoring safety net.
 
 Add an `Item` to the `items` array. Kinds: `weapon`, `outfit`,
 `consumable`, `enhancement` (with a body `slot` and `neuralCost`),
-`mod`, and `misc`. Gear carries typed `effects` (`stat-mod`,
+`mod`, `dye`, and `misc`. Gear carries typed `effects` (`stat-mod`,
 `grant-ability`, `unlock-dialogue`). `items.test.ts` checks id
 uniqueness and slot coverage.
 
@@ -205,6 +208,29 @@ Fitting is free; pulling a part back out costs `MOD_REMOVAL_FEE` and
 returns it intact. Both are only reachable through the workbench
 screen, which a choice opens with the `open-workbench` effect — "only
 at a bench" is enforced by there being no other door.
+
+#### Outfit dyes
+
+A `dye` item is a tin of colour: `colors` names the outfit sprite's
+`primary` (cloth) and/or `accent` (trim) material channels, and that is
+the whole item — a dye moves no figure any fight or gate reads. Tins are
+authored in `src/data/dyes.ts` and spread into `items`; the chapel's
+shelf and its prices are `CHAPEL_DYE_SHELF` in the same file, and a tin
+left off the shelf is a found colour that must exist somewhere in the
+world as an `add-item` effect (`dyes.test.ts` enforces both directions).
+
+Applying writes the colour onto the *copy* of the outfit it is rubbed
+into (`ItemStack.dye` / `EquipmentState.outfitDye`), exactly like a
+weapon's fitted parts, so two of the same coat differ once one is
+painted. Re-dyeing replaces rather than layers, the tin is consumed, and
+stripping back to factory colours is free. The rules live in
+`src/inventory/dye.ts`; the only door is the chapel's colour counter on
+the stylist screen (`open-stylist`), where buying a tin applies it in
+the same gesture.
+
+Authored NPC looks are a separate path: a crew's colours ride
+`CharacterVisual.outfitDye` in content data, which nothing a player does
+can reach.
 
 ### Enemies & encounters (`src/data/enemies.ts`, `encounters.ts`)
 
