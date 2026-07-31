@@ -4,10 +4,11 @@ import { DEFAULT_BACKGROUND_ID, getBackground } from "../data/backgrounds";
 import { applyStartingGear, emptyInventory } from "../inventory";
 import type { InventoryState } from "../inventory";
 import type { FlagMap } from "./flags";
+import { emptyParty, type PartyState } from "./party";
 import type { RngState } from "./rng";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 7;
+export const GAME_STATE_VERSION = 8;
 
 /**
  * Oldest save version migrateGameState can bring forward. Saves from
@@ -41,6 +42,11 @@ export interface GameState {
    * layer launches combat for it; resolveCombat clears it.
    */
   pendingEncounterId: string | null;
+  /**
+   * Companions recruited so far and which of them travel with the
+   * player. Always present (empty until somebody joins); see ./party.ts.
+   */
+  party: PartyState;
   /** Deterministic RNG state; advance via the rng module, never Math.random. */
   rng: RngState;
 }
@@ -52,6 +58,8 @@ export interface GameState {
  *
  * - v6 -> v7: characters gained a layered appearance; old saves get
  *   defaultAppearance.
+ * - v7 -> v8: the game gained companions; old saves get an empty party
+ *   and can recruit from wherever they left off.
  */
 export function migrateGameState(
   state: GameState,
@@ -63,6 +71,9 @@ export function migrateGameState(
       ...migrated,
       player: { ...migrated.player, appearance: defaultAppearance() },
     };
+  }
+  if (fromVersion < 8) {
+    migrated = { ...migrated, party: emptyParty() };
   }
   return { ...migrated, version: GAME_STATE_VERSION };
 }
@@ -93,6 +104,7 @@ export function createNewGame(options: NewGameOptions = {}): GameState {
     inventory: loadout.inventory,
     credits: STARTING_CREDITS,
     pendingEncounterId: null,
+    party: emptyParty(),
     rng: { seed: (options.seed ?? Date.now()) >>> 0 },
   };
 }
