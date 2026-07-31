@@ -1,6 +1,8 @@
+import type { StatKey } from "../character/stats";
 import { requireAbility } from "../data/abilities";
 import type { RangeType } from "../inventory/items";
-import { weaponRange } from "./damage";
+import { abilityImpact } from "./area";
+import { abilityHit, weaponRange } from "./damage";
 import {
   abilityOptions,
   attackOptions,
@@ -8,7 +10,7 @@ import {
   reachableTiles,
   type AttackOption,
 } from "./legal";
-import { activeCombatant, livingEnemies } from "./state";
+import { activeCombatant, getCombatant, livingEnemies } from "./state";
 import type { CombatState } from "./types";
 
 /**
@@ -102,6 +104,13 @@ export interface AbilityPreview {
   damage: number;
   /** Turns the best target would lose; 0 when the ability never stuns. */
   stunTurns: number;
+  /**
+   * Bodies the best aim would actually reach — 1 for a single-target
+   * ability, more when its area catches a crowd. 0 with nothing in
+   * range. The action bar quotes it so an area ability reads as one
+   * before the player commits to aiming it.
+   */
+  bodies: number;
 }
 
 export interface MovePreview {
@@ -109,6 +118,115 @@ export interface MovePreview {
   stepsLeft: number;
   /** Distinct tiles those steps can reach. */
   tiles: number;
+}
+
+/* --- Aimed outcomes -------------------------------------------------- */
+
+/** An aimed action, as the preview layer asks about it. */
+export type PreviewIntent =
+  | { kind: "attack" }
+  | { kind: "ability"; abilityId: string };
+
+/** A condition an action would leave on the body it reaches. */
+export type OutcomeStatus =
+  | { kind: "stun"; turns: number }
+  | { kind: "boost"; stat: StatKey; amount: number; turns: number };
+
+/**
+ * What one aimed action would do to one body. Damage is quoted as the
+ * span it can land in rather than a single figure: the engine rolls no
+ * damage variance, so the only spread is whether the blow connects —
+ * a weapon that can miss reads 0 at the bottom, an ability that cannot
+ * reads the same number twice.
+ */
+export interface OutcomePreview {
+  targetId: string;
+  /** True for the body actually aimed at; false for anything splashed. */
+  primary: boolean;
+  /** Chance in [0, 1] it lands, or null when it cannot miss at all. */
+  hitChance: number | null;
+  /** Least damage it can deal — 0 whenever it can miss. */
+  damageMin: number;
+  /** Damage it deals when it lands. */
+  damageMax: number;
+  /** Conditions it would apply to this body. */
+  statuses: OutcomeStatus[];
+}
+
+/**
+ * What an aimed action would do, body by body, with the one aimed at
+ * first. Empty when the action is not legal against that target right
+ * now — the caller decides how to say so.
+ *
+ * This is the *only* place an outcome is derived. The action bar's
+ * tooltips (via attackPreview / abilityPreviews below) and the grid
+ * telegraph's outcome chips both read it, so the number a chip promises
+ * and the number a tooltip quotes are one number.
+ */
+export function outcomesFor(
+  state: CombatState,
+  intent: PreviewIntent,
+  targetId: string,
+): OutcomePreview[] {
+  if (state.status !== "active") return [];
+  const actor = activeCombatant(state);
+
+  if (intent.kind === "attack") {
+    const option = attackOptions(state).find((o) => o.targetId === targetId);
+    if (!option) return [];
+    return [
+      {
+        targetId,
+        primary: true,
+        hitChance: option.hitChance,
+        // A weapon that can miss is worth nothing on the turns it does.
+        damageMin: option.hitChance >= 1 ? option.damage : 0,
+        damageMax: option.damage,
+        statuses: [],
+      },
+    ];
+  }
+
+  const option = abilityOptions(state).find(
+    (o) => o.abilityId === intent.abilityId,
+  );
+  if (!option || !option.ready) return [];
+  const ability = requireAbility(intent.abilityId);
+
+  if (ability.effect.type === "boost") {
+    // A self-boost is only ever aimed at its caster.
+    if (targetId !== actor.id) return [];
+    const { stat, amount, turns } = ability.effect;
+    return [
+      {
+        targetId,
+        primary: true,
+        hitChance: null,
+        damageMin: 0,
+        damageMax: 0,
+        statuses: [{ kind: "boost", stat, amount, turns }],
+      },
+    ];
+  }
+
+  // Legality first — the option list is what the engine will accept —
+  // then the shape, which decides who else goes down with them.
+  const target = option.targets.some((t) => t.targetId === targetId)
+    ? getCombatant(state, targetId)
+    : undefined;
+  if (!target) return [];
+  return abilityImpact(state, actor, ability, target).map((caught) => {
+    const { damage, stunTurns } = abilityHit(ability.effect, caught.armor);
+    return {
+      targetId: caught.id,
+      primary: caught.id === targetId,
+      // Abilities never roll to hit; what they promise, they deliver.
+      hitChance: null,
+      damageMin: damage,
+      damageMax: damage,
+      statuses: stunTurns > 0 ? [{ kind: "stun", turns: stunTurns }] : [],
+    };
+  });
 }
 
 /** Hardest hit first, then likeliest, then nearest. Total and stable. */
@@ -138,11 +256,25 @@ export function attackPreview(state: CombatState): AttackPreview {
 export function abilityPreviews(state: CombatState): AbilityPreview[] {
   return abilityOptions(state).map((option) => {
     const ability = requireAbility(option.abilityId);
-    // The engine already applied the target's armor per target; the
-    // tooltip quotes the hardest of them, matching the attack preview.
-    const best = [...option.targets].sort(
-      (a, b) => b.damage - a.damage || b.stunTurns - a.stunTurns,
-    )[0];
+    const intent: PreviewIntent = {
+      kind: "ability",
+      abilityId: option.abilityId,
+    };
+    // Every aim this ability has, priced through the one outcome
+    // function the telegraph's chips read — so the tooltip and the chip
+    // quote the same figures for the same aim. The tooltip then reports
+    // the aim worth taking: most bodies caught, then hardest hit.
+    const aims = option.targets
+      .map((target) => outcomesFor(state, intent, target.targetId))
+      .filter((outcomes) => outcomes.length > 0)
+      .sort(
+        (a, b) =>
+          b.length - a.length ||
+          (b[0]?.damageMax ?? 0) - (a[0]?.damageMax ?? 0) ||
+          (b[0]?.statuses.length ?? 0) - (a[0]?.statuses.length ?? 0),
+      );
+    const best = aims[0];
+    const primary = best?.[0];
     return {
       abilityId: option.abilityId,
       cooldown: option.cooldown,
@@ -150,10 +282,17 @@ export function abilityPreviews(state: CombatState): AbilityPreview[] {
       selfTarget: option.selfTarget,
       range: ability.range,
       targetCount: option.targets.length,
-      damage: best?.damage ?? 0,
-      stunTurns: best?.stunTurns ?? 0,
+      damage: primary?.damageMax ?? 0,
+      stunTurns: stunTurnsOf(primary),
+      bodies: best?.length ?? 0,
     };
   });
+}
+
+/** Turns of stun an outcome would apply; 0 when it applies none. */
+function stunTurnsOf(outcome: OutcomePreview | undefined): number {
+  const stun = outcome?.statuses.find((s) => s.kind === "stun");
+  return stun?.kind === "stun" ? stun.turns : 0;
 }
 
 /** Steps left and how much ground they cover. */
