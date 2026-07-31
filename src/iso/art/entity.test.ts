@@ -7,6 +7,7 @@ import {
   entityFrameKey,
   entityGrid,
   entityMuzzlePoint,
+  mechArt,
 } from "./entity";
 import { BODY_FRAME } from "./layers/body";
 import { skinToneRemap, type ComposedCharacter } from "./layers";
@@ -34,13 +35,14 @@ const GUNNER: ComposedCharacter = {
 };
 
 describe("entity art kinds", () => {
-  it("names both kinds the renderer knows", () => {
-    expect([...ENTITY_ART_KINDS]).toEqual(["character", "drone"]);
+  it("names every kind the renderer knows", () => {
+    expect([...ENTITY_ART_KINDS]).toEqual(["character", "drone", "mech"]);
   });
 
   it("tags what it wraps", () => {
     expect(characterArt(UNARMED).kind).toBe("character");
     expect(droneArt("static-drone").kind).toBe("drone");
+    expect(mechArt("warden-chassis").kind).toBe("mech");
   });
 });
 

@@ -16,12 +16,15 @@ export type Facing = "n" | "e" | "s" | "w";
 export type LoopState = "idle" | "walk";
 
 /**
- * Motion state a sprite set is selected from. "attack" and "react" are
- * one-shot sets played by the combat sequencer rather than loops:
- * "attack" is per weapon class (see ./attack), "react" is the receiving
- * end — flinches, shudders, and deaths (see ./reaction).
+ * Motion state a sprite set is selected from. Three of the four are not
+ * loops: "attack" is the one-shot swing, per weapon class (see
+ * ./attack); "react" is the receiving end — flinches, shudders, and
+ * deaths (see ./reaction); "charge" is a *held* stance, the pose
+ * something stands in for a whole turn while it winds an attack up (see
+ * src/combat/charge.ts). Art with no charge set falls back to its idle
+ * loop, so only the things that can wind up need to author one.
  */
-export type MotionState = LoopState | "attack" | "react";
+export type MotionState = LoopState | "attack" | "react" | "charge";
 
 /**
  * Facing for a movement delta in world tile coordinates (+x = e, +y = s).

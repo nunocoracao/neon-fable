@@ -52,7 +52,13 @@ import { popupTextGrid, textGrid } from "./popupFont";
 import { STATUS_MARKER_ART } from "./statusMarkers";
 import { INTERACTABLE_ART } from "./interactables";
 import { DRONE_ART, DRONE_ART_IDS } from "./drone";
-import { droneArt, entityGrid } from "./entity";
+import {
+  MECH_ART,
+  MECH_ART_IDS,
+  MECH_SET_IDS,
+  mechFrameCount,
+} from "./mech";
+import { droneArt, entityGrid, mechArt } from "./entity";
 import {
   composedCharacterGrid,
   cyberChannelRemap,
@@ -233,6 +239,56 @@ function droneEntries(): GalleryEntry[] {
       ...attacks,
       ...reactions,
       { id: `drone ${id} portrait`, frames: [DRONE_ART[id].portrait], frameMs: 0 },
+    ];
+  });
+}
+
+/**
+ * The things too big to stand on one tile (./mech): every authored
+ * chassis, every set, on all four facings, both of its swings, and the
+ * reactions it folds through. Its own section rather than a row in the
+ * drone one, because it is drawn in a different frame — a gallery cell
+ * of a 96×112 grid beside a 32×48 one is exactly the comparison the
+ * section is for.
+ */
+function mechEntries(): GalleryEntry[] {
+  const meanHold = (holds: readonly number[]): number =>
+    Math.round(holds.reduce((a, b) => a + b, 0) / holds.length);
+  return MECH_ART_IDS.flatMap((id) => {
+    const art = mechArt(id);
+    const loops = MECH_SET_IDS.flatMap((set) =>
+      FACINGS.map((facing) => ({
+        id: `mech ${id} ${set} ${facing}`,
+        frames: Array.from({ length: mechFrameCount(id, set) }, (_, f) =>
+          entityGrid(art, facing, set, f),
+        ),
+        // The held wind-up breathes at the idle cadence it rides.
+        frameMs: BODY_TIMING[set === "walk" ? "walk" : "idle"].frameMs,
+      })),
+    );
+    const attacks = MECH_ART[id].attackClasses.flatMap((attackClass, variant) =>
+      FACINGS.map((facing) => ({
+        id: `mech ${id} attack v${variant} ${facing}`,
+        frames: Array.from({ length: attackFrameCount(attackClass) }, (_, f) =>
+          entityGrid(art, facing, "attack", f, undefined, variant),
+        ),
+        frameMs: meanHold(ATTACK_TIMING[attackClass].frameMs),
+      })),
+    );
+    const reactions = REACTION_KINDS.flatMap((kind) =>
+      ([-1, 1] as const).map((awayX) => ({
+        id: `mech ${id} react ${kind} away${awayX}`,
+        frames: Array.from({ length: reactionFrameCount(kind) }, (_, f) =>
+          entityGrid(art, "e", "react", f, { kind, awayX }),
+        ),
+        frameMs: meanHold(REACTION_TIMING[kind].frameMs),
+      })),
+    );
+    return [
+      ...loops,
+      ...attacks,
+      ...reactions,
+      { id: `mech ${id} portrait`, frames: [MECH_ART[id].portrait], frameMs: 0 },
     ];
   });
 }
@@ -751,6 +807,7 @@ const SECTION_BUILDERS: ReadonlyArray<{
   { id: "setpieces", title: "Set pieces", build: setPieceEntries },
   { id: "cast", title: "Cast (NPCs & enemy look families)", build: castEntries },
   { id: "drones", title: "Drones (authored chassis)", build: droneEntries },
+  { id: "mechs", title: "Mechs (multi-tile chassis)", build: mechEntries },
   { id: "bodies", title: "Bodies (hi-res)", build: bodyEntries },
   { id: "attacks", title: "Attacks (per weapon class)", build: attackEntries },
   {

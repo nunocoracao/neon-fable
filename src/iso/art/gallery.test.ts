@@ -29,6 +29,7 @@ import { items } from "../../data/items";
 import { maps } from "../../data/maps";
 import { ACTION_ICON_IDS } from "./actionIcons";
 import { INTERACTABLE_ART } from "./interactables";
+import { MECH_ART, MECH_ART_IDS, MECH_SET_IDS } from "./mech";
 import { SETPIECE_ART } from "./setpieces";
 import { BODY_BUILD_IDS } from "./layers/body";
 import { HAIR_STYLE_IDS } from "./layers/hair";
@@ -60,6 +61,7 @@ describe("gallery sections", () => {
       "setpieces",
       "cast",
       "drones",
+      "mechs",
       "bodies",
       "attacks",
       "reactions",
@@ -76,6 +78,38 @@ describe("gallery sections", () => {
         entryIds.length,
       );
       expect(s.entries.length, `${s.id} not empty`).toBeGreaterThan(0);
+    }
+  });
+
+  it("shows every multi-tile chassis on every facing, both swings, and its face", () => {
+    const mechs = section("mechs");
+    for (const id of MECH_ART_IDS) {
+      for (const facing of ["n", "e", "s", "w"]) {
+        for (const set of MECH_SET_IDS) {
+          expect(
+            mechs.entries.some((e) => e.id === `mech ${id} ${set} ${facing}`),
+            `${id} ${set} ${facing}`,
+          ).toBe(true);
+        }
+        MECH_ART[id].attackClasses.forEach((_, variant) => {
+          expect(
+            mechs.entries.some(
+              (e) => e.id === `mech ${id} attack v${variant} ${facing}`,
+            ),
+            `${id} attack v${variant} ${facing}`,
+          ).toBe(true);
+        });
+      }
+      expect(mechs.entries.some((e) => e.id === `mech ${id} portrait`)).toBe(
+        true,
+      );
+    }
+    // Everything but the portrait actually moves; a chassis shown as a
+    // still is the one thing the gallery cannot usefully say about it.
+    for (const entry of mechs.entries) {
+      if (entry.id.endsWith("portrait")) continue;
+      expect(entry.frames.length, entry.id).toBeGreaterThan(1);
+      expect(entry.frameMs, entry.id).toBeGreaterThan(0);
     }
   });
 

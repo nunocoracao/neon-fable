@@ -43,6 +43,7 @@ import { BODY_FRAME } from "./layers/body";
 import {
   characterArt,
   entityAttackClass,
+  entityFrame,
   entityFrameKey,
   entityGrid,
   entityMuzzlePoint,
@@ -114,7 +115,12 @@ export interface PixelArtSprites extends SpriteProvider {
    * capabilities SpriteProvider leaves optional — where a blow leaves
    * from, and the effect art it leaves with — are guaranteed here.
    */
-  muzzleOffset(id: EntitySpriteId, facing: Facing): { x: number; y: number };
+  muzzleOffset(
+    id: EntitySpriteId,
+    facing: Facing,
+    attackVariant?: number,
+  ): { x: number; y: number };
+  entityAnchor(id: EntitySpriteId): { x: number; y: number };
   effect(id: EffectSpriteId, frame: number): Sprite;
   abilityEffect(id: AbilityFxId, frame: number): Sprite;
   statusMarker(id: StatusFamilyId, frame: number): Sprite;
@@ -206,15 +212,18 @@ export function createPixelArtSprites(
 
   /**
    * Which frame of which set a pose shows. The attack sets are per
-   * weapon class (per chassis, for the things that were never people),
-   * so the choice needs the art — the same art the bake key already
-   * serializes.
+   * weapon class (per chassis and per swing, for the things that were
+   * never people), so the choice needs the art — the same art the bake
+   * key already serializes.
    */
   function composedPose(
     descriptor: EntityArt,
     pose: EntityPose,
   ): { state: MotionState; frame: number } {
-    return selectMotionFrame(entityAttackClass(descriptor), pose);
+    return selectMotionFrame(
+      entityAttackClass(descriptor, pose.attackVariant ?? 0),
+      pose,
+    );
   }
 
   /**
@@ -232,17 +241,21 @@ export function createPixelArtSprites(
 
   // Bake keys serialize the art itself, so entities that look alike
   // (two spawns wearing the same record of an archetype's look family)
-  // share one baked canvas.
+  // share one baked canvas. The anchor comes off the art's own frame,
+  // which is what lets a 96×112 chassis and a 32×48 person go through
+  // exactly the same path.
   function composedSprite(descriptor: EntityArt, pose: EntityPose): Sprite {
     const { state, frame } = composedPose(descriptor, pose);
     const variant = poseVariant(state, pose);
+    const swing = pose.attackVariant ?? 0;
+    const box = entityFrame(descriptor);
     return cached(
-      `entity:${entityFrameKey(descriptor, pose.facing, state, frame, variant)}`,
+      `entity:${entityFrameKey(descriptor, pose.facing, state, frame, variant, swing)}`,
       () =>
         bakeSprite(
-          entityGrid(descriptor, pose.facing, state, frame, variant),
-          BODY_FRAME.anchorX,
-          BODY_FRAME.anchorY,
+          entityGrid(descriptor, pose.facing, state, frame, variant, swing),
+          box.anchorX,
+          box.anchorY,
           palette,
         ),
     );
@@ -356,17 +369,28 @@ export function createPixelArtSprites(
       return composedSprite(descriptorFor(id), pose);
     },
 
-    attackClass(id: EntitySpriteId): AttackClassId {
-      return entityAttackClass(descriptorFor(id));
+    attackClass(id: EntitySpriteId, attackVariant = 0): AttackClassId {
+      return entityAttackClass(descriptorFor(id), attackVariant);
     },
 
-    muzzleOffset(id: EntitySpriteId, facing: Facing): { x: number; y: number } {
-      const point = entityMuzzlePoint(descriptorFor(id), facing);
+    entityAnchor(id: EntitySpriteId): { x: number; y: number } {
+      const box = entityFrame(descriptorFor(id));
+      return { x: box.anchorX * ART_SCALE, y: box.anchorY * ART_SCALE };
+    },
+
+    muzzleOffset(
+      id: EntitySpriteId,
+      facing: Facing,
+      attackVariant = 0,
+    ): { x: number; y: number } {
+      const descriptor = descriptorFor(id);
+      const point = entityMuzzlePoint(descriptor, facing, attackVariant);
+      const box = entityFrame(descriptor);
       // Art pixels relative to the sprite's own anchor, in screen scale —
       // the scene adds this straight onto the entity's screen position.
       return {
-        x: (point.x - BODY_FRAME.anchorX) * ART_SCALE,
-        y: (point.y - BODY_FRAME.anchorY) * ART_SCALE,
+        x: (point.x - box.anchorX) * ART_SCALE,
+        y: (point.y - box.anchorY) * ART_SCALE,
       };
     },
 
@@ -424,14 +448,16 @@ export function createPixelArtSprites(
       const descriptor = descriptorFor(id);
       const { state, frame } = composedPose(descriptor, pose);
       const variant = poseVariant(state, pose);
+      const swing = pose.attackVariant ?? 0;
+      const box = entityFrame(descriptor);
       return untinted(
-        `flash:${entityFrameKey(descriptor, pose.facing, state, frame, variant)}`,
+        `flash:${entityFrameKey(descriptor, pose.facing, state, frame, variant, swing)}`,
         () =>
           bakeSilhouette(
-            entityGrid(descriptor, pose.facing, state, frame, variant),
+            entityGrid(descriptor, pose.facing, state, frame, variant, swing),
             FLASH_COLOR,
-            BODY_FRAME.anchorX,
-            BODY_FRAME.anchorY,
+            box.anchorX,
+            box.anchorY,
           ),
       );
     },
