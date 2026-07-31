@@ -1,3 +1,4 @@
+import type { PerkModifiers } from "../character/perks";
 import type { StatKey, Stats } from "../character/stats";
 import type { WeaponProfile } from "../inventory/mods";
 import type { RngState } from "../state/rng";
@@ -128,6 +129,24 @@ export interface Combatant {
    * construction: the same loadout always falls the same distance.
    */
   initiativeMod?: number;
+  /**
+   * What this body's perks are worth in a fight, snapshotted at setup
+   * from the character's taken perks (see src/character/perks.ts).
+   * Absent on everything but the player, and on a player with no perks
+   * — which is every fight from before the street kept score, so an
+   * older saved battle loads as exactly the fight it was.
+   *
+   * Carried rather than looked up for the same reason stats and the
+   * weapon profile are: the engine reads figures, never a perk id, and
+   * a fight is resolvable from its own state alone.
+   */
+  perks?: PerkModifiers;
+  /**
+   * Spent once a Second Wind has answered this fight. Absent means it
+   * has not — including on a body that never had one, which is the
+   * same thing to every rule that reads it.
+   */
+  secondWindSpent?: boolean;
   /** The block's minimum-x, minimum-y tile (see ./footprint.ts). */
   position: GridPosition;
   /**
@@ -232,6 +251,17 @@ export type CombatEvent =
     }
   | { type: "item-used"; combatantId: string; itemId: string }
   | { type: "healed"; combatantId: string; amount: number }
+  | {
+      /**
+       * A Second Wind answering the blow that dropped this body under
+       * its threshold. Once per fight, and always *after* the damage —
+       * the hit lands in full and is reported in full; what follows is
+       * the recovery, not a smaller hit.
+       */
+      type: "second-wind";
+      combatantId: string;
+      amount: number;
+    }
   | {
       type: "boosted";
       combatantId: string;

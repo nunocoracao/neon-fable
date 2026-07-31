@@ -57,8 +57,13 @@ export interface ReviewModel {
   gear: string[];
   /** The chosen look in words, one line per visible feature. */
   appearance: ReviewLine[];
-  /** NG+ carry-over summary; null on a standard run. */
-  legacy: { pick: string; line: string } | null;
+  /**
+   * NG+ carry-over summary; null on a standard run. `excludes` is the
+   * other half of the offer and is stated rather than implied: perks
+   * are earned by *this* runner's street cred and do not travel, which
+   * is what keeps New Game+ a nudge instead of a head start.
+   */
+  legacy: { pick: string; line: string; excludes: string } | null;
 }
 
 function optionLabel(field: AppearanceField, id: string): string {
@@ -135,6 +140,9 @@ export function reviewModel(
             (ngPlus.legacyAppearance
               ? " · last runner's look carried over"
               : ""),
+          excludes:
+            "Perks stay with the runner who earned them — street cred is " +
+            "a reputation, and nobody inherits one.",
         }
       : null,
   };

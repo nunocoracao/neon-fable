@@ -40,7 +40,7 @@ describe("createCharacter", () => {
       equipment: { weapon: null, outfit: null, enhancements: {} },
       appearance: defaultAppearance(),
       tags: ["street", "courier"],
-      advancement: { pointsSpent: 0, abilityIds: [] },
+      advancement: { pointsSpent: 0, abilityIds: [], perkIds: [] },
     });
   });
 

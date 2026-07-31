@@ -306,7 +306,8 @@ export function createCharacterCreateScreen(
       legacyNote.className = "nf-dim";
       legacyNote.textContent =
         `New Game+ bonus: +${ngPlus.bonusPoints} point-buy points and ` +
-        "one piece of your last runner's gear." +
+        "one piece of your last runner's gear. Their perks do not come " +
+        "along — street cred is earned, never inherited." +
         (legacyLook
           ? " Their look carries over too — restyle it on the Appearance step."
           : "");
@@ -837,12 +838,17 @@ export function createCharacterCreateScreen(
     right.append(reviewSection("Appearance", "appearance", look));
 
     if (model.legacy) {
+      const legacy = document.createElement("div");
       const legacyLine = document.createElement("p");
       legacyLine.className = "nf-review-line nf-review-legacy";
       legacyLine.textContent = model.legacy.line;
-      right.append(
-        reviewSection("Legacy carry-over", "background", legacyLine),
-      );
+      // What does *not* come along, said out loud on the same panel:
+      // the offer is a nudge and the summary has to read like one.
+      const excludes = document.createElement("p");
+      excludes.className = "nf-review-line nf-dim";
+      excludes.textContent = model.legacy.excludes;
+      legacy.append(legacyLine, excludes);
+      right.append(reviewSection("Legacy carry-over", "background", legacy));
     }
 
     const errors = document.createElement("div");

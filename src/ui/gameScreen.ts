@@ -13,7 +13,7 @@ import {
   interludes,
   type ChapterEnding,
 } from "../data";
-import { availablePoints } from "../character";
+import { availablePoints, perkPicksAvailable } from "../character";
 import {
   composeEpilogue,
   composeInterlude,
@@ -53,6 +53,8 @@ import { runMapTransition, type MapTransitionHandle } from "./mapTransition";
 import { npcSpriteSource, sceneSpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
 import { createAdvancementOverlay } from "./advancementOverlay";
+import { createPerkOverlay } from "./perkOverlay";
+import { pickLabel } from "./perkModel";
 import { createBarkLayer, type BarkLayerHandle } from "./barkLayer";
 import { COMBAT_RESUME_FLAG, createCombatScreen } from "./combatScreen";
 import { createDialogueOverlay } from "./dialogueOverlay";
@@ -94,6 +96,7 @@ type OverlayKind =
   | "inventory"
   | "party"
   | "advance"
+  | "perks"
   | "saves"
   | "menu"
   | "settings"
@@ -207,7 +210,8 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     }
     advanceButton?.classList.toggle(
       "nf-button-attention",
-      availablePoints(session.state) > 0,
+      availablePoints(session.state) > 0 ||
+        perkPicksAvailable(session.state) > 0,
     );
     // Somebody recruited (or benched) mid-scene joins (or leaves) the
     // walk on the spot — the beat that changed the party is the beat
@@ -440,6 +444,11 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     if (availablePoints(session.state) > 0) {
       entries.unshift(["Spend Advancement Points", openAdvancement]);
     }
+    // A chapter ending is a deed the city counts, so the milestone it
+    // pushes past is offered on the same panel that reported it.
+    if (perkPicksAvailable(session.state) > 0) {
+      entries.unshift(["Choose a Perk", openPerks]);
+    }
     for (const [label, action] of entries) {
       const button = document.createElement("button");
       button.className = "nf-button";
@@ -559,6 +568,23 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     openOverlay(
       "advance",
       createAdvancementOverlay({
+        session,
+        onStateChange: refreshHud,
+        onOpenPerks: openPerks,
+        onClose: closeOverlay,
+      }),
+    );
+  }
+
+  /**
+   * The perk pick. Reachable whenever the player wants to read what
+   * they have taken, and pushed at them — once — the moment a milestone
+   * comes due, because a pick nobody notices is a pick nobody makes.
+   */
+  function openPerks(): void {
+    openOverlay(
+      "perks",
+      createPerkOverlay({
         session,
         onStateChange: refreshHud,
         onClose: closeOverlay,
@@ -837,6 +863,15 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         // card, or a save reopened past it — gets its breath here,
         // before the district is handed back to the player.
         playPendingInterlude();
+      }
+
+      // And the street's own nudge: cred earned mid-fight comes due the
+      // moment the player is back on their feet. A toast rather than a
+      // panel — a permanent decision is not something to open over
+      // somebody who has just walked out of a fight.
+      const picks = perkPicksAvailable(session.state);
+      if (!overlay && picks > 0) {
+        showToast(`${pickLabel(picks)} — open Advance [P].`);
       }
     },
 

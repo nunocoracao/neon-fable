@@ -1,4 +1,5 @@
 import type { CharacterState } from "../character/create";
+import { characterPerks } from "../character/perks";
 import { STAT_HARD_CAP, STAT_KEYS, type Stats } from "../character/stats";
 import { requireItem } from "../data/items";
 import type { Item, ItemEffect, ItemResolver, ModItem } from "./items";
@@ -130,13 +131,20 @@ export function dialogueUnlockTags(
   return tags;
 }
 
-/** Armor value of the equipped outfit, or 0 when unarmored. */
+/**
+ * Armor the character actually meets a blow with: the equipped outfit's
+ * plating plus whatever their perks add on top (see PerkModifiers).
+ * Zero-floored, so an unarmored runner with no perks is still exactly
+ * unarmored. Combat snapshots this figure once at setup, which is why a
+ * perk that adds armor needs no second thought anywhere in the engine
+ * or in the previews the HUD quotes.
+ */
 export function armorValue(
   character: CharacterState,
   resolve: ItemResolver = requireItem,
 ): number {
   const outfitId = character.equipment.outfit;
-  if (outfitId == null) return 0;
-  const item = resolve(outfitId);
-  return item.kind === "outfit" ? item.armor : 0;
+  const item = outfitId == null ? null : resolve(outfitId);
+  const worn = item?.kind === "outfit" ? item.armor : 0;
+  return Math.max(0, worn + characterPerks(character).armorBonus);
 }

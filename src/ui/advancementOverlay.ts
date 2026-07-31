@@ -10,6 +10,7 @@ import {
 import { advancementPool, getAbility } from "../data/abilities";
 import { STAT_RAISE_COST, chapterGrants } from "../data/advancement";
 import { pointsLabel, statLabel } from "./format";
+import { credLabel, perkPanel, pickLabel } from "./perkModel";
 import type { OverlayHandle } from "./overlay";
 import type { Session } from "./session";
 
@@ -22,6 +23,12 @@ import type { Session } from "./session";
 export interface AdvancementOverlayOptions {
   session: Session;
   onStateChange(): void;
+  /**
+   * Opens the perk pick. Taking a perk is its own screen — it spends a
+   * different currency and it is permanent — so this panel reports what
+   * the street owes and hands over rather than growing a third column.
+   */
+  onOpenPerks(): void;
   onClose(): void;
 }
 
@@ -81,6 +88,72 @@ export function createAdvancementOverlay(
       status.append(chapter);
     }
     container.append(status);
+
+    // The other currency, on the same shelf: what the city has noticed,
+    // and whether it currently owes this runner a decision.
+    const view = perkPanel(session.state);
+    const street = document.createElement("div");
+    street.className = "nf-inventory-status nf-cred-status";
+    const cred = document.createElement("span");
+    cred.className = "nf-advancement-available";
+    cred.textContent = credLabel(view);
+    street.append(cred);
+    const next = document.createElement("span");
+    next.className = "nf-dim";
+    next.textContent = view.next
+      ? `${view.next.label} at ${view.next.cred} cred`
+      : "Every milestone reached";
+    street.append(next);
+    container.append(street);
+  }
+
+  /**
+   * The perks this runner has, with what each one does — the character
+   * sheet's own record of who the street thinks they are. Read-only:
+   * taking one happens on the pick screen, and nothing gives one back.
+   */
+  function renderPerks(container: HTMLElement): void {
+    const view = perkPanel(session.state);
+    const section = document.createElement("div");
+    section.className = "nf-inventory-section nf-perk-section";
+    const heading = document.createElement("h3");
+    heading.textContent = "Perks";
+    section.append(heading);
+
+    const grid = document.createElement("div");
+    grid.className = "nf-item-grid";
+    if (view.taken.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "nf-dim";
+      empty.textContent =
+        "None yet. Street cred milestones are what grant them.";
+      grid.append(empty);
+    }
+    for (const perk of view.taken) {
+      const card = document.createElement("div");
+      card.className = "nf-item-card nf-perk-card";
+      card.dataset.perk = perk.id;
+      const name = document.createElement("div");
+      name.className = "nf-item-name";
+      name.textContent = perk.name;
+      const domain = document.createElement("div");
+      domain.className = "nf-item-summary";
+      domain.textContent = perk.domainLabel;
+      const effect = document.createElement("div");
+      effect.className = "nf-perk-effect";
+      effect.textContent = perk.effect;
+      card.append(name, domain, effect);
+      grid.append(card);
+    }
+    section.append(grid);
+
+    const open = actionButton(
+      view.picks > 0 ? `Choose a Perk — ${pickLabel(view.picks)}` : "View Perks",
+      options.onOpenPerks,
+    );
+    if (view.picks > 0) open.classList.add("nf-button-attention");
+    section.append(open);
+    container.append(section);
   }
 
   function renderStats(container: HTMLElement): void {
@@ -189,7 +262,11 @@ export function createAdvancementOverlay(
 
     const columns = document.createElement("div");
     columns.className = "nf-inventory-columns";
-    renderStats(columns);
+    const left = document.createElement("div");
+    left.className = "nf-inventory-column";
+    renderStats(left);
+    renderPerks(left);
+    columns.append(left);
     renderAbilities(columns);
     panel.append(columns);
   }

@@ -74,7 +74,7 @@ describe("availablePoints", () => {
       ...state,
       player: {
         ...state.player,
-        advancement: { pointsSpent: 2, abilityIds: [] },
+        advancement: { pointsSpent: 2, abilityIds: [], perkIds: [] },
       },
     };
     expect(availablePoints(spent)).toBe(1);
@@ -82,7 +82,7 @@ describe("availablePoints", () => {
       ...state,
       player: {
         ...state.player,
-        advancement: { pointsSpent: 99, abilityIds: [] },
+        advancement: { pointsSpent: 99, abilityIds: [], perkIds: [] },
       },
     };
     expect(availablePoints(overspent)).toBe(0);

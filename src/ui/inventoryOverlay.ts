@@ -1,4 +1,5 @@
 import { audio, type SoundId } from "../audio";
+import { neuralCapacityOf } from "../character";
 import { getItem } from "../data/items";
 import {
   ENHANCEMENT_SLOTS,
@@ -113,12 +114,15 @@ export function createInventoryOverlay(
     const neural = document.createElement("div");
     neural.className = "nf-neural";
     const neuralLabel = document.createElement("span");
-    neuralLabel.textContent = `Neural load ${player.neuralLoad}/${player.derived.neuralCapacity}`;
+    // The perk-aware figure, the same one installEnhancement enforces —
+    // a meter that read the raw derived capacity would refuse an
+    // install the rules allow.
+    const capacity = neuralCapacityOf(player);
+    neuralLabel.textContent = `Neural load ${player.neuralLoad}/${capacity}`;
     const meter = document.createElement("div");
     meter.className = "nf-meter";
     const fill = document.createElement("div");
     fill.className = "nf-meter-fill";
-    const capacity = player.derived.neuralCapacity;
     fill.style.width =
       capacity > 0 ? `${Math.min(100, (player.neuralLoad / capacity) * 100)}%` : "0%";
     meter.append(fill);

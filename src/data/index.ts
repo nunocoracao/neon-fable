@@ -141,10 +141,27 @@ export {
   type AdvancementPoolEntry,
 } from "./abilities";
 export {
+  CRED_PER_VICTORY,
   STAT_RAISE_COST,
+  VICTORY_FLAG_PREFIX,
+  VICTORY_FLAG_VALUE,
   chapterGrants,
+  credDeeds,
+  credMilestones,
   type ChapterGrant,
+  type CredDeed,
+  type CredMilestone,
 } from "./advancement";
+export {
+  PERK_DOMAINS,
+  getPerk,
+  perks,
+  perksIn,
+  requirePerk,
+  type Perk,
+  type PerkDomain,
+  type PerkEffects,
+} from "./perks";
 export {
   ENEMY_SPRITE_KINDS,
   enemies,

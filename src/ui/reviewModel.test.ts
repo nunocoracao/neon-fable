@@ -124,6 +124,12 @@ describe("reviewModel", () => {
     );
   });
 
+  it("states what New Game+ does not carry — perks are never inherited", () => {
+    const legacy = reviewModel(draft(), { bonusPoints: 3 }).legacy;
+    expect(legacy?.excludes).toMatch(/perks/i);
+    expect(legacy?.excludes).toMatch(/street cred/i);
+  });
+
   it("mentions the carried look only when one seeded the wizard", () => {
     const carried = reviewModel(draft(), {
       bonusPoints: 3,

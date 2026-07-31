@@ -59,7 +59,7 @@ function stepToward(
  * was; with a companion in it, an enemy goes for whoever is closest
  * rather than walking past them to reach the player.
  */
-function nearestQuarry(
+export function nearestQuarry(
   state: CombatState,
   actor: Combatant,
 ): Combatant | null {

@@ -13,6 +13,11 @@ import type { CharacterState } from "./create";
  * states pick grants up retroactively; only the spends are stored, on
  * player.advancement. Pure functions — spends return a new
  * CharacterState, matching the inventory module's Loadout pattern.
+ *
+ * The other currency — street cred, and the perk picks its milestones
+ * grant — is derived the same way and lives in ./cred.ts. It shares
+ * this module's view type and its error type on purpose: to a screen,
+ * and to a save, both are one advancement record.
  */
 
 /** The slice of GameState advancement reads: flags plus the player. */
@@ -25,7 +30,13 @@ export type AdvancementErrorCode =
   | "insufficient-points"
   | "stat-at-cap"
   | "unknown-ability"
-  | "already-unlocked";
+  | "already-unlocked"
+  /** A perk pick was made with no milestone owing one. */
+  | "no-perk-pick"
+  /** The id is not in this build's perk pool. */
+  | "unknown-perk"
+  /** Already taken; a perk is permanent and taken once (see ./cred.ts). */
+  | "perk-taken";
 
 export class AdvancementError extends Error {
   constructor(
@@ -127,6 +138,7 @@ export function unlockAbility(
   return {
     ...player,
     advancement: {
+      ...player.advancement,
       pointsSpent: player.advancement.pointsSpent + entry.cost,
       abilityIds: [...player.advancement.abilityIds, abilityId],
     },

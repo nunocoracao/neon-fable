@@ -1,9 +1,17 @@
 import { requireAbility } from "../data/abilities";
+import { nearestQuarry } from "./ai";
 import { abilityAreaTiles } from "./area";
 import { threatenedTiles } from "./charge";
 import { weaponReach } from "./damage";
 import { bodyGap, bodyTiles, tileGap } from "./footprint";
-import { canStand, combatantAt, inBounds, isBlocked, manhattan } from "./grid";
+import {
+  canStand,
+  combatantAt,
+  inBounds,
+  isBlocked,
+  manhattan,
+  stepBudget,
+} from "./grid";
 import { manhattanPath, reachableTiles } from "./legal";
 import {
   activeCombatant,
@@ -262,13 +270,55 @@ export function telegraphField(
 }
 
 /**
- * The ground already promised by every wind-up in flight, tinted as the
- * threat it is. Independent of what the player has open — see the
- * "threat" role above.
+ * Who the hostiles are about to hit, marked a turn before they hit them
+ * — the whole of what a Cold Read buys (see PerkModifiers.enemyIntent).
+ *
+ * Not a tint of everywhere a foe *could* shoot: a ranged body covers
+ * most of an arena, and a telegraph that glows everywhere says nothing.
+ * What is marked is the body each hostile is actually working on —
+ * asked of the AI's own targeting rule, so the read cannot drift from
+ * the behaviour — and only while it can close the gap and strike this
+ * turn, reach plus steps. That is the decision the player has to make:
+ * this one gets to you unless you move, and that one does not.
+ *
+ * Read off the player's own snapshot, so a run without the perk gets
+ * exactly the board it always got: an empty list, and no way to tell
+ * the feature exists.
+ */
+export function intentTiles(state: CombatState): TelegraphTile[] {
+  if (state.status !== "active") return [];
+  const player = state.combatants.find((c) => c.kind === "player");
+  if (!player || (player.perks?.enemyIntent ?? 0) <= 0) return [];
+  const tiles: TelegraphTile[] = [];
+  for (const body of state.combatants) {
+    if (!isAlive(body) || !areOpposed(body, player)) continue;
+    const quarry = nearestQuarry(state, body);
+    if (!quarry) continue;
+    const swing = weaponReach(body.weapon) + stepBudget(body);
+    if (bodyGap(body, quarry) > swing) continue;
+    for (const tile of bodyTiles(quarry)) {
+      tiles.push({ ...tile, role: "threat" });
+    }
+  }
+  return tiles;
+}
+
+/**
+ * The ground already promised by every wind-up in flight, plus — for a
+ * runner who reads shoulders — the ground the living hostiles could
+ * take somebody on right now. Both tint as the same threat, because to
+ * the player they are the same fact: do not be standing there.
+ *
+ * Independent of what the player has open — see the "threat" role above.
  */
 export function threatTiles(state: CombatState): TelegraphTile[] {
   if (state.status !== "active") return [];
-  return threatenedTiles(state).map((tile) => ({ ...tile, role: "threat" }));
+  return [
+    ...threatenedTiles(state).map(
+      (tile): TelegraphTile => ({ ...tile, role: "threat" }),
+    ),
+    ...intentTiles(state),
+  ];
 }
 
 /** The move telegraph for one hovered tile. */

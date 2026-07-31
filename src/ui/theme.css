@@ -1172,7 +1172,48 @@ body::after {
   color: var(--nf-glow-cyan);
 }
 
-/* HUD nudge that unspent advancement points are waiting. */
+/* --- Perks --- */
+
+.nf-perks {
+  width: min(64rem, calc(100vw - 3rem));
+}
+
+.nf-cred-status {
+  margin-top: 0.35rem;
+}
+
+.nf-cred-lines {
+  margin: 0.25rem 0 0;
+}
+
+.nf-perk-card {
+  border-color: var(--nf-border);
+}
+
+.nf-perk-card[data-domain="combat"] {
+  border-left: 3px solid var(--nf-glow-magenta);
+}
+
+.nf-perk-card[data-domain="dialogue"] {
+  border-left: 3px solid var(--nf-glow-cyan);
+}
+
+.nf-perk-card[data-domain="inventory"] {
+  border-left: 3px solid var(--nf-glow-amber);
+}
+
+/* What the perk does, in the player's own terms — never dimmed. */
+.nf-perk-effect {
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.nf-perk-section .nf-button {
+  align-self: flex-start;
+  margin-top: 0.5rem;
+}
+
+/* HUD nudge that unspent advancement points, or a perk pick, are waiting. */
 .nf-button-attention {
   border-color: var(--nf-glow-cyan);
   color: var(--nf-glow-cyan);

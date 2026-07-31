@@ -620,6 +620,13 @@ export function combatEventText(
     }
     case "healed":
       return `${nameOf(event.combatantId)} recovers ${event.amount} HP.`;
+    case "second-wind":
+      // Named out loud: a perk that fires once a fight has to be seen
+      // firing, or the player learns nothing from having taken it.
+      return (
+        `${nameOf(event.combatantId)} goes down and does not stay down — ` +
+        `second wind, ${event.amount} HP.`
+      );
     case "boosted":
       return (
         `${nameOf(event.combatantId)} gains ${signedNumber(event.amount)} ` +
