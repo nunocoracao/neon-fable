@@ -301,6 +301,24 @@ export const cast: Readonly<Record<string, CharacterVisual>> = {
     },
     outfit: "out-courier-slicker",
   },
+  // The Vertical Market's missing courier: young, fast, and three
+  // nights into hiding under her own delivery route. Slicker still on,
+  // clip line still on the harness, nothing else left.
+  Pell: {
+    appearance: {
+      skinTone: "warm-brown",
+      build: "lean",
+      hairStyle: "spikes",
+      hairColor: "synth-violet",
+      eyes: "wide",
+      eyeColor: "cyan",
+      brows: "straight",
+      mouth: "neutral",
+      faceDetail: "scar",
+      headwear: "cap",
+    },
+    outfit: "out-courier-slicker",
+  },
   // Ventworks floor boss: crew cap, split brow, done arguing.
   "Foreman Odal": {
     appearance: {
