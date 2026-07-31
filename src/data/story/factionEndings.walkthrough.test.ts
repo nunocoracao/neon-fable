@@ -136,7 +136,13 @@ describe("the standing endings, played end to end", () => {
     expect(state.flags["a3-allies"]).toBe("court");
     expect(state.flags["crown-route"]).toBe("allies-court");
     expect(state.flags["combat:enc-crown-court"]).toBe("victory");
-    expect(vignetteIds(state)).toContain("city-concordat");
+    const courtIds = vignetteIds(state);
+    expect(courtIds).toContain("city-concordat");
+    // The disposition outranks the chapter legacy in the Steps' own
+    // vignette: a district that holds the deed is a bigger fact about
+    // it than how its chapter ended.
+    expect(courtIds).toContain("undercroft-concordat");
+    expect(courtIds).not.toContain("undercroft-severed");
   });
 
   it("auric trusted: the Combine's own file opens the bonded lift — Receivership", () => {
@@ -205,7 +211,9 @@ describe("the standing endings, played end to end", () => {
     expect(state.flags["bonded-floor"]).toBe("standing");
     expect(state.flags["a3-allies"]).toBe("auric");
     expect(state.flags["crown-route"]).toBe("allies-auric");
-    expect(vignetteIds(state)).toContain("city-receivership");
+    const auricIds = vignetteIds(state);
+    expect(auricIds).toContain("city-receivership");
+    expect(auricIds).toContain("undercroft-receivership");
   });
 
   it("market trusted: the boards' stair, the boards' writ, the boards' city — Open Ledger", () => {
@@ -325,7 +333,11 @@ describe("the standing endings, played end to end", () => {
     expect(state.flags["trust-bought"]).toBe(true);
     expect(state.flags["combat:enc-spire-collectors"]).toBeUndefined();
     expect(state.flags["a3-allies"]).toBe("market");
-    expect(vignetteIds(state)).toContain("city-consortium");
+    const marketIds = vignetteIds(state);
+    expect(marketIds).toContain("city-consortium");
+    // A subject that only exists for runs that gave the boards
+    // something to remember.
+    expect(marketIds).toContain("boards-consortium");
   });
 });
 

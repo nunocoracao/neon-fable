@@ -10,7 +10,40 @@ import type { EpilogueVignette } from "../narrative/epilogue";
 export const epilogueVignettes: EpilogueVignette[] = [
   // ------------------------------------------------------------------
   // The Undercroft — the Steps themselves
+  //
+  // The two standing dispositions that change what the Steps *are* sit
+  // above the act-2 legacies: a district that holds the city's title,
+  // or one that is a line item in an administration, is a bigger fact
+  // about it than how its own chapter ended.
   // ------------------------------------------------------------------
+  {
+    id: "undercroft-concordat",
+    subject: "undercroft",
+    title: "Greywater Steps",
+    requires: [
+      { type: "flag-equals", key: "ending", value: "ending-concordat" },
+    ],
+    text:
+      "The deepest district in the Sprawl holds the deed to all of it. " +
+      "Delegations come down the thieves' chain in good coats to argue " +
+      "planning law in a hall with a tide line on the wall, and the " +
+      "Court hears them out, and the Court decides. Ledge Nine has a " +
+      "waiting list now. For flats.",
+  },
+  {
+    id: "undercroft-receivership",
+    subject: "undercroft",
+    title: "Greywater Steps",
+    requires: [
+      { type: "flag-equals", key: "ending", value: "ending-receivership" },
+    ],
+    text:
+      "The Steps are an asset under administration, which turns out to " +
+      "beat being an inconvenience under a schedule. Pumps arrive " +
+      "because a receiver signed a preservation order. Nobody below " +
+      "Ledge Four loves the paperwork. All of them can breathe while " +
+      "they complain about it.",
+  },
   {
     id: "undercroft-charter",
     subject: "undercroft",
@@ -467,6 +500,37 @@ export const epilogueVignettes: EpilogueVignette[] = [
       "of scaffold to give a statement to the man who was in the " +
       "Ventworks. He writes every one of them down in a hand like " +
       "printing, and reads it back, and waits for the name.",
+  },
+  // ------------------------------------------------------------------
+  // The Vertical Market's boards — only for runs that gave them
+  // something to remember. No fallback: a player who never once put
+  // anything on the boards gets no line about them.
+  // ------------------------------------------------------------------
+  {
+    id: "boards-consortium",
+    subject: "boards",
+    title: "The Vertical Market",
+    requires: [
+      { type: "flag-equals", key: "ending", value: "ending-consortium" },
+    ],
+    text:
+      "Six levels of traders discover that holding a city jointly is " +
+      "exactly like holding anything else jointly, only louder. The " +
+      "register is posted at the noodle counter. Marrow charges a fee " +
+      "to explain it, which is either profiteering or governance, and " +
+      "on the Market those have never been different words.",
+  },
+  {
+    id: "boards-manifest",
+    subject: "boards",
+    title: "The Vertical Market",
+    requires: [{ type: "flag-equals", key: "boards-cut-in", value: true }],
+    text:
+      "The bonded manifest you photographed is still pinned up on the " +
+      "fourth level, annotated in six hands, every impounded crate " +
+      "ticked off as it came home. Traders who never learned your name " +
+      "learned the phrase 'good for it', attached to it, and that is a " +
+      "kind of credit no ledger of theirs will ever quite close.",
   },
   // ------------------------------------------------------------------
   // The Sprawl — closing line, keyed to the ending taken
