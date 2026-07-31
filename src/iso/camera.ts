@@ -68,12 +68,12 @@ export function clampCamera(
 }
 
 /**
- * The camera a scene opens on: centered on the tile the player stands
- * on and clamped into the map, so the very first frame after arriving
- * is already settled. Computed once the viewport is measured — starting
- * elsewhere and correcting later is exactly the jump this avoids.
+ * The camera that frames a tile: centered on it, then clamped into the
+ * map so framing something near an edge never shows the void past it.
+ * The one follow rule — arriving somewhere, and following whoever is
+ * acting mid-fight, are the same question asked twice.
  */
-export function initialCamera(
+export function focusCamera(
   map: IsoMap,
   focus: TilePoint,
   viewportW: number,
@@ -88,6 +88,41 @@ export function initialCamera(
     viewportH / zoom,
     margin,
   );
+}
+
+/**
+ * The camera a scene opens on: centered on the tile the player stands
+ * on and clamped into the map, so the very first frame after arriving
+ * is already settled. Computed once the viewport is measured — starting
+ * elsewhere and correcting later is exactly the jump this avoids.
+ */
+export function initialCamera(
+  map: IsoMap,
+  focus: TilePoint,
+  viewportW: number,
+  viewportH: number,
+  zoom = 1,
+  margin: number = CAMERA_MARGIN,
+): Camera {
+  return focusCamera(map, focus, viewportW, viewportH, zoom, margin);
+}
+
+/**
+ * A camera `t` of the way from one to another (t clamped to [0, 1]).
+ * The move itself is unshaped — callers ease `t` before they get here,
+ * so the same lerp serves every kind of glide.
+ */
+export function lerpCamera(from: Camera, to: Camera, t: number): Camera {
+  const k = Math.min(1, Math.max(0, t));
+  return {
+    sx: from.sx + (to.sx - from.sx) * k,
+    sy: from.sy + (to.sy - from.sy) * k,
+  };
+}
+
+/** Screen-space distance between two camera points. */
+export function cameraDistance(from: Camera, to: Camera): number {
+  return Math.hypot(to.sx - from.sx, to.sy - from.sy);
 }
 
 // --- Zoomed view math --------------------------------------------------

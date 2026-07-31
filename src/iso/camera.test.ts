@@ -3,9 +3,12 @@ import { ZOOM_LEVELS } from "../settings";
 import { ART_SCALE } from "./art/pixel";
 import {
   CAMERA_MARGIN,
+  cameraDistance,
   cameraTranslation,
   clampCamera,
+  focusCamera,
   initialCamera,
+  lerpCamera,
   mapPixelBounds,
   snapToPixelGrid,
   viewportToWorld,
@@ -241,5 +244,53 @@ describe("zoom-aware picking", () => {
         }
       }
     }
+  });
+});
+
+describe("focusCamera", () => {
+  it("centers the tile it is pointed at", () => {
+    const map = makeMap(20, 20);
+    const middle = focusCamera(map, { x: 10, y: 10 }, 400, 300, 1, 0);
+    expect(middle).toEqual(worldToScreen(10, 10));
+  });
+
+  it("clamps at the edges, so framing a corner shows no void", () => {
+    const map = makeMap(20, 20);
+    const corner = focusCamera(map, { x: 0, y: 0 }, 400, 300, 1, 0);
+    const bounds = mapPixelBounds(map);
+    expect(corner).toEqual(
+      clampCamera(worldToScreen(0, 0), bounds, 400, 300, 0),
+    );
+    expect(corner.sy).toBeGreaterThan(worldToScreen(0, 0).sy);
+  });
+
+  it("is the same rule the opening camera uses", () => {
+    const map = makeMap(20, 20);
+    for (const zoom of ZOOM_LEVELS) {
+      expect(focusCamera(map, { x: 3, y: 14 }, 640, 480, zoom)).toEqual(
+        initialCamera(map, { x: 3, y: 14 }, 640, 480, zoom),
+      );
+    }
+  });
+});
+
+describe("lerpCamera", () => {
+  const from: Camera = { sx: -100, sy: 40 };
+  const to: Camera = { sx: 300, sy: 240 };
+
+  it("gives the ends at the ends and the middle in the middle", () => {
+    expect(lerpCamera(from, to, 0)).toEqual(from);
+    expect(lerpCamera(from, to, 1)).toEqual(to);
+    expect(lerpCamera(from, to, 0.5)).toEqual({ sx: 100, sy: 140 });
+  });
+
+  it("clamps rather than overshooting", () => {
+    expect(lerpCamera(from, to, -4)).toEqual(from);
+    expect(lerpCamera(from, to, 9)).toEqual(to);
+  });
+
+  it("measures the travel it has to cover", () => {
+    expect(cameraDistance(from, from)).toBe(0);
+    expect(cameraDistance({ sx: 0, sy: 0 }, { sx: 3, sy: 4 })).toBe(5);
   });
 });
