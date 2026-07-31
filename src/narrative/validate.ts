@@ -2,6 +2,7 @@ import { REACTION_TAGS, getCompanion } from "../data/companions";
 import { getVendor } from "../data/economy";
 import { getEncounter } from "../data/encounters";
 import { REPUTATION_BAND_IDS, getFaction } from "../data/factions";
+import { getInjury } from "../data/injuries";
 import { getItem } from "../data/items";
 import { getMap } from "../data/maps";
 import { arcEntryNodeIds, type Choice, type StoryArc, type StoryNode } from "./types";
@@ -26,7 +27,8 @@ export type ArcIssueCode =
   | "unknown-reaction"
   | "unknown-faction"
   | "unknown-band"
-  | "unknown-vendor";
+  | "unknown-vendor"
+  | "unknown-injury";
 
 export interface ArcIssue {
   code: ArcIssueCode;
@@ -57,6 +59,10 @@ function referencedCompanionIds(choice: Choice): string[] {
     if (req.type === "companion" || req.type === "loyalty") {
       ids.push(req.companionId);
     }
+    // An injury gate may be about a crew member rather than the player.
+    if (req.type === "injury" && req.companionId != null) {
+      ids.push(req.companionId);
+    }
   }
   for (const effect of choice.effects ?? []) {
     if (
@@ -65,6 +71,23 @@ function referencedCompanionIds(choice: Choice): string[] {
     ) {
       ids.push(effect.companionId);
     }
+    if (effect.type === "treat-injury" && effect.companionId != null) {
+      ids.push(effect.companionId);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Injury ids a choice names. A clinic line gated on a wound this build
+ * no longer has is a door that silently never opens — always a typo,
+ * and exactly the kind that would only be noticed by a player who had
+ * limped all the way to the counter.
+ */
+function referencedInjuryIds(choice: Choice): string[] {
+  const ids: string[] = [];
+  for (const req of choice.requirements ?? []) {
+    if (req.type === "injury" && req.injuryId != null) ids.push(req.injuryId);
   }
   return ids;
 }
@@ -206,6 +229,18 @@ export function validateArc(arc: StoryArc): ArcIssue[] {
             detail:
               `Choice "${choice.id}" on node "${node.id}" references ` +
               `unknown companion "${companionId}"`,
+          });
+        }
+      }
+      for (const injuryId of referencedInjuryIds(choice)) {
+        if (!getInjury(injuryId)) {
+          issues.push({
+            code: "unknown-injury",
+            nodeId: node.id,
+            choiceId: choice.id,
+            detail:
+              `Choice "${choice.id}" on node "${node.id}" gates on ` +
+              `unknown injury "${injuryId}"`,
           });
         }
       }

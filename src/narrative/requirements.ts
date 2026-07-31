@@ -8,6 +8,7 @@ import {
   staticReading,
 } from "../inventory/staticLoad";
 import type { GameState } from "../state/gameState";
+import { carriedInjury } from "../state/injuries";
 import { getMember, loyaltyOf } from "../state/party";
 import { canAccess, dominantFaction } from "../state/reputation";
 import type { Requirement } from "./types";
@@ -71,6 +72,17 @@ export function checkRequirement(
       const member = getMember(state.party, requirement.companionId);
       if (!member?.recruited) return false;
       return requirement.status === "recruited" ? true : member.active;
+    }
+    case "injury": {
+      // Somebody never recruited carries nothing, which is what makes a
+      // crew clinic line close itself when they are not there.
+      const carried = carriedInjury(state, {
+        ...(requirement.companionId != null
+          ? { companionId: requirement.companionId }
+          : {}),
+      });
+      if (!carried) return false;
+      return requirement.injuryId == null || carried.id === requirement.injuryId;
     }
     case "loyalty": {
       const standing = loyaltyOf(state.party, requirement.companionId);

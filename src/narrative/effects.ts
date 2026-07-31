@@ -3,6 +3,7 @@ import { requireItem } from "../data/items";
 import { addItem, countItem, removeItem } from "../inventory/inventory";
 import type { ItemResolver } from "../inventory/items";
 import type { GameState } from "../state/gameState";
+import { advanceInjuries, treatInjury } from "../state/injuries";
 import { adjustLoyalty, getMember, recruitCompanion } from "../state/party";
 import type { Effect } from "./types";
 
@@ -57,7 +58,13 @@ export function applyEffect(
     case "start-combat":
       return { ...state, pendingEncounterId: effect.encounterId };
     case "travel":
-      return { ...state, location: effect.mapId };
+      // Crossing the city is the game's one unambiguous "and then
+      // later" — it happens once per move, whether the player walked
+      // through a door or a scene sent them, and reloading a save
+      // cannot repeat it. So it is also where a wound gets a little
+      // older (see src/state/injuries.ts): going down costs the next
+      // stretch of the run rather than the next hour of one district.
+      return { ...advanceInjuries(state), location: effect.mapId };
     case "recruit-companion": {
       // Unknown ids are an authoring bug the arc validator catches;
       // at runtime a missing companion leaves the scene running.
@@ -80,6 +87,16 @@ export function applyEffect(
             ),
           }
         : state;
+    case "treat-injury":
+      // Nothing to treat, or the credits short, is not an error: the
+      // clinic's own choices gate on both, so a player never reaches a
+      // refusal — and a scene that offers it anyway simply costs them
+      // nothing (see treatInjury).
+      return treatInjury(state, {
+        ...(effect.companionId != null
+          ? { companionId: effect.companionId }
+          : {}),
+      });
     case "open-stylist":
     case "open-workbench":
     case "open-vendor":

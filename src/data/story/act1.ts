@@ -1,3 +1,4 @@
+import { injuryTreatCost } from "../injuries";
 import type { StoryArc } from "../../narrative/types";
 
 /**
@@ -595,11 +596,214 @@ export const act1Arc: StoryArc = {
           label: "\"Buying, then. Show me the shelf.\"",
           target: "a1-patch-shop",
         },
+        // The clinic half of the den. Exactly one of these three can
+        // ever be visible — a character carries at most one injury —
+        // and each opens the beat where Patch names the specific thing
+        // that is wrong, because a clinic that says "you're hurt" is
+        // not a clinic. All hidden when unhurt, which is most visits.
+        {
+          id: "clinic-winged",
+          label: "Show them the arm.",
+          target: "a1-patch-winged",
+          requirements: [{ type: "injury", injuryId: "inj-winged" }],
+        },
+        {
+          id: "clinic-concussed",
+          label: "Admit the room has not stopped moving.",
+          target: "a1-patch-concussed",
+          requirements: [{ type: "injury", injuryId: "inj-concussed" }],
+        },
+        {
+          id: "clinic-servo",
+          label: "Hold out the arm that stopped answering.",
+          target: "a1-patch-servo",
+          requirements: [{ type: "injury", injuryId: "inj-servo-lock" }],
+        },
+        // And the crew's side of the same counter, split the same way
+        // and for the same reason: the line has to name what it is
+        // looking at.
+        {
+          id: "clinic-crew-arm",
+          label: "\"Not me. Look at their arm.\"",
+          target: "a1-patch-crew-arm",
+          requirements: [
+            { type: "companion", companionId: "vesper" },
+            { type: "injury", companionId: "vesper", injuryId: "inj-winged" },
+          ],
+        },
+        {
+          id: "clinic-crew-head",
+          label: "\"Not me. They took one to the head.\"",
+          target: "a1-patch-crew-head",
+          requirements: [
+            { type: "companion", companionId: "vesper" },
+            { type: "injury", companionId: "vesper", injuryId: "inj-concussed" },
+          ],
+        },
         {
           id: "leave",
           label: "Leave the den.",
           effects: [{ type: "end" }],
         },
+      ],
+    },
+    {
+      id: "a1-patch-winged",
+      speaker: "Patch",
+      expression: "grim",
+      text:
+        "Patch cuts the field dressing off without asking and looks at " +
+        "what somebody's round did on its way past. \"Winged. Through " +
+        "and out — lucky, if you like that word.\" They press two " +
+        "fingers below the wound and watch your hand. \"That is going " +
+        "to be slow for a week unless somebody closes it properly. I " +
+        "am somebody.\"",
+      location: "greywater:patch-den",
+      choices: [
+        {
+          id: "pay",
+          label: `"Close it, then." (${injuryTreatCost("inj-winged")} cr)`,
+          target: "a1-patch-treated",
+          requirements: [{ type: "credits", value: injuryTreatCost("inj-winged") }],
+          ifUnavailable: "disabled",
+          effects: [{ type: "treat-injury" }],
+        },
+        {
+          id: "wait",
+          label: "\"It'll close on its own.\"",
+          target: "a1-patch",
+        },
+      ],
+    },
+    {
+      id: "a1-patch-concussed",
+      speaker: "Patch",
+      expression: "grim",
+      text:
+        "Patch holds a lantern up and moves it, and watches your eyes " +
+        "not quite keep up with it. \"Right. You are concussed, and you " +
+        "are about to tell me you are fine, and the sentence is going to " +
+        "get away from you halfway through.\" A shrug. \"Rest fixes it. " +
+        "So does a shunt and forty minutes of me not being paid.\"",
+      location: "greywater:patch-den",
+      choices: [
+        {
+          id: "pay",
+          label: `"Take the forty minutes." (${injuryTreatCost("inj-concussed")} cr)`,
+          target: "a1-patch-treated",
+          requirements: [
+            { type: "credits", value: injuryTreatCost("inj-concussed") },
+          ],
+          ifUnavailable: "disabled",
+          effects: [{ type: "treat-injury" }],
+        },
+        {
+          id: "wait",
+          label: "\"I'm fine.\" You are almost sure of it.",
+          target: "a1-patch",
+        },
+      ],
+    },
+    {
+      id: "a1-patch-servo",
+      speaker: "Patch",
+      expression: "grim",
+      text:
+        "Patch does not touch the chrome. They listen to it, head tilted, " +
+        "the way they listened to your Static. \"Servo-lock. Something " +
+        "hit you hard enough that the hardware filed a complaint and " +
+        "stopped taking calls.\" They set a jack on the crate. \"It is " +
+        "not broken. It is sulking. Resetting a sulk is skilled work.\"",
+      location: "greywater:patch-den",
+      choices: [
+        {
+          id: "pay",
+          label: `"Reset it." (${injuryTreatCost("inj-servo-lock")} cr)`,
+          target: "a1-patch-treated",
+          requirements: [
+            { type: "credits", value: injuryTreatCost("inj-servo-lock") },
+          ],
+          ifUnavailable: "disabled",
+          effects: [{ type: "treat-injury" }],
+        },
+        {
+          id: "wait",
+          label: "\"It'll come back up.\"",
+          target: "a1-patch",
+        },
+      ],
+    },
+    {
+      // The crew's side of the same counter. Two beats rather than one,
+      // for the same reason the player has three: the line has to name
+      // what it is treating.
+      id: "a1-patch-crew-arm",
+      speaker: "Patch",
+      text:
+        "Patch looks past you at the one holding their arm wrong, and " +
+        "their whole manner changes — the trader goes out of it and " +
+        "something older comes in. \"Sit,\" they say, to somebody who is " +
+        "not you. \"Not you. Winged is winged whoever it happened to, " +
+        "and you can stand there and pay for it.\"",
+      location: "greywater:patch-den",
+      choices: [
+        {
+          id: "pay",
+          label: `"Close it." (${injuryTreatCost("inj-winged")} cr)`,
+          target: "a1-patch-treated",
+          requirements: [{ type: "credits", value: injuryTreatCost("inj-winged") }],
+          ifUnavailable: "disabled",
+          effects: [{ type: "treat-injury", companionId: "vesper" }],
+          reactions: ["mercy"],
+        },
+        {
+          id: "wait",
+          label: "\"Later. We're working.\"",
+          target: "a1-patch",
+        },
+      ],
+    },
+    {
+      id: "a1-patch-crew-head",
+      speaker: "Patch",
+      text:
+        "Patch takes one look at how your crew is standing and stops " +
+        "pretending to be a shopkeeper. \"Concussed. I have seen better " +
+        "balance on the quay in a swell.\" The lantern comes up. \"Sit " +
+        "down before you fall down. You —\" a nod at you \"— pay.\"",
+      location: "greywater:patch-den",
+      choices: [
+        {
+          id: "pay",
+          label: `"See to it." (${injuryTreatCost("inj-concussed")} cr)`,
+          target: "a1-patch-treated",
+          requirements: [
+            { type: "credits", value: injuryTreatCost("inj-concussed") },
+          ],
+          ifUnavailable: "disabled",
+          effects: [{ type: "treat-injury", companionId: "vesper" }],
+          reactions: ["mercy"],
+        },
+        {
+          id: "wait",
+          label: "\"Later. We're working.\"",
+          target: "a1-patch",
+        },
+      ],
+    },
+    {
+      id: "a1-patch-treated",
+      speaker: "Patch",
+      expression: "smile",
+      text:
+        "It takes less time than the argument about paying for it did. " +
+        "Patch works without narrating, wipes their hand on the slicker, " +
+        "and goes back to the junction they were splicing. \"Try to come " +
+        "back for the shelf next time,\" they say. \"Buying is cheaper " +
+        "than bleeding.\"",
+      location: "greywater:patch-den",
+      choices: [
+        { id: "back", label: "\"No promises.\"", target: "a1-patch" },
       ],
     },
     {
