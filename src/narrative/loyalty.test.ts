@@ -13,10 +13,12 @@ import {
 import { applyChoice } from "./engine";
 import {
   applyLoyaltyChanges,
+  bondSceneReady,
   choiceLoyaltyChanges,
   personalSceneReady,
   reactionChanges,
   reactionTotal,
+  readyCompanionScenes,
   readyPersonalScenes,
   witnesses,
 } from "./loyalty";
@@ -310,6 +312,117 @@ describe("personalSceneReady", () => {
     expect(readyPersonalScenes(freshState())).toEqual([]);
     expect(readyPersonalScenes(decided("sill"))).toEqual([
       { companionId: "sill", nodeId: SILL.personalScene.nodeId },
+    ]);
+  });
+});
+
+describe("bondSceneReady", () => {
+  /**
+   * A crew where `id` is out, stands high enough for the later hour,
+   * has already had the first conversation, and the story has got far
+   * enough for there to be an after. Each of those is then removed one
+   * at a time, because each one on its own has to be able to close it.
+   */
+  function late(id: string, overrides: Partial<GameState> = {}): GameState {
+    const companion = getCompanion(id)!;
+    const base = crew(id, id);
+    const state: GameState = {
+      ...base,
+      party: adjustLoyalty(base.party, id, companion.bondScene.loyalty),
+      flags: {
+        ...base.flags,
+        [companion.personalScene.resolvedFlag]: "sworn",
+        [companion.bondScene.progressFlag]: true,
+      },
+    };
+    return { ...state, ...overrides };
+  }
+
+  it("opens once all five conditions hold", () => {
+    expect(bondSceneReady(late("vesper"), "vesper")).toBe(true);
+  });
+
+  it("wants more of them than the first conversation did", () => {
+    const companion = VESPER.bondScene;
+    expect(companion.loyalty).toBeGreaterThan(VESPER.personalScene.loyalty);
+    const state = late("vesper");
+    const short: GameState = {
+      ...state,
+      party: adjustLoyalty(state.party, "vesper", -1),
+    };
+    expect(personalSceneReady(short, "vesper")).toBe(false); // already had
+    expect(bondSceneReady(short, "vesper")).toBe(false);
+  });
+
+  it("will not run before the first conversation has been had", () => {
+    const state = late("sill");
+    const flags = { ...state.flags };
+    delete flags[SILL.personalScene.resolvedFlag];
+    expect(bondSceneReady({ ...state, flags }, "sill")).toBe(false);
+  });
+
+  it("will not run before the story has an after to ask about", () => {
+    const state = late("sill");
+    const flags = { ...state.flags };
+    delete flags[SILL.bondScene.progressFlag];
+    expect(bondSceneReady({ ...state, flags }, "sill")).toBe(false);
+  });
+
+  it("wants them out with you, not sitting this one out", () => {
+    const state = late("vesper");
+    expect(
+      bondSceneReady(
+        { ...state, party: setActive(state.party, "vesper", false) },
+        "vesper",
+      ),
+    ).toBe(false);
+  });
+
+  it("closes for good once the hour has been spent", () => {
+    const state = late("vesper");
+    const after: GameState = {
+      ...state,
+      flags: { ...state.flags, [VESPER.bondScene.resolvedFlag]: "warm" },
+    };
+    expect(bondSceneReady(after, "vesper")).toBe(false);
+  });
+
+  it("says nothing about somebody who never joined", () => {
+    expect(bondSceneReady(freshState(), "vesper")).toBe(false);
+  });
+});
+
+describe("readyCompanionScenes", () => {
+  it("has nothing to offer a player walking alone", () => {
+    expect(readyCompanionScenes(freshState())).toEqual([]);
+  });
+
+  it("names which of the two scenes is waiting", () => {
+    const base = crew("sill", "sill");
+    const first: GameState = {
+      ...base,
+      party: adjustLoyalty(base.party, "sill", SILL.bondScene.loyalty),
+    };
+    expect(readyCompanionScenes(first)).toEqual([
+      {
+        companionId: "sill",
+        nodeId: SILL.personalScene.nodeId,
+        kind: "personal",
+      },
+    ]);
+
+    // The first conversation had, and the chapter behind them: the same
+    // standing now opens the later hour instead.
+    const second: GameState = {
+      ...first,
+      flags: {
+        ...first.flags,
+        [SILL.personalScene.resolvedFlag]: "sworn",
+        [SILL.bondScene.progressFlag]: true,
+      },
+    };
+    expect(readyCompanionScenes(second)).toEqual([
+      { companionId: "sill", nodeId: SILL.bondScene.nodeId, kind: "bond" },
     ]);
   });
 });

@@ -193,7 +193,7 @@ describe("the crew arc", () => {
     }
   });
 
-  it("writes nothing but the two bond flags", () => {
+  it("writes nothing but each companion's two bond flags", () => {
     const flags = companionsArc.nodes.flatMap((arcNode) =>
       arcNode.choices.flatMap((choice) =>
         (choice.effects ?? []).flatMap((effect) =>
@@ -203,7 +203,12 @@ describe("the crew arc", () => {
         ),
       ),
     );
-    expect([...new Set(flags)].sort()).toEqual(["sill-bond", "vesper-bond"]);
+    expect([...new Set(flags)].sort()).toEqual([
+      "sill-bond",
+      "sill-close",
+      "vesper-bond",
+      "vesper-close",
+    ]);
   });
 });
 
