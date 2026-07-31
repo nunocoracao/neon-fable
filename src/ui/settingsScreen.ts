@@ -44,6 +44,8 @@ const CONTROLS: ReadonlyArray<[keys: string, what: string]> = [
   ["I", "Open or close the inventory"],
   ["P", "Open or close advancement"],
   ["M", "Expand or collapse the minimap"],
+  ["X", "Crouch-walk, where somebody is watching"],
+  ["F", "Take down a guard · lunge past a gap"],
   ["Arrows in combat", "Step across the grid while moving"],
   ["Tab in combat", "Cycle the action buttons"],
   ["Click / drag", "Move and interact · pan the camera"],

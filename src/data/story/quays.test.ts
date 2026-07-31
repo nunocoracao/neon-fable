@@ -307,10 +307,15 @@ describe("the quays' staged encounter", () => {
       ),
     );
     // Staged ahead of its beat by the district task; "Under the
-    // Waterline" is that beat. One choice in the game starts it — the
-    // door of the bonded store — and the district's own nodes still
-    // start nothing at all.
-    expect(starters).toEqual(["uw-ring/uw-force"]);
+    // Waterline" is that beat. Two choices in the game start it, and
+    // they are the two ends of the same decision: walking up to the
+    // store's door, and being caught on the boards on the way to it
+    // (see the store-crossing zone in ../stealth.ts). The district's
+    // own nodes still start nothing at all.
+    expect(starters).toEqual([
+      "uw-ring/uw-force",
+      "uw-spotted/spotted-through",
+    ]);
     for (const { choice } of districtChoices) {
       for (const effect of choice.effects ?? []) {
         expect(effect.type, choice.id).not.toBe("start-combat");

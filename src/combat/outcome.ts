@@ -1,5 +1,6 @@
 import { requireEncounter } from "../data/encounters";
 import { requireItem } from "../data/items";
+import { alertFlag } from "../data/stealth";
 import { addItem, countItem, removeItem } from "../inventory/inventory";
 import type { ItemResolver } from "../inventory/items";
 import type { GameState } from "../state/gameState";
@@ -51,16 +52,20 @@ export function resolveCombat(
     party = setCompanionHp(party, companionId, Math.max(1, ally.hp));
   }
 
+  // A fight that opened with the other side already moving has had that
+  // out of it: the alert is spent here, beside the pending encounter it
+  // arrived with, so it can never carry into a later fight on the same
+  // encounter (see src/data/stealth.ts and src/combat/setup.ts).
+  const flags = { ...state.flags, [combatResultFlag(combat.encounterId)]: combat.status };
+  delete flags[alertFlag(combat.encounterId)];
+
   let next: GameState = {
     ...state,
     // Defeat leaves the player staggered at 1 hp; the narrative reacts to
     // the outcome flag, not to a dead character.
     player: { ...state.player, hp: Math.max(1, player.hp) },
     party,
-    flags: {
-      ...state.flags,
-      [combatResultFlag(combat.encounterId)]: combat.status,
-    },
+    flags,
     inventory,
     pendingEncounterId:
       state.pendingEncounterId === combat.encounterId

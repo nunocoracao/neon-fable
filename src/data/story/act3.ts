@@ -31,6 +31,11 @@ export const act3Arc: StoryArc = {
   id: "act3",
   title: "The Succession",
   entryNodeId: "a3-start",
+  // Two beats the *map* opens rather than a choice: the two ends of the
+  // executive floor's watch (see src/data/stealth.ts). Declared as
+  // doorways so reachability is seeded from them, exactly as the
+  // streets arc and the breach unlocks are.
+  entryNodeIds: ["a3-exec-slipped", "a3-exec-spotted"],
   nodes: [
     // ------------------------------------------------------------------
     // Hook — the night the screens died
@@ -1472,6 +1477,67 @@ export const act3Arc: StoryArc = {
           id: "back",
           label: "Step back toward the riser.",
           target: "a3-exec-floor",
+        },
+      ],
+    },
+    {
+      // --- The floor crossed quietly -------------------------------
+      //
+      // Opened by the map rather than by a choice: the exec-detail
+      // stealth zone (src/data/stealth.ts) hands the shell this node
+      // the moment the player reaches the north strip without having
+      // been seen. It is the fourth way past the detail, and the only
+      // one that never has the conversation.
+      id: "a3-exec-slipped",
+      text:
+        "The lead's sweep turns at the corner station, and the second's " +
+        "boots go away down the riser lane, and for eleven seconds the " +
+        "north strip belongs to nobody. You spend nine of them on it. " +
+        "Behind you the floor detail keeps walking its two lines around " +
+        "a room that has already been crossed, which is the difference " +
+        "between guarding a place and standing in it.",
+      location: "spire:executive",
+      choices: [
+        {
+          id: "slipped-on",
+          label: "Take the floor while it is yours.",
+          target: "a3-exec-floor",
+          effects: [
+            { type: "set-flag", key: "exec-cleared", value: true },
+            // How the aisle came to be yours, for anything later that
+            // wants to know nobody was hurt for it.
+            { type: "set-flag", key: "exec-quiet", value: true },
+          ],
+        },
+      ],
+    },
+    {
+      // --- The floor crossed badly ---------------------------------
+      //
+      // The other end of the same zone. The fight is the checkpoint's
+      // own fight, entered from the wrong side of it: the watch has
+      // already written the alert the setup reads (see alertFlag), so
+      // this one opens with the player a place down the order.
+      id: "a3-exec-spotted",
+      speaker: "Spire Security",
+      text:
+        "The sweep comes back early. There is a half-second where the " +
+        "lead looks at the space you are standing in rather than at you, " +
+        "and then the half-second is over. \"Contact, executive floor,\" " +
+        "they say, to the building rather than to you, and the baton that " +
+        "has not been drawn in nine years comes off the belt while they " +
+        "are still saying it.",
+      location: "spire:executive",
+      choices: [
+        {
+          id: "spotted-fight",
+          label: "Nothing left to be quiet about. Go through them.",
+          target: "a3-exec-cleared",
+          effects: [
+            { type: "set-flag", key: "exec-cleared", value: true },
+            { type: "set-flag", key: "exec-forced", value: true },
+            { type: "start-combat", encounterId: "enc-exec-security" },
+          ],
         },
       ],
     },

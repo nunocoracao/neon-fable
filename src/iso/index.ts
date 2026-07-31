@@ -239,6 +239,10 @@ export {
   type OpeningView,
   type RenderView,
   type SceneEntity,
+  type SceneTint,
+  type SceneWatchFrame,
+  type SceneWatchSource,
+  type SceneWatchView,
 } from "./render";
 export {
   DOOR_TIMING,
