@@ -17,9 +17,10 @@ import {
   type ReputationState,
 } from "./reputation";
 import type { RngState } from "./rng";
+import { clampVendors, emptyVendors, type VendorsState } from "./vendors";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 12;
+export const GAME_STATE_VERSION = 13;
 
 /**
  * Oldest save version migrateGameState can bring forward. Saves from
@@ -68,6 +69,13 @@ export interface GameState {
    * player finds one); see ./lore.ts.
    */
   lore: LoreState;
+  /**
+   * What the city's counters remember about this run: what has been
+   * bought off each shelf this chapter, and how the argument over the
+   * price went. Always present (empty until the player trades); see
+   * ./vendors.ts.
+   */
+  vendors: VendorsState;
   /** Deterministic RNG state; advance via the rng module, never Math.random. */
   rng: RngState;
 }
@@ -98,6 +106,12 @@ export interface GameState {
  *   a coat with no color rubbed into it is exactly what every older
  *   save already describes, and the sanitize pass is what makes that
  *   true rather than assumed.
+ * - v12 -> v13: the counters started keeping books. An old save has
+ *   traded at none of them, which is exactly what an empty ledger set
+ *   says — and because a ledger only counts against the act it was
+ *   written in, a save resumed mid-chapter finds every shelf full,
+ *   which is the generous reading and the only one that cannot lose a
+ *   player something they paid for.
  */
 export function migrateGameState(
   state: GameState,
@@ -119,6 +133,9 @@ export function migrateGameState(
   if (fromVersion < 10) {
     migrated = { ...migrated, lore: emptyLore() };
   }
+  if (fromVersion < 13) {
+    migrated = { ...migrated, vendors: emptyVendors() };
+  }
   // A save at the current version can still carry a collection an older
   // build wrote badly; clamping costs nothing and keeps the codex from
   // counting a duplicate twice.
@@ -139,6 +156,7 @@ export function migrateGameState(
     player: cleaned.player,
     inventory: cleaned.inventory,
     lore: clampLore(migrated.lore),
+    vendors: clampVendors(migrated.vendors),
     version: GAME_STATE_VERSION,
   };
 }
@@ -172,6 +190,7 @@ export function createNewGame(options: NewGameOptions = {}): GameState {
     party: emptyParty(),
     reputation: emptyReputation(),
     lore: emptyLore(),
+    vendors: emptyVendors(),
     rng: { seed: (options.seed ?? Date.now()) >>> 0 },
   };
 }

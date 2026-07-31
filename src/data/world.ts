@@ -15,9 +15,8 @@
  * buys two things at once: the derivation layer (src/world/state.ts)
  * needs no evaluator of its own beyond `checkRequirements`, and story
  * data can gate a choice on a condition by spreading the same array
- * into the choice's own requirements — so a shop's live choices and the
- * stock selector can never drift apart. `vendorChoices` below does
- * exactly that, and a test pins the two together.
+ * into the choice's own requirements — so a scene's live choices and the
+ * selectors that read the same condition can never drift apart.
  *
  * ## What a reaction may do
  *
@@ -33,9 +32,11 @@
  * All of it is content. The pure joins live in src/world/.
  */
 import type { Requirement } from "../narrative/types";
-import type { Choice } from "../narrative/types";
 import type { Interactable } from "../iso/tilemap";
 import { castVisual } from "./cast";
+import type { ItemCondition, VendorId } from "./economy";
+
+export type { VendorId };
 
 /* ------------------------------------------------------------------ *
  * Conditions
@@ -726,42 +727,58 @@ export const NEWS_HEADLINES: readonly Headline[] = [
   },
 ];
 
+
 /* ------------------------------------------------------------------ *
  * Vendor stock
  * ------------------------------------------------------------------ */
 
-/** Vendors whose stock the city's state moves. */
-export type VendorId = "wet-market-back";
-
+/**
+ * One line on a counter's shelf. What it is *worth* is not here — that
+ * is the item's own worth in ./economy.ts, and what this counter
+ * charges for it is derived from the two (src/economy/price.ts). What
+ * is here is everything the *city* decides about the line: whether it
+ * is on the shelf at all, what shape the copy is in, and what the
+ * street is charging for the risk of holding it.
+ */
 export interface VendorStockEntry {
-  /** Choice id in the vendor's node; stable, so saves and tests pin it. */
+  /** Stable line id; a run's ledger books sales against it, so saves pin it. */
   id: string;
   vendorId: VendorId;
   itemId: string;
-  price: number;
-  /** Choice label; carries the price, because the price is the offer. */
-  label: string;
+  /**
+   * Flat credits this counter adds for the risk on this line — the
+   * risk, not the goods. Two lines of the same item that differ only in
+   * premium are authored as two entries under complementary conditions
+   * (see the Rail Spitter), so exactly one of them is ever on the shelf.
+   */
+  premium?: number;
+  /** What shape this copy is in; defaults to unopened. */
+  condition?: ItemCondition;
+  /** One line of why it is on this shelf, shown under the item. */
+  note?: string;
   /** Stocked only while every one of these is live. */
   requires?: readonly WorldConditionId[];
 }
 
 /**
- * The wet-market back shelf. The six tier-2 lines were the shop before
- * the city started reacting and keep their ids and prices; what the
- * world moves is what sits beside them.
+ * Two counters, and everything the city moves on them.
  *
- * Two shapes of variation are authored here, and both are positive
- * gates — the stock selector and the generated choices evaluate the
- * same requirement arrays, so a negative would have to be a condition
- * of its own (see `streets-calm`) rather than a flag on an entry.
+ * The wet-market back shelf is a street stall: it sells at what a thing
+ * is worth and pays badly. Quill's ledger on the boards is bonded — it
+ * charges over the odds and pays properly, and it takes second-hand
+ * consignment the stall would not touch.
+ *
+ * The variation authored here is all *positive* gating: the stock
+ * selector reads these arrays through the same `conditionsAllow` every
+ * other reactive channel uses, so a line that should vanish is written
+ * as a complementary condition (`streets-calm` against `package-loose`)
+ * rather than as a negative flag on the entry.
  */
 export const VENDOR_STOCK: readonly VendorStockEntry[] = [
   {
     id: "buy-rail-spitter",
     vendorId: "wet-market-back",
     itemId: "wpn-rail-spitter",
-    price: 320,
-    label: "Buy the Rail Spitter. (320 cr)",
     requires: ["streets-calm"],
   },
   {
@@ -770,39 +787,33 @@ export const VENDOR_STOCK: readonly VendorStockEntry[] = [
     id: "buy-rail-spitter-hot",
     vendorId: "wet-market-back",
     itemId: "wpn-rail-spitter",
-    price: 420,
-    label: "Buy the Rail Spitter. (420 cr — they know what you kept.)",
+    premium: 100,
+    note: "They know what you kept.",
     requires: ["package-loose"],
   },
   {
     id: "buy-torque-cleaver",
     vendorId: "wet-market-back",
     itemId: "wpn-torque-cleaver",
-    price: 320,
-    label: "Buy the Torque Cleaver. (320 cr)",
     requires: ["streets-calm"],
   },
   {
     id: "buy-torque-cleaver-hot",
     vendorId: "wet-market-back",
     itemId: "wpn-torque-cleaver",
-    price: 420,
-    label: "Buy the Torque Cleaver. (420 cr — they know what you kept.)",
+    premium: 100,
+    note: "They know what you kept.",
     requires: ["package-loose"],
   },
   {
     id: "buy-ghostline-mantle",
     vendorId: "wet-market-back",
     itemId: "out-ghostline-mantle",
-    price: 300,
-    label: "Buy the Ghostline Mantle. (300 cr)",
   },
   {
     id: "buy-cordon-plate",
     vendorId: "wet-market-back",
     itemId: "out-cordon-plate",
-    price: 380,
-    label: "Buy the Cordon Plate Rig. (380 cr)",
   },
   {
     // Corp optics are the one thing nobody will hand over the counter
@@ -810,16 +821,12 @@ export const VENDOR_STOCK: readonly VendorStockEntry[] = [
     id: "buy-warden-optics",
     vendorId: "wet-market-back",
     itemId: "cyb-warden-optics",
-    price: 450,
-    label: "Buy the Warden Optics. (450 cr)",
     requires: ["warrant-clear"],
   },
   {
     id: "buy-cascade-governor",
     vendorId: "wet-market-back",
     itemId: "cyb-cascade-governor",
-    price: 500,
-    label: "Buy the Cascade Governor. (500 cr)",
     requires: ["warrant-clear"],
   },
   {
@@ -828,8 +835,7 @@ export const VENDOR_STOCK: readonly VendorStockEntry[] = [
     id: "buy-torsion-frame",
     vendorId: "wet-market-back",
     itemId: "cyb-torsion-frame",
-    price: 360,
-    label: "Buy the Torsion Frame, Exchange wrap still on it. (360 cr)",
+    note: "Exchange wrap still on it.",
     requires: ["cordon-broken"],
   },
   // Bench parts on the back shelf. Fitting them needs a bench (the
@@ -838,15 +844,12 @@ export const VENDOR_STOCK: readonly VendorStockEntry[] = [
     id: "buy-lattice-rifling",
     vendorId: "wet-market-back",
     itemId: "mod-lattice-rifling",
-    price: 140,
-    label: "Buy the Lattice Rifling, still in its foil. (140 cr)",
+    note: "Still in its foil.",
   },
   {
     id: "buy-smartlink-sight",
     vendorId: "wet-market-back",
     itemId: "mod-smartlink-sight",
-    price: 160,
-    label: "Buy the Smartlink Sight. (160 cr)",
   },
   {
     // Nobody sells a burst governor to somebody with a live warrant;
@@ -854,8 +857,6 @@ export const VENDOR_STOCK: readonly VendorStockEntry[] = [
     id: "buy-burst-governor",
     vendorId: "wet-market-back",
     itemId: "mod-burst-governor",
-    price: 220,
-    label: "Buy the Burst Governor. (220 cr)",
     requires: ["warrant-clear"],
   },
   {
@@ -864,16 +865,13 @@ export const VENDOR_STOCK: readonly VendorStockEntry[] = [
     id: "buy-hairline-sear",
     vendorId: "wet-market-back",
     itemId: "mod-hairline-sear",
-    price: 180,
-    label: "Buy the Hairline Sear, Exchange machining. (180 cr)",
+    note: "Exchange machining.",
     requires: ["cordon-broken"],
   },
   {
     id: "buy-longspar-extension",
     vendorId: "wet-market-back",
     itemId: "mod-longspar-extension",
-    price: 120,
-    label: "Buy the Longspar Extension. (120 cr)",
   },
   {
     // Consignment out of the Vertical Market: only offered to somebody
@@ -881,42 +879,57 @@ export const VENDOR_STOCK: readonly VendorStockEntry[] = [
     id: "buy-spindle-projector",
     vendorId: "wet-market-back",
     itemId: "wpn-spindle-projector",
-    price: 340,
-    label: "Buy the Spindle Projector, market consignment. (340 cr)",
+    note: "Market consignment.",
+    requires: ["market-favoured"],
+  },
+
+  /* --- Quill's ledger, on the north row of the boards --------------- */
+  {
+    id: "quill-patch",
+    vendorId: "vm-broker-counter",
+    itemId: "con-trauma-patch",
+    note: "Bonded stock, sealed, dated.",
+  },
+  {
+    id: "quill-stim",
+    vendorId: "vm-broker-counter",
+    itemId: "con-surge-stim",
+  },
+  {
+    id: "quill-kit",
+    vendorId: "vm-broker-counter",
+    itemId: "con-field-kit",
+  },
+  {
+    id: "quill-ballast",
+    vendorId: "vm-broker-counter",
+    itemId: "mod-ballast-shim",
+  },
+  {
+    // Consignment off a scaffold crew that stopped needing it. Quill
+    // books second-hand where the stall would only shrug at it.
+    id: "quill-rig",
+    vendorId: "vm-broker-counter",
+    itemId: "out-highline-rig",
+    condition: "used",
+    note: "Consignment — two seasons on the scaffolds.",
+  },
+  {
+    // Checkpoint plate with the insignia ground off, which is what
+    // makes it salvage on a bonded shelf rather than contraband.
+    id: "quill-plate",
+    vendorId: "vm-broker-counter",
+    itemId: "out-cordon-plate",
+    condition: "salvage",
+    note: "Insignia ground off, seams re-taped.",
+    requires: ["cordon-broken"],
+  },
+  {
+    // The boards vouch, or they do not. Corp optics on a registered
+    // counter are only ever sold to somebody the market will name.
+    id: "quill-optics",
+    vendorId: "vm-broker-counter",
+    itemId: "cyb-optic-suite",
     requires: ["market-favoured"],
   },
 ];
-
-/**
- * The vendor's stock as story choices. Each entry's own gate is the
- * condition's requirement array verbatim, plus the price as a credits
- * requirement — so what the shop offers and what `vendorStock` selects
- * are the same decision made once.
- *
- * `target` returns to the vendor's node, which is how the shop stays
- * open for a second purchase.
- */
-export function vendorChoices(vendorId: VendorId, nodeId: string): Choice[] {
-  return VENDOR_STOCK.filter((entry) => entry.vendorId === vendorId).map(
-    (entry) => ({
-      id: entry.id,
-      label: entry.label,
-      target: nodeId,
-      requirements: [
-        ...conditionRequirements(...(entry.requires ?? [])),
-        { type: "credits" as const, value: entry.price },
-      ],
-      // A line the city has taken off the shelf is simply not there —
-      // an empty shelf shows nothing, it does not show a greyed offer
-      // nobody is making. A line whose only gate is the price stays
-      // listed and greyed, which is what it has always done.
-      ifUnavailable: (entry.requires ? "hidden" : "disabled") as
-        | "hidden"
-        | "disabled",
-      effects: [
-        { type: "credits" as const, amount: -entry.price },
-        { type: "add-item" as const, itemId: entry.itemId },
-      ],
-    }),
-  );
-}

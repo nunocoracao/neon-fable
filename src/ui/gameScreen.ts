@@ -66,6 +66,7 @@ import { createPartyOverlay } from "./partyOverlay";
 import type { OverlayHandle } from "./overlay";
 import { createSaveLoadPanel } from "./saveLoad";
 import { createStylistOverlay } from "./stylistOverlay";
+import { createVendorOverlay } from "./vendorOverlay";
 import { createWorkbenchOverlay } from "./workbenchOverlay";
 import { showScreen, type Screen } from "./screen";
 import { autosave, enterMap, type Session } from "./session";
@@ -97,7 +98,8 @@ type OverlayKind =
   | "menu"
   | "settings"
   | "stylist"
-  | "workbench";
+  | "workbench"
+  | "vendor";
 
 /** Flag marking that this playthrough's ending is already in meta-progress. */
 const META_RECORDED_FLAG = "meta-recorded";
@@ -359,6 +361,24 @@ export function createGameScreen(options: GameScreenOptions): Screen {
             "workbench",
             createWorkbenchOverlay({
               session,
+              onStateChange: refreshHud,
+              onClose() {
+                closeOverlay();
+                if (resumeNodeId) openDialogue(resumeNodeId);
+              },
+            }),
+          );
+        },
+        onVendor(vendorId, resumeNodeId) {
+          // Same handoff as the bench: the counter replaces the
+          // dialogue, and closing it resumes at the choice's target —
+          // which is the vendor's own node, so the scene reopens with
+          // the keeper still standing there.
+          openOverlay(
+            "vendor",
+            createVendorOverlay({
+              session,
+              vendorId,
               onStateChange: refreshHud,
               onClose() {
                 closeOverlay();

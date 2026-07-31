@@ -106,8 +106,9 @@ describe("vertical market arc", () => {
   it("keeps its colour self-contained: no act flags, no combat, no items out", () => {
     // The broker's board is still later work. Off the chain, this arc
     // may only leave `market-known` behind, the locker's own record of
-    // how it was opened, and Deacon Sill's — how he was met, whether he
-    // came, and whether he was turned down. Nothing an act reads.
+    // how it was opened, Quill's counter having been opened once, and
+    // Deacon Sill's — how he was met, whether he came, and whether he
+    // was turned down. Nothing an act reads.
     const flags = districtChoices.flatMap(({ choice }) =>
       (choice.effects ?? []).flatMap((effect) =>
         effect.type === "set-flag" || effect.type === "increment-flag"
@@ -119,6 +120,7 @@ describe("vertical market arc", () => {
     expect([...new Set(flags)].sort()).toEqual([
       "bench-known",
       "bench-scrap",
+      "ledger-known",
       "market-known",
       "market-locker",
       "sill-declined",

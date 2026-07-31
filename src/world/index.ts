@@ -24,4 +24,4 @@ export {
   rotateHeadlines,
   screenSeed,
 } from "./news";
-export { vendorCatalog, vendorPrice, vendorStock } from "./vendor";
+export { vendorCatalog, vendorEntry, vendorStock } from "./vendor";

@@ -1573,6 +1573,140 @@ body::after {
   }
 }
 
+/* --- The counter (vendor screen) --- */
+
+.nf-vendor {
+  width: min(52rem, calc(100vw - 3rem));
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+}
+
+.nf-vendor-kicker {
+  font-family: var(--nf-font-display);
+  font-size: 0.8rem;
+  color: var(--nf-glow-amber);
+  margin: 0.25rem 0 0.15rem;
+}
+
+/* The argument, and where it stands. The three states read as three
+   colours, because "they already came down" and "they stopped moving"
+   are opposite facts wearing the same button. */
+.nf-vendor-haggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--nf-border);
+  background: var(--nf-bg-raised);
+}
+
+.nf-vendor-haggle-won {
+  border-color: var(--nf-glow-cyan);
+}
+
+.nf-vendor-haggle-locked {
+  border-color: var(--nf-danger);
+}
+
+.nf-vendor-haggle-hint {
+  font-size: 0.75rem;
+  color: var(--nf-ink-dim);
+  flex: 1 1 16rem;
+}
+
+.nf-vendor-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.nf-vendor-tabs .nf-selected {
+  border-color: var(--nf-glow-cyan);
+  color: var(--nf-glow-cyan);
+}
+
+.nf-vendor-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.75rem;
+}
+
+.nf-vendor-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--nf-bg-raised);
+  border: 2px solid var(--nf-border);
+}
+
+/* Sold out, or out of reach: dimmed by colour rather than opacity, so
+   the price and the reason stay readable. */
+.nf-vendor-row-shut .nf-item-name,
+.nf-vendor-row-shut .nf-vendor-figure {
+  color: var(--nf-ink-dim);
+}
+
+.nf-vendor-note {
+  font-size: 0.75rem;
+  color: var(--nf-glow-magenta);
+}
+
+.nf-vendor-stock {
+  font-size: 0.75rem;
+  color: var(--nf-ink-dim);
+}
+
+.nf-vendor-price {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.nf-vendor-figure {
+  font-family: var(--nf-font-display);
+  font-size: 1rem;
+  color: var(--nf-glow-amber);
+}
+
+/* A price the counter has moved off list reads in the accent, which is
+   the cue to go looking for why. */
+.nf-vendor-figure-moved {
+  color: var(--nf-glow-cyan);
+}
+
+.nf-vendor-base {
+  font-size: 0.7rem;
+  color: var(--nf-ink-dim);
+  text-decoration: line-through;
+}
+
+.nf-vendor-why {
+  margin-left: auto;
+}
+
+.nf-vendor-lines {
+  flex: 1 0 100%;
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0.4rem 0.5rem;
+  border-left: 2px solid var(--nf-border);
+  font-size: 0.75rem;
+  color: var(--nf-ink-dim);
+}
+
+.nf-vendor-lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.nf-vendor-amount {
+  color: var(--nf-ink);
+}
+
 /* --- Save / load --- */
 
 .nf-saves {

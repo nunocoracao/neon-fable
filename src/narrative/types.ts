@@ -201,6 +201,7 @@ export type Effect =
   | TravelEffect
   | OpenStylistEffect
   | OpenWorkbenchEffect
+  | OpenVendorEffect
   | RecruitCompanionEffect
   | CompanionLoyaltyEffect
   | GotoEffect
@@ -277,6 +278,21 @@ export interface OpenStylistEffect {
  */
 export interface OpenWorkbenchEffect {
   type: "open-workbench";
+}
+
+/**
+ * Opens a counter's trade screen. Shaped exactly like the bench's: the
+ * dialogue closes while the player trades, and the choice's target node
+ * reopens when the screen closes.
+ *
+ * The vendor id names a counter in src/data/economy.ts, whose shelf,
+ * spread, standing rate and haggle state are all the screen's problem;
+ * this effect is only the door. Prices are never authored on a choice —
+ * a scene that wants to sell something opens the counter that sells it.
+ */
+export interface OpenVendorEffect {
+  type: "open-vendor";
+  vendorId: string;
 }
 
 /**

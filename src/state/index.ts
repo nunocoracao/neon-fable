@@ -47,6 +47,19 @@ export {
   type MetaStorage,
 } from "./meta";
 export {
+  canHaggle,
+  clampVendors,
+  emptyVendors,
+  freshLedger,
+  ledgerFor,
+  recordHaggle,
+  recordSale,
+  soldCount,
+  type HaggleState,
+  type VendorLedger,
+  type VendorsState,
+} from "./vendors";
+export {
   clampLore,
   collectShard,
   collectedCount,

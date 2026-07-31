@@ -119,6 +119,7 @@ src/
   inventory/   # items, equipment slots, cyber enhancements
   iso/         # isometric renderer, tilemap, sprites, input picking
   world/       # reactive world state: conditions, placement, news, stock
+  economy/     # what things are worth: prices, haggling, vendor ledgers
   ui/          # DOM screens and components
   data/        # typed content: items, enemies, story nodes, maps
 ```
@@ -411,9 +412,11 @@ A `StoryArc` is a list of nodes; each node has `speaker`, `text`, and
   another map and continues there), `recruit-companion` (somebody joins
   the party — idempotent, so re-recruiting only un-benches),
   `companion-loyalty` (moves their standing; a no-op for somebody not
-  in the party), `open-stylist` and `open-workbench` (the screen
-  replaces the dialogue and closing it resumes at the choice's
-  `target`), `goto`, and `end` (optionally with an `endingId`).
+  in the party), `open-stylist`, `open-workbench` and `open-vendor`
+  (the screen replaces the dialogue and closing it resumes at the
+  choice's `target`; the vendor door names a counter in
+  `src/data/economy.ts` and prices nothing itself), `goto`, and `end`
+  (optionally with an `endingId`).
 
 A choice may also carry `reactions`: tags naming what *kind* of act it
 is (`mercy`, `salvage`, `defiance`, `record`, `procedure`,
@@ -530,13 +533,50 @@ read it:
   timing in `src/iso/ticker.ts` and one bake per line — the renderer
   copies a moving window out of the strip, never re-baking.
 - **What a vendor sells.** `VENDOR_STOCK` entries carry condition
-  gates, and `vendorChoices` builds the shop's dialogue choices out of
-  *the same requirement arrays* plus the price — so the stock selector
-  and the offer a player sees are one decision made once. An entry off
-  the shelf is hidden; one you merely cannot afford stays greyed.
+  gates and nothing else about the offer — no price, because what a
+  line *costs* is derived per player (see the economy below). The
+  counter screen's rows are `vendorStock`'s entries in `vendorStock`'s
+  order, so the shelf the world reports and the shelf the player is
+  shown are one decision made once. A line the city has taken off the
+  shelf is simply absent; one you merely cannot afford stays listed and
+  dead, and so does one this chapter has sold out of.
 
 Author a condition rather than reading a flag twice: re-keying it onto
 a different beat moves every reaction with it.
+
+### The vendor economy (`src/data/economy.ts`, `src/economy/`)
+
+What a thing is worth is authored **once**, in `ITEM_VALUES`; every
+price the game charges or pays is derived from it by `priceQuote`, and
+nothing else in the codebase may multiply an item value by anything. A
+quote carries its own itemized reasons — the counter's spread, the
+offer's condition, a stall's flat risk premium, the run's standing with
+that counter's faction, a won argument — and `base + sum(lines) ===
+price` exactly, so the screen prints the working rather than
+re-deriving it.
+
+Two rules are swept exhaustively by `price.test.ts` and must survive any
+re-tune: the best price any counter will pay stays under the worst
+price any counter will charge (no buy-low-sell-high loop), and every
+derived price clamps at `PRICE_FLOOR` (nothing is ever free, and a
+worth of `0` means "not merchandise" — story papers cannot be sold
+because they have no price, not because a screen hides them).
+
+Adding a counter is a `Vendor` in `src/data/economy.ts` (a `kind`,
+whose spread it inherits, and the `faction` whose books it keeps),
+`VENDOR_STOCK` lines in `src/data/world.ts`, and one choice carrying
+the `open-vendor` effect. Restocks are `VENDOR_RESTOCK` rows read
+forwards per act, with `DEFAULT_RESTOCK` for unlisted lines.
+
+Nothing fires at a chapter boundary: a run's ledger
+(`GameState.vendors`, see `src/state/vendors.ts`) is stamped with the
+act it was written in, so the moment `currentAct` moves the shelf reads
+full again and a lost argument is forgotten. Haggling is one Cool-gated
+attempt per counter per act, rolled from the *transaction context*
+(counter, act, run seed) rather than the live RNG stream — so it cannot
+be re-rolled by reloading — and recorded the instant it is made: won
+shifts every price at that counter for the rest of the chapter, lost
+locks it.
 
 ### Map dressing (`src/data/mapDressing.ts`)
 

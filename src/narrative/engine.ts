@@ -95,6 +95,12 @@ export interface ChoiceOutcome {
   stylist: boolean;
   /** True when an open-workbench effect fired; same handoff as stylist. */
   workbench: boolean;
+  /**
+   * Vendor an open-vendor effect named; same handoff as the bench, with
+   * the counter's id carried through so the screen knows whose shelf it
+   * is showing. Null when no such effect fired.
+   */
+  vendorId: string | null;
   /** True when an end marker fired. */
   ended: boolean;
   /** Ending id from the end marker, when it carried one. */
@@ -156,6 +162,7 @@ export function applyChoice(
   let travelTo: string | null = null;
   let stylist = false;
   let workbench = false;
+  let vendorId: string | null = null;
   let ended = false;
   let endingId: string | undefined;
   for (const effect of choice.effects ?? []) {
@@ -163,6 +170,7 @@ export function applyChoice(
     if (effect.type === "travel") travelTo = effect.mapId;
     if (effect.type === "open-stylist") stylist = true;
     if (effect.type === "open-workbench") workbench = true;
+    if (effect.type === "open-vendor") vendorId = effect.vendorId;
     if (effect.type === "goto") nextNodeId = effect.nodeId;
     if (effect.type === "end") {
       ended = true;
@@ -178,6 +186,7 @@ export function applyChoice(
     travelTo,
     stylist,
     workbench,
+    vendorId,
     ended,
     endingId,
     loyalty,
