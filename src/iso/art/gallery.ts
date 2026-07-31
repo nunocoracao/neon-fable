@@ -51,6 +51,8 @@ import { EFFECT_ART } from "./effects";
 import { popupTextGrid, textGrid } from "./popupFont";
 import { STATUS_MARKER_ART } from "./statusMarkers";
 import { INTERACTABLE_ART } from "./interactables";
+import { DRONE_ART, DRONE_ART_IDS } from "./drone";
+import { droneArt, entityGrid } from "./entity";
 import {
   composedCharacterGrid,
   cyberChannelRemap,
@@ -148,10 +150,13 @@ function interactableEntries(): GalleryEntry[] {
 }
 
 /**
- * The full cast through the real appearance pipeline: every enemy
- * archetype's authored visual idling on all four facings, plus every
- * map NPC interactable — authored named looks and stable seeded
- * ambient fallbacks alike — exactly as the provider composes them.
+ * The full cast through the real appearance pipeline: every record of
+ * every humanoid archetype's look family idling on all four facings —
+ * so a family can be read side by side and judged as a family — plus
+ * every map NPC interactable, authored named looks and stable seeded
+ * ambient fallbacks alike, exactly as the provider composes them.
+ * Archetypes drawn from an authored sprite set instead (the combat
+ * drone) have their own section; nothing here composes them.
  */
 function castEntries(): GalleryEntry[] {
   const idle = (
@@ -166,10 +171,13 @@ function castEntries(): GalleryEntry[] {
     frameMs: BODY_TIMING.idle.frameMs,
   });
   const enemySweep = enemies.flatMap((enemy) => {
-    const who = composeVisual(enemy.visual);
-    return FACINGS.map((facing) =>
-      idle(`enemy ${enemy.id} ${facing}`, who, facing),
-    );
+    if (enemy.spriteKind !== "humanoid") return [];
+    return enemy.looks.flatMap((visual, look) => {
+      const who = composeVisual(visual);
+      return FACINGS.map((facing) =>
+        idle(`enemy ${enemy.id} look${look} ${facing}`, who, facing),
+      );
+    });
   });
   const npcSweep = maps.flatMap((map) =>
     map.interactables
@@ -179,6 +187,54 @@ function castEntries(): GalleryEntry[] {
       ),
   );
   return [...enemySweep, ...npcSweep];
+}
+
+/**
+ * The things that were never people (./drone): every authored chassis,
+ * every set, on all four facings, plus the reactions it derives through
+ * the shared transforms and the portrait its initiative chip wears. The
+ * loops play at the body timings they share with everyone else; the
+ * one-shots play at their set's mean hold, like the attack and reaction
+ * sections do.
+ */
+function droneEntries(): GalleryEntry[] {
+  const meanHold = (holds: readonly number[]): number =>
+    Math.round(holds.reduce((a, b) => a + b, 0) / holds.length);
+  return DRONE_ART_IDS.flatMap((id) => {
+    const art = droneArt(id);
+    const loops = (["idle", "walk"] as const).flatMap((state) =>
+      FACINGS.map((facing) => ({
+        id: `drone ${id} ${state} ${facing}`,
+        frames: Array.from({ length: BODY_TIMING[state].frameCount }, (_, f) =>
+          entityGrid(art, facing, state, f),
+        ),
+        frameMs: BODY_TIMING[state].frameMs,
+      })),
+    );
+    const attackClass = DRONE_ART[id].attackClass;
+    const attacks = FACINGS.map((facing) => ({
+      id: `drone ${id} attack ${facing}`,
+      frames: Array.from({ length: attackFrameCount(attackClass) }, (_, f) =>
+        entityGrid(art, facing, "attack", f),
+      ),
+      frameMs: meanHold(ATTACK_TIMING[attackClass].frameMs),
+    }));
+    const reactions = REACTION_KINDS.flatMap((kind) =>
+      ([-1, 1] as const).map((awayX) => ({
+        id: `drone ${id} react ${kind} away${awayX}`,
+        frames: Array.from({ length: reactionFrameCount(kind) }, (_, f) =>
+          entityGrid(art, "e", "react", f, { kind, awayX }),
+        ),
+        frameMs: meanHold(REACTION_TIMING[kind].frameMs),
+      })),
+    );
+    return [
+      ...loops,
+      ...attacks,
+      ...reactions,
+      { id: `drone ${id} portrait`, frames: [DRONE_ART[id].portrait], frameMs: 0 },
+    ];
+  });
 }
 
 function bodyEntries(): GalleryEntry[] {
@@ -693,7 +749,8 @@ const SECTION_BUILDERS: ReadonlyArray<{
   { id: "props", title: "Props", build: propEntries },
   { id: "interactables", title: "Interactables", build: interactableEntries },
   { id: "setpieces", title: "Set pieces", build: setPieceEntries },
-  { id: "cast", title: "Cast (NPCs & enemies)", build: castEntries },
+  { id: "cast", title: "Cast (NPCs & enemy look families)", build: castEntries },
+  { id: "drones", title: "Drones (authored chassis)", build: droneEntries },
   { id: "bodies", title: "Bodies (hi-res)", build: bodyEntries },
   { id: "attacks", title: "Attacks (per weapon class)", build: attackEntries },
   {

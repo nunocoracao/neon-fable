@@ -118,11 +118,13 @@ function bakeEverything(): number {
     }
   }
 
-  // The composed cast: every enemy archetype's full authored layer
-  // stack (outfit, weapon, cyberware) plus a hit-flash silhouette —
-  // what a combat scene pays to warm its cache.
+  // The composed cast: every record of every humanoid archetype's look
+  // family, full authored layer stack (outfit, weapon, cyberware) plus
+  // a hit-flash silhouette — what a combat scene pays to warm its cache.
   for (const enemy of enemies) {
-    const character = composeVisual(enemy.visual);
+    if (enemy.spriteKind !== "humanoid") continue;
+    for (const visual of enemy.looks) {
+    const character = composeVisual(visual);
     for (const facing of facings) {
       for (const state of states) {
         for (let i = 0; i < BODY_TIMING[state].frameCount; i++) {
@@ -132,6 +134,7 @@ function bakeEverything(): number {
           baked += 2;
         }
       }
+    }
     }
   }
 

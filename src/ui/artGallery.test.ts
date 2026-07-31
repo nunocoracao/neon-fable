@@ -67,7 +67,8 @@ describe("art gallery screen", () => {
       (el) => el.textContent,
     );
     expect(labels).toContain("door");
-    expect(labels).toContain("enemy nme-auric-agent e");
+    expect(labels).toContain("enemy nme-auric-agent look0 e");
+    expect(labels).toContain("drone static-drone idle e");
     expect(labels).toContain("npc flick");
     const headings = [
       ...document.querySelectorAll(".nf-gallery-section-title"),

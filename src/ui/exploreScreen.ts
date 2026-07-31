@@ -14,7 +14,7 @@ import {
   type IsoScene,
 } from "../iso";
 import { requireMap } from "../data";
-import { ambientSpriteSource, npcSpriteSource } from "./entitySprites";
+import { npcSpriteSource, sceneSpriteSource } from "./entitySprites";
 import type { Screen } from "./screen";
 
 export interface ExploreScreenOptions {
@@ -81,7 +81,7 @@ export function createExploreScreen(options: ExploreScreenOptions): Screen {
         spawnId,
         sprites: createPixelArtSprites({
           npc: npcSpriteSource(map),
-          entity: ambientSpriteSource(),
+          entity: sceneSpriteSource(),
         }),
         onInteract(event): void {
           const detail =
