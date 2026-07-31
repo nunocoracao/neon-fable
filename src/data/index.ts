@@ -134,5 +134,10 @@ export {
   storyArcs,
 } from "./story";
 export { HUB_MAP_ID, getMap, maps, requireMap } from "./maps";
+export {
+  dressMap,
+  mapDressings,
+  type InteractableDressing,
+} from "./mapDressing";
 export { endings, getEnding, type ChapterEnding } from "./endings";
 export { epilogueVignettes } from "./epilogues";

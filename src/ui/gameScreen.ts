@@ -2,6 +2,7 @@ import { audio } from "../audio";
 import {
   HUB_MAP_ID,
   companionSpriteId,
+  dressMap,
   epilogueVignettes,
   findArcByNode,
   getEncounter,
@@ -157,7 +158,12 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     );
   }
   const mapId = getMap(session.state.location) ? session.state.location : HUB_MAP_ID;
-  const map = requireMap(mapId);
+  // The district as this run has left it: a settled quest can re-label
+  // an NPC, put a different face on them, or change what they open (see
+  // data/mapDressing.ts). Resolved once per mount, and a mount is what
+  // arriving on a map is — so a change earned in a scene is waiting the
+  // next time the player walks in, not swapped under their feet.
+  const map = dressMap(requireMap(mapId), session.state.flags);
 
   function refreshHud(): void {
     if (!hudStatus) return;
