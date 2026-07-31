@@ -63,9 +63,37 @@ const QUAYS_PLATFORM_DRESSINGS: InteractableDressing[] = Object.values(
   visual: castVisual(outcome.platform.label),
 }));
 
+/**
+ * What a breached terminal leaves behind.
+ *
+ * A run at Breach writes a flag (see src/data/breach.ts) and this is
+ * where the flag becomes something you can walk up to: the gallery
+ * locker whose hasp the boards' own register released, and the salvage
+ * cage the lockgate hoists have walked up out of the basin. Both
+ * re-point a fixture that already had its own authored keys at a scene
+ * in ./story/breach.ts — a third way in, never the only one.
+ */
+const BREACH_DRESSINGS: InteractableDressing[] = [
+  {
+    mapId: "vertical-market",
+    interactableId: "market-consignment",
+    when: { key: "market-hasp-cut", value: true },
+    label: "Consignment locker — hasp released",
+    nodeId: "bz-market-locker",
+  },
+  {
+    mapId: "flooded-quays",
+    interactableId: "quays-cage",
+    when: { key: "quays-hoist-cut", value: true },
+    label: "Salvage cage — on the hoist",
+    nodeId: "bz-quays-cage",
+  },
+];
+
 /** Every registered dressing; validated map-by-map in tests. */
 export const mapDressings: InteractableDressing[] = [
   ...QUAYS_PLATFORM_DRESSINGS,
+  ...BREACH_DRESSINGS,
 ];
 
 /** Rewrites one interactable, leaving everything the lint cares about alone. */

@@ -79,8 +79,11 @@ describe("vertical market arc", () => {
     // the arrival beat offers the same three by name — so a player who
     // rode the dialogue in never has to guess what is worth walking to.
     const market = requireMap("vertical-market");
-    const opened = market.interactables.map((i) =>
-      i.interaction.kind === "dialogue" ? i.interaction.nodeId : "",
+    // Every fixture that opens a *conversation*. The consignment
+    // register opens a lattice instead (see ../breach.ts), which is
+    // nobody's dialogue and belongs to no arc.
+    const opened = market.interactables.flatMap((i) =>
+      i.interaction.kind === "dialogue" ? [i.interaction.nodeId] : [],
     );
     expect(opened.sort()).toEqual([
       "vm-auditor",
