@@ -166,6 +166,23 @@ export const FACTION_STANDINGS: readonly StandingSource[] = [
     value: "ghost",
     standing: { auric: -15, market: 20 },
   },
+  // The dispositions standing itself opened: each one hands the city
+  // to the power that trusted you, and is read that way afterwards.
+  {
+    flag: "act3-outcome",
+    value: "concordat",
+    standing: { auric: -25, court: 30, market: 5 },
+  },
+  {
+    flag: "act3-outcome",
+    value: "receivership",
+    standing: { auric: 30, court: -20, market: 10 },
+  },
+  {
+    flag: "act3-outcome",
+    value: "consortium",
+    standing: { auric: -15, court: 5, market: 30 },
+  },
   // --- The district chains, at their own authored weights
   ...chainStandings(LAST_MILE_OUTCOMES),
   ...chainStandings(UNDER_WATERLINE_OUTCOMES),

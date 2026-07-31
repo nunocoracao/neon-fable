@@ -27,7 +27,7 @@ describe("act3 arc shape", () => {
     expect(act3Arc.nodes.length).toBeGreaterThanOrEqual(25);
   });
 
-  it("offers four distinct game endings, all final, all with epilogue text", () => {
+  it("offers seven distinct game endings, all final, all with epilogue text", () => {
     const endingIds = allChoices.flatMap(({ choice }) =>
       (choice.effects ?? []).flatMap((e) =>
         e.type === "end" && e.endingId ? [e.endingId] : [],
@@ -35,10 +35,15 @@ describe("act3 arc shape", () => {
     );
     expect(new Set(endingIds)).toEqual(
       new Set([
+        // What the last chapter left you holding...
         "ending-commons",
         "ending-regency",
         "ending-freehold",
         "ending-ghost",
+        // ...and who in this city would take the keys from your hand.
+        "ending-concordat",
+        "ending-receivership",
+        "ending-consortium",
       ]),
     );
     for (const id of endingIds) {
@@ -54,7 +59,7 @@ describe("act3 arc shape", () => {
         (e) => e.type === "set-flag" && e.key === "act3-outcome",
       ),
     );
-    expect(sealers.length).toBe(4);
+    expect(sealers.length).toBe(7);
     for (const { choice } of sealers) {
       const effects = choice.effects ?? [];
       const flagValue = (key: string): unknown =>
@@ -216,14 +221,14 @@ describe("act3 arc shape", () => {
     }
   });
 
-  it("gates each ending on a different act-2 legacy, so no single run sees all four", () => {
+  it("gates each legacy ending on a different act-2 legacy, so no single run sees all four", () => {
     const keysNode = act3Arc.nodes.find((n) => n.id === "a3-keys")!;
     const gates = new Map(
-      keysNode.choices.map((c) => {
+      keysNode.choices.flatMap((c) => {
         const req = (c.requirements ?? []).find(
           (r) => r.type === "flag-equals",
         );
-        return [c.id, req && req.type === "flag-equals" ? req.key : null];
+        return req && req.type === "flag-equals" ? [[c.id, req.key]] : [];
       }),
     );
     expect(gates).toEqual(
@@ -234,6 +239,45 @@ describe("act3 arc shape", () => {
         ["ghost", "hex-exchange"],
       ]),
     );
+  });
+
+  it("opens one further disposition per faction, on trusted standing and nothing else", () => {
+    const keysNode = act3Arc.nodes.find((n) => n.id === "a3-keys")!;
+    const standingGated = new Map(
+      keysNode.choices.flatMap((c) =>
+        (c.requirements ?? []).some((r) => r.type === "reputation")
+          ? [[c.id, c.requirements!]]
+          : [],
+      ),
+    );
+    expect([...standingGated.keys()].sort()).toEqual([
+      "concordat",
+      "consortium",
+      "receivership",
+    ]);
+    // Trusted with that one power is the whole gate: no act-2 legacy
+    // rides along, so all three stay reachable from any history that
+    // earned the standing.
+    expect(standingGated.get("concordat")).toEqual([
+      { type: "reputation", factionId: "court", value: "trusted" },
+    ]);
+    expect(standingGated.get("receivership")).toEqual([
+      { type: "reputation", factionId: "auric", value: "trusted" },
+    ]);
+    expect(standingGated.get("consortium")).toEqual([
+      { type: "reputation", factionId: "market", value: "trusted" },
+    ]);
+  });
+
+  it("keeps the four legacy endings ungated by standing", () => {
+    const keysNode = act3Arc.nodes.find((n) => n.id === "a3-keys")!;
+    for (const id of ["commons", "regency", "freehold", "ghost"]) {
+      const choice = keysNode.choices.find((c) => c.id === id)!;
+      expect(
+        (choice.requirements ?? []).some((r) => r.type === "reputation"),
+        `${id} must stay reachable however the city feels about you`,
+      ).toBe(false);
+    }
   });
 
   it("opens the tower's own floors off the concourse, both ways", () => {

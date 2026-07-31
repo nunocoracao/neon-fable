@@ -507,6 +507,45 @@ export const epilogueVignettes: EpilogueVignette[] = [
       "anymore. It is harder, freer, and entirely theirs.",
   },
   {
+    id: "city-concordat",
+    subject: "city",
+    title: "The Meridian Sprawl",
+    requires: [
+      { type: "flag-equals", key: "ending", value: "ending-concordat" },
+    ],
+    text:
+      "The Sprawl is held in trust by the part of it that drowns " +
+      "first, and it shows: pumps before towers, tide charts before " +
+      "share prices, and a council that meets in waders and has never " +
+      "once been late to a flood.",
+  },
+  {
+    id: "city-receivership",
+    subject: "city",
+    title: "The Meridian Sprawl",
+    requires: [
+      { type: "flag-equals", key: "ending", value: "ending-receivership" },
+    ],
+    text:
+      "The Sprawl is a distressed estate under administration, and " +
+      "somehow that is the kindest thing that has happened to it in a " +
+      "century. Nothing is inspiring. Everything is maintained. The " +
+      "water goes down and stays down, by memorandum.",
+  },
+  {
+    id: "city-consortium",
+    subject: "city",
+    title: "The Meridian Sprawl",
+    requires: [
+      { type: "flag-equals", key: "ending", value: "ending-consortium" },
+    ],
+    text:
+      "The Sprawl belongs to eleven thousand accounts and argues " +
+      "about it hourly, in public, with the figures posted. It is " +
+      "loud, it is priced, and for the first time nobody can raise " +
+      "the cost of breathing without six levels seeing them do it.",
+  },
+  {
     id: "city-ghost",
     subject: "city",
     title: "The Meridian Sprawl",

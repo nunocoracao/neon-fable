@@ -204,6 +204,105 @@ export const endings: ChapterEnding[] = [
         "you. You walk it like anyone else now, and that suits you.",
     ],
   },
+  // ------------------------------------------------------------------
+  // The standing endings: not what the last chapter left you holding,
+  // but who in this city would take the keys out of your hand and be
+  // believed doing it. One per power, and only at the top of the scale.
+  // ------------------------------------------------------------------
+  {
+    id: "ending-concordat",
+    title: "The Waterline Concordat",
+    final: true,
+    hint: "Some say the oldest register in the Sprawl is chalk on a wall below the flood line.",
+    summary:
+      "The estate went to the Cistern Court as trustee for everything " +
+      "below the waterline, and the city's title now lives on a chalk " +
+      "wall that has never lost a name.",
+    paragraphs: [
+      "The founders' keys go down into the Undercroft, and the " +
+        "Meridian Sprawl's master title comes to rest in a hall lit " +
+        "by lantern strings, on a wall of chalked names that has " +
+        "outlasted three floods and every office that ever tried to " +
+        "condemn it. Matron Ferrow reads the instrument twice, aloud, " +
+        "so that everyone present is a witness. That is how the " +
+        "Undercroft executes things.",
+      "Topside takes eight months to understand what happened, and " +
+        "another two years to stop filing objections at a council " +
+        "that meets in waders. The pumps run to the Court's schedule " +
+        "now. The tide charts are posted where the water is, not " +
+        "where the offices are. Rent below Ledge Four becomes an " +
+        "argument between neighbors instead of a schedule set by " +
+        "strangers.",
+      "It is not a soft settlement. The Court keeps a ledger of " +
+        "debts and it collects them, and there are districts that " +
+        "learn the phrase 'the Court's opinion' the way they once " +
+        "learned 'the Combine's terms'. But the drowned levels hold " +
+        "the deed to the city that drowned them, and the bell on " +
+        "Ledge Nine rings now for good news too.",
+    ],
+  },
+  {
+    id: "ending-receivership",
+    title: "The Receiver of Record",
+    final: true,
+    hint: "Some say the Combine's own machinery, aimed correctly, will file a city as distressed.",
+    summary:
+      "The Sprawl was filed as a distressed estate under the Combine's " +
+      "recovery desk — with you named in the instrument as the one " +
+      "person the owners cannot remove.",
+    paragraphs: [
+      "You do not seize the city. You administer it. The estate is " +
+        "distressed, the instrument provides for a receiver, and the " +
+        "receiver is named on the founding schedule in language no " +
+        "shareholder can amend and no director can vacate. The Auric " +
+        "Combine's own recovery desk becomes the office through which " +
+        "the whole Meridian Sprawl is run, and the desk answers to " +
+        "the paperwork, and the paperwork answers to you.",
+      "It is the least romantic revolution the Sprawl has ever had. " +
+        "You spend your first year in meetings. Ledge Nine gets pumps " +
+        "because pumps are a capital preservation measure; the " +
+        "Undercroft gets air because asphyxiating your own tenants " +
+        "is an impairment; the Cordon's architects go to arbitration " +
+        "and lose, expensively, on procedure.",
+      "The Court never quite forgives you for saving them by " +
+        "memorandum. The Market prices your signature and finds it " +
+        "sound. And somewhere in the Spire a director explains to a " +
+        "board that the person now holding the city is technically an " +
+        "employee, and that no, there is no clause under which they " +
+        "can be dismissed.",
+    ],
+  },
+  {
+    id: "ending-consortium",
+    title: "The Open Ledger",
+    final: true,
+    hint: "Some say a title is only real once enough people are good for it.",
+    summary:
+      "The master title went onto the Vertical Market's boards, held " +
+      "jointly by every account good for it — eleven thousand names " +
+      "on the deed to a city.",
+    paragraphs: [
+      "The keys go onto the boards. Not sold — held: the master title " +
+        "of the Meridian Sprawl entered as a joint account of every " +
+        "trader, rigger, broker and stallholder the Vertical Market " +
+        "counts as good for it, which by the third morning is eleven " +
+        "thousand names and climbing. The Locus finds the consortium " +
+        "solvent, competent, and — the word it uses, and nobody can " +
+        "make it take back — durable.",
+      "The city becomes an argument conducted in public with the " +
+        "figures attached. Water rates are posted next to what water " +
+        "costs. The Cordon's ledgers are read out on six levels by " +
+        "people who lost stock to it. Nothing is free and everything " +
+        "is finally, furiously priced in the open, which on the " +
+        "Sprawl's own terms is a kind of daylight.",
+      "Marrow takes to calling himself a shareholder, which he is, to " +
+        "the exact extent of one share. Your name sits in the " +
+        "register between a hoist crew and a noodle counter. Six " +
+        "levels of people who were good for it turned out to be good " +
+        "for a city, and they will remind each other of that at " +
+        "volume, forever.",
+    ],
+  },
   {
     id: "ending-ghost",
     title: "The Caretaker Signal",

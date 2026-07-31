@@ -2027,6 +2027,37 @@ export const act3Arc: StoryArc = {
             { type: "flag-equals", key: "hex-exchange", value: true },
           ],
         },
+        // The other axis of the disposition: not what Act 2 left you
+        // holding, but who in this city would take the keys from your
+        // hand and be believed. Nothing but standing opens these, and
+        // only standing at the top of the scale.
+        {
+          id: "concordat",
+          label: "Sign the estate over to the Cistern Court's own register.",
+          target: "a3-end-concordat",
+          requirements: [
+            { type: "reputation", factionId: "court", value: "trusted" },
+          ],
+          ifUnavailable: "disabled",
+        },
+        {
+          id: "receivership",
+          label: "File the whole city into the Combine's recovery desk, with your name on the pen.",
+          target: "a3-end-receivership",
+          requirements: [
+            { type: "reputation", factionId: "auric", value: "trusted" },
+          ],
+          ifUnavailable: "disabled",
+        },
+        {
+          id: "consortium",
+          label: "Put the master title on the boards. Let six levels hold it jointly.",
+          target: "a3-end-consortium",
+          requirements: [
+            { type: "reputation", factionId: "market", value: "trusted" },
+          ],
+          ifUnavailable: "disabled",
+        },
       ],
     },
     {
@@ -2108,6 +2139,88 @@ export const act3Arc: StoryArc = {
             { type: "end", endingId: "ending-freehold" },
           ],
           standing: { auric: -30, court: 15, market: -15 },
+        },
+      ],
+    },
+    {
+      id: "a3-end-concordat",
+      text:
+        "\"Disposition: to the Cistern Court, as trustee for the " +
+        "levels below the waterline.\" The Locus asks you to name the " +
+        "instrument, and you give it the only one the Undercroft has " +
+        "ever kept — the chalked ledger on the Court hall wall, names " +
+        "and debts and drowned, unbroken since before the towers. The " +
+        "engine finds a chalk wall an admissible register. It has, it " +
+        "notes, honored stranger ones.",
+      location: "spire:crown-ring",
+      choices: [
+        {
+          id: "seal",
+          label: "Sign it the way the Steps sign things: out loud, with witnesses.",
+          effects: [
+            { type: "set-flag", key: "act3-outcome", value: "concordat" },
+            { type: "set-flag", key: "ending", value: "ending-concordat" },
+            { type: "set-flag", key: "act3-complete", value: true },
+            { type: "set-flag", key: "game-complete", value: true },
+            { type: "end", endingId: "ending-concordat" },
+          ],
+          standing: { auric: -25, court: 30, market: 5 },
+        },
+      ],
+    },
+    {
+      id: "a3-end-receivership",
+      text:
+        "\"Disposition: administration, with an appointed receiver.\" " +
+        "You do the one thing nobody in this tower expected a person " +
+        "off the Steps to do — you use the Combine's own machinery " +
+        "correctly. A distressed estate. A recovery desk that exists " +
+        "to hold exactly this. A receiver of record, named in the " +
+        "instrument, answerable to the instrument, and unremovable by " +
+        "anybody who merely owns things. The Locus files it without a " +
+        "single objection, because it is, at last, the kind of " +
+        "sentence it was built to read.",
+      location: "spire:crown-ring",
+      choices: [
+        {
+          id: "seal",
+          label: "Sign as receiver, and start reading the city's books.",
+          effects: [
+            { type: "set-flag", key: "act3-outcome", value: "receivership" },
+            { type: "set-flag", key: "ending", value: "ending-receivership" },
+            { type: "set-flag", key: "act3-complete", value: true },
+            { type: "set-flag", key: "game-complete", value: true },
+            { type: "credits", amount: 300 },
+            { type: "end", endingId: "ending-receivership" },
+          ],
+          standing: { auric: 30, court: -20, market: 10 },
+        },
+      ],
+    },
+    {
+      id: "a3-end-consortium",
+      text:
+        "\"Disposition: joint and several, to a consortium of " +
+        "record.\" You read the Vertical Market's own account list " +
+        "into the founders' register — every board, every level, " +
+        "every trader good for it — and the Locus, which has spent a " +
+        "century looking for a party solvent enough to inherit a " +
+        "city, finds one made of eleven thousand people who have " +
+        "never once been asked. The pillar of light goes out in " +
+        "columns, like a ledger closing.",
+      location: "spire:crown-ring",
+      choices: [
+        {
+          id: "seal",
+          label: "Put it on the boards, and let the arguing start.",
+          effects: [
+            { type: "set-flag", key: "act3-outcome", value: "consortium" },
+            { type: "set-flag", key: "ending", value: "ending-consortium" },
+            { type: "set-flag", key: "act3-complete", value: true },
+            { type: "set-flag", key: "game-complete", value: true },
+            { type: "end", endingId: "ending-consortium" },
+          ],
+          standing: { auric: -15, court: 5, market: 30 },
         },
       ],
     },
