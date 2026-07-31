@@ -1,4 +1,5 @@
 import { isCriticalBlow, isGlancingBlow, isHeavyBlow } from "../combat/damage";
+import type { CombatantKind } from "../combat/types";
 import type { ImpactWeight, TurnPace } from "../iso";
 
 /**
@@ -42,7 +43,7 @@ export function impactWeight(
 /** The combatant whose turn it is, as the camera needs to read it. */
 export interface ActiveTurn {
   readonly id: string;
-  readonly kind: "player" | "enemy";
+  readonly kind: CombatantKind;
 }
 
 /** A reframing the screen should ask the scene for. */
@@ -56,7 +57,8 @@ export interface TurnFocusRequest {
  * A *change* of hand is the whole trigger — every other sync (a step
  * taken, a condition ticking, the pointer moving) leaves the framing
  * alone, so a glide already underway is never re-aimed mid-flight. The
- * AI's turns are glided through faster than the player's own.
+ * AI's turns are glided through faster than the player's own — and a
+ * companion's turn is the player's own, because the player takes it.
  */
 export function turnFocus(
   active: ActiveTurn | null,
@@ -65,6 +67,6 @@ export function turnFocus(
   if (active === null || active.id === focusedId) return null;
   return {
     entityId: active.id,
-    pace: active.kind === "player" ? "player" : "ai",
+    pace: active.kind === "enemy" ? "ai" : "player",
   };
 }

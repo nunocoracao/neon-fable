@@ -1,3 +1,4 @@
+import { getCompanion } from "../data/companions";
 import { getEncounter } from "../data/encounters";
 import { getItem } from "../data/items";
 import { getMap } from "../data/maps";
@@ -18,7 +19,8 @@ export type ArcIssueCode =
   | "dead-end-choice"
   | "unknown-item"
   | "unknown-encounter"
-  | "unknown-map";
+  | "unknown-map"
+  | "unknown-companion";
 
 export interface ArcIssue {
   code: ArcIssueCode;
@@ -37,6 +39,23 @@ function referencedItemIds(choice: Choice): string[] {
   for (const effect of choice.effects ?? []) {
     if (effect.type === "add-item" || effect.type === "remove-item") {
       ids.push(effect.itemId);
+    }
+  }
+  return ids;
+}
+
+/** Companion ids a choice names, in requirements or effects. */
+function referencedCompanionIds(choice: Choice): string[] {
+  const ids: string[] = [];
+  for (const req of choice.requirements ?? []) {
+    if (req.type === "companion") ids.push(req.companionId);
+  }
+  for (const effect of choice.effects ?? []) {
+    if (
+      effect.type === "recruit-companion" ||
+      effect.type === "companion-loyalty"
+    ) {
+      ids.push(effect.companionId);
     }
   }
   return ids;
@@ -87,6 +106,18 @@ export function validateArc(arc: StoryArc): ArcIssue[] {
   }
 
   for (const node of arc.nodes) {
+    // An aside addressed to nobody is a line that can never be read.
+    for (const comment of node.comments ?? []) {
+      if (!getCompanion(comment.companionId)) {
+        issues.push({
+          code: "unknown-companion",
+          nodeId: node.id,
+          detail:
+            `Node "${node.id}" carries a comment from unknown companion ` +
+            `"${comment.companionId}"`,
+        });
+      }
+    }
     for (const choice of node.choices) {
       const targets = choiceTargets(choice);
       if (targets.length === 0 && !hasTerminator(choice)) {
@@ -120,6 +151,18 @@ export function validateArc(arc: StoryArc): ArcIssue[] {
             detail:
               `Choice "${choice.id}" on node "${node.id}" references ` +
               `unknown item "${itemId}"`,
+          });
+        }
+      }
+      for (const companionId of referencedCompanionIds(choice)) {
+        if (!getCompanion(companionId)) {
+          issues.push({
+            code: "unknown-companion",
+            nodeId: node.id,
+            choiceId: choice.id,
+            detail:
+              `Choice "${choice.id}" on node "${node.id}" references ` +
+              `unknown companion "${companionId}"`,
           });
         }
       }

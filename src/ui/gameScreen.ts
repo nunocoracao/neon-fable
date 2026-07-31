@@ -1,6 +1,7 @@
 import { audio } from "../audio";
 import {
   HUB_MAP_ID,
+  companionSpriteId,
   epilogueVignettes,
   findArcByNode,
   getEncounter,
@@ -12,9 +13,11 @@ import {
 import { availablePoints } from "../character";
 import { selectVignettes } from "../narrative";
 import {
+  activeMember,
   carryoverAppearance,
   carryoverCandidates,
   recordCompletionToStorage,
+  type GameState,
 } from "../state";
 import {
   ENTRY_SPAWN_ID,
@@ -82,6 +85,18 @@ const META_RECORDED_FLAG = "meta-recorded";
  * dialogue somehow replays; reopening a finished save never re-records
  * because only the final-ending handoff calls this.
  */
+/**
+ * The sprite id for the companion travelling with the player, or null
+ * when they walk alone. The look is part of the id, so re-dressing a
+ * companion changes what is drawn without changing this call site.
+ */
+function followerSpriteIdFor(state: GameState): string | null {
+  const member = activeMember(state.party);
+  return member
+    ? companionSpriteId(member.companionId, member.lookId)
+    : null;
+}
+
 function recordFinishedRun(session: Session): void {
   const state = session.state;
   if (state.flags[META_RECORDED_FLAG] === true) return;
@@ -159,6 +174,10 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       "nf-button-attention",
       availablePoints(session.state) > 0,
     );
+    // Somebody recruited (or benched) mid-scene joins (or leaves) the
+    // walk on the spot — the beat that changed the party is the beat
+    // they should appear on, not the next map.
+    scene?.setFollower(followerSpriteIdFor(session.state));
   }
 
   function showToast(text: string): void {
@@ -561,6 +580,11 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       scene = createIsoScene(canvas, {
         map,
         spawnId: arrival,
+        // Whoever is walking with the player right now; refreshHud
+        // keeps it current, so a companion recruited mid-conversation
+        // is walking with you the moment the box closes. A party of
+        // nobody passes null and changes nothing.
+        followerSpriteId: followerSpriteIdFor(session.state),
         dayPhase: storyPhase,
         sprites: createPixelArtSprites({
           player: playerSpriteSource(session),

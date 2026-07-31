@@ -61,10 +61,24 @@ export interface ChargedAction {
  * (via effectiveStats and equipment selectors) so combat math never reaches
  * back into inventory; enemies come from src/data/enemies.ts.
  */
+/**
+ * Which side of the fight a body is on, and who drives it. "player" and
+ * "ally" are one side and both are played by the player (an ally takes
+ * its turn through the same action UI); "enemy" is the other side and
+ * is driven by the AI. Friend-or-foe is asked through `areOpposed` in
+ * ./state.ts rather than by comparing kinds, so an ally and the player
+ * can never end up targeting each other.
+ */
+export type CombatantKind = "player" | "ally" | "enemy";
+
 export interface Combatant {
   id: string;
-  kind: "player" | "enemy";
+  kind: CombatantKind;
   name: string;
+  /** Content id in src/data/companions.ts; only on allies. */
+  companionId?: string;
+  /** Which authored look an ally wears, for its sprite and portrait. */
+  lookId?: string;
   /** Content id in src/data/enemies.ts; absent for the player. */
   enemyId?: string;
   /**

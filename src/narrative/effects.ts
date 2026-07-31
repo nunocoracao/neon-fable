@@ -1,7 +1,9 @@
+import { getCompanion } from "../data/companions";
 import { requireItem } from "../data/items";
 import { addItem, countItem, removeItem } from "../inventory/inventory";
 import type { ItemResolver } from "../inventory/items";
 import type { GameState } from "../state/gameState";
+import { adjustLoyalty, getMember, recruitCompanion } from "../state/party";
 import type { Effect } from "./types";
 
 /**
@@ -56,6 +58,28 @@ export function applyEffect(
       return { ...state, pendingEncounterId: effect.encounterId };
     case "travel":
       return { ...state, location: effect.mapId };
+    case "recruit-companion": {
+      // Unknown ids are an authoring bug the arc validator catches;
+      // at runtime a missing companion leaves the scene running.
+      if (!getCompanion(effect.companionId)) {
+        console.error(`Unknown companion id "${effect.companionId}"`);
+        return state;
+      }
+      return { ...state, party: recruitCompanion(state.party, effect.companionId) };
+    }
+    case "companion-loyalty":
+      // Nobody to earn it from is not an error: a beat can offer
+      // goodwill a party without that companion simply never collects.
+      return getMember(state.party, effect.companionId)
+        ? {
+            ...state,
+            party: adjustLoyalty(
+              state.party,
+              effect.companionId,
+              effect.amount,
+            ),
+          }
+        : state;
     case "open-stylist":
     case "goto":
     case "end":

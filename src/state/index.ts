@@ -39,6 +39,24 @@ export {
   type MetaStorage,
 } from "./meta";
 export {
+  PartyError,
+  activeMember,
+  activeMembers,
+  adjustLoyalty,
+  emptyParty,
+  getMember,
+  isRecruited,
+  memberFrom,
+  recruitCompanion,
+  restyleCompanion,
+  setActive,
+  setCompanionHp,
+  type CompanionEquipment,
+  type PartyErrorCode,
+  type PartyMember,
+  type PartyState,
+} from "./party";
+export {
   NG_PLUS_BONUS_POINTS,
   NG_PLUS_CARRYOVER_FLAG,
   NG_PLUS_FLAG,

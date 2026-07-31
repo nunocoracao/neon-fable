@@ -9,7 +9,13 @@ import {
 } from "./damage";
 import { bodyGap } from "./footprint";
 import { canStand, manhattan } from "./grid";
-import { activeCombatant, combatStat, isAlive, livingEnemies } from "./state";
+import {
+  activeCombatant,
+  areOpposed,
+  combatStat,
+  isAlive,
+  livingEnemies,
+} from "./state";
 import type { CombatState, GridPosition } from "./types";
 
 /**
@@ -91,7 +97,7 @@ export function attackOptions(state: CombatState): AttackOption[] {
   const range = weaponRange(actor.weapon.rangeType);
   const attackStat = combatStat(actor, attackStatKey(actor.weapon.rangeType));
   return state.combatants
-    .filter((c) => c.kind !== actor.kind && isAlive(c))
+    .filter((c) => areOpposed(c, actor) && isAlive(c))
     .map((target) => ({
       targetId: target.id,
       // Block to block: pressed against a chassis anywhere along it is
@@ -126,7 +132,7 @@ export function abilityOptions(state: CombatState): AbilityOption[] {
       ? state.combatants
           .filter(
             (c) =>
-              c.kind !== actor.kind &&
+              areOpposed(c, actor) &&
               isAlive(c) &&
               bodyGap(actor, c) <= ability.range,
           )
@@ -139,7 +145,11 @@ export function abilityOptions(state: CombatState): AbilityOption[] {
   });
 }
 
-/** Consumables the active combatant may use (player only). */
+/**
+ * Consumables the active combatant may use. The player's own kit, and
+ * only theirs: a companion fights with what they brought, not out of
+ * your pockets.
+ */
 export function itemOptions(state: CombatState): ItemOption[] {
   if (!mainActionAvailable(state)) return [];
   const actor = activeCombatant(state);
@@ -149,7 +159,11 @@ export function itemOptions(state: CombatState): ItemOption[] {
     .map(({ itemId, quantity }) => ({ itemId, quantity }));
 }
 
-/** Chance in [0, 1] a flee attempt succeeds now, or null when illegal. */
+/**
+ * Chance in [0, 1] a flee attempt succeeds now, or null when illegal.
+ * Calling the retreat is the player's own call — an ally's turn cannot
+ * end the fight for the whole crew.
+ */
 export function fleeChanceFor(state: CombatState): number | null {
   if (!mainActionAvailable(state)) return null;
   const actor = activeCombatant(state);

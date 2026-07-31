@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { fixtureCharacter } from "../../character/testSupport";
+import { applyChoice, companionAside } from "../../narrative";
+import { createNewGame, getMember, type GameState } from "../../state";
 import { getEncounter } from "../encounters";
 import { HUB_MAP_ID, requireMap } from "../maps";
 import { storyArcs } from "./index";
@@ -65,7 +68,13 @@ describe("flooded quays arc", () => {
     const opened = quays.interactables.map((i) =>
       i.interaction.kind === "dialogue" ? i.interaction.nodeId : "",
     );
-    expect(opened.sort()).toEqual(["fq-board", "fq-cage", "fq-diver", "fq-stair"]);
+    expect(opened.sort()).toEqual([
+      "fq-board",
+      "fq-cage",
+      "fq-diver",
+      "fq-kade",
+      "fq-stair",
+    ]);
     const arrivalTargets = (nodesById.get("fq-arrival")?.choices ?? []).flatMap(
       (choice) => (choice.target ? [choice.target] : []),
     );
@@ -73,14 +82,16 @@ describe("flooded quays arc", () => {
       "fq-board",
       "fq-cage",
       "fq-diver",
+      "fq-kade",
       "fq-stair",
     ]);
   });
 
   it("keeps its colour self-contained: no act flags, no combat, no items out", () => {
     // What Dredge keeps finding down there is later work. This arc may
-    // only leave `quays-known` behind, and the cage's own record of how
-    // it came open.
+    // only leave `quays-known` behind, the cage's own record of how it
+    // came open, and Vesper Kade's — how she was met, whether she came,
+    // and whether she was turned down. Nothing an act reads.
     const flags = allChoices.flatMap(({ choice }) =>
       (choice.effects ?? []).flatMap((effect) =>
         effect.type === "set-flag" || effect.type === "increment-flag"
@@ -88,7 +99,13 @@ describe("flooded quays arc", () => {
           : [],
       ),
     );
-    expect([...new Set(flags)].sort()).toEqual(["quays-cage", "quays-known"]);
+    expect([...new Set(flags)].sort()).toEqual([
+      "quays-cage",
+      "quays-known",
+      "vesper-declined",
+      "vesper-joined",
+      "vesper-met",
+    ]);
     for (const { choice } of allChoices) {
       for (const effect of choice.effects ?? []) {
         expect(effect.type, `${choice.id}`).not.toBe("start-combat");
@@ -149,6 +166,108 @@ describe("flooded quays arc", () => {
       const canMoveOn = node.choices.some((choice) => choice.target);
       expect(canEnd || canMoveOn, `node ${node.id} traps the player`).toBe(true);
     }
+  });
+});
+
+/** Plays a route of choice ids from a node, returning the state after. */
+function playRoute(
+  start: GameState,
+  entryNodeId: string,
+  choiceIds: string[],
+): GameState {
+  let state = start;
+  let nodeId: string | null = entryNodeId;
+  for (const choiceId of choiceIds) {
+    const node = nodesById.get(nodeId ?? "");
+    if (!node) throw new Error(`no node "${nodeId}" for choice "${choiceId}"`);
+    const outcome = applyChoice(state, node, choiceId);
+    state = outcome.state;
+    nodeId = outcome.nextNodeId;
+  }
+  return state;
+}
+
+function freshRunner(): GameState {
+  return createNewGame({ character: fixtureCharacter({}), seed: 12 });
+}
+
+describe("Vesper Kade's recruitment", () => {
+  it("is reachable on foot and from the arrival beat alike", () => {
+    const quays = requireMap("flooded-quays");
+    const npc = quays.interactables.find((i) => i.id === "quays-kade");
+    expect(npc?.interaction).toEqual({ kind: "dialogue", nodeId: "fq-kade" });
+    expect(
+      (nodesById.get("fq-arrival")?.choices ?? []).some(
+        (choice) => choice.target === "fq-kade",
+      ),
+    ).toBe(true);
+  });
+
+  it("takes the helping hand aboard, warmly", () => {
+    const state = playRoute(freshRunner(), "fq-kade", [
+      "kade-help",
+      "assist-on",
+      "join-yes",
+    ]);
+    const member = getMember(state.party, "vesper")!;
+    expect(member.recruited).toBe(true);
+    expect(member.active).toBe(true);
+    expect(member.loyalty).toBe(2);
+    expect(state.flags["vesper-met"]).toBe("assisted");
+    expect(state.flags["vesper-joined"]).toBe("assisted");
+  });
+
+  it("takes the paid hand aboard, and remembers the price", () => {
+    const before = freshRunner();
+    const state = playRoute(before, "fq-kade", [
+      "kade-press",
+      "press-take",
+      "terms-yes",
+    ]);
+    const member = getMember(state.party, "vesper")!;
+    expect(member.recruited).toBe(true);
+    // Same companion, same fight-worthiness — a different opening
+    // standing, which is what the fork is for.
+    expect(member.loyalty).toBe(-1);
+    expect(state.flags["vesper-joined"]).toBe("pressed");
+    expect(state.credits).toBe(before.credits + 40);
+  });
+
+  it("lets the player walk away from both roads without her", () => {
+    for (const route of [
+      ["kade-help", "assist-on", "join-no"],
+      ["kade-press", "press-take", "terms-no"],
+      ["kade-leave"],
+    ]) {
+      const state = playRoute(freshRunner(), "fq-kade", route);
+      expect(getMember(state.party, "vesper"), route.join(">")).toBeUndefined();
+    }
+  });
+
+  it("puts her comments where the district has something to say", () => {
+    const commented = quaysArc.nodes.filter(
+      (node) => (node.comments ?? []).length > 0,
+    );
+    expect(commented.map((node) => node.id).sort()).toEqual([
+      "fq-board-column",
+      "fq-cage",
+      "fq-diver",
+    ]);
+    for (const node of commented) {
+      for (const comment of node.comments ?? []) {
+        expect(comment.companionId).toBe("vesper");
+      }
+    }
+    // With her aboard the aside lands; alone the same node is unchanged.
+    const cage = nodesById.get("fq-cage")!;
+    const alone = freshRunner();
+    const crewed = playRoute(alone, "fq-kade", [
+      "kade-help",
+      "assist-on",
+      "join-yes",
+    ]);
+    expect(companionAside(cage, alone)).toBeNull();
+    expect(companionAside(cage, crewed)?.companionId).toBe("vesper");
   });
 });
 

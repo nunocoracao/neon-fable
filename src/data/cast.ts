@@ -11,6 +11,7 @@
  * cast complete.
  */
 import type { CharacterVisual } from "../character/appearance";
+import { VESPER_KADE_LOOK } from "./companions";
 import { PLAYER_SPEAKER, type StoryNode } from "../narrative/types";
 import type { ExpressionId } from "./appearance";
 
@@ -163,10 +164,20 @@ export const SPIRE_SECURITY_VISUAL: CharacterVisual = {
   weapon: "wpn-stun-baton",
 };
 
-/** Every named story speaker's authored look, keyed by display name. */
+/**
+ * Every named story speaker's authored look, keyed by display name.
+ *
+ * Two Vespers is one too many, so they are two names: the Chrome
+ * Chapel's stylist is "Vesper" and the Quays' salvage-runner is
+ * "Vesper Kade" — different people, different districts, and no scene
+ * has ever put them in the same room. The companion's look is owned by
+ * ./companions.ts (the party is what draws it) and imported here so the
+ * face in her dialogue is the face walking behind you.
+ */
 export const cast: Readonly<Record<string, CharacterVisual>> = {
   Flick: FLICK_VISUAL,
   Vesper: VESPER_VISUAL,
+  "Vesper Kade": VESPER_KADE_LOOK,
   "Matron Ferrow": FERROW_VISUAL,
   "Auditor Lin": LIN_VISUAL,
   Quill: QUILL_VISUAL,

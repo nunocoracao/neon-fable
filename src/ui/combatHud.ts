@@ -7,6 +7,7 @@ import {
   fleeChanceFor,
   getCombatant,
   isAlive,
+  isPlayerControlled,
   itemOptions,
   manhattan,
   movePreview,
@@ -17,6 +18,7 @@ import {
   type CombatActionKind,
   type CombatState,
   type Combatant,
+  type CombatantKind,
   type OutcomePreview,
   type OutcomeStatus,
   type TelegraphHover,
@@ -57,9 +59,12 @@ export interface InitiativeChip {
   combatantId: string;
   /** Disambiguated display name (see combatantDisplayNames). */
   name: string;
-  kind: "player" | "enemy";
-  /** Enemy archetype id, for the portrait; null for the player. */
+  kind: CombatantKind;
+  /** Enemy archetype id, for the portrait; null off the enemy side. */
   enemyId: string | null;
+  /** Companion content id and the look it wears; null off the crew. */
+  companionId: string | null;
+  lookId: string | null;
   /**
    * Which record of the archetype's look family this body wears, so the
    * chip's face is the one on the board; null for the player.
@@ -120,6 +125,8 @@ export function initiativeChips(
         name: names[id] ?? combatant.name,
         kind: combatant.kind,
         enemyId: combatant.enemyId ?? null,
+        companionId: combatant.companionId ?? null,
+        lookId: combatant.lookId ?? null,
         lookIndex: combatant.lookIndex ?? null,
         hp,
         maxHp: combatant.maxHp,
@@ -211,6 +218,8 @@ export function blockReasonText(reason: ActionBlockReason): string {
       return "Nowhere to step.";
     case "cannot-flee":
       return "No way out of this one.";
+    case "player-only":
+      return "Yours to call, not theirs.";
   }
 }
 
@@ -331,8 +340,10 @@ function fleeLabel(state: CombatState): string {
 export interface TargetCard {
   combatantId: string;
   name: string;
-  kind: "player" | "enemy";
+  kind: CombatantKind;
   enemyId: string | null;
+  companionId: string | null;
+  lookId: string | null;
   /** The archetype look this body wears; null for the player. */
   lookIndex: number | null;
   hp: number;
@@ -368,7 +379,7 @@ export function targetCard(
   // exists on the player's own turn — the legal-option queries answer
   // for whoever is acting, and mid-enemy-turn that is not the player.
   const option =
-    state.status === "active" && activeCombatant(state).kind === "player"
+    state.status === "active" && isPlayerControlled(activeCombatant(state))
       ? attackPreview(state).options.find((o) => o.targetId === combatantId)
       : undefined;
   const hp = Math.max(0, combatant.hp);
@@ -377,6 +388,8 @@ export function targetCard(
     name: names[combatantId] ?? combatant.name,
     kind: combatant.kind,
     enemyId: combatant.enemyId ?? null,
+    companionId: combatant.companionId ?? null,
+    lookId: combatant.lookId ?? null,
     lookIndex: combatant.lookIndex ?? null,
     hp,
     maxHp: combatant.maxHp,

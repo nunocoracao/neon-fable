@@ -11,8 +11,8 @@ import {
   getCombatant,
   isAlive,
   isGlancingBlow,
+  isPlayerControlled,
   itemOptions,
-  playerCombatant,
   reachableTiles,
   resolveCombat,
   runEnemyTurns,
@@ -24,6 +24,7 @@ import {
   type CombatActionKind,
   type Combatant,
   type CombatEvent,
+  type CombatantKind,
   type CombatState,
   type GridPosition,
   type TelegraphIntent,
@@ -32,6 +33,7 @@ import { audio, hitSoundForDamage } from "../audio";
 import {
   getAbility,
   getEncounter,
+  companionSpriteId,
   enemySpriteId,
   getItem,
   getMap,
@@ -73,9 +75,17 @@ import {
   type InitiativeRailModel,
   type TelegraphChipAnchor,
 } from "./combatHudView";
-import { enemyDeathStyle, enemySpriteSource } from "./entitySprites";
+import {
+  companionSpriteSource,
+  enemyDeathStyle,
+  enemySpriteSource,
+} from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
-import { enemyPortraitCanvas, portraitCanvas } from "./portraits";
+import {
+  companionPortraitCanvas,
+  enemyPortraitCanvas,
+  portraitCanvas,
+} from "./portraits";
 import type { DayPhaseId, IsoMap, TilePoint } from "../iso";
 import { SaveError, loadGame, type GameState } from "../state";
 import { focusFirst, installListNav } from "./focus";
@@ -133,6 +143,11 @@ type Mode =
 
 export function createCombatScreen(options: CombatScreenOptions): Screen {
   const { session, encounterId, resumeNodeId } = options;
+  // One entity source for the whole arena: a companion's composed look
+  // when the id names one, an enemy archetype's otherwise.
+  const companionArt = companionSpriteSource();
+  const enemyArt = enemySpriteSource();
+  const allySpriteSource = (id: string) => companionArt(id) ?? enemyArt(id);
   const enemyDelayMs = options.enemyDelayMs ?? ENEMY_STEP_MS;
 
   let root: HTMLElement | null = null;
@@ -213,12 +228,18 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     });
   }
 
+  /**
+   * Whether the player may act right now. True on their character's
+   * turn *and* on a companion's: an ally is a unit the player plays,
+   * through this same bar, these same modes, and the same engine
+   * queries — the only thing that changes is whose turn is being spent.
+   */
   function playerCanAct(): boolean {
     return (
       combat !== null &&
       combat.status === "active" &&
       !busy &&
-      activeCombatant(combat).kind === "player"
+      isPlayerControlled(activeCombatant(combat))
     );
   }
 
@@ -230,18 +251,26 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
 
   /**
    * The portrait for one combatant, from the same appearance data its
-   * sprite is composed from: the player's live look, an enemy's
-   * authored archetype visual. Enemies wear the grim variant — a chip
-   * in an initiative rail is a face across a fight, not a conversation.
+   * sprite is composed from: the player's live look, a companion's
+   * authored look, an enemy's archetype visual. Enemies wear the grim
+   * variant — a chip in an initiative rail is a face across a fight,
+   * not a conversation.
    */
   function combatantPortrait(view: {
-    kind: "player" | "enemy";
+    kind: CombatantKind;
     enemyId: string | null;
+    companionId: string | null;
+    lookId: string | null;
     lookIndex: number | null;
   }): HTMLCanvasElement {
     if (view.kind === "player") {
       const { appearance, equipment } = session.state.player;
       return portraitCanvas(appearance, equipment);
+    }
+    // A companion's face comes off their party record's look — the
+    // same visual their sprite on the board is composed from.
+    if (view.kind === "ally") {
+      return companionPortraitCanvas(view.companionId, view.lookId);
     }
     // The face on the chip is the face on the board: the archetype's
     // look family record this body was spawned in, or an authored
@@ -259,11 +288,19 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
 
   function renderStatus(): void {
     if (!statusEl || !combat) return;
-    const player = getCombatant(combat, PLAYER_COMBATANT_ID);
-    if (!player) return;
+    // Whoever the player is currently playing: their own character, or
+    // the companion whose turn it is. The steps and the action on this
+    // row belong to that body, so the hp beside them must too.
+    const acting =
+      combat.status === "active" && isPlayerControlled(activeCombatant(combat))
+        ? activeCombatant(combat)
+        : getCombatant(combat, PLAYER_COMBATANT_ID);
+    if (!acting) return;
     statusEl.replaceChildren();
     const parts = [
-      `HP ${Math.max(0, player.hp)}/${player.maxHp}`,
+      acting.kind === "ally"
+        ? `${nameOf(acting.id)} — HP ${Math.max(0, acting.hp)}/${acting.maxHp}`
+        : `HP ${Math.max(0, acting.hp)}/${acting.maxHp}`,
       `Steps left ${combat.moveRemaining}`,
       combat.actionUsed ? "Action spent" : "Action ready",
     ];
@@ -411,7 +448,9 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
                     apply({
                       type: "use-ability",
                       abilityId: option.abilityId,
-                      targetId: PLAYER_COMBATANT_ID,
+                      // Self-buffs land on whoever is acting — the
+                      // player, or the companion being played.
+                      targetId: activeCombatant(combat!).id,
                     });
                   } else {
                     switchMode({ kind: "ability", abilityId: option.abilityId });
@@ -496,7 +535,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       // Drawn from the walker's own feet through the previewed steps.
       pathLine:
         hover && hover.path.length > 0
-          ? [playerCombatant(combat).position, ...hover.path]
+          ? [activeCombatant(combat).position, ...hover.path]
           : [],
       hover: hoverTile,
     });
@@ -506,9 +545,23 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     });
   }
 
-  /** How a combatant dies on screen; the player is always a body. */
+  /** How a combatant goes down on screen; people crumple. */
   function deathStyleFor(c: Combatant): DeathReactionKind {
-    return c.kind === "player" ? "collapse" : enemyDeathStyle(c.enemyId);
+    return c.kind === "enemy" ? enemyDeathStyle(c.enemyId) : "collapse";
+  }
+
+  /**
+   * The art id a body on the board draws under: the player's own live
+   * look, a companion's authored look, or the enemy archetype-plus-look
+   * pair. All three resolve through the scene's sprite provider, which
+   * is why an ally needed no new drawing code.
+   */
+  function entitySpriteIdFor(c: Combatant): string {
+    if (c.kind === "player") return "player";
+    if (c.kind === "ally") {
+      return companionSpriteId(c.companionId ?? "", c.lookId ?? "");
+    }
+    return enemySpriteId(c.enemyId ?? "enemy", c.lookIndex ?? 0);
   }
 
   function pushEntities(): void {
@@ -532,10 +585,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         id: c.id,
         // Enemy sprite ids (archetype + look) key the art through
         // enemySpriteSource, which resolves the archetype's sprite kind.
-        spriteId:
-          c.kind === "player"
-            ? "player"
-            : enemySpriteId(c.enemyId ?? "enemy", c.lookIndex ?? 0),
+        spriteId: entitySpriteIdFor(c),
         position: { ...c.position },
         // How much floor it is standing on; absent for everything that
         // fits on one tile, which is everything but a chassis.
@@ -626,7 +676,9 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         audio.play("item-use");
         break;
       case "defeated":
-        if (event.combatantId !== PLAYER_COMBATANT_ID) {
+        // The cue is "one of theirs is down"; a companion going down is
+        // not that, and neither is the player.
+        if (getCombatant(combat!, event.combatantId)?.kind === "enemy") {
           audio.play("enemy-defeat");
         }
         break;
@@ -899,9 +951,8 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     };
     const delta = deltas[event.key];
     if (!delta) return;
-    const player = getCombatant(combat, PLAYER_COMBATANT_ID);
-    if (!player) return;
-    const to = { x: player.position.x + delta.x, y: player.position.y + delta.y };
+    const walker = activeCombatant(combat);
+    const to = { x: walker.position.x + delta.x, y: walker.position.y + delta.y };
     if (reachableTiles(combat).some((t) => t.x === to.x && t.y === to.y)) {
       event.preventDefault();
       apply({ type: "move", to });
@@ -1086,7 +1137,9 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         map: arenaMap,
         sprites: createPixelArtSprites({
           player: playerSpriteSource(session),
-          entity: enemySpriteSource(),
+          // One source for every body that is not the player: an
+          // enemy archetype's look, or a companion's.
+          entity: allySpriteSource,
         }),
         // A fight happens under the sky — and at the hour — of the
         // place it started in: the arena inherits both from the map the

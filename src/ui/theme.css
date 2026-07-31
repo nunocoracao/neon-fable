@@ -1306,8 +1306,28 @@ body::after {
   background: var(--nf-glow-cyan);
 }
 
+/* A companion's aside, set under the line it answers: quieter than the
+   speaker's own text, and marked with who said it. */
+.nf-dialogue-aside {
+  margin: 0.35rem 0 0;
+  color: var(--nf-ink-dim);
+  font-style: italic;
+}
+
+.nf-dialogue-aside-name {
+  color: var(--nf-glow-cyan);
+  font-style: normal;
+}
+
 .nf-init-player {
   color: var(--nf-glow-cyan);
+}
+
+/* A companion: on your side of the rail, in your colour, one step down
+   from your own chip so the two never read as the same body. */
+.nf-init-ally {
+  color: var(--nf-glow-cyan);
+  border-style: dashed;
 }
 
 /* The combatant acting now: bigger portrait, lit border, name in full ink. */

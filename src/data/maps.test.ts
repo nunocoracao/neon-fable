@@ -882,6 +882,7 @@ describe("NPC visuals", () => {
       "market-vendor",
       "matron-ferrow",
       "quays-diver",
+      "quays-kade",
       "rust-runner",
       "spire-security",
       "stall-broker",

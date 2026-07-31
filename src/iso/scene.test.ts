@@ -306,13 +306,18 @@ describe("keyboard interaction", () => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key }));
   }
 
-  function mountAt(spawnId: string, events: IsoInteractionEvent[]): void {
+  function mountAt(
+    spawnId: string,
+    events: IsoInteractionEvent[],
+    followerSpriteId?: string,
+  ): void {
     scene = createIsoScene(canvas, {
       map: testMap(),
       spawnId,
       onInteract: (event) => events.push(event),
       sprites: recordingSprites(calls),
       ambient: false,
+      ...(followerSpriteId ? { followerSpriteId } : {}),
     });
   }
 
@@ -335,6 +340,20 @@ describe("keyboard interaction", () => {
     press("Enter");
     press("E");
     expect(events).toEqual([]);
+  });
+
+  it("still triggers with a companion in tow, who is standing on you", () => {
+    // The follower starts on the player's own spawn tile and is scenery
+    // as far as input goes — it can neither take the interaction nor
+    // stand in the way of it.
+    const events: IsoInteractionEvent[] = [];
+    mountAt("player-start", events, "companion:test:look");
+    frame(0);
+    frame(16);
+    press("Enter");
+    expect(events).toEqual([
+      { interactableId: "side-door", interaction: { kind: "dialogue", nodeId: "n1" } },
+    ]);
   });
 
   it("does nothing before the first frame has picked a target", () => {

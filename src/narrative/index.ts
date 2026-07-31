@@ -8,6 +8,9 @@ export type {
   AddItemEffect,
   BackgroundRequirement,
   Choice,
+  CompanionComment,
+  CompanionLoyaltyEffect,
+  CompanionRequirement,
   CreditsEffect,
   Effect,
   EndEffect,
@@ -18,6 +21,7 @@ export type {
   IncrementFlagEffect,
   ItemRequirement,
   OpenStylistEffect,
+  RecruitCompanionEffect,
   RemoveItemEffect,
   Requirement,
   SetFlagEffect,
@@ -28,6 +32,11 @@ export type {
   UnavailablePresentation,
 } from "./types";
 export { checkRequirement, checkRequirements } from "./requirements";
+export {
+  companionAside,
+  companionAsides,
+  type CompanionAside,
+} from "./companions";
 export { applyEffect, applyEffects } from "./effects";
 export {
   NarrativeError,

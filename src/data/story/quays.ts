@@ -14,6 +14,14 @@ import type { StoryArc } from "../../narrative/types";
  * maps. What it leaves behind is `quays-known`, for a later arc that
  * wants to tell a first visit from a return, and the cage's own record
  * of how it came open.
+ *
+ * The district also hands over the game's first companion. Vesper Kade
+ * works the west bollard's winch, and the fork in her chain — take the
+ * handle, or name a price for taking it — is what she remembers about
+ * the player: recorded as `vesper-joined` ("assisted" | "pressed"), and
+ * as the loyalty her party record opens on. Everything the recruitment
+ * touches is party state and her own flags; the acts still read none of
+ * it.
  */
 export const quaysArc: StoryArc = {
   id: "flooded-quays",
@@ -80,6 +88,11 @@ export const quaysArc: StoryArc = {
           target: "fq-board",
         },
         {
+          id: "to-kade",
+          label: "Somebody down the strand is swearing at a winch.",
+          target: "fq-kade",
+        },
+        {
           id: "to-stair",
           label: "Look back up the Lockgate Stair.",
           target: "fq-stair",
@@ -126,6 +139,14 @@ export const quaysArc: StoryArc = {
         "third plank,\" she says, without turning round. \"It's been " +
         "meaning to go for a year.\"",
       location: "flooded-quays:platform",
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"Evening, Dredge.\" Neither of them looks at the other. " +
+            "\"She'll say two streets. Ask her about the tram.\"",
+        },
+      ],
       choices: [
         {
           id: "what-down-there",
@@ -227,6 +248,198 @@ export const quaysArc: StoryArc = {
         },
       ],
     },
+    // --- Vesper Kade: meet, help or lean on her, and leave with her ---
+    //
+    // A self-contained recruitment chain. Both roads reach the same
+    // offer and both end with her aboard if the player wants her; what
+    // the fork decides is what she thinks of them on the way out, which
+    // is recorded twice — as `vesper-joined` for content to gate on and
+    // as an opening loyalty figure on the party member itself.
+    {
+      id: "fq-kade",
+      speaker: "Vesper Kade",
+      text:
+        "The winch on the strand's west bollard has seized with a net " +
+        "half out of the water, and the woman on the handle is explaining " +
+        "to it, at length and without repeating herself, exactly what she " +
+        "thinks of its manufacturer. Cap pushed back, locs tied off, a " +
+        "spool of monofil at her hip and a grapnel hanging off it. She " +
+        "sees you and does not stop. \"You're not the tide,\" she says. " +
+        "\"Tide would've been here an hour ago.\"",
+      location: "flooded-quays:strand",
+      choices: [
+        {
+          id: "kade-help",
+          label: "Get a hand on the other handle and put your back into it.",
+          target: "fq-kade-assist",
+          effects: [{ type: "set-flag", key: "vesper-met", value: "assisted" }],
+        },
+        {
+          id: "kade-press",
+          label: "\"Looks heavy. What's it worth to you?\"",
+          target: "fq-kade-press",
+          effects: [{ type: "set-flag", key: "vesper-met", value: "pressed" }],
+        },
+        {
+          id: "kade-ask",
+          label: "\"What are you fishing for down here?\"",
+          target: "fq-kade-work",
+        },
+        {
+          id: "kade-leave",
+          label: "Leave her to argue with the machinery.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "fq-kade-work",
+      speaker: "Vesper Kade",
+      text:
+        "\"Streets.\" She jerks her chin at the black water. \"Dredge goes " +
+        "down and finds them. I go down and find the ones worth the trip " +
+        "up. There's a difference, and the difference is that I eat.\" The " +
+        "net shifts an inch and stops again. \"She'll tell you it's two " +
+        "streets. It's four. She's never been past the tram.\"",
+      location: "flooded-quays:strand",
+      choices: [
+        {
+          id: "work-back",
+          label: "\"About that winch —\"",
+          target: "fq-kade",
+        },
+        {
+          id: "work-leave",
+          label: "Leave her to it.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "fq-kade-assist",
+      speaker: "Vesper Kade",
+      expression: "smile",
+      text:
+        "Two on the handle and the pawl finally lets go. The net comes up " +
+        "streaming — drum motors, a coil of good cable, something with a " +
+        "serial plate still on it — and lands on the concrete between you. " +
+        "She looks at the haul, then at you, and wipes the rain out of her " +
+        "eyes with the back of a wrist. \"Right,\" she says. \"That's the " +
+        "part where I'd normally owe somebody. I hate that part.\"",
+      location: "flooded-quays:strand",
+      choices: [
+        {
+          id: "assist-on",
+          label: "\"You don't owe me. It was a handle.\"",
+          target: "fq-kade-join",
+        },
+      ],
+    },
+    {
+      id: "fq-kade-press",
+      speaker: "Vesper Kade",
+      expression: "grim",
+      text:
+        "She stops explaining things to the winch and starts explaining " +
+        "them to you, and it turns out she is just as fluent. Then she " +
+        "does the arithmetic behind her eyes — tide, net, an hour, a " +
+        "stranger with both hands free — and it comes out where it was " +
+        "always going to. \"Forty,\" she says. \"For the pull. And I'll " +
+        "remember I paid it.\"",
+      location: "flooded-quays:strand",
+      choices: [
+        {
+          id: "press-take",
+          label: "Take the forty and take the handle.",
+          target: "fq-kade-terms",
+          effects: [{ type: "credits", amount: 40 }],
+        },
+      ],
+    },
+    {
+      id: "fq-kade-join",
+      speaker: "Vesper Kade",
+      text:
+        "She coils the line back onto the spool without looking at it, the " +
+        "way other people fold a coat. \"Here's my problem. Everything " +
+        "worth having down here needs two people and I have been counting " +
+        "to one for a year.\" The lamp on the wreck swings, and the light " +
+        "goes over both of you and away. \"You're going somewhere. You've " +
+        "got that walk. I'd like to be going there too.\"",
+      location: "flooded-quays:strand",
+      choices: [
+        {
+          id: "join-yes",
+          label: "\"Then keep up.\"",
+          target: "fq-kade-aboard",
+          effects: [
+            { type: "recruit-companion", companionId: "vesper" },
+            // Warm road in: she chose it, and it costs her nothing.
+            { type: "companion-loyalty", companionId: "vesper", amount: 2 },
+            { type: "set-flag", key: "vesper-joined", value: "assisted" },
+          ],
+        },
+        {
+          id: "join-no",
+          label: "\"I work alone.\"",
+          effects: [
+            { type: "set-flag", key: "vesper-declined", value: true },
+            { type: "end" },
+          ],
+        },
+      ],
+    },
+    {
+      id: "fq-kade-terms",
+      speaker: "Vesper Kade",
+      text:
+        "The chits go from her hand to yours still wet. \"So you're for " +
+        "hire,\" she says, in the tone of somebody filing a fact where " +
+        "they can find it later. \"Fine. I've got a season of two-person " +
+        "jobs and one person. Cut of everything, off the top, and you " +
+        "don't ask me twice what a thing's worth.\"",
+      location: "flooded-quays:strand",
+      choices: [
+        {
+          id: "terms-yes",
+          label: "\"Off the top. Come on, then.\"",
+          target: "fq-kade-aboard",
+          effects: [
+            { type: "recruit-companion", companionId: "vesper" },
+            // She came aboard on terms, and terms are not trust.
+            { type: "companion-loyalty", companionId: "vesper", amount: -1 },
+            { type: "set-flag", key: "vesper-joined", value: "pressed" },
+          ],
+        },
+        {
+          id: "terms-no",
+          label: "\"Keep your cut. Alone is simpler.\"",
+          effects: [
+            { type: "set-flag", key: "vesper-declined", value: true },
+            { type: "end" },
+          ],
+        },
+      ],
+    },
+    {
+      id: "fq-kade-aboard",
+      speaker: "Vesper Kade",
+      expression: "smile",
+      text:
+        "She kicks the net over the lip so the water takes the silt off " +
+        "it, slings the spool, and falls in a step behind your shoulder " +
+        "like she has been doing it for years. \"Rule one,\" she says. " +
+        "\"If I say the floor's rotten, the floor is rotten. Rule two is " +
+        "that there is no rule two, I just think one rule sounds thin.\"",
+      location: "flooded-quays:strand",
+      choices: [
+        {
+          id: "aboard-go",
+          label: "Get off the strand before the tide makes the point for you.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
     {
       id: "fq-board",
       text:
@@ -261,6 +474,14 @@ export const quaysArc: StoryArc = {
         "reads on a board nobody maintains, because a thing that is not " +
         "measured is a thing that is not happening.",
       location: "flooded-quays:wharf",
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"Grease pencil,\" she says, and does not explain, and " +
+            "stands there reading it a while longer than you do.",
+        },
+      ],
       choices: [
         {
           id: "column-done",
@@ -279,6 +500,15 @@ export const quaysArc: StoryArc = {
         "to the ring it runs through, and what is inside is a shape under " +
         "silt that has not moved in a season.",
       location: "flooded-quays:strand",
+      // Kade has walked past this cage for a season and left it alone.
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"That's parked, not lost. Somebody's coming back for it.\" " +
+            "A beat. \"They're not coming back for it.\"",
+        },
+      ],
       choices: [
         {
           id: "haul",

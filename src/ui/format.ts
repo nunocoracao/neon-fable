@@ -7,6 +7,7 @@ import {
 import { NAME_MAX_LENGTH } from "../character/wizard";
 import { STAT_KEYS } from "../character/stats";
 import { getAbility, type Ability } from "../data/abilities";
+import { getCompanion } from "../data/companions";
 import { getItem } from "../data/items";
 import { UNINSTALL_TRAUMA_PER_LOAD } from "../inventory/equipment";
 import type {
@@ -40,6 +41,11 @@ export function signedNumber(amount: number): string {
   return amount > 0 ? `+${amount}` : `${amount}`;
 }
 
+/** A companion's display name, falling back to their id off content. */
+export function companionName(companionId: string): string {
+  return getCompanion(companionId)?.name ?? companionId;
+}
+
 /** Short bracketed reason a gated choice is shown disabled, e.g. "[Tech 6]". */
 export function requirementLabel(
   requirement: Requirement,
@@ -67,6 +73,10 @@ export function requirementLabel(
       return `[${requirement.key} ${requirement.value}+]`;
     case "credits":
       return `[${requirement.value} cr]`;
+    case "companion":
+      return requirement.status === "recruited"
+        ? `[Knows: ${companionName(requirement.companionId)}]`
+        : `[With: ${companionName(requirement.companionId)}]`;
   }
 }
 

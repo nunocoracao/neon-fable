@@ -16,6 +16,7 @@ import { bodyGap } from "./footprint";
 import { canStand, manhattan, moveSpeed } from "./grid";
 import {
   activeCombatant,
+  areOpposed,
   combatStat,
   getCombatant,
   isAlive,
@@ -86,7 +87,7 @@ function requireOpponent(
   targetId: string,
 ): Combatant {
   const target = requireCombatant(state, targetId);
-  if (!isAlive(target) || target.kind === actor.kind) {
+  if (!isAlive(target) || !areOpposed(target, actor)) {
     throw new CombatError(
       "invalid-target",
       `"${targetId}" is not a living opponent of "${actor.id}"`,

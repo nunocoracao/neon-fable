@@ -4,13 +4,14 @@ import { resolveSpeakerPortrait, type ExpressionId } from "../data";
 import {
   applyChoice,
   availableChoices,
+  companionAside,
   getNode,
   type StoryArc,
   type StoryNode,
 } from "../narrative";
 import { revealDelayMs, settings } from "../settings";
 import { focusFirst } from "./focus";
-import { requirementLabels } from "./format";
+import { companionName, requirementLabels } from "./format";
 import type { OverlayHandle } from "./overlay";
 import { enemyPortraitCanvas, portraitCanvas } from "./portraits";
 import type { Session } from "./session";
@@ -158,6 +159,20 @@ export function createDialogueOverlay(
     text.className = "nf-dialogue-text";
     renderNodeText(text, node.text);
     main.append(text);
+
+    // Whoever is standing at your shoulder gets to put an oar in. Pure
+    // presentation: the aside is chosen by the narrative layer from the
+    // node's authored comments and changes nothing about the scene.
+    const aside = companionAside(node, session.state);
+    if (aside) {
+      const line = document.createElement("p");
+      line.className = "nf-dialogue-aside";
+      const who = document.createElement("span");
+      who.className = "nf-dialogue-aside-name";
+      who.textContent = companionName(aside.companionId);
+      line.append(who, document.createTextNode(` ${aside.text}`));
+      main.append(line);
+    }
 
     const choices = document.createElement("div");
     choices.className = "nf-dialogue-choices";

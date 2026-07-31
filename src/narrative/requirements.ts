@@ -3,6 +3,7 @@ import { hasItem, countItem } from "../inventory/inventory";
 import type { ItemResolver } from "../inventory/items";
 import { effectiveStats } from "../inventory/selectors";
 import type { GameState } from "../state/gameState";
+import { getMember } from "../state/party";
 import type { Requirement } from "./types";
 
 /**
@@ -41,6 +42,11 @@ export function checkRequirement(
       return state.player.tags.includes(requirement.tag);
     case "credits":
       return state.credits >= requirement.value;
+    case "companion": {
+      const member = getMember(state.party, requirement.companionId);
+      if (!member?.recruited) return false;
+      return requirement.status === "recruited" ? true : member.active;
+    }
   }
 }
 

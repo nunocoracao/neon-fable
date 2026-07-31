@@ -16,6 +16,11 @@ import {
   seededAppearance,
   type CharacterVisual,
 } from "../character";
+import {
+  companionLook,
+  getCompanion,
+  parseCompanionSpriteId,
+} from "../data/companions";
 import { enemyLook, getEnemy, parseEnemySpriteId } from "../data/enemies";
 import {
   ambientLookSeed,
@@ -127,6 +132,36 @@ export function enemySpriteSource(): (id: string) => EntityArt | undefined {
 }
 
 /**
+ * Art source for companions, keyed by the sprite id that names the
+ * companion and the look they are wearing (see companionSpriteId).
+ * Re-dressing a companion changes the id, and therefore the bake —
+ * the same rule enemy looks follow. Non-companion ids resolve to
+ * undefined so this composes with the other sources.
+ */
+export function companionSpriteSource(): (id: string) => EntityArt | undefined {
+  const memo = new Map<string, EntityArt | undefined>();
+  return (spriteId) => {
+    if (!memo.has(spriteId)) {
+      memo.set(spriteId, resolveCompanionArt(spriteId));
+    }
+    return memo.get(spriteId);
+  };
+}
+
+function resolveCompanionArt(spriteId: string): EntityArt | undefined {
+  const parsed = parseCompanionSpriteId(spriteId);
+  if (!parsed) return undefined;
+  const companion = getCompanion(parsed.companionId);
+  if (!companion) return undefined;
+  return characterArt(
+    safeCompose(
+      companionLook(companion, parsed.lookId).visual,
+      `companion "${spriteId}"`,
+    ),
+  );
+}
+
+/**
  * The entity source an explorable map runs on: a pedestrian's seeded
  * look if the id is an ambient one, otherwise whatever archetype and
  * record the id names. A street and an arena therefore draw the same
@@ -137,7 +172,8 @@ export function enemySpriteSource(): (id: string) => EntityArt | undefined {
 export function sceneSpriteSource(): (id: string) => EntityArt | undefined {
   const ambient = ambientSpriteSource();
   const enemy = enemySpriteSource();
-  return (id) => ambient(id) ?? enemy(id);
+  const companion = companionSpriteSource();
+  return (id) => companion(id) ?? ambient(id) ?? enemy(id);
 }
 
 function resolveEnemyArt(spriteId: string): EntityArt | undefined {

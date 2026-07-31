@@ -3,7 +3,9 @@ import { requireItem } from "../data/items";
 import { addItem, countItem, removeItem } from "../inventory/inventory";
 import type { ItemResolver } from "../inventory/items";
 import type { GameState } from "../state/gameState";
-import { playerCombatant } from "./state";
+import { getMember, setCompanionHp } from "../state/party";
+import { companionIdOf } from "./ally";
+import { allyCombatants, playerCombatant } from "./state";
 import { CombatError, type CombatState } from "./types";
 
 /**
@@ -39,11 +41,22 @@ export function resolveCombat(
     if (taken > 0) inventory = removeItem(inventory, spent.itemId, taken);
   }
 
+  // Companions come out of a fight the way the player does: hurt, and
+  // never dead. Being dropped costs them the rest of that fight (they
+  // stop taking turns the moment their hp hits 0) and nothing after it.
+  let party = state.party;
+  for (const ally of allyCombatants(combat)) {
+    const companionId = ally.companionId ?? companionIdOf(ally.id);
+    if (companionId === null || !getMember(party, companionId)) continue;
+    party = setCompanionHp(party, companionId, Math.max(1, ally.hp));
+  }
+
   let next: GameState = {
     ...state,
     // Defeat leaves the player staggered at 1 hp; the narrative reacts to
     // the outcome flag, not to a dead character.
     player: { ...state.player, hp: Math.max(1, player.hp) },
+    party,
     flags: {
       ...state.flags,
       [combatResultFlag(combat.encounterId)]: combat.status,
