@@ -79,14 +79,21 @@ describe("populateMap", () => {
     );
   });
 
-  it("re-labels without moving, re-pointing, or re-facing anything else", () => {
+  it("re-labels and re-points, without moving or re-facing anybody", () => {
     const dressed = populateMap(hub, worldOf("stalls-shuttered"));
     const before = hub.interactables.find((i) => i.id === "market-vendor");
     const after = dressed.interactables.find((i) => i.id === "market-vendor");
     expect(after?.label).toBe("Wet-market vendor — shutters down");
     expect(after?.label).not.toBe(before?.label);
-    // The shop still opens the same scene: the row is shuttered, not gone.
-    expect(after?.interaction).toEqual(before?.interaction);
+    // Same person, same pitch, different scene: the shuttered variant.
+    expect(before?.interaction).toEqual({
+      kind: "dialogue",
+      nodeId: "wet-market",
+    });
+    expect(after?.interaction).toEqual({
+      kind: "dialogue",
+      nodeId: "wet-market-shuttered",
+    });
     expect(after?.x).toBe(before?.x);
     expect(after?.y).toBe(before?.y);
     expect(after?.visual).toBe(before?.visual);

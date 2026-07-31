@@ -309,8 +309,17 @@ export const SCENE_REACTIONS: readonly SceneReaction[] = [
         speaker: "Combine Notice-Server",
       },
     ],
+    // Both kinds of rewrite the dressing machinery allows, on one
+    // interactable: the prompt names what the player can already see,
+    // and the scene behind it is the shuttered variant rather than the
+    // ordinary stall — which every route out of leads back to, because
+    // the row is quieter, not closed.
     dress: [
-      { interactableId: "market-vendor", label: "Wet-market vendor — shutters down" },
+      {
+        interactableId: "market-vendor",
+        label: "Wet-market vendor — shutters down",
+        nodeId: "wet-market-shuttered",
+      },
     ],
   },
   {

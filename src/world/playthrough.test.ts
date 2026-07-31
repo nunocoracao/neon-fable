@@ -87,10 +87,14 @@ describe("a played run changes the streets it walks through", () => {
       expect(
         after.map.interactables.find((i) => i.id === "market-vendor")?.label,
       ).toBe("Wet-market vendor — shutters down");
-      // The shop itself is still open — shuttered, not deleted.
+      // The shop itself is still open — shuttered, not deleted. Talking
+      // to them opens the variant scene, which leads back to the stall.
+      expect(
+        before.map.interactables.find((i) => i.id === "market-vendor")?.interaction,
+      ).toEqual({ kind: "dialogue", nodeId: "wet-market" });
       expect(
         after.map.interactables.find((i) => i.id === "market-vendor")?.interaction,
-      ).toEqual({ kind: "dialogue", nodeId: "wet-market" });
+      ).toEqual({ kind: "dialogue", nodeId: "wet-market-shuttered" });
     });
 
     it("pushes the trade a level up, where the market takes it", () => {

@@ -13,6 +13,11 @@ export const introArc: StoryArc = {
   id: "intro",
   title: "First Light Over Cinder Row",
   entryNodeId: "start",
+  // The shuttered-row variant is opened by the world, not by a choice:
+  // while the stalls are down the wet-market NPC is re-pointed here
+  // (see SCENE_REACTIONS in ../world.ts). Declared as a way in so
+  // reachability validates against how it is actually reached.
+  entryNodeIds: ["wet-market-shuttered"],
   nodes: [
     {
       id: "start",
@@ -83,6 +88,56 @@ export const introArc: StoryArc = {
           id: "walk-on",
           label: "Keep walking. The Filament is two blocks on.",
           target: "filament-door",
+        },
+      ],
+    },
+    {
+      // The row with its shutters down. Reached only while the world
+      // says so: the "row-shutters" reaction re-points the stall NPC
+      // here (see SCENE_REACTIONS in ../world.ts), and every route out
+      // of it lands back on the ordinary stall scene — the market is
+      // quieter, not closed. Kept in this arc because a choice may not
+      // cross an arc boundary, and the scene it leads to is here.
+      id: "wet-market-shuttered",
+      text:
+        "Half the row is roller-shuttered and the half that is not has " +
+        "its awnings down. The stallkeeper is sitting on an upturned " +
+        "crate behind a rail of nothing, watching a Combine server work " +
+        "the line with a board. They see you coming and do not get up. " +
+        "\"We're trading,\" they say, to the pavement. \"Quietly.\"",
+      location: "cinder-row:wet-market",
+      choices: [
+        {
+          id: "ask-shutters",
+          label: "\"What happened here?\"",
+          target: "wet-market-shuttered-why",
+        },
+        {
+          id: "trade-quietly",
+          label: "Trade quietly, then.",
+          target: "wet-market",
+        },
+      ],
+    },
+    {
+      id: "wet-market-shuttered-why",
+      text:
+        "\"An Auric courier went dark in the Undercroft and something " +
+        "walked out of the hole with him.\" The stallkeeper turns a " +
+        "credit chit over in their fingers. \"Nobody up there thinks it " +
+        "came down here. They just know where the doors are that open " +
+        "when you knock.\" A shrug. \"Fortnight. Then they'll forget.\"",
+      location: "cinder-row:wet-market",
+      choices: [
+        {
+          id: "shrug-back",
+          label: "Buy something anyway.",
+          target: "wet-market",
+        },
+        {
+          id: "leave-row",
+          label: "Leave them to it.",
+          effects: [{ type: "end" }],
         },
       ],
     },

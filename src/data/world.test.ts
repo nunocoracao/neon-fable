@@ -162,19 +162,28 @@ describe("scene reactions", () => {
   });
 
   it("opens its scenes at nodes their arc declares as ways in", () => {
-    // A street scene is reached only by walking up to the person
-    // holding it, so its node has to be a declared entry of its arc or
-    // the arc validator would (correctly) call it orphaned.
-    for (const reaction of SCENE_REACTIONS) {
-      for (const spawn of reaction.spawn ?? []) {
-        const arc = findArcByNode(spawn.nodeId);
-        expect(arc, spawn.nodeId).toBeDefined();
-        if (!arc) continue;
-        expect(
-          arcEntryNodeIds(arc),
-          `${spawn.id} opens "${spawn.nodeId}", which its arc does not declare as a way in`,
-        ).toContain(spawn.nodeId);
-      }
+    // A scene the world opens — a spawned NPC's, or the variant a
+    // dressing re-points somebody at — is reached only from the map, so
+    // its node has to be a declared entry of its arc or the arc
+    // validator would (correctly) call it orphaned.
+    const opened = SCENE_REACTIONS.flatMap((reaction) => [
+      ...(reaction.spawn ?? []).map((s) => [s.id, s.nodeId] as const),
+      ...(reaction.dress ?? [])
+        .filter((d) => d.nodeId !== undefined)
+        .map((d) => [d.interactableId, d.nodeId as string] as const),
+    ]);
+    // Both channels are exercised, or this test is only half a lint.
+    expect(opened.length).toBeGreaterThan(
+      SCENE_REACTIONS.flatMap((r) => r.spawn ?? []).length,
+    );
+    for (const [who, nodeId] of opened) {
+      const arc = findArcByNode(nodeId);
+      expect(arc, nodeId).toBeDefined();
+      if (!arc) continue;
+      expect(
+        arcEntryNodeIds(arc),
+        `${who} opens "${nodeId}", which its arc does not declare as a way in`,
+      ).toContain(nodeId);
     }
   });
 
