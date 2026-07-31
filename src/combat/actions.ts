@@ -1,3 +1,4 @@
+import { NO_PERKS, healedAmount } from "../character/perks";
 import { requireAbility } from "../data/abilities";
 import { requireItem } from "../data/items";
 import type { ItemResolver } from "../inventory/items";
@@ -13,7 +14,7 @@ import {
   weaponReach,
 } from "./damage";
 import { bodyGap } from "./footprint";
-import { canStand, manhattan, moveSpeed } from "./grid";
+import { canStand, manhattan, stepBudget } from "./grid";
 import {
   activeCombatant,
   areOpposed,
@@ -55,6 +56,83 @@ function withCombatant(
 
 function pushEvents(state: CombatState, ...events: CombatEvent[]): CombatState {
   return { ...state, log: [...state.log, ...events] };
+}
+
+/** A landed blow: the board after it, and what the log still owes. */
+interface Blow {
+  state: CombatState;
+  /**
+   * Entries that follow the blow's own — the caller writes that one,
+   * because only it knows whether this was a swing, a cast, or a
+   * wind-up coming home.
+   */
+  events: CombatEvent[];
+}
+
+/**
+ * The one place a body loses hit points, and therefore the one place
+ * the answer to being dropped can live.
+ *
+ * Every blow in the engine — a swing, an ability, a released wind-up —
+ * comes through here with the damage the math already worked out, and
+ * gets back the state plus whatever the log owes: the defeat line when
+ * it finished them, or a Second Wind when the perk answered it (see
+ * PerkModifiers.secondWindBelow). The recovery is applied *after* the
+ * damage rather than instead of it, so the blow is still reported at
+ * full strength and the perk reads as what it is — getting back up,
+ * not taking less.
+ *
+ * The threshold is only crossed once: a body already under it takes the
+ * next hit like anybody else, and the wind is spent for the fight the
+ * moment it fires.
+ */
+function damageBody(
+  state: CombatState,
+  targetId: string,
+  damage: number,
+  stunTurns = 0,
+): Blow {
+  const before = requireCombatant(state, targetId);
+  let next = withCombatant(state, targetId, (c) => ({
+    ...c,
+    hp: c.hp - damage,
+    stunTurns: c.stunTurns + stunTurns,
+  }));
+
+  const after = getCombatant(next, targetId)!;
+  const perks = before.perks;
+  const share = perks?.secondWindBelow ?? 0;
+  const threshold = (after.maxHp * share) / 100;
+  if (
+    share > 0 &&
+    !before.secondWindSpent &&
+    damage > 0 &&
+    before.hp > threshold &&
+    after.hp <= threshold
+  ) {
+    // Back to at least a single point: a wind that gave nothing back
+    // would be a perk that watched you go down.
+    const recovered = Math.max(
+      1,
+      Math.round((after.maxHp * (perks?.secondWindRecover ?? 0)) / 100),
+    );
+    const healed = Math.min(recovered, after.maxHp - Math.max(0, after.hp));
+    next = withCombatant(next, targetId, (c) => ({
+      ...c,
+      hp: Math.max(0, c.hp) + healed,
+      secondWindSpent: true,
+    }));
+    return {
+      state: next,
+      events: [{ type: "second-wind", combatantId: targetId, amount: healed }],
+    };
+  }
+
+  return {
+    state: next,
+    events:
+      after.hp <= 0 ? [{ type: "defeated", combatantId: targetId }] : [],
+  };
 }
 
 /** Ends the fight if either side is wiped out. */
@@ -152,19 +230,20 @@ function doAttack(state: CombatState, targetId: string): CombatState {
   const damage = hit ? attackDamage(actor.weapon, attackStat, target.armor) : 0;
 
   let next: CombatState = { ...state, rng: roll.state, actionUsed: true };
-  if (hit) {
-    next = withCombatant(next, target.id, (c) => ({ ...c, hp: c.hp - damage }));
-  }
-  next = pushEvents(next, {
-    type: "attacked",
-    attackerId: actor.id,
-    targetId: target.id,
-    hit,
-    damage,
-  });
-  if (hit && getCombatant(next, target.id)!.hp <= 0) {
-    next = pushEvents(next, { type: "defeated", combatantId: target.id });
-  }
+  const blow = hit
+    ? damageBody(next, target.id, damage)
+    : { state: next, events: [] };
+  next = pushEvents(
+    blow.state,
+    {
+      type: "attacked",
+      attackerId: actor.id,
+      targetId: target.id,
+      hit,
+      damage,
+    },
+    ...blow.events,
+  );
   return settleOutcome(next);
 }
 
@@ -207,7 +286,13 @@ function doUseItem(
 
   const effect = item.effect;
   if (effect.type === "heal") {
-    const healed = Math.min(effect.amount, actor.maxHp - actor.hp);
+    // The same seam the out-of-combat use goes through, reading the
+    // figure off the snapshot rather than the character: a dose is
+    // worth what this body's habits make it worth, in here as out there.
+    const healed = Math.min(
+      healedAmount(effect.amount, actor.perks ?? NO_PERKS),
+      actor.maxHp - actor.hp,
+    );
     next = withCombatant(next, actor.id, (c) => ({
       ...c,
       hp: c.hp + healed,
@@ -321,24 +406,21 @@ function doUseAbility(
   // tinted the tiles with, so the blast catches exactly what was shown.
   for (const caught of abilityImpact(state, actor, ability, target)) {
     const { damage, stunTurns } = abilityHit(ability.effect, caught.armor);
-    next = withCombatant(next, caught.id, (c) => ({
-      ...c,
-      hp: c.hp - damage,
-      stunTurns: c.stunTurns + stunTurns,
-    }));
+    const blow = damageBody(next, caught.id, damage, stunTurns);
     // One event per body: the log, the floating figures, and the hit
     // reactions all read a blast as the several blows it is.
-    next = pushEvents(next, {
-      type: "ability-used",
-      combatantId: actor.id,
-      abilityId,
-      targetId: caught.id,
-      damage,
-      stunTurns,
-    });
-    if (getCombatant(next, caught.id)!.hp <= 0) {
-      next = pushEvents(next, { type: "defeated", combatantId: caught.id });
-    }
+    next = pushEvents(
+      blow.state,
+      {
+        type: "ability-used",
+        combatantId: actor.id,
+        abilityId,
+        targetId: caught.id,
+        damage,
+        stunTurns,
+      },
+      ...blow.events,
+    );
   }
   return settleOutcome(next);
 }
@@ -401,22 +483,19 @@ function releaseCharge(
   // off these entries, so a released charge needs no second UI path.
   for (const body of caught) {
     const { damage, stunTurns } = abilityHit(ability.effect, body.armor);
-    next = withCombatant(next, body.id, (c) => ({
-      ...c,
-      hp: c.hp - damage,
-      stunTurns: c.stunTurns + stunTurns,
-    }));
-    next = pushEvents(next, {
-      type: "ability-used",
-      combatantId: actor.id,
-      abilityId: charge.abilityId,
-      targetId: body.id,
-      damage,
-      stunTurns,
-    });
-    if (getCombatant(next, body.id)!.hp <= 0) {
-      next = pushEvents(next, { type: "defeated", combatantId: body.id });
-    }
+    const blow = damageBody(next, body.id, damage, stunTurns);
+    next = pushEvents(
+      blow.state,
+      {
+        type: "ability-used",
+        combatantId: actor.id,
+        abilityId: charge.abilityId,
+        targetId: body.id,
+        damage,
+        stunTurns,
+      },
+      ...blow.events,
+    );
   }
   return settleOutcome(next);
 }
@@ -509,7 +588,7 @@ function advanceTurn(state: CombatState): CombatState {
       ...next,
       turnIndex: index,
       round,
-      moveRemaining: moveSpeed(combatStat(candidate, "reflexes")),
+      moveRemaining: stepBudget(candidate),
       actionUsed: false,
     };
     break;

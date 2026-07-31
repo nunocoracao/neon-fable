@@ -103,16 +103,24 @@ export function thresholdValue(threshold: ReputationThreshold): number {
  * Whether a faction opens a door at this threshold. `mode` "at-most" is
  * the other side of the same gate — the beat somebody only offers once
  * it has gone badly.
+ *
+ * `rapport` is the perk seam (Known Face): points a runner is read
+ * warmer by than the ledger says. It only ever helps a door *open* —
+ * an "at-most" gate is a scene somebody offers because you are
+ * disliked, and being better known is not a way of being more hated.
+ * The ledger itself is untouched: nothing here writes standing, so a
+ * perk cannot inflate the number the epilogue reads.
  */
 export function canAccess(
   reputation: ReputationState,
   factionId: FactionId,
   threshold: ReputationThreshold,
   mode: "at-least" | "at-most" = "at-least",
+  rapport = 0,
 ): boolean {
   const value = reputationOf(reputation, factionId);
   const target = thresholdValue(threshold);
-  return mode === "at-most" ? value <= target : value >= target;
+  return mode === "at-most" ? value <= target : value + rapport >= target;
 }
 
 /**

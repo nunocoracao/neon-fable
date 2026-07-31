@@ -1,3 +1,4 @@
+import { characterPerks } from "../character/perks";
 import { requireItem } from "../data/items";
 import { hasItem, countItem } from "../inventory/inventory";
 import type { ItemResolver } from "../inventory/items";
@@ -78,11 +79,14 @@ export function checkRequirement(
         : standing >= requirement.value;
     }
     case "reputation":
+      // The one place a door asks a faction its opinion, and therefore
+      // the one place a known face is worth anything (see canAccess).
       return canAccess(
         state.reputation,
         requirement.factionId,
         requirement.value,
         requirement.mode,
+        characterPerks(state.player).factionRapport,
       );
     case "dominant-faction": {
       const leader = dominantFaction(state.reputation, requirement.min);

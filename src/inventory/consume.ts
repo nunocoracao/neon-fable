@@ -1,4 +1,5 @@
 import type { CharacterState } from "../character/create";
+import { characterPerks, healedAmount } from "../character/perks";
 import { requireItem } from "../data/items";
 import type { Loadout } from "./equipment";
 import { removeItem, type InventoryState } from "./inventory";
@@ -34,10 +35,14 @@ export function useConsumable(
       `Already at full health — "${item.name}" would be wasted`,
     );
   }
+  // What the item is worth to *this* character: a perk that makes a
+  // dose go further goes through the same seam the fight's use-item
+  // action does, so a stimpack heals the same either side of a fight.
+  const healed = healedAmount(item.effect.amount, characterPerks(character));
   return {
     character: {
       ...character,
-      hp: Math.min(character.derived.maxHp, character.hp + item.effect.amount),
+      hp: Math.min(character.derived.maxHp, character.hp + healed),
     },
     inventory: removeItem(inventory, itemId),
   };

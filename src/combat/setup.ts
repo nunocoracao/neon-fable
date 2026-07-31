@@ -1,3 +1,4 @@
+import { characterPerks, perkIdsOf } from "../character/perks";
 import { requireEncounter, spawnLookIndex } from "../data/encounters";
 import { requireEnemy } from "../data/enemies";
 import { requireItem } from "../data/items";
@@ -13,8 +14,8 @@ import { activeMembers } from "../state/party";
 import { nextFloat, type RngState } from "../state/rng";
 import { staticEffects } from "../inventory/staticLoad";
 import { allyCombatant, allyStartTile } from "./ally";
-import { moveSpeed } from "./grid";
-import { combatStat, initiativeScore } from "./state";
+import { stepBudget } from "./grid";
+import { initiativeScore } from "./state";
 import { openSurgeTurn, startingSurge } from "./surge";
 import {
   type Combatant,
@@ -72,6 +73,12 @@ export function createCombat(
   // Static exists, it simply orders a body that is a step slow.
   const staticBand = staticEffects(state.player, resolve);
 
+  // And what the habits are worth, folded once here for the same
+  // reason: the engine reads figures off the combatant, never a perk
+  // id. A runner who has taken none carries no record at all.
+  const perks = characterPerks(state.player);
+  const hasPerks = perkIdsOf(state.player).length > 0;
+
   const player: Combatant = {
     id: PLAYER_COMBATANT_ID,
     kind: "player",
@@ -85,6 +92,7 @@ export function createCombat(
     ...(staticBand.initiativePenalty > 0
       ? { initiativeMod: -staticBand.initiativePenalty }
       : {}),
+    ...(hasPerks ? { perks } : {}),
     position: { ...encounter.playerStart },
     boosts: [],
     stunTurns: 0,
@@ -171,7 +179,7 @@ export function createCombat(
     initiativeOrder,
     round: 1,
     turnIndex: 0,
-    moveRemaining: moveSpeed(combatStat(first, "reflexes")),
+    moveRemaining: stepBudget(first),
     actionUsed: false,
     rng,
     status: "active",

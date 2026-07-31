@@ -1,5 +1,6 @@
 import type { CharacterState } from "../character/create";
-import type { Stats } from "../character/stats";
+import { characterPerks, dampenedLoad } from "../character/perks";
+import { STAT_HARD_CAP, type Stats } from "../character/stats";
 import { requireItem } from "../data/items";
 import {
   STATIC_BANDS_TABLE,
@@ -74,8 +75,15 @@ export function totalStatic(loads: readonly number[]): number {
  * from this figure and floors once, at the end.
  */
 function rawStatic(character: CharacterState, resolve: ItemResolver): number {
+  const mods = characterPerks(character);
   return installedEnhancements(character, resolve)
     .map(staticLoadOf)
+    // The one place a load is adjusted before it is summed: a perk that
+    // makes dampeners work harder makes the negative loads more
+    // negative and leaves every noisy implant exactly as loud. Every
+    // projection an install screen quotes runs through here too, so the
+    // promise and the result cannot part company.
+    .map((load) => dampenedLoad(load, mods))
     .reduce((sum, load) => sum + load, 0);
 }
 
@@ -170,7 +178,10 @@ export function previewInstall(
   resolve: ItemResolver = requireItem,
 ): StaticShift {
   const from = staticReading(character, resolve);
-  const load = staticLoadOf(resolve(itemId));
+  const load = dampenedLoad(
+    staticLoadOf(resolve(itemId)),
+    characterPerks(character),
+  );
   return shift(
     from,
     readStatic(totalStatic([rawStatic(character, resolve), load])),
@@ -189,7 +200,10 @@ export function previewUninstall(
   const from = staticReading(character, resolve);
   const itemId = character.equipment.enhancements[slot];
   if (itemId == null) return shift(from, from);
-  const load = staticLoadOf(resolve(itemId));
+  const load = dampenedLoad(
+    staticLoadOf(resolve(itemId)),
+    characterPerks(character),
+  );
   return shift(
     from,
     readStatic(totalStatic([rawStatic(character, resolve), -load])),
@@ -211,7 +225,19 @@ export function dialogueStats(
   resolve: ItemResolver = requireItem,
 ): Stats {
   const stats = effectiveStats(character, resolve);
-  const penalty = staticEffects(character, resolve).coolPenalty;
-  if (penalty === 0) return stats;
-  return { ...stats, cool: Math.max(1, stats.cool - penalty) };
+  const mods = characterPerks(character);
+  // Two perk figures meet here and they are deliberately different
+  // things: poise refuses part of the noise's bill, and a silver tongue
+  // is worth the same point whether or not there was a bill. Poise can
+  // only ever cancel a penalty — it is not a bonus for being quiet.
+  const penalty = Math.max(
+    0,
+    staticEffects(character, resolve).coolPenalty - mods.staticPoise,
+  );
+  const cool = stats.cool - penalty + mods.dialogueCool;
+  if (cool === stats.cool) return stats;
+  return {
+    ...stats,
+    cool: Math.min(STAT_HARD_CAP, Math.max(1, cool)),
+  };
 }

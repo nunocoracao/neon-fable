@@ -143,6 +143,17 @@ export function eventPopups(
       return event.bodies === 0
         ? [{ combatantId: event.combatantId, kind: "miss", text: "NO HIT" }]
         : [];
+    case "second-wind":
+      // Reads as the recovery it is, over the body that got back up.
+      // The blow that caused it already showed its own figure, so the
+      // arena tells the whole story in two numbers.
+      return [
+        {
+          combatantId: event.combatantId,
+          kind: "heal",
+          text: `+${event.amount}`,
+        },
+      ];
     case "flee-attempted":
       // Getting away is its own outcome on the screen; failing to is a
       // wasted action, and reads like one.

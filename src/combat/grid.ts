@@ -4,7 +4,7 @@ import {
   footprintFits,
   footprintsOverlap,
 } from "./footprint";
-import { isAlive } from "./state";
+import { combatStat, isAlive } from "./state";
 
 /**
  * Grid rules. Arenas are small orthogonal grids (matching the iso combat
@@ -91,4 +91,20 @@ export function combatantAt(
 /** Grid steps per turn, derived from Reflexes. */
 export function moveSpeed(reflexes: number): number {
   return 2 + Math.floor(reflexes / 4);
+}
+
+/**
+ * Steps a body gets when its turn opens: what its Reflexes are worth,
+ * plus whatever its perks lend it (see PerkModifiers.extraSteps). The
+ * only place a turn's step budget is worked out — setup opens the first
+ * turn with it and advanceTurn opens every one after — so a perk that
+ * adds a step adds it on turn one and on turn nine, and the move
+ * telegraph, which reads `moveRemaining`, follows without ever learning
+ * that perks exist.
+ */
+export function stepBudget(combatant: Combatant): number {
+  return (
+    moveSpeed(combatStat(combatant, "reflexes")) +
+    (combatant.perks?.extraSteps ?? 0)
+  );
 }

@@ -262,13 +262,47 @@ export function telegraphField(
 }
 
 /**
- * The ground already promised by every wind-up in flight, tinted as the
- * threat it is. Independent of what the player has open — see the
- * "threat" role above.
+ * Ground a hostile could reach *from where it is standing*, marked
+ * before it acts rather than after — the whole of what a Cold Read buys
+ * (see PerkModifiers.enemyIntent).
+ *
+ * Read off the player's own snapshot, so a run without the perk gets
+ * exactly the board it always got: an empty list, and no way to tell
+ * the feature exists. Measured from current positions and current
+ * weapons only — this is a read of what they can do, not a prophecy of
+ * where they will walk, and promising the latter would be a telegraph
+ * the engine could not honour.
+ */
+export function intentTiles(state: CombatState): TelegraphTile[] {
+  if (state.status !== "active") return [];
+  const player = state.combatants.find((c) => c.kind === "player");
+  if (!player || (player.perks?.enemyIntent ?? 0) <= 0) return [];
+  const tiles: TelegraphTile[] = [];
+  for (const body of state.combatants) {
+    if (!isAlive(body) || !areOpposed(body, player)) continue;
+    for (const tile of tilesWithin(state, body, weaponReach(body.weapon))) {
+      tiles.push({ ...tile, role: "threat" });
+    }
+  }
+  return tiles;
+}
+
+/**
+ * The ground already promised by every wind-up in flight, plus — for a
+ * runner who reads shoulders — the ground the living hostiles could
+ * take somebody on right now. Both tint as the same threat, because to
+ * the player they are the same fact: do not be standing there.
+ *
+ * Independent of what the player has open — see the "threat" role above.
  */
 export function threatTiles(state: CombatState): TelegraphTile[] {
   if (state.status !== "active") return [];
-  return threatenedTiles(state).map((tile) => ({ ...tile, role: "threat" }));
+  return [
+    ...threatenedTiles(state).map(
+      (tile): TelegraphTile => ({ ...tile, role: "threat" }),
+    ),
+    ...intentTiles(state),
+  ];
 }
 
 /** The move telegraph for one hovered tile. */

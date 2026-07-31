@@ -1,4 +1,5 @@
 import type { CharacterState } from "../character/create";
+import { neuralCapacityOf } from "../character/perks";
 import { requireItem } from "../data/items";
 import {
   addGear,
@@ -228,7 +229,10 @@ export function installEnhancement(
       `Cannot install "${itemId}": ${item.slot} slot already holds "${occupant}"`,
     );
   }
-  const capacity = character.derived.neuralCapacity;
+  // Asked of the perk-aware figure, never of the derived one: the
+  // install rule and the capacity the character screen prints are the
+  // same function, so a frame that reads 5/6 can always fit the sixth.
+  const capacity = neuralCapacityOf(character);
   if (character.neuralLoad + item.neuralCost > capacity) {
     throw new InventoryError(
       "neural-capacity",
