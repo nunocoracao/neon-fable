@@ -2,7 +2,20 @@
  * Encounter content: which enemies spawn where on which arena grid, and
  * what winning pays out. Grids are small and match future iso combat
  * arenas (positions are tile coordinates).
+ *
+ * ## Which look a spawn wears
+ *
+ * Humanoid archetypes come as look families (see ./enemyLooks). A spawn
+ * either pins a record with `look` — for a scene that wants a specific
+ * face across the table — or leaves it to spawnLookIndex, a seeded pick
+ * stable per encounter and slot. Stable means what it says: the same
+ * fight staffs itself with the same faces on every replay, on every
+ * reload, and in every session, because the seed is the encounter id and
+ * the slot index and nothing else. No RNG state is consumed, so look
+ * variety can never shift a damage roll.
  */
+import { createRng, nextInt } from "../state/rng";
+import { enemyLookCount, getEnemy } from "./enemies";
 
 export interface EncounterPosition {
   x: number;
@@ -12,6 +25,11 @@ export interface EncounterPosition {
 export interface EncounterSpawn {
   enemyId: string;
   position: EncounterPosition;
+  /**
+   * Pins this spawn to one record of the archetype's look family;
+   * out-of-range values clamp. Omit to take the seeded pick.
+   */
+  look?: number;
 }
 
 export interface EncounterRewardItem {
@@ -63,8 +81,9 @@ export const encounters: Encounter[] = [
     arenaMapId: "rustyard-arena",
     playerStart: { x: 3, y: 6 },
     enemies: [
-      { enemyId: "nme-rustyard-bruiser", position: { x: 1, y: 1 } },
-      { enemyId: "nme-rustyard-bruiser", position: { x: 5, y: 1 } },
+      // Pinned: the ambush is two named faces of the crew, not a coin flip.
+      { enemyId: "nme-rustyard-bruiser", position: { x: 1, y: 1 }, look: 1 },
+      { enemyId: "nme-rustyard-bruiser", position: { x: 5, y: 1 }, look: 2 },
     ],
     rewards: {
       credits: 30,
@@ -94,8 +113,8 @@ export const encounters: Encounter[] = [
     arenaMapId: "undercroft-arena",
     playerStart: { x: 1, y: 3 },
     enemies: [
-      { enemyId: "nme-auric-warden", position: { x: 6, y: 2 } },
-      { enemyId: "nme-auric-warden", position: { x: 6, y: 4 } },
+      { enemyId: "nme-auric-warden", position: { x: 6, y: 2 }, look: 0 },
+      { enemyId: "nme-auric-warden", position: { x: 6, y: 4 }, look: 1 },
     ],
     rewards: {
       credits: 35,
@@ -138,9 +157,10 @@ export const encounters: Encounter[] = [
     arenaMapId: "pumpworks-arena",
     playerStart: { x: 1, y: 3 },
     enemies: [
-      { enemyId: "nme-court-sapper", position: { x: 7, y: 2 } },
-      { enemyId: "nme-court-sapper", position: { x: 6, y: 5 } },
-      { enemyId: "nme-court-sapper", position: { x: 7, y: 3 } },
+      // The whole Court crew, one of each: everyone Voss could raise.
+      { enemyId: "nme-court-sapper", position: { x: 7, y: 2 }, look: 0 },
+      { enemyId: "nme-court-sapper", position: { x: 6, y: 5 }, look: 1 },
+      { enemyId: "nme-court-sapper", position: { x: 7, y: 3 }, look: 2 },
     ],
     rewards: {
       credits: 60,
@@ -171,8 +191,8 @@ export const encounters: Encounter[] = [
     arenaMapId: "vault-arena",
     playerStart: { x: 1, y: 2 },
     enemies: [
-      { enemyId: "nme-cordon-enforcer", position: { x: 6, y: 1 } },
-      { enemyId: "nme-cordon-enforcer", position: { x: 6, y: 4 } },
+      { enemyId: "nme-cordon-enforcer", position: { x: 6, y: 1 }, look: 0 },
+      { enemyId: "nme-cordon-enforcer", position: { x: 6, y: 4 }, look: 2 },
     ],
     rewards: {
       credits: 45,
@@ -213,7 +233,7 @@ export const encounters: Encounter[] = [
     grid: { width: 9, height: 7 },
     arenaMapId: "cycler-floor-arena",
     playerStart: { x: 1, y: 3 },
-    enemies: [{ enemyId: "nme-halex-proxy", position: { x: 7, y: 3 } }],
+    enemies: [{ enemyId: "nme-halex-proxy", position: { x: 7, y: 3 }, look: 0 }],
     rewards: {
       credits: 100,
       items: [{ itemId: "con-trauma-patch", quantity: 2 }],
@@ -227,7 +247,7 @@ export const encounters: Encounter[] = [
     arenaMapId: "cycler-floor-arena",
     playerStart: { x: 1, y: 3 },
     enemies: [
-      { enemyId: "nme-halex-proxy", position: { x: 7, y: 3 } },
+      { enemyId: "nme-halex-proxy", position: { x: 7, y: 3 }, look: 0 },
       { enemyId: "nme-static-drone", position: { x: 7, y: 1 } },
     ],
     rewards: {
@@ -243,7 +263,7 @@ export const encounters: Encounter[] = [
     arenaMapId: "cycler-floor-arena",
     playerStart: { x: 1, y: 3 },
     enemies: [
-      { enemyId: "nme-halex-proxy", position: { x: 7, y: 3 } },
+      { enemyId: "nme-halex-proxy", position: { x: 7, y: 3 }, look: 0 },
       { enemyId: "nme-static-drone", position: { x: 6, y: 5 } },
     ],
     rewards: {
@@ -275,8 +295,8 @@ export const encounters: Encounter[] = [
     arenaMapId: "vault-arena",
     playerStart: { x: 1, y: 2 },
     enemies: [
-      { enemyId: "nme-auric-collector", position: { x: 6, y: 1 } },
-      { enemyId: "nme-auric-collector", position: { x: 6, y: 4 } },
+      { enemyId: "nme-auric-collector", position: { x: 6, y: 1 }, look: 0 },
+      { enemyId: "nme-auric-collector", position: { x: 6, y: 4 }, look: 1 },
     ],
     rewards: {
       credits: 180,
@@ -346,7 +366,7 @@ export const encounters: Encounter[] = [
     grid: { width: 9, height: 7 },
     arenaMapId: "spire-crown-arena",
     playerStart: { x: 1, y: 3 },
-    enemies: [{ enemyId: "nme-locus-aspect", position: { x: 7, y: 3 } }],
+    enemies: [{ enemyId: "nme-locus-aspect", position: { x: 7, y: 3 }, look: 0 }],
     rewards: {
       credits: 150,
       items: [{ itemId: "con-field-kit" }],
@@ -360,7 +380,7 @@ export const encounters: Encounter[] = [
     arenaMapId: "spire-crown-arena",
     playerStart: { x: 1, y: 3 },
     enemies: [
-      { enemyId: "nme-locus-aspect", position: { x: 7, y: 3 } },
+      { enemyId: "nme-locus-aspect", position: { x: 7, y: 3 }, look: 0 },
       { enemyId: "nme-static-drone", position: { x: 7, y: 1 } },
     ],
     rewards: {
@@ -376,7 +396,7 @@ export const encounters: Encounter[] = [
     arenaMapId: "spire-crown-arena",
     playerStart: { x: 1, y: 3 },
     enemies: [
-      { enemyId: "nme-locus-aspect", position: { x: 7, y: 3 } },
+      { enemyId: "nme-locus-aspect", position: { x: 7, y: 3 }, look: 0 },
       { enemyId: "nme-cordon-enforcer", position: { x: 6, y: 5 } },
     ],
     rewards: {
@@ -399,4 +419,41 @@ export function requireEncounter(id: string): Encounter {
     throw new Error(`No encounter with id "${id}"`);
   }
   return encounter;
+}
+
+/**
+ * A stable numeric seed for one encounter slot: FNV-1a over the
+ * encounter id and the slot index. Pure, and identical across sessions
+ * — a fight's faces are part of the fight, not of the playthrough.
+ */
+export function spawnLookSeed(encounterId: string, slot: number): number {
+  let hash = 0x811c9dc5;
+  const source = `${encounterId}:${slot}`;
+  for (let i = 0; i < source.length; i++) {
+    hash ^= source.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash;
+}
+
+/**
+ * Which record of an archetype's look family the spawn in this slot
+ * wears: the pinned index when the encounter names one, otherwise a
+ * seeded pick from the family. Always in range for the family (a
+ * one-look archetype — anything with an authored sprite set — always
+ * comes back 0), so the caller never has to bounds-check.
+ */
+export function spawnLookIndex(
+  encounterId: string,
+  slot: number,
+  spawn: EncounterSpawn,
+): number {
+  // An unknown archetype has one look: whatever the provider falls back to.
+  const enemy = getEnemy(spawn.enemyId);
+  const count = enemy ? enemyLookCount(enemy) : 1;
+  if (spawn.look !== undefined) {
+    return Math.min(Math.max(0, Math.trunc(spawn.look)), count - 1);
+  }
+  if (count <= 1) return 0;
+  return nextInt(createRng(spawnLookSeed(encounterId, slot)), 0, count - 1).value;
 }

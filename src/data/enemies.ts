@@ -1,16 +1,48 @@
 import type { CharacterVisual } from "../character/appearance";
 import type { Stats } from "../character/stats";
 import type { RangeType } from "../inventory/items";
+import type { DroneArtId } from "../iso/art/drone";
+import {
+  AURIC_AGENT_LOOKS,
+  AURIC_COLLECTOR_LOOKS,
+  AURIC_WARDEN_LOOKS,
+  CORDON_ENFORCER_LOOKS,
+  COURT_SAPPER_LOOKS,
+  HALEX_PROXY_LOOKS,
+  LOCUS_ASPECT_LOOKS,
+  PUMP_CUSTODIAN_LOOKS,
+  RUSTYARD_BRUISER_LOOKS,
+  VAULT_SENTINEL_LOOKS,
+  VENT_CRAWLER_LOOKS,
+  type EnemyLookFamily,
+} from "./enemyLooks";
 
 /**
  * Enemy content. Enemies are pure typed data mirroring the player's combat
  * inputs (stats, weapon, armor, abilities); the combat engine builds
  * combatants from them. Encounters in encounters.ts place them on grids.
  *
+ * ## How an archetype is drawn
+ *
+ * `spriteKind` says which art system draws it, and the rest of the
+ * record follows from that tag:
+ *
+ * - `"humanoid"` — a look *family* of two or three authored records
+ *   (./enemyLooks), each composed through the layered appearance
+ *   pipeline. Which one a given spawn wears is the encounter's call
+ *   (see spawnLookIndex in ./encounters), so a squad is a squad rather
+ *   than a row of clones. Index 0 is the archetype's canonical read.
+ * - `"drone"` — an authored non-humanoid chassis (../iso/art/drone).
+ *   No appearance, no gear, no face; the renderer resolves the tag
+ *   through the sprite-kind union in ../iso/art/entity and never asks
+ *   what it is drawing.
+ *
  * Hostility reads through appearance data, not engine tinting: every
- * archetype's visual carries a crimson or magenta optic (eyeColor) as
- * the hostile cue — enemies.test pins the convention. Gear on the
- * visual is cosmetic only; combat numbers come from stats/weapon/armor.
+ * humanoid look carries a crimson or magenta optic (eyeColor) as the
+ * hostile cue — enemies.test pins the convention across every record of
+ * every family, and the drone's authored camera eye burns the same red.
+ * Gear on a look is cosmetic only; combat numbers come from
+ * stats/weapon/armor.
  */
 
 export interface EnemyWeapon {
@@ -25,7 +57,13 @@ export interface EnemyWeapon {
  */
 export type EnemyChassis = "flesh" | "machine";
 
-export interface Enemy {
+/** Which art system draws an archetype. */
+export const ENEMY_SPRITE_KINDS = ["humanoid", "drone"] as const;
+
+export type EnemySpriteKind = (typeof ENEMY_SPRITE_KINDS)[number];
+
+/** Everything an archetype is, apart from how it is drawn. */
+interface EnemyBase {
   id: string;
   name: string;
   description: string;
@@ -38,9 +76,23 @@ export interface Enemy {
   chassis: EnemyChassis;
   /** Abilities from src/data/abilities.ts the enemy AI may use. */
   abilityIds: string[];
-  /** Authored look, rendered through the layered appearance pipeline. */
-  visual: CharacterVisual;
 }
+
+/** An archetype drawn by the layered appearance system. */
+export interface HumanoidEnemy extends EnemyBase {
+  spriteKind: "humanoid";
+  /** The archetype's authored look family; index 0 is canonical. */
+  looks: EnemyLookFamily;
+}
+
+/** An archetype drawn from an authored non-humanoid sprite set. */
+export interface DroneEnemy extends EnemyBase {
+  spriteKind: "drone";
+  /** Authored chassis in ../iso/art/drone. */
+  droneArt: DroneArtId;
+}
+
+export type Enemy = HumanoidEnemy | DroneEnemy;
 
 export const enemies: Enemy[] = [
   {
@@ -55,23 +107,8 @@ export const enemies: Enemy[] = [
     armor: 1,
     chassis: "flesh",
     abilityIds: [],
-    // Pressed corporate gray: spire suit, slicked hair, crimson optics.
-    visual: {
-      appearance: {
-        skinTone: "golden-tan",
-        build: "lean",
-        hairStyle: "slicked",
-        hairColor: "raven",
-        eyes: "narrow",
-        eyeColor: "crimson",
-        brows: "straight",
-        mouth: "neutral",
-        faceDetail: "none",
-        headwear: "none",
-      },
-      outfit: "out-spire-suit",
-      weapon: "wpn-compact-pistol",
-    },
+    spriteKind: "humanoid",
+    looks: AURIC_AGENT_LOOKS,
   },
   {
     id: "nme-rustyard-bruiser",
@@ -85,51 +122,25 @@ export const enemies: Enemy[] = [
     armor: 1,
     chassis: "flesh",
     abilityIds: ["ability-crush"],
-    // Scarred scrapyard bulk with salvage-grade chrome arms.
-    visual: {
-      appearance: {
-        skinTone: "deep-umber",
-        build: "heavy",
-        hairStyle: "none",
-        hairColor: "raven",
-        eyes: "standard",
-        eyeColor: "crimson",
-        brows: "heavy",
-        mouth: "frown",
-        faceDetail: "scar",
-        headwear: "none",
-      },
-      weapon: "wpn-stun-baton",
-      enhancements: { arms: "cyb-myomer-arms" },
-    },
+    spriteKind: "humanoid",
+    looks: RUSTYARD_BRUISER_LOOKS,
   },
   {
     id: "nme-static-drone",
     name: "Static Drone",
     description:
-      "A palm-sized surveillance drone rewired to bite. Fast, fragile, " +
-      "and wreathed in a halo of stolen charge.",
+      "A rotor-ringed surveillance shell rewired to bite. Fast, fragile, " +
+      "and trailing a halo of stolen charge off its stinger.",
     stats: { body: 3, reflexes: 8, tech: 6, cool: 3, intelligence: 4 },
     maxHp: 8,
     weapon: { name: "Arc Stinger", damage: 3, rangeType: "ranged" },
     armor: 0,
     chassis: "machine",
     abilityIds: ["ability-shock-dart"],
-    // Hooded shell, sensor band, breather grille: barely a face at all.
-    visual: {
-      appearance: {
-        skinTone: "porcelain",
-        build: "lean",
-        hairStyle: "none",
-        hairColor: "silver",
-        eyes: "cyber-band",
-        eyeColor: "crimson",
-        brows: "straight",
-        mouth: "breather",
-        faceDetail: "circuit-ink",
-        headwear: "hood",
-      },
-    },
+    // Not a person in a hood: an authored chassis, drawn outside the
+    // layered appearance system entirely (../iso/art/drone).
+    spriteKind: "drone",
+    droneArt: "static-drone",
   },
   {
     id: "nme-vault-sentinel",
@@ -143,24 +154,8 @@ export const enemies: Enemy[] = [
     armor: 3,
     chassis: "machine",
     abilityIds: ["ability-stun-strike"],
-    // Chromed security slab: plate, reinforced arms, dermal armor.
-    visual: {
-      appearance: {
-        skinTone: "porcelain",
-        build: "heavy",
-        hairStyle: "none",
-        hairColor: "silver",
-        eyes: "cyber-band",
-        eyeColor: "crimson",
-        brows: "heavy",
-        mouth: "breather",
-        faceDetail: "none",
-        headwear: "none",
-      },
-      outfit: "out-cordon-plate",
-      weapon: "wpn-stun-baton",
-      enhancements: { arms: "cyb-torsion-frame", dermal: "cyb-dermal-weave" },
-    },
+    spriteKind: "humanoid",
+    looks: VAULT_SENTINEL_LOOKS,
   },
   {
     id: "nme-auric-warden",
@@ -174,23 +169,8 @@ export const enemies: Enemy[] = [
     armor: 2,
     chassis: "flesh",
     abilityIds: [],
-    // Flood-grey harness and a service cap pulled low over red optics.
-    visual: {
-      appearance: {
-        skinTone: "warm-brown",
-        build: "heavy",
-        hairStyle: "buzz",
-        hairColor: "raven",
-        eyes: "narrow",
-        eyeColor: "crimson",
-        brows: "heavy",
-        mouth: "frown",
-        faceDetail: "none",
-        headwear: "cap",
-      },
-      outfit: "out-diver-harness",
-      weapon: "wpn-compact-pistol",
-    },
+    spriteKind: "humanoid",
+    looks: AURIC_WARDEN_LOOKS,
   },
   {
     id: "nme-court-sapper",
@@ -204,23 +184,8 @@ export const enemies: Enemy[] = [
     armor: 1,
     chassis: "flesh",
     abilityIds: ["ability-shock-dart"],
-    // Patched wet-rig, tied-back hair, magenta work-lenses.
-    visual: {
-      appearance: {
-        skinTone: "golden-tan",
-        build: "lean",
-        hairStyle: "ponytail",
-        hairColor: "auburn",
-        eyes: "standard",
-        eyeColor: "magenta",
-        brows: "straight",
-        mouth: "neutral",
-        faceDetail: "none",
-        headwear: "cap",
-      },
-      outfit: "out-diver-harness",
-      weapon: "wpn-shard-knife",
-    },
+    spriteKind: "humanoid",
+    looks: COURT_SAPPER_LOOKS,
   },
   {
     id: "nme-pump-custodian",
@@ -234,23 +199,8 @@ export const enemies: Enemy[] = [
     armor: 3,
     chassis: "machine",
     abilityIds: ["ability-stun-strike"],
-    // Mineral-crusted caretaker frame: dark shell, inked plating seams.
-    visual: {
-      appearance: {
-        skinTone: "deep-umber",
-        build: "heavy",
-        hairStyle: "none",
-        hairColor: "chestnut",
-        eyes: "cyber-band",
-        eyeColor: "crimson",
-        brows: "heavy",
-        mouth: "breather",
-        faceDetail: "circuit-ink",
-        headwear: "none",
-      },
-      weapon: "wpn-stun-baton",
-      enhancements: { arms: "cyb-torsion-frame" },
-    },
+    spriteKind: "humanoid",
+    looks: PUMP_CUSTODIAN_LOOKS,
   },
   {
     id: "nme-cordon-enforcer",
@@ -264,23 +214,8 @@ export const enemies: Enemy[] = [
     armor: 2,
     chassis: "flesh",
     abilityIds: ["ability-riot-net"],
-    // Matte interdiction plate under a tech hood; patient red stare.
-    visual: {
-      appearance: {
-        skinTone: "porcelain",
-        build: "heavy",
-        hairStyle: "buzz",
-        hairColor: "raven",
-        eyes: "narrow",
-        eyeColor: "crimson",
-        brows: "straight",
-        mouth: "frown",
-        faceDetail: "none",
-        headwear: "hood",
-      },
-      outfit: "out-cordon-plate",
-      weapon: "wpn-rail-spitter",
-    },
+    spriteKind: "humanoid",
+    looks: CORDON_ENFORCER_LOOKS,
   },
   {
     id: "nme-auric-collector",
@@ -294,23 +229,8 @@ export const enemies: Enemy[] = [
     armor: 1,
     chassis: "flesh",
     abilityIds: [],
-    // The good coat: ghostline mantle, silvered hair, magenta appraisal.
-    visual: {
-      appearance: {
-        skinTone: "warm-brown",
-        build: "lean",
-        hairStyle: "slicked",
-        hairColor: "silver",
-        eyes: "narrow",
-        eyeColor: "magenta",
-        brows: "arched",
-        mouth: "smirk",
-        faceDetail: "none",
-        headwear: "none",
-      },
-      outfit: "out-ghostline-mantle",
-      weapon: "wpn-compact-pistol",
-    },
+    spriteKind: "humanoid",
+    looks: AURIC_COLLECTOR_LOOKS,
   },
   {
     id: "nme-vent-crawler",
@@ -324,23 +244,8 @@ export const enemies: Enemy[] = [
     armor: 2,
     chassis: "machine",
     abilityIds: ["ability-coolant-vent"],
-    // Feral duct chassis: scarred shell, scavenged claw-arms, red band.
-    visual: {
-      appearance: {
-        skinTone: "golden-tan",
-        build: "lean",
-        hairStyle: "none",
-        hairColor: "raven",
-        eyes: "cyber-band",
-        eyeColor: "crimson",
-        brows: "heavy",
-        mouth: "breather",
-        faceDetail: "scar",
-        headwear: "none",
-      },
-      weapon: "wpn-shard-knife",
-      enhancements: { arms: "cyb-myomer-arms" },
-    },
+    spriteKind: "humanoid",
+    looks: VENT_CRAWLER_LOOKS,
   },
   {
     id: "nme-halex-proxy",
@@ -354,24 +259,8 @@ export const enemies: Enemy[] = [
     armor: 1,
     chassis: "machine",
     abilityIds: ["ability-mandate-pulse"],
-    // Polished civic idol: spire suit, dyed scalp glyph, magenta band.
-    visual: {
-      appearance: {
-        skinTone: "porcelain",
-        build: "lean",
-        hairStyle: "glyph",
-        hairColor: "silver",
-        eyes: "cyber-band",
-        eyeColor: "magenta",
-        brows: "arched",
-        mouth: "neutral",
-        faceDetail: "cyber-lines",
-        headwear: "none",
-      },
-      outfit: "out-spire-suit",
-      weapon: "wpn-spindle-projector",
-      enhancements: { neural: "cyb-lattice-coprocessor" },
-    },
+    spriteKind: "humanoid",
+    looks: HALEX_PROXY_LOOKS,
   },
   {
     id: "nme-locus-aspect",
@@ -386,24 +275,8 @@ export const enemies: Enemy[] = [
     armor: 2,
     chassis: "machine",
     abilityIds: ["ability-mandate-pulse"],
-    // Founders-era custodian in civic white, jacked into the registry.
-    visual: {
-      appearance: {
-        skinTone: "porcelain",
-        build: "heavy",
-        hairStyle: "none",
-        hairColor: "silver",
-        eyes: "cyber-band",
-        eyeColor: "crimson",
-        brows: "straight",
-        mouth: "breather",
-        faceDetail: "circuit-ink",
-        headwear: "none",
-      },
-      outfit: "out-ghostline-mantle",
-      weapon: "wpn-spindle-projector",
-      enhancements: { neural: "cyb-lattice-coprocessor", dermal: "cyb-dermal-weave" },
-    },
+    spriteKind: "humanoid",
+    looks: LOCUS_ASPECT_LOOKS,
   },
 ];
 
@@ -419,4 +292,62 @@ export function requireEnemy(id: string): Enemy {
     throw new Error(`No enemy with id "${id}"`);
   }
   return enemy;
+}
+
+/**
+ * How many looks an archetype can be drawn as. A humanoid has its
+ * family; anything with an authored sprite set has exactly one, which
+ * is what lets the encounter's pick run over every archetype without
+ * asking what kind it is.
+ */
+export function enemyLookCount(enemy: Enemy): number {
+  return enemy.spriteKind === "humanoid" ? enemy.looks.length : 1;
+}
+
+/**
+ * One record of a humanoid archetype's look family, clamped into range
+ * so a stale saved index can never blank a sprite. Undefined for
+ * archetypes the layered appearance system does not draw.
+ */
+export function enemyLook(
+  enemy: Enemy,
+  index: number,
+): CharacterVisual | undefined {
+  if (enemy.spriteKind !== "humanoid") return undefined;
+  const clamped = Math.min(
+    Math.max(0, Math.trunc(index)),
+    enemy.looks.length - 1,
+  );
+  return enemy.looks[clamped];
+}
+
+/** Separates an archetype id from the look index in a sprite id. */
+const LOOK_SEPARATOR = "#";
+
+/**
+ * The renderer's id for one archetype wearing one of its looks. Two
+ * spawns of the same archetype in different records get different
+ * sprite ids — and therefore different composed looks and different
+ * bake-cache entries — while two spawns of the same record share both.
+ */
+export function enemySpriteId(enemyId: string, lookIndex = 0): string {
+  return `${enemyId}${LOOK_SEPARATOR}${Math.max(0, Math.trunc(lookIndex))}`;
+}
+
+/**
+ * Read a sprite id back apart. Ids without a look suffix (and ids with
+ * an unparseable one) read as the archetype's canonical look, so
+ * anything that hands the provider a bare archetype id still renders.
+ */
+export function parseEnemySpriteId(spriteId: string): {
+  enemyId: string;
+  lookIndex: number;
+} {
+  const at = spriteId.lastIndexOf(LOOK_SEPARATOR);
+  if (at < 0) return { enemyId: spriteId, lookIndex: 0 };
+  const index = Number.parseInt(spriteId.slice(at + 1), 10);
+  return {
+    enemyId: spriteId.slice(0, at),
+    lookIndex: Number.isFinite(index) && index >= 0 ? index : 0,
+  };
 }

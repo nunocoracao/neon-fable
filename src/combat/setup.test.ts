@@ -15,6 +15,30 @@ function makeGame(seed = 7) {
 }
 
 describe("createCombat", () => {
+  it("gives every enemy the look its slot wears", () => {
+    const combat = createCombat(makeGame(), "enc-rustyard-ambush");
+    const looks = combat.combatants
+      .filter((c) => c.kind === "enemy")
+      .map((c) => c.lookIndex);
+    // The ambush pins its two faces, so this is the encounter's call
+    // rather than the seed's.
+    expect(looks).toEqual([1, 2]);
+  });
+
+  it("resolves every slot's look the same way on every setup", () => {
+    const first = createCombat(makeGame(1), "enc-spire-gate");
+    // A different RNG seed must not move a single face: look variety is
+    // seeded off the encounter and slot, never off the fight's dice.
+    const second = createCombat(makeGame(999), "enc-spire-gate");
+    const looksOf = (combat: typeof first) =>
+      combat.combatants.map((c) => c.lookIndex ?? null);
+    expect(looksOf(second)).toEqual(looksOf(first));
+    for (const combatant of first.combatants) {
+      if (combatant.kind !== "enemy") continue;
+      expect(combatant.lookIndex, combatant.id).toBeGreaterThanOrEqual(0);
+    }
+  });
+
   it("throws on an unknown encounter id", () => {
     expect(() => createCombat(makeGame(), "enc-nope")).toThrow(
       'No encounter with id "enc-nope"',

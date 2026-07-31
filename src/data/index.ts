@@ -74,11 +74,27 @@ export {
   chapterGrants,
   type ChapterGrant,
 } from "./advancement";
-export { enemies, getEnemy, requireEnemy, type Enemy } from "./enemies";
+export {
+  ENEMY_SPRITE_KINDS,
+  enemies,
+  enemyLook,
+  enemyLookCount,
+  enemySpriteId,
+  getEnemy,
+  parseEnemySpriteId,
+  requireEnemy,
+  type DroneEnemy,
+  type Enemy,
+  type EnemySpriteKind,
+  type HumanoidEnemy,
+} from "./enemies";
+export { type EnemyLookFamily } from "./enemyLooks";
 export {
   encounters,
   getEncounter,
   requireEncounter,
+  spawnLookIndex,
+  spawnLookSeed,
   type Encounter,
   type EncounterRewards,
   type EncounterSpawn,
