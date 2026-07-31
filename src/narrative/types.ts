@@ -18,7 +18,8 @@ export type Requirement =
   | ItemRequirement
   | EnhancementRequirement
   | BackgroundRequirement
-  | CreditsRequirement;
+  | CreditsRequirement
+  | CompanionRequirement;
 
 /** Flag must exist and strictly equal the given value. */
 export interface FlagEqualsRequirement {
@@ -66,6 +67,18 @@ export interface CreditsRequirement {
   value: number;
 }
 
+/**
+ * A companion must be in the party. "active" (the default) means they
+ * are here, standing beside you, and can be spoken to or volunteered;
+ * "recruited" only asks whether they ever joined — the gate a beat that
+ * remembers somebody uses, whether or not they came along tonight.
+ */
+export interface CompanionRequirement {
+  type: "companion";
+  companionId: string;
+  status?: "recruited" | "active";
+}
+
 /** A state change a choice applies when taken. */
 export type Effect =
   | SetFlagEffect
@@ -76,6 +89,8 @@ export type Effect =
   | StartCombatEffect
   | TravelEffect
   | OpenStylistEffect
+  | RecruitCompanionEffect
+  | CompanionLoyaltyEffect
   | GotoEffect
   | EndEffect;
 
@@ -138,6 +153,29 @@ export interface OpenStylistEffect {
   type: "open-stylist";
 }
 
+/**
+ * Somebody joins the crew. Idempotent by construction (see
+ * recruitCompanion): re-recruiting a companion already in the party
+ * only brings them back to active, never resets what a run has done to
+ * them. Unknown companion ids are an authoring bug — validateArc fails
+ * on them — and are ignored at runtime rather than crashing a scene.
+ */
+export interface RecruitCompanionEffect {
+  type: "recruit-companion";
+  companionId: string;
+}
+
+/**
+ * Moves a companion's standing with the player. A no-op for somebody
+ * not in the party — a choice cannot earn the goodwill of a person who
+ * is not there.
+ */
+export interface CompanionLoyaltyEffect {
+  type: "companion-loyalty";
+  companionId: string;
+  amount: number;
+}
+
 /** Jump marker: overrides the choice's target node. */
 export interface GotoEffect {
   type: "goto";
@@ -173,6 +211,19 @@ export interface Choice {
  */
 export const PLAYER_SPEAKER = "player";
 
+/**
+ * An aside a companion throws into somebody else's scene. Shown only
+ * when that companion is active and the line's own requirements pass,
+ * so a node can carry several and the right one — or none — lands.
+ * Purely additive: a node with no comments reads exactly as before, and
+ * a comment never gates, branches, or changes state.
+ */
+export interface CompanionComment {
+  companionId: string;
+  text: string;
+  requirements?: Requirement[];
+}
+
 export interface StoryNode {
   id: string;
   /** Who is talking: an NPC name or PLAYER_SPEAKER; omit for narration. */
@@ -190,6 +241,12 @@ export interface StoryNode {
    * is purely a look: see src/iso/dayPhase.ts.
    */
   dayPhase?: DayPhaseId;
+  /**
+   * Optional companion asides on this beat; the first whose companion
+   * is with the player and whose requirements pass is shown under the
+   * line (see companionAside in ./companions.ts).
+   */
+  comments?: CompanionComment[];
   choices: Choice[];
 }
 
