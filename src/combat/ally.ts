@@ -1,4 +1,5 @@
 import { getCompanion } from "../data/companions";
+import { injuryModifiers } from "../character/injury";
 import { STAT_HARD_CAP, STAT_KEYS, type Stats } from "../character/stats";
 import { requireItem } from "../data/items";
 import { bearsEffects } from "../inventory/items";
@@ -39,14 +40,23 @@ function equippedItems(member: PartyMember, resolve: ItemResolver): Item[] {
     .map(resolve);
 }
 
-/** Base stats with the member's gear stat-mods folded in and clamped. */
+/**
+ * Base stats with the member's gear stat-mods — and whatever they are
+ * carrying out of their last bad fight — folded in and clamped. An
+ * injury speaks the gear vocabulary (see src/data/injuries.ts), so a
+ * companion's wound folds in exactly where the player's does.
+ */
 export function allyStats(member: PartyMember, resolve: ItemResolver): Stats {
   const stats = { ...member.stats };
+  const injury = injuryModifiers(member.injury);
   for (const item of equippedItems(member, resolve)) {
     if (!bearsEffects(item)) continue;
     for (const effect of item.effects) {
       if (effect.type === "stat-mod") stats[effect.stat] += effect.amount;
     }
+  }
+  for (const effect of injury.effects) {
+    if (effect.type === "stat-mod") stats[effect.stat] += effect.amount;
   }
   for (const key of STAT_KEYS) {
     stats[key] = Math.min(STAT_HARD_CAP, Math.max(1, stats[key]));
@@ -116,6 +126,9 @@ export function allyCombatant(
     weapon: allyWeapon(member, resolve),
     armor: allyArmor(member, resolve),
     abilityIds: allyAbilityIds(member, resolve),
+    // Carried for the rail's badge only; what it costs is already in
+    // the stats above.
+    ...(member.injury ? { injury: member.injury.id } : {}),
     position: { ...position },
     boosts: [],
     stunTurns: 0,

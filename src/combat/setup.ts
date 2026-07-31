@@ -1,3 +1,4 @@
+import { characterInjury } from "../character/injury";
 import { characterPerks, perkIdsOf } from "../character/perks";
 import { liveSpawns, requireEncounter, spawnLookIndex } from "../data/encounters";
 import { ALERTED_INITIATIVE_PENALTY, alertFlag } from "../data/stealth";
@@ -89,6 +90,8 @@ export function createCombat(
   const perks = characterPerks(state.player);
   const hasPerks = perkIdsOf(state.player).length > 0;
 
+  const injured = characterInjury(state.player);
+
   const player: Combatant = {
     id: PLAYER_COMBATANT_ID,
     kind: "player",
@@ -101,6 +104,9 @@ export function createCombat(
     abilityIds: grantedAbilityIds(state.player, resolve),
     ...(initiativePenalty > 0 ? { initiativeMod: -initiativePenalty } : {}),
     ...(hasPerks ? { perks } : {}),
+    // What the last bad fight left behind. Carried for the rail's badge
+    // only — the cost is already in the stats and abilities above.
+    ...(injured ? { injury: injured.id } : {}),
     position: { ...encounter.playerStart },
     boosts: [],
     stunTurns: 0,

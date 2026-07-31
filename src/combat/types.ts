@@ -147,6 +147,18 @@ export interface Combatant {
    * same thing to every rule that reads it.
    */
   secondWindSpent?: boolean;
+  /**
+   * The injury this body walked in carrying, as an id in
+   * src/data/injuries.ts — absent on anybody unhurt, which is most
+   * bodies most of the time.
+   *
+   * The engine never reads it: what a wound *does* is already folded
+   * into the stats and abilities snapshotted beside it (see
+   * effectiveStats and allyStats), exactly as gear is. It rides on the
+   * combatant so the rail can badge the chip and a saved fight still
+   * knows who limped in.
+   */
+  injury?: string;
   /** The block's minimum-x, minimum-y tile (see ./footprint.ts). */
   position: GridPosition;
   /**

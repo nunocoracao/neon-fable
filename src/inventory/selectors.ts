@@ -1,4 +1,5 @@
 import type { CharacterState } from "../character/create";
+import { characterInjuryModifiers } from "../character/injury";
 import { characterPerks } from "../character/perks";
 import { STAT_HARD_CAP, STAT_KEYS, type Stats } from "../character/stats";
 import { requireItem } from "../data/items";
@@ -78,17 +79,37 @@ function loadoutEffects(
 }
 
 /**
- * Base stats with every equipped item's, installed enhancement's, and
- * fitted weapon part's stat-mod effects folded in. Values are clamped
- * to [1, STAT_HARD_CAP]. Note: neural capacity is derived from base
- * stats, not effective stats, so installs cannot invalidate each other.
+ * The loadout's effects plus whatever the character is carrying out of
+ * their last bad fight. An injury speaks the same vocabulary gear does
+ * (see src/data/injuries.ts), which is the whole reason a wound needs
+ * no arithmetic of its own: a −1 Reflexes from a round through the arm
+ * folds in exactly where a +1 from a coat does, and every reader of
+ * these selectors — the fight's snapshot, a stat gate, the HUD's
+ * previews — sees it without knowing injuries exist.
+ */
+function characterEffectSources(
+  character: CharacterState,
+  resolve: ItemResolver = requireItem,
+): ItemEffect[] {
+  return [
+    ...loadoutEffects(character, resolve),
+    ...characterInjuryModifiers(character).effects,
+  ];
+}
+
+/**
+ * Base stats with every equipped item's, installed enhancement's,
+ * fitted weapon part's, and carried injury's stat-mod effects folded
+ * in. Values are clamped to [1, STAT_HARD_CAP]. Note: neural capacity
+ * is derived from base stats, not effective stats, so installs cannot
+ * invalidate each other.
  */
 export function effectiveStats(
   character: CharacterState,
   resolve: ItemResolver = requireItem,
 ): Stats {
   const stats = { ...character.stats };
-  for (const effect of loadoutEffects(character, resolve)) {
+  for (const effect of characterEffectSources(character, resolve)) {
     if (effect.type === "stat-mod") {
       stats[effect.stat] += effect.amount;
     }
@@ -103,13 +124,34 @@ export function effectiveStats(
  * Combat ability ids granted by equipped gear, installed enhancements,
  * fitted weapon parts, and advancement unlocks
  * (character.advancement.abilityIds).
+ *
+ * With one subtraction: an injury that has seized the chrome
+ * (`chromeOffline`, see src/data/injuries.ts) silently drops whatever
+ * the *installed enhancements* were granting. The implants are still
+ * in, still spending capacity and still making noise — they simply
+ * will not answer. Nothing else is touched: the weapon in hand, the
+ * parts bolted to it, and everything learned by advancement keep
+ * working, because none of those is chrome.
  */
 export function grantedAbilityIds(
   character: CharacterState,
   resolve: ItemResolver = requireItem,
 ): string[] {
   const ids: string[] = [...character.advancement.abilityIds];
-  for (const effect of loadoutEffects(character, resolve)) {
+  const injury = characterInjuryModifiers(character);
+  const installed = new Set(
+    Object.values(character.equipment.enhancements).filter(
+      (id): id is string => id != null,
+    ),
+  );
+  const granted: ItemEffect[] = [
+    ...equippedItems(character, resolve)
+      .filter((item) => !(injury.chromeOffline && installed.has(item.id)))
+      .flatMap(characterEffects),
+    ...equippedMods(character, resolve).flatMap(characterEffects),
+    ...injury.effects,
+  ];
+  for (const effect of granted) {
     if (effect.type === "grant-ability" && !ids.includes(effect.abilityId)) {
       ids.push(effect.abilityId);
     }
@@ -123,7 +165,7 @@ export function dialogueUnlockTags(
   resolve: ItemResolver = requireItem,
 ): string[] {
   const tags: string[] = [];
-  for (const effect of loadoutEffects(character, resolve)) {
+  for (const effect of characterEffectSources(character, resolve)) {
     if (effect.type === "unlock-dialogue" && !tags.includes(effect.tag)) {
       tags.push(effect.tag);
     }

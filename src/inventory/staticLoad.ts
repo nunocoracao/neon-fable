@@ -1,4 +1,5 @@
 import type { CharacterState } from "../character/create";
+import { characterInjuryModifiers } from "../character/injury";
 import { characterPerks, dampenedLoad } from "../character/perks";
 import { STAT_HARD_CAP, type Stats } from "../character/stats";
 import { requireItem } from "../data/items";
@@ -212,7 +213,8 @@ export function previewUninstall(
 
 /**
  * Effective stats as a *conversation* reads them: the loadout's own
- * figures with the Static band's Cool penalty taken off the top.
+ * figures with the Static band's Cool penalty — and a concussion's —
+ * taken off the top.
  *
  * Deliberately not effectiveStats. Noise costs composure and nothing
  * else — the fight snapshots effectiveStats unchanged, so a screaming
@@ -234,7 +236,12 @@ export function dialogueStats(
     0,
     staticEffects(character, resolve).coolPenalty - mods.staticPoise,
   );
-  const cool = stats.cool - penalty + mods.dialogueCool;
+  // And the third thing that costs composure and nothing else: a rung
+  // across the temple. Poise is deliberately no help here — it is the
+  // habit of not showing what your chrome is doing, not a talent for
+  // finishing sentences after a concussion.
+  const injured = characterInjuryModifiers(character).dialogueCool;
+  const cool = stats.cool - penalty - injured + mods.dialogueCool;
   if (cool === stats.cool) return stats;
   return {
     ...stats,
