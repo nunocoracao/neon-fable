@@ -96,6 +96,7 @@ export {
   REPUTATION_MAX,
   REPUTATION_MIN,
   SIDE_CHAIN_STEP,
+  bandCeiling,
   factions,
   getBand,
   getFaction,
@@ -156,8 +157,11 @@ export {
 export {
   COSMETIC_APPEARANCE_TABS,
   IDENTITY_CATEGORIES,
+  RESTYLE_COUNT_FLAG,
+  RESTYLE_FLAG,
   RESTYLE_PRICE,
   RESTYLE_REFUSAL,
+  RESTYLE_REGULAR_COUNT,
   isCosmeticCategory,
 } from "./stylist";
 export {
@@ -200,4 +204,9 @@ export {
   type InteractableDressing,
 } from "./mapDressing";
 export { endings, getEnding, type ChapterEnding } from "./endings";
-export { epilogueVignettes } from "./epilogues";
+export {
+  STATIC_EPILOGUE_FLAGS,
+  STATIC_HEAVY_PEAK,
+  epilogueThreads,
+  epilogueVignettes,
+} from "./epilogues";

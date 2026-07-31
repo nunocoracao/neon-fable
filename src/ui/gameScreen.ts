@@ -2,6 +2,7 @@ import { audio } from "../audio";
 import {
   HUB_MAP_ID,
   companionSpriteId,
+  epilogueThreads,
   epilogueVignettes,
   findArcByNode,
   getEncounter,
@@ -10,7 +11,7 @@ import {
   type ChapterEnding,
 } from "../data";
 import { availablePoints } from "../character";
-import { isWounded, selectVignettes } from "../narrative";
+import { composeEpilogue, isWounded } from "../narrative";
 import {
   activeMember,
   carryoverAppearance,
@@ -111,7 +112,11 @@ function recordFinishedRun(session: Session): void {
   recordCompletionToStorage(
     {
       endingId,
-      epilogueIds: selectVignettes(state, epilogueVignettes).map((v) => v.id),
+      epilogueIds: composeEpilogue(
+        state,
+        epilogueVignettes,
+        epilogueThreads,
+      ).map((v) => v.id),
       legacyItemIds: carryoverCandidates(state.player),
       legacyAppearance: carryoverAppearance(state.player),
     },

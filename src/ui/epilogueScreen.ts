@@ -1,6 +1,6 @@
 import { audio } from "../audio";
-import { epilogueVignettes, getEnding } from "../data";
-import { selectVignettes } from "../narrative";
+import { epilogueThreads, epilogueVignettes, getEnding } from "../data";
+import { composeEpilogue } from "../narrative";
 import { loadMetaProgress } from "../state";
 import { focusFirst } from "./focus";
 import { createMainMenuScreen } from "./mainMenu";
@@ -63,7 +63,11 @@ export function createEpilogueScreen(options: EpilogueScreenOptions): Screen {
 
       const list = document.createElement("div");
       list.className = "nf-epilogue-vignettes";
-      for (const vignette of selectVignettes(state, epilogueVignettes)) {
+      for (const vignette of composeEpilogue(
+        state,
+        epilogueVignettes,
+        epilogueThreads,
+      )) {
         const entry = document.createElement("div");
         entry.className = "nf-epilogue-vignette";
         const heading = document.createElement("h3");

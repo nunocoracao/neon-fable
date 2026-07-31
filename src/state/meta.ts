@@ -4,6 +4,13 @@ import {
   type Appearance,
 } from "../character";
 import type { ChapterEnding } from "../data/endings";
+import {
+  sectionRank,
+  threadVariantIds,
+  type EpilogueSection,
+  type EpilogueThread,
+  type EpilogueVignette,
+} from "../narrative/epilogue";
 
 /**
  * Cross-playthrough meta-progress: which endings and epilogue vignettes
@@ -263,5 +270,79 @@ export function deriveCodex(
     entries,
     found: entries.filter((entry) => entry.discovered).length,
     total: entries.length,
+  };
+}
+
+/** One epilogue thread's standing in the codex. */
+export interface EpilogueCodexEntry {
+  subject: string;
+  section: EpilogueSection;
+  /** Null until at least one of the thread's variants has been seen. */
+  title: string | null;
+  /** Spoiler-safe hint, always available. */
+  hint: string;
+  /** Variants of this thread ever shown, and how many it has. */
+  found: number;
+  total: number;
+}
+
+export interface EpilogueCodexView {
+  entries: EpilogueCodexEntry[];
+  /** Variants recorded across every thread, and how many exist. */
+  found: number;
+  total: number;
+  /** Threads with at least one variant recorded, and how many exist. */
+  threadsFound: number;
+  threads: number;
+}
+
+/**
+ * Derives the epilogue half of the codex: one entry per authored
+ * thread, in the epilogue's own running order, counting how many of
+ * each thread's variants a player has ever been shown.
+ *
+ * Counting is derived from the two content tables rather than from a
+ * list kept here, so a thread added to src/data/epilogues.ts is counted
+ * with no change to this file — which is the whole point, since every
+ * new side chain that echoes into the ending adds variants.
+ *
+ * Nothing here reveals an outcome: a locked thread shows its authored
+ * hint and no title, and the vignette paragraphs never leave the
+ * epilogue screen. A recorded id whose vignette no longer exists (a
+ * retired variant in an old meta record) is ignored rather than
+ * inflating a count past its total.
+ */
+export function deriveEpilogueCodex(
+  threads: readonly EpilogueThread[],
+  vignettes: readonly EpilogueVignette[],
+  meta: MetaProgress,
+): EpilogueCodexView {
+  const seen = new Set(meta.epiloguesSeen);
+  const entries = threads
+    .map((thread): EpilogueCodexEntry => {
+      const variants = threadVariantIds(thread.subject, vignettes);
+      const found = variants.filter((id) => seen.has(id)).length;
+      return {
+        subject: thread.subject,
+        section: thread.section,
+        title: found > 0 ? thread.title : null,
+        hint: thread.hint,
+        found,
+        total: variants.length,
+      };
+    })
+    .map((entry, index) => ({ entry, index }))
+    .sort(
+      (a, b) =>
+        sectionRank(a.entry.section) - sectionRank(b.entry.section) ||
+        a.index - b.index,
+    )
+    .map(({ entry }) => entry);
+  return {
+    entries,
+    found: entries.reduce((sum, entry) => sum + entry.found, 0),
+    total: entries.reduce((sum, entry) => sum + entry.total, 0),
+    threadsFound: entries.filter((entry) => entry.found > 0).length,
+    threads: entries.length,
   };
 }

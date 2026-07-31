@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fixtureAppearance } from "../character/testSupport";
+import { epilogueThreads, epilogueVignettes } from "../data";
 import {
   NG_PLUS_BONUS_POINTS,
   emptyMetaProgress,
@@ -79,33 +80,115 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/** Cards in one of the two lists (endings first, threads second). */
+function cards(list: string): Element[] {
+  return [...document.querySelectorAll(`${list} .nf-codex-entry`)];
+}
+
+const ENDINGS = ".nf-codex-list:not(.nf-codex-threads)";
+const THREADS = ".nf-codex-threads";
+
 describe("endings codex screen", () => {
   it("shows every final ending locked, hint only, before any completion", () => {
     showScreen(createCodexScreen({ onBack: () => {} }));
-    const entries = [...document.querySelectorAll(".nf-codex-entry")];
+    const entries = cards(ENDINGS);
     expect(entries.length).toBeGreaterThanOrEqual(4);
-    expect(document.querySelectorAll(".nf-codex-locked").length).toBe(
-      entries.length,
-    );
+    expect(
+      entries.filter((e) => e.classList.contains("nf-codex-locked")).length,
+    ).toBe(entries.length);
     expect(textOf(".nf-codex-stats")).toContain(
       `Endings found 0/${entries.length}`,
     );
     // Locked entries tease without leaking titles or epilogue text.
-    expect(textOf(".nf-codex-list")).not.toContain("The Freehold Dark");
-    expect(textOf(".nf-codex-list")).toContain("???");
-    expect(textOf(".nf-codex-list")).toContain("Some say");
+    expect(textOf(ENDINGS)).not.toContain("The Freehold Dark");
+    expect(textOf(ENDINGS)).toContain("???");
+    expect(textOf(ENDINGS)).toContain("Some say");
   });
 
   it("unlocks discovered endings with title and summary, and counts stats", () => {
     finishARun();
     showScreen(createCodexScreen({ onBack: () => {} }));
-    const found = [...document.querySelectorAll(".nf-codex-found")];
+    const found = cards(ENDINGS).filter((e) =>
+      e.classList.contains("nf-codex-found"),
+    );
     expect(found.length).toBe(1);
     expect(found[0]?.textContent).toContain("The Freehold Dark");
     expect(found[0]?.textContent).toContain("master title");
-    const total = document.querySelectorAll(".nf-codex-entry").length;
+    const total = cards(ENDINGS).length;
     expect(textOf(".nf-codex-stats")).toContain(`Endings found 1/${total}`);
     expect(textOf(".nf-codex-stats")).toContain("completed: 1");
+  });
+});
+
+describe("epilogue threads in the codex", () => {
+  it("locks every thread to its spoiler-safe hint before any run finishes", () => {
+    showScreen(createCodexScreen({ onBack: () => {} }));
+    const entries = cards(THREADS);
+    // One card per authored thread, all of them locked.
+    expect(entries.length).toBe(epilogueThreads.length);
+    expect(
+      entries.filter((e) => e.classList.contains("nf-codex-locked")).length,
+    ).toBe(entries.length);
+    expect(textOf(".nf-codex-epilogue-stats")).toContain(
+      `Threads found 0/${epilogueThreads.length}`,
+    );
+    expect(textOf(".nf-codex-epilogue-stats")).toContain(
+      `Outcomes recorded 0/${epilogueVignettes.length}`,
+    );
+    // No thread title, and no vignette prose, leaks while locked.
+    expect(textOf(THREADS)).not.toContain("Vesper Kade");
+    expect(textOf(THREADS)).not.toContain("terrace tea");
+    expect(textOf(THREADS)).toContain("Some say");
+  });
+
+  it("unlocks a thread on its first variant and tallies the rest", () => {
+    // A run that ended in the Freehold and settled the courier chain.
+    recordCompletionToStorage(
+      {
+        endingId: "ending-freehold",
+        epilogueIds: ["city-freehold", "courier-exposed"],
+        legacyItemIds: [],
+        legacyAppearance: FINISHED_LOOK,
+      },
+      localStorage,
+    );
+    showScreen(createCodexScreen({ onBack: () => {} }));
+
+    const found = cards(THREADS).filter((e) =>
+      e.classList.contains("nf-codex-found"),
+    );
+    expect(found.map((e) => e.querySelector(".nf-codex-title")?.textContent))
+      .toEqual(["The Last Mile", "The Meridian Sprawl"]);
+    // Discovered threads report a tally, never the outcome's text.
+    const courier = found[0]!;
+    const variants = epilogueVignettes.filter(
+      (v) => v.subject === "courier",
+    ).length;
+    expect(courier.textContent).toContain(`Outcomes seen: 1/${variants}`);
+    expect(courier.textContent).not.toContain("north row");
+    expect(textOf(".nf-codex-epilogue-stats")).toContain(
+      `Threads found 2/${epilogueThreads.length}`,
+    );
+    expect(textOf(".nf-codex-epilogue-stats")).toContain("Outcomes recorded 2/");
+  });
+
+  it("ignores recorded ids whose variant no longer exists", () => {
+    recordCompletionToStorage(
+      {
+        endingId: "ending-freehold",
+        epilogueIds: ["retired-vignette", "city-freehold"],
+        legacyItemIds: [],
+        legacyAppearance: FINISHED_LOOK,
+      },
+      localStorage,
+    );
+    showScreen(createCodexScreen({ onBack: () => {} }));
+    expect(textOf(".nf-codex-epilogue-stats")).toContain(
+      `Threads found 1/${epilogueThreads.length}`,
+    );
+    expect(textOf(".nf-codex-epilogue-stats")).toContain(
+      `Outcomes recorded 1/${epilogueVignettes.length}`,
+    );
   });
 
   it("is reachable from the main menu and backs out again", () => {

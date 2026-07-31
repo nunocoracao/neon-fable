@@ -2080,6 +2080,16 @@ canvas.nf-action-glyph {
   margin: 1rem 0;
 }
 
+/* The epilogue half: same cards, its own heading and tally line. */
+.nf-codex h3 {
+  margin: 1.5rem 0 0;
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-top: 2px solid var(--nf-border);
+  padding-top: 1rem;
+}
+
 .nf-codex-entry {
   text-align: left;
   padding: 0.6rem 0.75rem;

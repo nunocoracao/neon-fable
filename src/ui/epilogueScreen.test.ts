@@ -86,6 +86,40 @@ describe("epilogue screen", () => {
     expect(textOf(".nf-epilogue")).toMatch(/terrace tea/);
   });
 
+  it("weaves the side chains and ledgers in, in running order", () => {
+    const session = createSession(
+      finishedState({
+        "last-mile": "exposed",
+        "last-mile-exposed": true,
+        "under-waterline": "broken",
+        "under-waterline-broken": true,
+      }),
+    );
+    showScreen(createEpilogueScreen({ session }));
+    const headings = [
+      ...document.querySelectorAll(".nf-epilogue-vignette h3"),
+    ].map((h) => h.textContent);
+
+    // Personal, then the chains, then allies, then the ledgers, and
+    // the city has the last word.
+    expect(headings.indexOf("The Warrant")).toBeLessThan(
+      headings.indexOf("The Last Mile"),
+    );
+    expect(headings.indexOf("The Last Mile")).toBeLessThan(
+      headings.indexOf("The Longshore"),
+    );
+    expect(headings.indexOf("The Longshore")).toBeLessThan(
+      headings.indexOf("The Filament"),
+    );
+    expect(headings.indexOf("The Filament")).toBeLessThan(
+      headings.indexOf("The Combine's Book"),
+    );
+    expect(headings[headings.length - 1]).toBe("The Meridian Sprawl");
+    // Chains this run never walked leave no heading behind.
+    expect(headings).not.toContain("The Look");
+    expect(headings).not.toContain("The Wiring");
+  });
+
   it("returns to the main menu from the epilogue", () => {
     const session = createSession(finishedState());
     showScreen(createEpilogueScreen({ session }));

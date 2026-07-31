@@ -14,6 +14,21 @@ import { APPEARANCE_TABS, type AppearanceTabConfig } from "./appearanceTabs";
 export const RESTYLE_PRICE = 40;
 
 /**
+ * What a confirmed session records, so the rest of the game can know the
+ * chair happened. Cosmetics gate nothing and never will — these exist
+ * for the epilogue, which reads a run's habits as well as its choices.
+ *
+ * Two flags rather than one: the boolean is the cheap gate ("has this
+ * runner ever sat in the chair"), the counter is how a look that kept
+ * changing reads differently from a look that changed once.
+ */
+export const RESTYLE_FLAG = "chapel-restyled";
+export const RESTYLE_COUNT_FLAG = "chapel-restyles";
+
+/** Sessions at which the chair stops being an errand and becomes a habit. */
+export const RESTYLE_REGULAR_COUNT = 3;
+
+/**
  * Categories the stylist never touches: build and skin tone are the
  * person, not the style. Everything else in the appearance catalogs is
  * cosmetic and freely re-editable at the chapel.
