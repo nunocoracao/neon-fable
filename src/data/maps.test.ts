@@ -17,6 +17,7 @@ import {
   stepCrowd,
 } from "../iso/ambient";
 import { PROP_ART } from "../iso/art/props";
+import { NEWS_STRIP_H, NEWS_TINTS } from "../iso/art/news";
 import { TILE_ART } from "../iso/art/tiles";
 import {
   minimapCells,
@@ -62,6 +63,7 @@ import { getItem } from "./items";
 import { SPIRE_SECURITY_VISUAL } from "./cast";
 import { HUB_MAP_ID, getMap, maps, requireMap } from "./maps";
 import { findArcByNode } from "./story";
+import { NEWS_CHANNELS } from "./world";
 
 /**
  * Arenas are the maps some encounter fights on; everything else is an
@@ -991,6 +993,105 @@ describe("ambient crowds", () => {
     expect(densest?.id).toBe("vertical-market");
     for (const map of explorableMaps) {
       expect(map.ambient?.count ?? 0).toBeLessThanOrEqual(MAX_AMBIENT_PER_MAP);
+    }
+  });
+});
+
+describe("public screens", () => {
+  const screens = maps.flatMap((map) =>
+    (map.screens ?? []).map((screen) => ({ map, screen })),
+  );
+
+  it("runs a ticker in the two districts with public signage, and nowhere else", () => {
+    expect(
+      maps.filter((map) => (map.screens ?? []).length > 0).map((map) => map.id),
+    ).toEqual(["cinder-plaza", "vertical-market"]);
+    for (const arena of arenaMaps) {
+      expect(arena.screens, `${arena.id} declares a screen`).toBeUndefined();
+    }
+  });
+
+  it("gives every screen a unique id on its own map", () => {
+    for (const map of maps) {
+      const ids = (map.screens ?? []).map((screen) => screen.id);
+      expect(new Set(ids).size, `${map.id} repeats a screen id`).toBe(ids.length);
+    }
+  });
+
+  it("mounts every screen on a sign prop that is actually there", () => {
+    const SIGN_PROPS: readonly PropId[] = [
+      "holo-billboard",
+      "holo-sign",
+      "shop-sign",
+    ];
+    for (const { map, screen } of screens) {
+      const prop = map.props.find(
+        (p) => p.x === screen.x && p.y === screen.y && SIGN_PROPS.includes(p.propId),
+      );
+      expect(
+        prop,
+        `screen ${screen.id} on ${map.id} hangs on no sign at (${screen.x}, ${screen.y})`,
+      ).toBeDefined();
+    }
+  });
+
+  it("carries a channel the news pool actually publishes on", () => {
+    for (const { screen } of screens) {
+      expect(
+        (NEWS_CHANNELS as readonly string[]).includes(screen.channel),
+        `screen ${screen.id} carries unknown channel "${screen.channel}"`,
+      ).toBe(true);
+      expect(
+        (NEWS_TINTS as readonly string[]).includes(screen.tint),
+        `screen ${screen.id} burns in unknown tint "${screen.tint}"`,
+      ).toBe(true);
+    }
+  });
+
+  it("keeps every window on the panel it is painted over", () => {
+    // A window wider than the sign, or hung off its own art, reads as
+    // text floating in mid-air. The bound is the prop's own grid: the
+    // window's corner plus its width has to fall inside the sprite,
+    // measured from the anchor the prop is drawn by.
+    for (const { map, screen } of screens) {
+      const prop = map.props.find((p) => p.x === screen.x && p.y === screen.y);
+      if (!prop) continue;
+      const art = PROP_ART[prop.propId];
+      const width = art.frames[0]?.[0]?.length ?? 0;
+      const height = art.frames[0]?.length ?? 0;
+      const left = screen.offsetX + art.anchorX;
+      const top = screen.offsetY + art.anchorY;
+      expect(left, `${screen.id} starts left of its sign`).toBeGreaterThanOrEqual(0);
+      expect(top, `${screen.id} starts above its sign`).toBeGreaterThanOrEqual(0);
+      expect(
+        left + screen.width,
+        `${screen.id} runs off the right of its sign`,
+      ).toBeLessThanOrEqual(width);
+      expect(
+        top + NEWS_STRIP_H,
+        `${screen.id} runs off the bottom of its sign`,
+      ).toBeLessThanOrEqual(height);
+      // Wide enough to read a few characters at a time, or it is a
+      // flicker rather than a ticker.
+      expect(screen.width, `${screen.id} is too narrow to read`).toBeGreaterThanOrEqual(
+        24,
+      );
+    }
+  });
+
+  it("changes nothing a player can walk on, fight over, or route through", () => {
+    // Screens are captions. Stripping them must leave an identical map
+    // as far as every rule the game plays by is concerned.
+    for (const map of maps) {
+      if ((map.screens ?? []).length === 0) continue;
+      const blank: IsoMap = { ...map };
+      delete blank.screens;
+      for (let y = 0; y < map.height; y++) {
+        for (let x = 0; x < map.width; x++) {
+          expect(isWalkable(blank, x, y)).toBe(isWalkable(map, x, y));
+        }
+      }
+      expect(blank.interactables).toEqual(map.interactables);
     }
   });
 });

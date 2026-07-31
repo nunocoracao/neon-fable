@@ -1,0 +1,239 @@
+import { describe, expect, it } from "vitest";
+import { requireMap } from "../data/maps";
+import { newsTextWidth } from "./art/news";
+import type { IsoMap, NewsScreen } from "./tilemap";
+import {
+  TICKER_GAP_PX,
+  TICKER_SPEED_PX_PER_S,
+  collectTickers,
+  headlineDurationMs,
+  tickerFrameAt,
+  tickerStill,
+  tickerWindow,
+} from "./ticker";
+
+/**
+ * Ticker scheduling: which line a screen is showing, how far it has
+ * travelled, and which slice of the baked strip that puts in the
+ * window. Everything here is a function of the running order and the
+ * clock — the same promise weather and set pieces make.
+ */
+
+const WINDOW = 52;
+const LINES = ["ONE", "A LONGER SECOND LINE", "THIRD"];
+
+describe("headlineDurationMs", () => {
+  it("gives every line the same speed, so a long one simply takes longer", () => {
+    const short = headlineDurationMs("ONE", WINDOW);
+    const long = headlineDurationMs("A LONGER SECOND LINE", WINDOW);
+    expect(long).toBeGreaterThan(short);
+    const travel = (text: string): number =>
+      WINDOW + newsTextWidth(text) + TICKER_GAP_PX;
+    expect(short).toBeCloseTo((travel("ONE") / TICKER_SPEED_PX_PER_S) * 1000);
+    expect(long / short).toBeCloseTo(
+      travel("A LONGER SECOND LINE") / travel("ONE"),
+    );
+  });
+});
+
+describe("tickerFrameAt", () => {
+  it("starts the first line just off the right edge", () => {
+    const frame = tickerFrameAt(LINES, WINDOW, 0);
+    expect(frame?.text).toBe("ONE");
+    expect(frame?.offsetPx).toBe(WINDOW);
+    expect(frame?.textPx).toBe(newsTextWidth("ONE"));
+  });
+
+  it("scrolls it leftward at the authored speed", () => {
+    const later = tickerFrameAt(LINES, WINDOW, 1000);
+    expect(later?.offsetPx).toBeCloseTo(WINDOW - TICKER_SPEED_PX_PER_S);
+  });
+
+  it("hands over to the next line when the first has finished its run", () => {
+    const first = headlineDurationMs("ONE", WINDOW);
+    expect(tickerFrameAt(LINES, WINDOW, first - 1)?.text).toBe("ONE");
+    const handed = tickerFrameAt(LINES, WINDOW, first + 1);
+    expect(handed?.text).toBe("A LONGER SECOND LINE");
+    // The new line enters from the right, like the one before it.
+    expect(handed?.offsetPx).toBeCloseTo(WINDOW, 0);
+  });
+
+  it("loops back to the top of the order and repeats exactly", () => {
+    const loop = LINES.reduce(
+      (sum, text) => sum + headlineDurationMs(text, WINDOW),
+      0,
+    );
+    expect(tickerFrameAt(LINES, WINDOW, 1234)).toEqual(
+      tickerFrameAt(LINES, WINDOW, 1234 + loop),
+    );
+    expect(tickerFrameAt(LINES, WINDOW, loop)?.text).toBe("ONE");
+  });
+
+  it("folds a negative or absurd clock back into the loop", () => {
+    const loop = LINES.reduce(
+      (sum, text) => sum + headlineDurationMs(text, WINDOW),
+      0,
+    );
+    expect(tickerFrameAt(LINES, WINDOW, -1)).toEqual(
+      tickerFrameAt(LINES, WINDOW, loop - 1),
+    );
+    expect(tickerFrameAt(LINES, WINDOW, 1e12)).not.toBeNull();
+  });
+
+  it("shows nothing for an empty order or a window with no width", () => {
+    expect(tickerFrameAt([], WINDOW, 500)).toBeNull();
+    expect(tickerFrameAt(LINES, 0, 500)).toBeNull();
+  });
+
+  it("is a pure function of the order and the clock", () => {
+    expect(tickerFrameAt(LINES, WINDOW, 7777)).toEqual(
+      tickerFrameAt([...LINES], WINDOW, 7777),
+    );
+  });
+
+  it("eventually shows every line in the order", () => {
+    const loop = LINES.reduce(
+      (sum, text) => sum + headlineDurationMs(text, WINDOW),
+      0,
+    );
+    const seen = new Set<string>();
+    for (let t = 0; t < loop; t += 100) {
+      seen.add(tickerFrameAt(LINES, WINDOW, t)?.text ?? "");
+    }
+    expect([...seen].sort()).toEqual([...LINES].sort());
+  });
+});
+
+describe("tickerStill", () => {
+  it("parks the first line at the window's left edge", () => {
+    expect(tickerStill(LINES)).toEqual({
+      text: "ONE",
+      offsetPx: 0,
+      textPx: newsTextWidth("ONE"),
+    });
+  });
+
+  it("shows nothing when there is nothing to say", () => {
+    expect(tickerStill([])).toBeNull();
+  });
+});
+
+describe("tickerWindow", () => {
+  const TEXT = 30;
+
+  it("shows nothing while the line is still off the right edge", () => {
+    expect(tickerWindow(WINDOW, TEXT, WINDOW)).toBeNull();
+  });
+
+  it("clips the leading edge as the line comes in", () => {
+    // Left edge 10px inside the window: the first 42px of the line
+    // would fit, so all 30 of it does, landing at x = 10.
+    expect(tickerWindow(10, TEXT, WINDOW)).toEqual({
+      sourceX: 0,
+      sourceW: TEXT,
+      destX: 10,
+    });
+    // Left edge near the right lip: only the part inside is copied.
+    expect(tickerWindow(WINDOW - 8, TEXT, WINDOW)).toEqual({
+      sourceX: 0,
+      sourceW: 8,
+      destX: WINDOW - 8,
+    });
+  });
+
+  it("clips the trailing edge as the line goes out", () => {
+    expect(tickerWindow(-12, TEXT, WINDOW)).toEqual({
+      sourceX: 12,
+      sourceW: TEXT - 12,
+      destX: 0,
+    });
+  });
+
+  it("shows nothing once the line has left, and never over-copies", () => {
+    expect(tickerWindow(-TEXT, TEXT, WINDOW)).toBeNull();
+    expect(tickerWindow(-TEXT - 5, TEXT, WINDOW)).toBeNull();
+    // A line longer than the window fills it and no more.
+    expect(tickerWindow(-10, 200, WINDOW)).toEqual({
+      sourceX: 10,
+      sourceW: WINDOW,
+      destX: 0,
+    });
+  });
+
+  it("never copies a column that is not there", () => {
+    for (let offset = -TEXT - 4; offset <= WINDOW + 4; offset++) {
+      const slice = tickerWindow(offset, TEXT, WINDOW);
+      if (!slice) continue;
+      expect(slice.sourceX).toBeGreaterThanOrEqual(0);
+      expect(slice.sourceX + slice.sourceW).toBeLessThanOrEqual(TEXT);
+      expect(slice.destX).toBeGreaterThanOrEqual(0);
+      expect(slice.destX + slice.sourceW).toBeLessThanOrEqual(WINDOW);
+    }
+  });
+});
+
+describe("collectTickers", () => {
+  const hub = requireMap("cinder-plaza");
+  const strips = {
+    "plaza-board": ["CORDON DOWN"],
+    "row-sign": ["SURGE WARNING"],
+  };
+
+  it("reports one draw per screen with something to say", () => {
+    const draws = collectTickers(hub, strips, 1500);
+    expect(draws.map((d) => d.screen.id).sort()).toEqual([
+      "plaza-board",
+      "row-sign",
+    ]);
+  });
+
+  it("says nothing on a screen with no running order", () => {
+    expect(collectTickers(hub, { "plaza-board": ["A LINE"] }, 500)).toHaveLength(1);
+    expect(collectTickers(hub, {}, 500)).toEqual([]);
+  });
+
+  it("has nothing to do on a map with no screens", () => {
+    const arena = requireMap("rustyard-arena");
+    expect(arena.screens).toBeUndefined();
+    expect(collectTickers(arena, strips, 500)).toEqual([]);
+  });
+
+  it("parks every screen on its first line under reduced motion", () => {
+    // Frozen at t = 0 the scroll would put every line just off the
+    // right edge, i.e. a district of blank boards. Stillness is the
+    // first headline held, not the clock stopped.
+    const parked = collectTickers(hub, strips, 0, { motion: false });
+    expect(parked).toHaveLength(2);
+    for (const draw of parked) {
+      expect(draw.offsetPx).toBe(0);
+    }
+    expect(collectTickers(hub, strips, 0, { motion: false })).toEqual(
+      collectTickers(hub, strips, 90_000, { motion: false }),
+    );
+  });
+
+  it("carries the screen's own declaration through untouched", () => {
+    const [draw] = collectTickers(hub, strips, 1500);
+    const screen = hub.screens?.find((s) => s.id === draw?.screen.id);
+    expect(draw?.screen).toBe(screen);
+  });
+
+  it("shows nothing for a screen declared with no width", () => {
+    const broken: IsoMap = {
+      ...hub,
+      screens: [
+        {
+          id: "dead",
+          x: 1,
+          y: 1,
+          offsetX: 0,
+          offsetY: 0,
+          width: 0,
+          channel: "civic",
+          tint: "cyan",
+        } satisfies NewsScreen,
+      ],
+    };
+    expect(collectTickers(broken, { dead: ["A LINE"] }, 500)).toEqual([]);
+  });
+});

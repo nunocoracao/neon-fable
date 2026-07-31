@@ -7,6 +7,7 @@ import { companionsArc } from "./companions";
 import { introArc } from "./intro";
 import { marketArc } from "./market";
 import { quaysArc } from "./quays";
+import { streetsArc } from "./streets";
 
 /** Every authored story arc; validated arc-by-arc in tests. */
 export const storyArcs: StoryArc[] = [
@@ -18,6 +19,7 @@ export const storyArcs: StoryArc[] = [
   companionsArc,
   marketArc,
   quaysArc,
+  streetsArc,
 ];
 
 export function getArc(id: string): StoryArc | undefined {
@@ -38,4 +40,5 @@ export {
   companionsArc,
   marketArc,
   quaysArc,
+  streetsArc,
 };

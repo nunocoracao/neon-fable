@@ -1,4 +1,5 @@
 import type { StoryArc } from "../../narrative/types";
+import { vendorChoices } from "../world";
 
 /**
  * Demo arc: a first job in the Meridian Sprawl. Scaffold content proving
@@ -12,6 +13,11 @@ export const introArc: StoryArc = {
   id: "intro",
   title: "First Light Over Cinder Row",
   entryNodeId: "start",
+  // The shuttered-row variant is opened by the world, not by a choice:
+  // while the stalls are down the wet-market NPC is re-pointed here
+  // (see SCENE_REACTIONS in ../world.ts). Declared as a way in so
+  // reachability validates against how it is actually reached.
+  entryNodeIds: ["wet-market-shuttered"],
   nodes: [
     {
       id: "start",
@@ -86,6 +92,56 @@ export const introArc: StoryArc = {
       ],
     },
     {
+      // The row with its shutters down. Reached only while the world
+      // says so: the "row-shutters" reaction re-points the stall NPC
+      // here (see SCENE_REACTIONS in ../world.ts), and every route out
+      // of it lands back on the ordinary stall scene — the market is
+      // quieter, not closed. Kept in this arc because a choice may not
+      // cross an arc boundary, and the scene it leads to is here.
+      id: "wet-market-shuttered",
+      text:
+        "Half the row is roller-shuttered and the half that is not has " +
+        "its awnings down. The stallkeeper is sitting on an upturned " +
+        "crate behind a rail of nothing, watching a Combine server work " +
+        "the line with a board. They see you coming and do not get up. " +
+        "\"We're trading,\" they say, to the pavement. \"Quietly.\"",
+      location: "cinder-row:wet-market",
+      choices: [
+        {
+          id: "ask-shutters",
+          label: "\"What happened here?\"",
+          target: "wet-market-shuttered-why",
+        },
+        {
+          id: "trade-quietly",
+          label: "Trade quietly, then.",
+          target: "wet-market",
+        },
+      ],
+    },
+    {
+      id: "wet-market-shuttered-why",
+      text:
+        "\"An Auric courier went dark in the Undercroft and something " +
+        "walked out of the hole with him.\" The stallkeeper turns a " +
+        "credit chit over in their fingers. \"Nobody up there thinks it " +
+        "came down here. They just know where the doors are that open " +
+        "when you knock.\" A shrug. \"Fortnight. Then they'll forget.\"",
+      location: "cinder-row:wet-market",
+      choices: [
+        {
+          id: "shrug-back",
+          label: "Buy something anyway.",
+          target: "wet-market",
+        },
+        {
+          id: "leave-row",
+          label: "Leave them to it.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
       id: "wet-market-back",
       text:
         "The stallkeeper looks you over — the Undertow job travels ahead " +
@@ -94,73 +150,14 @@ export const introArc: StoryArc = {
         "customs-auction wrap, a surgery case sweating cold. \"Post-flood " +
         "prices,\" they say. \"You're the reason there's a market.\"",
       location: "cinder-row:wet-market",
+      // The shelf is stock, and stock is a fact about the city — what
+      // the Cordon coming down put on the street, what a live warrant
+      // takes off it, what the boards will consign to somebody they
+      // like (see VENDOR_STOCK in ../world.ts). Generated rather than
+      // listed so the offer a player is shown and the stock the world
+      // layer says is carried are one decision, made once.
       choices: [
-        {
-          id: "buy-rail-spitter",
-          label: "Buy the Rail Spitter. (320 cr)",
-          target: "wet-market-back",
-          requirements: [{ type: "credits", value: 320 }],
-          ifUnavailable: "disabled",
-          effects: [
-            { type: "credits", amount: -320 },
-            { type: "add-item", itemId: "wpn-rail-spitter" },
-          ],
-        },
-        {
-          id: "buy-torque-cleaver",
-          label: "Buy the Torque Cleaver. (320 cr)",
-          target: "wet-market-back",
-          requirements: [{ type: "credits", value: 320 }],
-          ifUnavailable: "disabled",
-          effects: [
-            { type: "credits", amount: -320 },
-            { type: "add-item", itemId: "wpn-torque-cleaver" },
-          ],
-        },
-        {
-          id: "buy-ghostline-mantle",
-          label: "Buy the Ghostline Mantle. (300 cr)",
-          target: "wet-market-back",
-          requirements: [{ type: "credits", value: 300 }],
-          ifUnavailable: "disabled",
-          effects: [
-            { type: "credits", amount: -300 },
-            { type: "add-item", itemId: "out-ghostline-mantle" },
-          ],
-        },
-        {
-          id: "buy-cordon-plate",
-          label: "Buy the Cordon Plate Rig. (380 cr)",
-          target: "wet-market-back",
-          requirements: [{ type: "credits", value: 380 }],
-          ifUnavailable: "disabled",
-          effects: [
-            { type: "credits", amount: -380 },
-            { type: "add-item", itemId: "out-cordon-plate" },
-          ],
-        },
-        {
-          id: "buy-warden-optics",
-          label: "Buy the Warden Optics. (450 cr)",
-          target: "wet-market-back",
-          requirements: [{ type: "credits", value: 450 }],
-          ifUnavailable: "disabled",
-          effects: [
-            { type: "credits", amount: -450 },
-            { type: "add-item", itemId: "cyb-warden-optics" },
-          ],
-        },
-        {
-          id: "buy-cascade-governor",
-          label: "Buy the Cascade Governor. (500 cr)",
-          target: "wet-market-back",
-          requirements: [{ type: "credits", value: 500 }],
-          ifUnavailable: "disabled",
-          effects: [
-            { type: "credits", amount: -500 },
-            { type: "add-item", itemId: "cyb-cascade-governor" },
-          ],
-        },
+        ...vendorChoices("wet-market-back", "wet-market-back"),
         {
           id: "done",
           label: "\"Another time.\"",

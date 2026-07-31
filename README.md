@@ -105,6 +105,7 @@ src/
   combat/      # turn-based combat engine + combat UI glue
   inventory/   # items, equipment slots, cyber enhancements
   iso/         # isometric renderer, tilemap, sprites, input picking
+  world/       # reactive world state: conditions, placement, news, stock
   ui/          # DOM screens and components
   data/        # typed content: items, enemies, story nodes, maps
 ```
@@ -288,7 +289,11 @@ A `StoryArc` is a list of nodes; each node has `speaker`, `text`, and
   with once it has recorded its own outcome, and `flag-set` is its
   mirror — "you have been here", whatever the flag ended up saying,
   which is how a later beat reads a one-flag-several-values record
-  without carrying one choice per value. A `reputation` requirement
+  without carrying one choice per value. `flag-not-equals` is the gate
+  for what a flag *is not*, including nothing at all: a flag one beat
+  writes `true` and a later one rewrites `false` (Act 2 suspending the
+  Auric warrant) reads as three states, and "not wanted" is two of
+  them, which `flag-unset` alone cannot say. A `reputation` requirement
   asks how a faction reads the player — give it a band id
   (`"warm"`), not a number, so a re-tune of what an act outcome is
   worth never silently moves a door. A `dominant-faction` requirement
@@ -394,6 +399,41 @@ container via `flag-set`, and one road open to anybody), and its
 `UNDER_WATERLINE_OUTCOMES` adds one field to the same contract:
 `platform`, the lasting change the settlement makes to the district.
 
+### Reactive world state (`src/data/world.ts`, `src/world/`)
+
+How the city notices what a run has done. Content declares named
+**world conditions** — `stalls-shuttered`, `cordon-broken`,
+`warrant-out` — and each is nothing but a bundle of ordinary
+`Requirement`s. `deriveWorldState(state)` runs them through the
+engine's own `checkRequirements` once per scene mount and hands back
+the set that passed; every reactive channel is then a pure function of
+that set and of content, never of `GameState` again. Three channels
+read it:
+
+- **Who is on the street.** `SCENE_REACTIONS` may spawn an NPC,
+  despawn one, and re-label or re-point what stays; `populateMap`
+  applies them over `dressMap`'s output. Because placement is the one
+  move map dressing refuses (see below), `world.test.ts` re-runs the
+  whole map lint — walkable, unobstructed, reachable, ambient zones
+  whole — against every *populated* district with all reactions live.
+  A spawned NPC's scene lives in `src/data/story/streets.ts` and is
+  declared in its arc's `entryNodeIds`, since the world opens it
+  directly rather than any choice leading there.
+- **What the screens say.** A map declares `screens` (geometry, a
+  channel, a neon tint); `NEWS_HEADLINES` is the pool, gated by
+  `requires`/`absent` condition ids, and `newsStrip` puts the
+  survivors in a seeded per-screen order. The scroll itself is pure
+  timing in `src/iso/ticker.ts` and one bake per line — the renderer
+  copies a moving window out of the strip, never re-baking.
+- **What a vendor sells.** `VENDOR_STOCK` entries carry condition
+  gates, and `vendorChoices` builds the shop's dialogue choices out of
+  *the same requirement arrays* plus the price — so the stock selector
+  and the offer a player sees are one decision made once. An entry off
+  the shelf is hidden; one you merely cannot afford stays greyed.
+
+Author a condition rather than reading a flag twice: re-keying it onto
+a different beat moves every reaction with it.
+
 ### Map dressing (`src/data/mapDressing.ts`)
 
 How a settled quest changes a district for good. `dressMap(map, flags)`
@@ -404,7 +444,8 @@ story node it opens. It deliberately cannot move, add, or remove one —
 position, sprite kind, and exits are what the map lint is written
 against, so leaving them alone keeps reachability, walkability, and the
 minimap true of every dressed variant for free (`mapDressing.test.ts`
-pins exactly that). Because it resolves at mount, a change earned in a
+pins exactly that) — the reactive world layer above is where placement
+lives, and it pays for the guarantee with its own lint. Because it resolves at mount, a change earned in a
 conversation is waiting the next time the player walks in rather than
 swapping under their feet. Build the table from the content that owns
 the flags — the quays' entry is derived from

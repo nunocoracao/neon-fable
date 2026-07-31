@@ -322,6 +322,143 @@ export const cast: Readonly<Record<string, CharacterVisual>> = {
     },
     outfit: "out-courier-slicker",
   },
+  /* --- The street's own faces.
+   *
+   * Nobody below is a character: they are the people a world condition
+   * puts on a district (see world.ts) to make a change legible from the
+   * pavement, and their scenes are in ./story/streets.ts. Each look is
+   * authored to say what they are at a glance from three tiles away —
+   * a uniform, a placard, a wrench — because that is the whole job.
+   */
+  // Combine trading standards, sent down to work a shuttered row: house
+  // suit, house visor, house patience.
+  "Combine Notice-Server": {
+    appearance: {
+      skinTone: "porcelain",
+      build: "lean",
+      hairStyle: "bob",
+      hairColor: "raven",
+      eyes: "narrow",
+      eyeColor: "hologram-blue",
+      brows: "straight",
+      mouth: "neutral",
+      faceDetail: "none",
+      headwear: "visor",
+    },
+    outfit: "out-spire-suit",
+  },
+  // Voss's watch on the Row: a good coat, a bad job, and no hurry.
+  "Syndicate Watch": {
+    appearance: {
+      skinTone: "golden-tan",
+      build: "heavy",
+      hairStyle: "slicked",
+      hairColor: "raven",
+      eyes: "narrow",
+      eyeColor: "amber",
+      brows: "heavy",
+      mouth: "smirk",
+      faceDetail: "none",
+      headwear: "none",
+    },
+    outfit: "out-ghostline-mantle",
+  },
+  // Splicing the public feed off a screen post: hood up, wire out.
+  "Rooftop Listener": {
+    appearance: {
+      skinTone: "warm-brown",
+      build: "lean",
+      hairStyle: "locs",
+      hairColor: "auburn",
+      eyes: "wide",
+      eyeColor: "cyan",
+      brows: "arched",
+      mouth: "neutral",
+      faceDetail: "cyber-lines",
+      headwear: "hood",
+    },
+    outfit: "out-courier-slicker",
+  },
+  // Reading continuity off a card in the middle of the glow ring.
+  "Regency Crier": {
+    appearance: {
+      skinTone: "deep-umber",
+      build: "lean",
+      hairStyle: "buzz",
+      hairColor: "silver",
+      eyes: "standard",
+      eyeColor: "silver",
+      brows: "straight",
+      mouth: "neutral",
+      faceDetail: "none",
+      headwear: "none",
+    },
+    outfit: "out-spire-suit",
+  },
+  // Market kid holding a pitch for somebody the boards like.
+  "Market Runner": {
+    appearance: {
+      skinTone: "porcelain",
+      build: "lean",
+      hairStyle: "spikes",
+      hairColor: "blond",
+      eyes: "wide",
+      eyeColor: "cyan",
+      brows: "arched",
+      mouth: "smirk",
+      faceDetail: "none",
+      headwear: "cap",
+    },
+    outfit: "out-courier-slicker",
+  },
+  // Wet-market trader working out of crates a level up from home.
+  "Displaced Stallholder": {
+    appearance: {
+      skinTone: "warm-brown",
+      build: "heavy",
+      hairStyle: "buzz",
+      hairColor: "chestnut",
+      eyes: "standard",
+      eyeColor: "amber",
+      brows: "straight",
+      mouth: "smirk",
+      faceDetail: "none",
+      headwear: "cap",
+    },
+    outfit: "out-diver-harness",
+  },
+  // The Steps' first civil servant, thirty years overdue.
+  "Charter Clerk": {
+    appearance: {
+      skinTone: "golden-tan",
+      build: "heavy",
+      hairStyle: "bob",
+      hairColor: "silver",
+      eyes: "standard",
+      eyeColor: "amber",
+      brows: "arched",
+      mouth: "smirk",
+      faceDetail: "none",
+      headwear: "none",
+    },
+    outfit: "out-tender-coat",
+  },
+  // Greywater walking its own water line in salvaged cordon plate.
+  "Steps Watch": {
+    appearance: {
+      skinTone: "deep-umber",
+      build: "heavy",
+      hairStyle: "locs",
+      hairColor: "chestnut",
+      eyes: "standard",
+      eyeColor: "cyan",
+      brows: "heavy",
+      mouth: "neutral",
+      faceDetail: "brow-split",
+      headwear: "none",
+    },
+    outfit: "out-cordon-plate",
+  },
   // The Vertical Market's missing courier: young, fast, and three
   // nights into hiding under her own delivery route. Slicker still on,
   // clip line still on the harness, nothing else left.

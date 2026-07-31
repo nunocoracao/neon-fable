@@ -382,6 +382,46 @@ export interface SetPieceSpec {
 }
 
 /**
+ * A public screen running a news ticker: the district's holo-billboard,
+ * the boards over a market aisle, the panel by a tower's registry gate.
+ *
+ * The declaration is pure geometry and a channel name — where the strip
+ * paints and how wide the readable window is. What it *says* is content
+ * the shell resolves and hands to the scene per frame (see
+ * src/world/news.ts), exactly as barks work: the iso layer positions
+ * and scrolls, and never learns what a headline means.
+ *
+ * A screen is not an interactable and has no tile of its own beyond the
+ * one it sorts at — it is a caption on the prop it is mounted on, so it
+ * blocks nothing, is picked by nothing, and needs no map-lint rule
+ * beyond standing over ground the map has.
+ */
+export interface NewsScreen {
+  id: string;
+  /** Tile the screen's prop stands on; the strip sorts here. */
+  x: number;
+  y: number;
+  /**
+   * Where the window's top-left corner sits relative to the tile's
+   * center, in 1x art pixels — up and left are negative, matching the
+   * offsets set pieces use.
+   */
+  offsetX: number;
+  offsetY: number;
+  /** Readable width of the window, in 1x art pixels. */
+  width: number;
+  /**
+   * Which headline pool the screen carries. A plain string here on
+   * purpose: the channels are content (see NEWS_CHANNELS in
+   * src/data/world.ts) and the iso layer has no business knowing them.
+   * A map-lint test pins every declared channel to a real one.
+   */
+  channel: string;
+  /** Neon channel the strip burns in; see NEWS_TINT_INK. */
+  tint: "cyan" | "amber" | "hologram";
+}
+
+/**
  * The sky a map plays under. Purely a look: weather drives the rain
  * overlay, puddle art, and reflection shimmer (see src/iso/weather.ts)
  * and nothing else — no stat, roll, or route anywhere in the game reads
@@ -421,6 +461,8 @@ export interface IsoMap {
   ambient?: AmbientSpec;
   /** Large ambient machinery: trains, drones, steam. Visual only. */
   setPieces?: SetPieceSpec;
+  /** Public screens running a news ticker; absent means none. */
+  screens?: readonly NewsScreen[];
   /** Weather the map plays under; absent means clear. Visual only. */
   weather?: WeatherId;
   /** Hour the map plays at; absent means night. Visual only. */

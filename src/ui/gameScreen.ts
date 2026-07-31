@@ -2,13 +2,11 @@ import { audio } from "../audio";
 import {
   HUB_MAP_ID,
   companionSpriteId,
-  dressMap,
   epilogueVignettes,
   findArcByNode,
   getEncounter,
   getEnding,
   getMap,
-  requireMap,
   type ChapterEnding,
 } from "../data";
 import { availablePoints } from "../character";
@@ -32,6 +30,7 @@ import {
 } from "../iso";
 import { settings } from "../settings";
 import { interactPrompt } from "./format";
+import { resolveDistrict } from "./district";
 import { runMapTransition, type MapTransitionHandle } from "./mapTransition";
 import { npcSpriteSource, sceneSpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
@@ -160,12 +159,11 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     );
   }
   const mapId = getMap(session.state.location) ? session.state.location : HUB_MAP_ID;
-  // The district as this run has left it: a settled quest can re-label
-  // an NPC, put a different face on them, or change what they open (see
-  // data/mapDressing.ts). Resolved once per mount, and a mount is what
-  // arriving on a map is — so a change earned in a scene is waiting the
-  // next time the player walks in, not swapped under their feet.
-  const map = dressMap(requireMap(mapId), session.state.flags);
+  // The district as this run has left it — the authored map, dressed by
+  // what the story settled and populated by what the city has noticed,
+  // plus whatever its public screens are carrying tonight. See
+  // ./district.ts for the order the three layers land in.
+  const { map, newsStrips } = resolveDistrict(session.state, mapId);
 
   function refreshHud(): void {
     if (!hudStatus) return;
@@ -635,6 +633,10 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         // nobody passes null and changes nothing.
         followerSpriteId: followerSpriteIdFor(session.state),
         dayPhase: storyPhase,
+        // What this district's screens are carrying tonight. Resolved
+        // here, from the world state, because which headlines a run has
+        // earned is content — the scene only scrolls what it is given.
+        newsStrips,
         sprites: createPixelArtSprites({
           player: playerSpriteSource(session),
           npc: npcSpriteSource(map),

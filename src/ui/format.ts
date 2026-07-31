@@ -120,6 +120,8 @@ export function requirementLabel(
     }
     case "flag-equals":
       return `[${requirement.key}: ${String(requirement.value)}]`;
+    case "flag-not-equals":
+      return `[${requirement.key}: not ${String(requirement.value)}]`;
     case "flag-at-least":
       return `[${requirement.key} ${requirement.value}+]`;
     case "flag-set":

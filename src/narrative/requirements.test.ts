@@ -45,6 +45,45 @@ describe("checkRequirement", () => {
     });
   });
 
+  describe("flag-not-equals", () => {
+    it("passes on any other value, and on nothing at all", () => {
+      const state = makeState();
+      const req = {
+        type: "flag-not-equals",
+        key: "wanted-by-auric",
+        value: true,
+      } as const;
+      // Never written: nobody is looking for you.
+      expect(checkRequirement(state, req)).toBe(true);
+      // Written false — the warrant a later beat suspended. flag-unset
+      // could not see this state; this is the reason the gate exists.
+      state.flags["wanted-by-auric"] = false;
+      expect(checkRequirement(state, req)).toBe(true);
+      state.flags["wanted-by-auric"] = true;
+      expect(checkRequirement(state, req)).toBe(false);
+    });
+
+    it("is the exact complement of flag-equals", () => {
+      const state = makeState();
+      for (const value of [true, false, "corp", 3] as const) {
+        state.flags["probe"] = value;
+        for (const against of [true, false, "corp", 3] as const) {
+          const equals = checkRequirement(state, {
+            type: "flag-equals",
+            key: "probe",
+            value: against,
+          });
+          const differs = checkRequirement(state, {
+            type: "flag-not-equals",
+            key: "probe",
+            value: against,
+          });
+          expect(differs).toBe(!equals);
+        }
+      }
+    });
+  });
+
   describe("credits", () => {
     it("passes when the balance meets the threshold", () => {
       const state = makeState();

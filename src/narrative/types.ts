@@ -16,6 +16,7 @@ import type { ReputationThreshold } from "../state/reputation";
 /** A condition a choice checks against GameState before it can be taken. */
 export type Requirement =
   | FlagEqualsRequirement
+  | FlagNotEqualsRequirement
   | FlagAtLeastRequirement
   | FlagSetRequirement
   | FlagUnsetRequirement
@@ -32,6 +33,20 @@ export type Requirement =
 /** Flag must exist and strictly equal the given value. */
 export interface FlagEqualsRequirement {
   type: "flag-equals";
+  key: string;
+  value: FlagValue;
+}
+
+/**
+ * Flag must say anything other than this — including nothing at all.
+ * The mirror of flag-equals, and the only gate that can be closed by a
+ * value *and* opened by a blank: a flag one beat writes `true` and a
+ * later one rewrites `false` (the suspended warrant) reads as three
+ * states, and "not wanted" is two of them. flag-unset only covers the
+ * blank, so it cannot express that door on its own.
+ */
+export interface FlagNotEqualsRequirement {
+  type: "flag-not-equals";
   key: string;
   value: FlagValue;
 }
@@ -355,5 +370,23 @@ export interface StoryArc {
   id: string;
   title: string;
   entryNodeId: string;
+  /**
+   * Further nodes the world can open directly, for an arc that is a
+   * bundle of doorways rather than one thread — the street scenes a
+   * world condition spawns somebody to hold, each opened by its own
+   * interactable and reaching none of the others (see
+   * ./data/story/streets.ts). Absent means the arc has the one entry,
+   * which is what every narrative arc has.
+   *
+   * Only reachability reads this: a node listed here is a legitimate
+   * place to start, so validateArc walks the graph from all of them
+   * before calling anything orphaned.
+   */
+  entryNodeIds?: readonly string[];
   nodes: StoryNode[];
+}
+
+/** Every node the world may open an arc at, entry first. */
+export function arcEntryNodeIds(arc: StoryArc): string[] {
+  return [...new Set([arc.entryNodeId, ...(arc.entryNodeIds ?? [])])];
 }

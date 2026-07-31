@@ -21,6 +21,8 @@ export function checkRequirement(
   switch (requirement.type) {
     case "flag-equals":
       return state.flags[requirement.key] === requirement.value;
+    case "flag-not-equals":
+      return state.flags[requirement.key] !== requirement.value;
     case "flag-at-least": {
       const value = state.flags[requirement.key];
       return (typeof value === "number" ? value : 0) >= requirement.value;

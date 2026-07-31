@@ -329,6 +329,35 @@ const cinderPlaza: IsoMap = {
     ],
     vents: { periodMs: 5_600, chance: 0.4 },
   },
+  // The Row's two public screens. Both run the civic feed — the mast
+  // billboard over the plaza in the district's cyan, the smaller ad
+  // panel on the north wall in amber — and the two carry the same pool
+  // in different seeded orders, so a shot with both in it never reads
+  // as one screen duplicated. The window sits on each panel's lower
+  // banner band; what scrolls through it is whatever the city has
+  // noticed (see src/world/news.ts).
+  screens: [
+    {
+      id: "plaza-board",
+      x: 10,
+      y: 6,
+      offsetX: -26,
+      offsetY: -62,
+      width: 52,
+      channel: "civic",
+      tint: "cyan",
+    },
+    {
+      id: "row-sign",
+      x: 9,
+      y: 1,
+      offsetX: -17,
+      offsetY: -32,
+      width: 34,
+      channel: "civic",
+      tint: "amber",
+    },
+  ],
   // Cinder Row keeps working hours. The player meets the Sprawl at the
   // end of the day, with the last warm light still coming off the
   // towers and the signage only starting to win — the softest the hub
@@ -1036,6 +1065,21 @@ const verticalMarket: IsoMap = {
       },
     ],
   },
+  // The boards over the crossing of the two aisles. The market runs
+  // its own feed — prices, hours, and whatever the Row is doing to
+  // trade this week — in the lamplight amber the aisles are lit in.
+  screens: [
+    {
+      id: "aisle-board",
+      x: 7,
+      y: 4,
+      offsetX: -17,
+      offsetY: -32,
+      width: 34,
+      channel: "market",
+      tint: "amber",
+    },
+  ],
   // Trading hours: the market only comes alive after dark, and it is
   // roofed by the levels above it — no weather reaches the boards.
   weather: "clear",

@@ -38,6 +38,7 @@ import { ABILITY_FX_ART } from "./abilityEffects";
 import { EFFECT_ART } from "./effects";
 import { INTERACTABLE_ART } from "./interactables";
 import { popupTextGrid } from "./popupFont";
+import { newsStripGrid, type NewsTintId } from "./news";
 import { STATUS_MARKER_ART } from "./statusMarkers";
 import { BODY_FRAME } from "./layers/body";
 import {
@@ -125,6 +126,7 @@ export interface PixelArtSprites extends SpriteProvider {
   abilityEffect(id: AbilityFxId, frame: number): Sprite;
   statusMarker(id: StatusFamilyId, frame: number): Sprite;
   popupText(text: string, kind: PopupKind): Sprite;
+  newsText(text: string, tint: NewsTintId): Sprite;
 }
 
 export interface PixelArtSpriteOptions {
@@ -442,6 +444,18 @@ export function createPixelArtSprites(
           grid.length,
         );
       });
+    },
+
+    newsText(text: string, tint: NewsTintId): Sprite {
+      // Off the phase key, like every other emissive thing: a screen is
+      // its own light source and burns the same at dusk as at 3am. One
+      // bake per line — the scroll is a moving window into this canvas,
+      // never a re-bake (see ../ticker.ts).
+      return untinted(`news:${tint}:${text}`, () =>
+        // Anchored top-left: the scene places a strip by the corner of
+        // the window it scrolls through.
+        bakeSprite(newsStripGrid(text, tint), 0, 0),
+      );
     },
 
     entitySilhouette(id: EntitySpriteId, pose: EntityPose): Sprite {
