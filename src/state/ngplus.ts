@@ -11,6 +11,14 @@ import type { GameState } from "./gameState";
  * and one legacy item granted here; everything is recorded on the new
  * run's own GameState via flags, so NG+ saves stay self-contained and
  * pre-NG+ saves load exactly as before.
+ *
+ * Deliberately excluded: perks. They are what the *street* decided
+ * about a particular runner, earned from that run's own deeds and won
+ * fights (src/character/cred.ts), and a reputation is not inheritable.
+ * Nothing here has to enforce that — a New Game+ character is built by
+ * createCharacter like any other, and starts with an empty list — but
+ * the exclusion is stated on the creation summary rather than left for
+ * a player to discover, because an unexplained absence reads as a bug.
  */
 
 /** Extra point-buy points a New Game+ character allocates. */

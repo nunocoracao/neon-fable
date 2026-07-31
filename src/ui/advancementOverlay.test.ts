@@ -20,10 +20,15 @@ function makeSession(flags: Record<string, boolean>): Session {
   return createSession({ ...state, flags }, createMemoryStorage());
 }
 
+let perksOpened = 0;
+
 function mount(session: Session): OverlayHandle {
   const handle = createAdvancementOverlay({
     session,
     onStateChange: () => {},
+    onOpenPerks: () => {
+      perksOpened += 1;
+    },
     onClose: () => {},
   });
   document.body.append(handle.el);
@@ -56,6 +61,7 @@ function cardByName(handle: OverlayHandle, name: string): Element {
 
 afterEach(() => {
   document.body.replaceChildren();
+  perksOpened = 0;
 });
 
 describe("advancement overlay", () => {
@@ -89,6 +95,38 @@ describe("advancement overlay", () => {
     expect(cardByName(handle, "Combat Focus").textContent).toContain(
       "Unlocked",
     );
+    handle.destroy();
+  });
+
+  it("shows street cred beside the points, and the milestone to come", () => {
+    const handle = mount(makeSession({ "act1-complete": true }));
+    const text = handle.el.textContent ?? "";
+    expect(text).toContain("Street cred 5");
+    expect(text).toMatch(/at \d+ cred/);
+    handle.destroy();
+  });
+
+  it("lists taken perks with what they do, and hands off the pick", () => {
+    const session = makeSession({ "act1-complete": true });
+    session.state = {
+      ...session.state,
+      player: {
+        ...session.state.player,
+        advancement: {
+          ...session.state.player.advancement,
+          perkIds: ["perk-cold-read"],
+        },
+      },
+    };
+    const handle = mount(session);
+    const card = handle.el.querySelector('[data-perk="perk-cold-read"]');
+    expect(card?.textContent).toContain("Cold Read");
+    expect(card?.textContent).toContain("Hostile reach is marked");
+    const open = [...handle.el.querySelectorAll("button")].find((b) =>
+      (b.textContent ?? "").includes("Perk"),
+    );
+    open?.click();
+    expect(perksOpened).toBe(1);
     handle.destroy();
   });
 
