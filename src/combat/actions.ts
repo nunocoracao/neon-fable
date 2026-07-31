@@ -24,6 +24,7 @@ import {
   playerCombatant,
   requireCombatant,
 } from "./state";
+import { closeSurgeTurn, openSurgeTurn } from "./surge";
 import {
   CombatError,
   type ChargedAction,
@@ -445,10 +446,19 @@ function tickCharge(state: CombatState): CombatState {
  * then advances to the next living combatant, burning stun turns (each
  * stunned combatant loses its whole turn per stun point), and finally
  * throws whatever that combatant had been winding up.
+ *
+ * Cyberware noise is settled at both ends of the pass (see ./surge.ts):
+ * the outgoing turn is where an armed surge can be bled off by having
+ * gone unspent, and the incoming turn is where it banks, arms, or goes
+ * off. A discharge only adds stun turns — the loop below then loses the
+ * turn to it through the same path every other stun takes.
  */
 function advanceTurn(state: CombatState): CombatState {
   const actor = activeCombatant(state);
-  let next = withCombatant(state, actor.id, (c) => ({
+  // Read before anything is ticked: venting is this turn's action given
+  // up, so what matters is whether it was spent by the time it ended.
+  const vented = closeSurgeTurn(state, actor.id, state.actionUsed);
+  let next = withCombatant(vented, actor.id, (c) => ({
     ...c,
     boosts: c.boosts
       .map((b) => ({ ...b, turnsLeft: b.turnsLeft - 1 }))
@@ -461,26 +471,40 @@ function advanceTurn(state: CombatState): CombatState {
     ),
   }));
 
-  const events: CombatEvent[] = [];
+  let queued: CombatEvent[] = [];
   let index = next.turnIndex;
   let round = next.round;
   for (;;) {
     index = (index + 1) % next.initiativeOrder.length;
     if (index === 0) {
       round += 1;
-      events.push({ type: "round-started", round });
+      queued.push({ type: "round-started", round });
     }
-    const candidate = getCombatant(next, next.initiativeOrder[index] ?? "")!;
-    if (!isAlive(candidate)) continue;
+    const id = next.initiativeOrder[index] ?? "";
+    if (!isAlive(getCombatant(next, id)!)) continue;
+
+    // Whatever the walk queued goes into the log before the chrome
+    // speaks, so the round marker and the surge read in the order they
+    // actually happened.
+    next = pushEvents(next, ...queued);
+    queued = [];
+    // A turn already being lost to a stun is not a turn the noise gets
+    // to build on: the surge settles only for a body that would
+    // otherwise be about to act.
+    if (getCombatant(next, id)!.stunTurns === 0) {
+      next = openSurgeTurn(next, id);
+    }
+
+    const candidate = getCombatant(next, id)!;
     if (candidate.stunTurns > 0) {
-      next = withCombatant(next, candidate.id, (c) => ({
+      next = withCombatant(next, id, (c) => ({
         ...c,
         stunTurns: c.stunTurns - 1,
       }));
-      events.push({ type: "stun-skipped", combatantId: candidate.id });
+      next = pushEvents(next, { type: "stun-skipped", combatantId: id });
       continue;
     }
-    events.push({ type: "turn-started", combatantId: candidate.id });
+    next = pushEvents(next, { type: "turn-started", combatantId: id });
     next = {
       ...next,
       turnIndex: index,
@@ -490,7 +514,7 @@ function advanceTurn(state: CombatState): CombatState {
     };
     break;
   }
-  return tickCharge(pushEvents(next, ...events));
+  return tickCharge(next);
 }
 
 /** Resolves one action for the active combatant. Pure — returns new state. */

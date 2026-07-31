@@ -21,6 +21,8 @@ import { CYBER_PORTRAITS } from "../iso/art/layers/cyberware";
 import {
   PORTRAIT_FRAME,
   PORTRAIT_HEADS,
+  STATIC_FLICKER_FRAMES,
+  STATIC_FLICKER_SHIMMER,
   faceBoxGrid,
   placedAt,
   portraitHairGrid,
@@ -92,6 +94,7 @@ export function resolvePortraitParts(
   equipment: EquipmentState,
   expression: ExpressionId = "neutral",
   lookupItem: ItemLookup = getItem,
+  flicker = 0,
 ): PortraitPart[] {
   const errors = validateAppearance(appearance);
   if (errors.length > 0) {
@@ -225,7 +228,31 @@ export function resolvePortraitParts(
     });
   }
 
+  // Above everything, and only on the frames that carry a tear. An
+  // out-of-range index wraps rather than throwing: the caller is an
+  // animation clock, and a clock should never be able to crash a face.
+  const torn = staticFlickerPart(flicker);
+  if (torn) parts.push(torn);
+
   return parts;
+}
+
+/**
+ * The tear for one flicker frame, or null for the clean frames (frame
+ * 0 always, and every frame when flickering is off). Exported for the
+ * tests that pin the cycle; callers pass a frame index, not this.
+ */
+export function staticFlickerPart(flicker: number): PortraitPart | null {
+  const count = STATIC_FLICKER_FRAMES.length;
+  if (count === 0) return null;
+  const index = ((Math.trunc(flicker) % count) + count) % count;
+  const grid = STATIC_FLICKER_FRAMES[index];
+  if (!grid) return null;
+  return {
+    key: `static:${index}`,
+    grid,
+    remap: STATIC_FLICKER_SHIMMER[index] ?? {},
+  };
 }
 
 /**
@@ -266,12 +293,14 @@ export function composePortrait(
   equipment: EquipmentState,
   expression: ExpressionId = "neutral",
   lookupItem: ItemLookup = getItem,
+  flicker = 0,
 ): PixelGrid {
   const parts: LayerPart[] = resolvePortraitParts(
     appearance,
     equipment,
     expression,
     lookupItem,
+    flicker,
   ).map(({ grid, remap }) => ({ grid, remap }));
   return composeGrids(parts, PORTRAIT_FRAME);
 }
@@ -287,9 +316,16 @@ export function portraitKey(
   equipment: EquipmentState,
   expression: ExpressionId = "neutral",
   lookupItem: ItemLookup = getItem,
+  flicker = 0,
 ): string {
   return partsKey(
-    resolvePortraitParts(appearance, equipment, expression, lookupItem),
+    resolvePortraitParts(
+      appearance,
+      equipment,
+      expression,
+      lookupItem,
+      flicker,
+    ),
   );
 }
 

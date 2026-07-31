@@ -1215,6 +1215,100 @@ body::after {
   transition: width 150ms steps(4, end);
 }
 
+/* Static: the second meter chrome is measured on. Sits under the
+   neural-load row and reads hotter as the band climbs, so the two bars
+   are never mistaken for each other. */
+.nf-static {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.75rem;
+}
+
+.nf-static-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.nf-static-label {
+  font-family: var(--nf-font-display);
+  font-size: 0.85rem;
+}
+
+.nf-static-band {
+  font-family: var(--nf-font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: right;
+  color: var(--nf-ink-dim);
+}
+
+.nf-static-loud {
+  color: var(--nf-glow-amber);
+}
+
+.nf-static-screaming {
+  color: var(--nf-danger);
+}
+
+.nf-static-meter {
+  max-width: none;
+  width: 100%;
+}
+
+/* Same chunky LED segments as the load meter, carried up the band
+   ladder by colour rather than by a second shape. */
+.nf-static-fill {
+  height: 100%;
+  background: repeating-linear-gradient(
+    to right,
+    var(--nf-glow-cyan) 0,
+    var(--nf-glow-cyan) 6px,
+    var(--nf-outline) 6px,
+    var(--nf-outline) 8px
+  );
+  transition: width 150ms steps(4, end);
+}
+
+.nf-static[data-band="loud"] .nf-static-fill {
+  background: repeating-linear-gradient(
+    to right,
+    var(--nf-glow-amber) 0,
+    var(--nf-glow-amber) 6px,
+    var(--nf-outline) 6px,
+    var(--nf-outline) 8px
+  );
+}
+
+.nf-static[data-band="screaming"] .nf-static-fill {
+  background: repeating-linear-gradient(
+    to right,
+    var(--nf-danger) 0,
+    var(--nf-danger) 6px,
+    var(--nf-outline) 6px,
+    var(--nf-outline) 8px
+  );
+}
+
+/* An install that lowers the noise is the one good-news projection on
+   the shelf, and reads like it. */
+.nf-static-quiets {
+  color: var(--nf-glow-cyan);
+}
+
+/* The surge countdown on the combat status row: amber while it is only
+   a clock, red once it is a decision this turn. */
+.nf-combat-static {
+  color: var(--nf-glow-amber);
+}
+
+.nf-combat-static-armed {
+  color: var(--nf-danger);
+}
+
 .nf-inventory-columns {
   display: grid;
   grid-template-columns: minmax(16rem, 1fr) 2fr;

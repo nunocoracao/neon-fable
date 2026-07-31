@@ -2,6 +2,7 @@ import type { StatKey } from "../character/stats";
 import type { ExpressionId } from "../data/appearance";
 import type { ReactionTag } from "../data/companions";
 import type { FactionId, StandingDelta } from "../data/factions";
+import type { StaticBand } from "../data/static";
 import type { DayPhaseId } from "../iso/tilemap";
 import type { FlagValue } from "../state/flags";
 import type { ReputationThreshold } from "../state/reputation";
@@ -23,6 +24,7 @@ export type Requirement =
   | StatRequirement
   | ItemRequirement
   | EnhancementRequirement
+  | StaticRequirement
   | BackgroundRequirement
   | CreditsRequirement
   | CompanionRequirement
@@ -98,6 +100,22 @@ export interface ItemRequirement {
 export interface EnhancementRequirement {
   type: "enhancement";
   itemId: string;
+}
+
+/**
+ * How much noise the character's chrome is making (see
+ * src/data/static.ts). `mode` defaults to "at-least" — the
+ * chrome-affinity gate, for the door that only opens to somebody who
+ * has visibly paid for their hardware — and "at-most" is the other
+ * side of it, for the beat that needs a face nobody can hear coming.
+ *
+ * Bands rather than levels, deliberately: "loud" survives a retune of
+ * what an implant costs, and a number in a prose file does not.
+ */
+export interface StaticRequirement {
+  type: "static";
+  band: StaticBand;
+  mode?: "at-least" | "at-most";
 }
 
 /** The character's background must carry this narrative tag. */

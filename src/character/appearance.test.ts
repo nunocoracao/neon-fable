@@ -718,6 +718,7 @@ describe("installed cyberware resolution", () => {
               description: "test-only",
               slot: "dermal",
               neuralCost: 1,
+              staticLoad: 1,
               effects: [],
             }
           : undefined,

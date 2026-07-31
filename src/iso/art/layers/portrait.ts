@@ -325,6 +325,59 @@ export const PORTRAIT_HAIR_GRIDS: Readonly<
   "crushed-long": crushedLongCrown,
 };
 
+/* --- Static flicker: the tear a screaming Static band puts through a
+ * portrait (see src/data/static.ts). Torn scanlines rather than
+ * per-pixel snow — a portrait is 48 pixels tall and read at a glance,
+ * and snow at that size is mud.
+ *
+ * Authored in the cyber-chrome channel (6 shade, T base) so the two
+ * frames below recolor it by the same per-frame remap mechanism the
+ * cyber-lines face detail and the cyberware glow pulse use, rather than
+ * by a second machinery nobody else has to know about. --- */
+
+/** A dashed run: `pixels` repeated across `width` columns from `left`. */
+const tear = (left: number, width: number, pixels: string): string =>
+  row(left, pixels.repeat(Math.ceil(width / pixels.length)).slice(0, width));
+
+const flickerA: PixelGrid = (() => {
+  const grid = rep(HEIGHT, BLANK);
+  grid[7] = tear(14, 20, "T.6.");
+  grid[19] = tear(12, 26, "6..T.");
+  grid[33] = tear(8, 34, "T.6..");
+  return grid;
+})();
+
+const flickerB: PixelGrid = (() => {
+  const grid = rep(HEIGHT, BLANK);
+  grid[12] = tear(16, 18, ".6.T");
+  grid[26] = tear(10, 30, "..T.6");
+  grid[41] = tear(6, 36, ".T..6.");
+  return grid;
+})();
+
+/**
+ * The flicker cycle, as portrait *frames*: nothing, then two different
+ * tears. Frame 0 drawing nothing is what makes it a flicker rather than
+ * a permanent overlay — the portrait is clean most of the time and the
+ * noise cuts through it, which is both subtler and truer than a face
+ * permanently full of snow.
+ */
+export const STATIC_FLICKER_FRAMES: readonly (PixelGrid | null)[] = [
+  null,
+  flickerA,
+  flickerB,
+];
+
+/**
+ * Per-frame channel remaps for the tears, in the same shape as
+ * CYBER_LINES_SHIMMER: the first tear sits dim, the second flares to
+ * the bright end of the chrome ramp, so consecutive frames do not read
+ * as the same graphic moved.
+ */
+export const STATIC_FLICKER_SHIMMER: readonly Readonly<
+  Record<string, string>
+>[] = [{}, { "6": "6", T: "T" }, { "6": "T", T: "9" }];
+
 /** The portrait crown for a hair layer id, or null while unregistered. */
 export function portraitHairGrid(art: string): PixelGrid | null {
   return (

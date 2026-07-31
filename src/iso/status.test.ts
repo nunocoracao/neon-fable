@@ -5,7 +5,9 @@ import {
   STATUS_FAMILY_IDS,
   STATUS_MARKERS,
   STATUS_MARKER_SPACING_PX,
+  STATIC_FLICKER_PERIOD_MS,
   boostStatusFamily,
+  staticFlickerFrame,
   statusFamilies,
   statusMarkerFrame,
   statusMarkerOffsets,
@@ -88,6 +90,44 @@ describe("the glyph loop", () => {
   it("stops the loop but keeps the mark under reduced motion", () => {
     for (const id of STATUS_FAMILY_IDS) {
       expect(statusMarkerFrame(id, 9999, true), id).toBe(0);
+    }
+  });
+});
+
+describe("the portrait static flicker", () => {
+  it("is clean for most of every cycle", () => {
+    let torn = 0;
+    for (let ms = 0; ms < STATIC_FLICKER_PERIOD_MS; ms++) {
+      if (staticFlickerFrame(ms) !== 0) torn += 1;
+    }
+    // A tear on more than a fifth of the frames stops reading as
+    // interference and starts reading as a permanent effect.
+    expect(torn).toBeGreaterThan(0);
+    expect(torn / STATIC_FLICKER_PERIOD_MS).toBeLessThan(0.2);
+  });
+
+  it("shows more than one tear, so the noise moves", () => {
+    const frames = new Set<number>();
+    for (let ms = 0; ms < STATIC_FLICKER_PERIOD_MS; ms += 5) {
+      frames.add(staticFlickerFrame(ms));
+    }
+    expect(frames.has(0)).toBe(true);
+    expect(frames.size).toBeGreaterThan(2);
+  });
+
+  it("loops, and answers for any clock reading at all", () => {
+    for (const ms of [0, 37, 812, 1299]) {
+      expect(staticFlickerFrame(ms)).toBe(
+        staticFlickerFrame(ms + STATIC_FLICKER_PERIOD_MS * 3),
+      );
+    }
+    // A negative reading is a clock somebody rewound; it still answers.
+    expect(staticFlickerFrame(-1)).toBeGreaterThanOrEqual(0);
+  });
+
+  it("holds a clean face under reduced motion", () => {
+    for (let ms = 0; ms < STATIC_FLICKER_PERIOD_MS; ms += 7) {
+      expect(staticFlickerFrame(ms, true)).toBe(0);
     }
   });
 });

@@ -26,6 +26,9 @@ import type { EquipmentState } from "../inventory/equipment";
 import { ART_SCALE, bakeSprite, spriteBytes } from "../iso/art/pixel";
 import { PORTRAIT_FRAME } from "../iso/art/layers/portrait";
 import { createSpriteCache } from "../iso/art/spriteCache";
+import { STATIC_FLICKER_FRAMES } from "../iso/art/layers/portrait";
+import { staticFlickerFrame } from "../iso/status";
+import { reducedMotionActive } from "../settings";
 import type { Sprite } from "../iso/sprites";
 
 /**
@@ -48,20 +51,75 @@ export function portraitCanvas(
   appearance: Appearance,
   equipment: EquipmentState,
   expression: ExpressionId = "neutral",
+  flicker = 0,
 ): HTMLCanvasElement {
   let look = appearance;
   let key: string;
   try {
-    key = portraitKey(look, equipment, expression);
+    key = portraitKey(look, equipment, expression, undefined, flicker);
   } catch (error) {
     console.error("Invalid appearance; rendering the default portrait", error);
     look = defaultAppearance();
-    key = portraitKey(look, equipment, expression);
+    key = portraitKey(look, equipment, expression, undefined, flicker);
   }
   return gridPortraitCanvas(key, () =>
-    composePortrait(look, equipment, expression),
+    composePortrait(look, equipment, expression, undefined, flicker),
   );
 }
+
+/**
+ * A portrait that tears with static: the same bake path, repainted
+ * from the flicker clock until the canvas leaves the document.
+ *
+ * The loop is self-terminating by design — screens that show a
+ * portrait build it inline and throw it away on the next render, and
+ * asking every one of them to remember a handle would be a leak
+ * waiting to happen. An element no longer connected stops being
+ * painted and the loop ends with it.
+ *
+ * Frames are baked on demand into the same cache as every other
+ * portrait, so a flickering face costs the frames it actually shows
+ * (three) and nothing more. Reduced motion never leaves frame 0, in
+ * which case this is exactly portraitCanvas with an extra check.
+ */
+export function flickeringPortraitCanvas(
+  appearance: Appearance,
+  equipment: EquipmentState,
+  expression: ExpressionId = "neutral",
+  now: () => number = () => performance.now(),
+): HTMLCanvasElement {
+  const el = portraitCanvas(appearance, equipment, expression, 0);
+  if (STATIC_FLICKER_FRAMES.length <= 1) return el;
+
+  let painted = 0;
+  let seenInDocument = false;
+  let waited = 0;
+  const paint = (): void => {
+    // The caller appends the canvas after this returns, so the loop
+    // gives it a moment to land before it starts treating "not in the
+    // document" as "taken out of it" — and gives up either way, so a
+    // portrait built and dropped can never leave a loop behind.
+    if (el.isConnected) seenInDocument = true;
+    else if (seenInDocument || waited++ > FLICKER_ATTACH_GRACE_FRAMES) return;
+
+    const frame = staticFlickerFrame(now(), reducedMotionActive());
+    if (frame !== painted) {
+      const next = portraitCanvas(appearance, equipment, expression, frame);
+      const context = el.getContext("2d");
+      if (context) {
+        context.clearRect(0, 0, el.width, el.height);
+        context.drawImage(next, 0, 0);
+      }
+      painted = frame;
+    }
+    requestAnimationFrame(paint);
+  };
+  requestAnimationFrame(paint);
+  return el;
+}
+
+/** Frames a flickering portrait waits to be appended before giving up. */
+const FLICKER_ATTACH_GRACE_FRAMES = 120;
 
 /**
  * A display canvas for any composed portrait grid, baked and cached

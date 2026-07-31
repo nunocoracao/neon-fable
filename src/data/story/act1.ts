@@ -628,7 +628,9 @@ export const act1Arc: StoryArc = {
         "surge stim with a hand-lettered warranty (\"no\"), and a " +
         "surgery case holding a set of Silt Gills, still in their " +
         "clinic seals. \"Flood season prices. Complaints go to the " +
-        "flood.\"",
+        "flood.\" Under the net, in a foil sleeve marked in grease " +
+        "pencil, sit two things nobody browsing asks about: a Baffle " +
+        "Weave and a Null Collar.",
       location: "greywater:patch-den",
       choices: [
         {
@@ -664,7 +666,121 @@ export const act1Arc: StoryArc = {
             { type: "add-item", itemId: "cyb-silt-gills" },
           ],
         },
+        // Dampeners. The clinic is the only counter in the city that
+        // sells the quiet, and Patch sells it the way they sell
+        // everything: flatly, and cheaper to somebody who already
+        // knows why they need it.
+        {
+          id: "buy-baffle-weave",
+          label: "Buy the Baffle Weave. (90 cr)",
+          target: "a1-patch-shop",
+          requirements: [{ type: "credits", value: 90 }],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "credits", amount: -90 },
+            { type: "add-item", itemId: "cyb-baffle-weave" },
+          ],
+        },
+        {
+          id: "buy-null-collar",
+          label: "Buy the Null Collar. (220 cr)",
+          target: "a1-patch-shop",
+          requirements: [
+            { type: "credits", value: 220 },
+            // Off the shelf entirely for the visibly chromed, who are
+            // offered the same collar below at the price Patch charges
+            // somebody who is going to come back needing it fitted.
+            { type: "static", band: "humming", mode: "at-most" },
+          ],
+          ifUnavailable: "hidden",
+          effects: [
+            { type: "credits", amount: -220 },
+            { type: "add-item", itemId: "cyb-null-collar" },
+          ],
+        },
+        {
+          // The chrome-affinity offer: Patch reads the noise off you
+          // before you have said a word, and prices accordingly. Shown
+          // greyed rather than hidden to a quiet runner, because a
+          // door you cannot open yet is how this one gets taught.
+          id: "buy-null-collar-chromed",
+          label:
+            "\"You can hear it too, then.\" Buy the Null Collar. (160 cr)",
+          target: "a1-patch-shop",
+          requirements: [
+            { type: "static", band: "loud" },
+            { type: "credits", value: 160 },
+          ],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "credits", amount: -160 },
+            { type: "add-item", itemId: "cyb-null-collar" },
+          ],
+        },
+        {
+          id: "ask-static",
+          label: "Ask what the foil sleeve is for.",
+          target: "a1-patch-static",
+        },
         { id: "done", label: "\"That's the lot.\"", target: "a1-patch" },
+      ],
+    },
+    {
+      // The Static explainer, in a clinician's mouth rather than a
+      // tutorial's. Reachable by anybody; the version a screaming
+      // runner gets is the same speech with the diagnosis attached.
+      id: "a1-patch-static",
+      speaker: "Patch",
+      text:
+        "\"Chrome talks. Every piece you put in is a second nervous " +
+        "system with opinions, and the more of them you carry the " +
+        "louder they argue.\" Patch taps their own temple, where a " +
+        "seam runs grey under the hairline. \"Static, we call it. " +
+        "Quiet, you're fine. Loud, people hear you coming and half of " +
+        "them respect you for it. Screaming —\" they shrug \"— " +
+        "screaming, you drop a half-second behind the room, and one " +
+        "day the room notices before you do. A dampener buys the " +
+        "quiet back. Costs you a socket. Everything costs a socket.\"",
+      location: "greywater:patch-den",
+      choices: [
+        {
+          id: "static-mine",
+          label: "\"How bad is mine?\"",
+          target: "a1-patch-static-read",
+          requirements: [{ type: "static", band: "loud" }],
+        },
+        {
+          id: "static-back",
+          label: "\"Show me the sleeve, then.\"",
+          target: "a1-patch-shop",
+        },
+        { id: "static-leave", label: "Leave the den.", effects: [{ type: "end" }] },
+      ],
+    },
+    {
+      id: "a1-patch-static-read",
+      speaker: "Patch",
+      expression: "grim",
+      text:
+        "Patch does not need instruments. They stand close, tilt their " +
+        "head, and listen the way a mechanic listens to a bearing. " +
+        "\"Bad enough that I heard it from the door. You're not " +
+        "broken — you're crowded. Give one of them a socket back, or " +
+        "give me one and I'll shut the rest up for you.\" A beat. " +
+        "\"Or don't. Some people like being audible. I've buried a few " +
+        "of them.\"",
+      location: "greywater:patch-den",
+      choices: [
+        {
+          id: "read-shop",
+          label: "\"Then sell me the collar.\"",
+          target: "a1-patch-shop",
+        },
+        {
+          id: "read-refuse",
+          label: "\"I like being audible.\"",
+          target: "a1-patch",
+        },
       ],
     },
     {

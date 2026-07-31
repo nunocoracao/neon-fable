@@ -222,6 +222,14 @@ export interface EnhancementItem extends ItemBase {
   slot: EnhancementSlot;
   /** Neural load consumed while installed; total is capped by derived.neuralCapacity. */
   neuralCost: number;
+  /**
+   * Static this implant adds to the character's neural noise while
+   * installed — the second cost of chrome, and the one capacity does
+   * not cap (see src/data/static.ts). Negative on a dampener, which is
+   * how an implant that quiets the others still pays for a slot and a
+   * share of neural load like everything else.
+   */
+  staticLoad: number;
   /** Sprite overlay shown while installed; absent means no visible mark. */
   cyberLayer?: CyberLayerRef;
   effects: ItemEffect[];
