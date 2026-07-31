@@ -370,5 +370,23 @@ export interface StoryArc {
   id: string;
   title: string;
   entryNodeId: string;
+  /**
+   * Further nodes the world can open directly, for an arc that is a
+   * bundle of doorways rather than one thread — the street scenes a
+   * world condition spawns somebody to hold, each opened by its own
+   * interactable and reaching none of the others (see
+   * ./data/story/streets.ts). Absent means the arc has the one entry,
+   * which is what every narrative arc has.
+   *
+   * Only reachability reads this: a node listed here is a legitimate
+   * place to start, so validateArc walks the graph from all of them
+   * before calling anything orphaned.
+   */
+  entryNodeIds?: readonly string[];
   nodes: StoryNode[];
+}
+
+/** Every node the world may open an arc at, entry first. */
+export function arcEntryNodeIds(arc: StoryArc): string[] {
+  return [...new Set([arc.entryNodeId, ...(arc.entryNodeIds ?? [])])];
 }

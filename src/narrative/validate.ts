@@ -3,7 +3,7 @@ import { getEncounter } from "../data/encounters";
 import { REPUTATION_BAND_IDS, getFaction } from "../data/factions";
 import { getItem } from "../data/items";
 import { getMap } from "../data/maps";
-import type { Choice, StoryArc, StoryNode } from "./types";
+import { arcEntryNodeIds, type Choice, type StoryArc, type StoryNode } from "./types";
 
 /**
  * Story-content validation, run in tests over every authored arc: broken
@@ -121,11 +121,15 @@ export function validateArc(arc: StoryArc): ArcIssue[] {
     nodesById.set(node.id, node);
   }
 
-  if (!nodesById.has(arc.entryNodeId)) {
-    issues.push({
-      code: "missing-entry",
-      detail: `Entry node "${arc.entryNodeId}" does not exist in arc "${arc.id}"`,
-    });
+  // Every declared way in has to be a real node — an arc with several
+  // doorways can lose one to a rename as easily as to a typo.
+  for (const entryId of arcEntryNodeIds(arc)) {
+    if (!nodesById.has(entryId)) {
+      issues.push({
+        code: "missing-entry",
+        detail: `Entry node "${entryId}" does not exist in arc "${arc.id}"`,
+      });
+    }
   }
 
   for (const node of arc.nodes) {
@@ -263,8 +267,11 @@ export function validateArc(arc: StoryArc): ArcIssue[] {
     }
   }
 
+  // Reachability starts from every declared entry, not just the first:
+  // a scene the world opens directly is reached, however few choices
+  // lead to it from elsewhere in the arc.
   const reachable = new Set<string>();
-  const frontier = nodesById.has(arc.entryNodeId) ? [arc.entryNodeId] : [];
+  const frontier = arcEntryNodeIds(arc).filter((id) => nodesById.has(id));
   while (frontier.length > 0) {
     const nodeId = frontier.pop()!;
     if (reachable.has(nodeId)) continue;

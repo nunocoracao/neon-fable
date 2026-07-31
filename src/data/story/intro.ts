@@ -1,4 +1,5 @@
 import type { StoryArc } from "../../narrative/types";
+import { vendorChoices } from "../world";
 
 /**
  * Demo arc: a first job in the Meridian Sprawl. Scaffold content proving
@@ -94,73 +95,14 @@ export const introArc: StoryArc = {
         "customs-auction wrap, a surgery case sweating cold. \"Post-flood " +
         "prices,\" they say. \"You're the reason there's a market.\"",
       location: "cinder-row:wet-market",
+      // The shelf is stock, and stock is a fact about the city — what
+      // the Cordon coming down put on the street, what a live warrant
+      // takes off it, what the boards will consign to somebody they
+      // like (see VENDOR_STOCK in ../world.ts). Generated rather than
+      // listed so the offer a player is shown and the stock the world
+      // layer says is carried are one decision, made once.
       choices: [
-        {
-          id: "buy-rail-spitter",
-          label: "Buy the Rail Spitter. (320 cr)",
-          target: "wet-market-back",
-          requirements: [{ type: "credits", value: 320 }],
-          ifUnavailable: "disabled",
-          effects: [
-            { type: "credits", amount: -320 },
-            { type: "add-item", itemId: "wpn-rail-spitter" },
-          ],
-        },
-        {
-          id: "buy-torque-cleaver",
-          label: "Buy the Torque Cleaver. (320 cr)",
-          target: "wet-market-back",
-          requirements: [{ type: "credits", value: 320 }],
-          ifUnavailable: "disabled",
-          effects: [
-            { type: "credits", amount: -320 },
-            { type: "add-item", itemId: "wpn-torque-cleaver" },
-          ],
-        },
-        {
-          id: "buy-ghostline-mantle",
-          label: "Buy the Ghostline Mantle. (300 cr)",
-          target: "wet-market-back",
-          requirements: [{ type: "credits", value: 300 }],
-          ifUnavailable: "disabled",
-          effects: [
-            { type: "credits", amount: -300 },
-            { type: "add-item", itemId: "out-ghostline-mantle" },
-          ],
-        },
-        {
-          id: "buy-cordon-plate",
-          label: "Buy the Cordon Plate Rig. (380 cr)",
-          target: "wet-market-back",
-          requirements: [{ type: "credits", value: 380 }],
-          ifUnavailable: "disabled",
-          effects: [
-            { type: "credits", amount: -380 },
-            { type: "add-item", itemId: "out-cordon-plate" },
-          ],
-        },
-        {
-          id: "buy-warden-optics",
-          label: "Buy the Warden Optics. (450 cr)",
-          target: "wet-market-back",
-          requirements: [{ type: "credits", value: 450 }],
-          ifUnavailable: "disabled",
-          effects: [
-            { type: "credits", amount: -450 },
-            { type: "add-item", itemId: "cyb-warden-optics" },
-          ],
-        },
-        {
-          id: "buy-cascade-governor",
-          label: "Buy the Cascade Governor. (500 cr)",
-          target: "wet-market-back",
-          requirements: [{ type: "credits", value: 500 }],
-          ifUnavailable: "disabled",
-          effects: [
-            { type: "credits", amount: -500 },
-            { type: "add-item", itemId: "cyb-cascade-governor" },
-          ],
-        },
+        ...vendorChoices("wet-market-back", "wet-market-back"),
         {
           id: "done",
           label: "\"Another time.\"",
