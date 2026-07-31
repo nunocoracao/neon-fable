@@ -5,11 +5,13 @@ import { getAbility } from "./abilities";
 import { cast } from "./cast";
 import {
   CompanionError,
+  REACTION_TAGS,
   companionLook,
   companionSpriteId,
   companions,
   getCompanion,
   parseCompanionSpriteId,
+  reactionValue,
   requireCompanion,
 } from "./companions";
 import { getItem } from "./items";
@@ -71,6 +73,53 @@ describe("companion content", () => {
     },
   );
 
+  it.each(companions.map((c) => [c.id, c] as const))(
+    "%s holds opinions, in both directions",
+    (_id, companion) => {
+      const values = Object.entries(companion.values);
+      expect(values.length).toBeGreaterThan(0);
+      for (const [tag] of values) {
+        expect(REACTION_TAGS, `${companion.id} values "${tag}"`).toContain(tag);
+      }
+      // A companion who only ever approves is a companion whose loyalty
+      // is a difficulty setting. Everybody has something they hate.
+      const amounts = values.map(([, amount]) => amount);
+      expect(Math.max(...amounts), companion.id).toBeGreaterThan(0);
+      expect(Math.min(...amounts), companion.id).toBeLessThan(0);
+      // Unknown tags are simply nothing to them.
+      expect(reactionValue(companion, "not-a-tag")).toBe(0);
+    },
+  );
+
+  it("puts the two of them on opposite sides of something", () => {
+    // The loyalty axis only exists if the crew can disagree: at least
+    // one kind of act one of them wants and the other cannot stand.
+    const [vesper, sill] = [getCompanion("vesper")!, getCompanion("sill")!];
+    const opposed = REACTION_TAGS.filter(
+      (tag) => reactionValue(vesper, tag) * reactionValue(sill, tag) < 0,
+    );
+    expect(opposed.length).toBeGreaterThanOrEqual(2);
+    // Named, because it is the spine of the arc: she takes it, he logs it.
+    expect(opposed).toContain("salvage");
+  });
+
+  it.each(companions.map((c) => [c.id, c] as const))(
+    "%s has one scene of their own, behind a threshold they can reach",
+    (_id, companion) => {
+      const scene = companion.personalScene;
+      expect(scene.nodeId.length).toBeGreaterThan(0);
+      expect(scene.loyalty).toBeGreaterThan(0);
+      expect(scene.resolvedFlag.length).toBeGreaterThan(0);
+    },
+  );
+
+  it("gives every companion their own scene and their own flag", () => {
+    const nodeIds = companions.map((c) => c.personalScene.nodeId);
+    const flags = companions.map((c) => c.personalScene.resolvedFlag);
+    expect(new Set(nodeIds).size).toBe(nodeIds.length);
+    expect(new Set(flags).size).toBe(flags.length);
+  });
+
   it("keeps friendly optics: no companion wears the hostile eye cue", () => {
     // Crimson and magenta are the enemy archetypes' warning colour
     // (see ./enemies.ts); somebody on your side never wears it.
@@ -82,6 +131,32 @@ describe("companion content", () => {
         ).not.toContain(look.visual.appearance.eyeColor);
       }
     }
+  });
+});
+
+describe("Deacon Sill, across the game", () => {
+  const sill = getCompanion("sill")!;
+
+  it("wears one face in the cast, on the market boards, and in the party", () => {
+    const look = companionLook(sill, sill.defaultLookId).visual;
+    expect(cast["Deacon Sill"]).toEqual(look);
+    const npc = maps
+      .flatMap((map) => map.interactables)
+      .find((i) => i.id === "market-auditor");
+    expect(npc?.visual).toEqual(look);
+    expect(npc?.interaction).toEqual({ kind: "dialogue", nodeId: "vm-auditor" });
+  });
+
+  it("brings a signature tool nothing else in the game carries", () => {
+    expect(sill.weaponId).toBe("wpn-writ-seal");
+    expect(getItem("wpn-writ-seal")?.kind).toBe("weapon");
+  });
+
+  it("is the crew's other shape: a thinker who cannot take a hit", () => {
+    const vesper = getCompanion("vesper")!;
+    expect(sill.stats.intelligence).toBeGreaterThan(vesper.stats.intelligence);
+    expect(sill.stats.body).toBeLessThan(vesper.stats.body);
+    expect(sill.maxHp).toBeLessThan(vesper.maxHp);
   });
 });
 

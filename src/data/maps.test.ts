@@ -878,6 +878,7 @@ describe("NPC visuals", () => {
       "exec-security",
       "flick",
       "flick-steps",
+      "market-auditor",
       "market-fixer",
       "market-vendor",
       "matron-ferrow",

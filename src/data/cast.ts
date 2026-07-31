@@ -11,7 +11,7 @@
  * cast complete.
  */
 import type { CharacterVisual } from "../character/appearance";
-import { VESPER_KADE_LOOK } from "./companions";
+import { DEACON_SILL_LOOK, VESPER_KADE_LOOK } from "./companions";
 import { PLAYER_SPEAKER, type StoryNode } from "../narrative/types";
 import type { ExpressionId } from "./appearance";
 
@@ -178,6 +178,7 @@ export const cast: Readonly<Record<string, CharacterVisual>> = {
   Flick: FLICK_VISUAL,
   Vesper: VESPER_VISUAL,
   "Vesper Kade": VESPER_KADE_LOOK,
+  "Deacon Sill": DEACON_SILL_LOOK,
   "Matron Ferrow": FERROW_VISUAL,
   "Auditor Lin": LIN_VISUAL,
   Quill: QUILL_VISUAL,
