@@ -48,6 +48,16 @@ export {
   type ThumbKind,
 } from "./appearanceTabs";
 export {
+  BARK_TRIGGERS,
+  MAX_BARK_LENGTH,
+  barks,
+  getBark,
+  requireBark,
+  type Bark,
+  type BarkSpeakerKind,
+  type BarkTrigger,
+} from "./barks";
+export {
   DEFAULT_BACKGROUND_ID,
   backgrounds,
   getBackground,

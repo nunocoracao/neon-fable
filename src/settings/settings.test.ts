@@ -52,6 +52,7 @@ describe("clampSettings", () => {
       minimap: true,
       combatFeel: true,
       shakeScale: 1,
+      barks: true,
     });
     expect(
       clampSettings({ textSpeed: "warp", reducedMotion: true }),
@@ -64,6 +65,7 @@ describe("clampSettings", () => {
       minimap: true,
       combatFeel: true,
       shakeScale: 1,
+      barks: true,
     });
   });
 
@@ -77,6 +79,7 @@ describe("clampSettings", () => {
       minimap: true,
       combatFeel: true,
       shakeScale: 1,
+      barks: true,
     });
   });
 
@@ -106,6 +109,13 @@ describe("clampSettings", () => {
     expect(clampSettings({ combatFeel: false }).combatFeel).toBe(false);
     expect(clampSettings({ combatFeel: "off" }).combatFeel).toBe(true);
     expect(clampSettings({ combatFeel: 0 }).combatFeel).toBe(true);
+  });
+
+  it("barks default on; only an explicit false silences the street", () => {
+    expect(clampSettings({}).barks).toBe(true);
+    expect(clampSettings({ barks: false }).barks).toBe(false);
+    expect(clampSettings({ barks: "off" }).barks).toBe(true);
+    expect(clampSettings({ barks: 0 }).barks).toBe(true);
   });
 
   it("rejects shake scales off the ladder", () => {
@@ -155,6 +165,7 @@ describe("parse / serialize / migrate", () => {
       minimap: false,
       combatFeel: false,
       shakeScale: 0.5,
+      barks: false,
     } as const;
     expect(parseSettings(serializeSettings(settings))).toEqual(settings);
   });
@@ -185,6 +196,7 @@ describe("parse / serialize / migrate", () => {
       minimap: true,
       combatFeel: true,
       shakeScale: 1,
+      barks: true,
     });
     expect(migrateSettings({ version: "zero" })).toEqual(DEFAULT_SETTINGS);
   });
@@ -204,6 +216,7 @@ describe("parse / serialize / migrate", () => {
       minimap: true,
       combatFeel: true,
       shakeScale: 1,
+      barks: true,
     });
   });
 
@@ -223,6 +236,7 @@ describe("parse / serialize / migrate", () => {
       minimap: true,
       combatFeel: true,
       shakeScale: 1,
+      barks: true,
     });
   });
 
@@ -244,6 +258,32 @@ describe("parse / serialize / migrate", () => {
       minimap: true,
       combatFeel: true,
       shakeScale: 1,
+      barks: true,
+    });
+  });
+
+  it("migrates v6 payloads (no barks yet) with the street talking", () => {
+    const v6 = JSON.stringify({
+      version: 6,
+      textSpeed: "normal",
+      reducedMotion: true,
+      zoom: 1,
+      glow: true,
+      weather: true,
+      minimap: false,
+      combatFeel: false,
+      shakeScale: 0,
+    });
+    expect(parseSettings(v6)).toEqual({
+      textSpeed: "normal",
+      reducedMotion: true,
+      zoom: 1,
+      glow: true,
+      weather: true,
+      minimap: false,
+      combatFeel: false,
+      shakeScale: 0,
+      barks: true,
     });
   });
 
@@ -266,6 +306,7 @@ describe("parse / serialize / migrate", () => {
       minimap: false,
       combatFeel: true,
       shakeScale: 1,
+      barks: true,
     });
   });
 });
@@ -288,6 +329,7 @@ describe("load / save", () => {
         minimap: false,
         combatFeel: false,
         shakeScale: 1.5,
+        barks: false,
       },
       storage,
     );
@@ -301,6 +343,7 @@ describe("load / save", () => {
       minimap: false,
       combatFeel: false,
       shakeScale: 1.5,
+      barks: false,
     });
   });
 
@@ -348,6 +391,7 @@ describe("settings store", () => {
         minimap: true,
         combatFeel: true,
         shakeScale: 1,
+        barks: true,
       },
       storage,
     );
@@ -361,6 +405,7 @@ describe("settings store", () => {
       minimap: true,
       combatFeel: true,
       shakeScale: 1,
+      barks: true,
     });
   });
 
@@ -380,6 +425,7 @@ describe("settings store", () => {
       minimap: true,
       combatFeel: true,
       shakeScale: 1,
+      barks: true,
     });
     expect(loadSettings(storage).textSpeed).toBe("instant");
     expect(seen).toEqual(["instant"]);

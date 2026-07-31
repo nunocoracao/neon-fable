@@ -45,6 +45,12 @@ export interface Settings {
   combatFeel: boolean;
   /** Scales the shake alone; 0 stills it with the rest left on. */
   shakeScale: ShakeScale;
+  /**
+   * Ambient barks: the one-line chips passers-by, map NPCs, and the
+   * companion put up while exploring. Decoration only — off silences
+   * the street and costs nothing (see src/data/barks.ts).
+   */
+  barks: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -56,12 +62,13 @@ export const DEFAULT_SETTINGS: Settings = {
   minimap: true,
   combatFeel: true,
   shakeScale: 1,
+  barks: true,
 };
 
 export const SETTINGS_KEY = "neon-fable:settings";
 
 /** Bump when the Settings shape changes; migrateSettings routes on it. */
-export const SETTINGS_VERSION = 6;
+export const SETTINGS_VERSION = 7;
 
 /** Coerces any value onto the zoom-level ladder; off-ladder → default. */
 export function clampZoom(value: unknown): ZoomLevel {
@@ -110,14 +117,16 @@ export function clampSettings(value: unknown): Settings {
     textSpeed,
     reducedMotion: record.reducedMotion === true,
     zoom: clampZoom(record.zoom),
-    // Glow, weather, the minimap, and the combat camera default on:
-    // older payloads without the fields keep every pass, the HUD
-    // corner, and a camera that answers a fight.
+    // Glow, weather, the minimap, the combat camera, and the street's
+    // chatter default on: older payloads without the fields keep every
+    // pass, the HUD corner, a camera that answers a fight, and a city
+    // that talks.
     glow: record.glow !== false,
     weather: record.weather !== false,
     minimap: record.minimap !== false,
     combatFeel: record.combatFeel !== false,
     shakeScale: clampShakeScale(record.shakeScale),
+    barks: record.barks !== false,
   };
 }
 
@@ -126,8 +135,8 @@ export function clampSettings(value: unknown): Settings {
  * shape. Every version so far routes through the field-tolerant clamp —
  * v1 payloads simply lack zoom, v2 payloads lack glow, v3 payloads lack
  * weather, v4 payloads lack minimap, v5 payloads lack the combat camera
- * fields, and each gets its default; unknown or future versions degrade
- * to defaults per field instead of crashing.
+ * fields, v6 payloads lack barks, and each gets its default; unknown or
+ * future versions degrade to defaults per field instead of crashing.
  */
 export function migrateSettings(parsed: unknown): Settings {
   return clampSettings(parsed);

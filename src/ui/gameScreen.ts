@@ -12,7 +12,7 @@ import {
   type ChapterEnding,
 } from "../data";
 import { availablePoints } from "../character";
-import { selectVignettes } from "../narrative";
+import { isWounded, selectVignettes } from "../narrative";
 import {
   activeMember,
   carryoverAppearance,
@@ -36,6 +36,7 @@ import { runMapTransition, type MapTransitionHandle } from "./mapTransition";
 import { npcSpriteSource, sceneSpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
 import { createAdvancementOverlay } from "./advancementOverlay";
+import { createBarkLayer, type BarkLayerHandle } from "./barkLayer";
 import { COMBAT_RESUME_FLAG, createCombatScreen } from "./combatScreen";
 import { createDialogueOverlay } from "./dialogueOverlay";
 import { createEpilogueScreen } from "./epilogueScreen";
@@ -134,6 +135,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let promptEl: HTMLElement | null = null;
   let minimap: MinimapHandle | null = null;
+  let barkLayer: BarkLayerHandle | null = null;
   let unsubscribeSettings: (() => void) | null = null;
   /** The interactable whose scene is currently open, for the door beat. */
   let usedInteractable: Interactable | null = null;
@@ -239,10 +241,15 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   function closeOverlay(): void {
     overlay?.handle.destroy();
     overlay = null;
+    // The street picks its chatter back up once the panel is gone.
+    barkLayer?.setPaused(false);
   }
 
   function openOverlay(kind: OverlayKind, handle: OverlayHandle): void {
     closeOverlay();
+    // Nobody talks over an open panel: chips are cleared for as long as
+    // one is up rather than left fading behind it.
+    barkLayer?.setPaused(true);
     overlay = { kind, handle };
     overlayLayer?.append(handle.el);
     focusFirst(handle.el);
@@ -553,6 +560,14 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       enterMap(session, mapId);
       audio.setMusicContext("hub");
 
+      // Mounted first so every panel, the HUD, and the minimap sit over
+      // the chatter rather than under it.
+      barkLayer = createBarkLayer({
+        state: () => session.state,
+        seed: `barks:${mapId}:${session.state.rng.seed}`,
+      });
+      root.append(barkLayer.el);
+
       hud = document.createElement("div");
       hud.className = "nf-hud";
       hudStatus = document.createElement("div");
@@ -627,6 +642,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         }),
         onFocus: showFocusHint,
         onView: (view) => minimap?.update(view),
+        onSpeakers: (frame) => barkLayer?.update(frame),
         onInteract(event): void {
           if (overlay) return;
           audio.play("interact");
@@ -648,6 +664,14 @@ export function createGameScreen(options: GameScreenOptions): Screen {
 
       window.addEventListener("keydown", onKeyDown);
 
+      // What arriving here is worth saying about: the district itself,
+      // the weather it arrives under, and the state the player walked
+      // in in. Cues wait for somebody able to answer them and lapse if
+      // nobody is (walking alone, all three go unsaid).
+      barkLayer.cue("arrive");
+      if (map.weather === "rain") barkLayer.cue("weather");
+      if (isWounded(session.state)) barkLayer.cue("wounded");
+
       if (options.dialogueNodeId) {
         openDialogue(options.dialogueNodeId);
       }
@@ -668,6 +692,8 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       unsubscribeSettings = null;
       minimap?.destroy();
       minimap = null;
+      barkLayer?.destroy();
+      barkLayer = null;
       hud?.remove();
       overlayLayer?.remove();
       toast?.remove();
