@@ -218,6 +218,25 @@ function buildSettingsPanel(onClose: () => void): HTMLElement {
     "the corner; M expands it again while exploring.";
   panel.append(minimapNote);
 
+  panel.append(
+    segmentedRow(
+      "Street chatter",
+      [
+        ["on", "On"],
+        ["off", "Off"],
+      ] as const,
+      (value) => (value === "on") === settings.get().barks,
+      (value) => settings.update({ barks: value === "on" }),
+    ),
+  );
+  const barkNote = document.createElement("p");
+  barkNote.className = "nf-dim";
+  barkNote.textContent =
+    "Passers-by, the people standing on the map, and whoever is walking " +
+    "with you say short unprompted lines over their heads. Nothing said " +
+    "this way matters to the story — off keeps the streets quiet.";
+  panel.append(barkNote);
+
   const motionHeading = document.createElement("h3");
   motionHeading.textContent = "Motion";
   panel.append(
