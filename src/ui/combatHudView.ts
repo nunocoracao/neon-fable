@@ -92,6 +92,8 @@ export function createInitiativeRail(
     const root = div("nf-init-chip");
     root.dataset.combatant = chip.combatantId;
     if (chip.kind === "player") root.classList.add("nf-init-player");
+    // A companion reads as one of yours without reading as you.
+    if (chip.kind === "ally") root.classList.add("nf-init-ally");
     if (!chip.alive) root.classList.add("nf-init-dead");
     if (chip.active) root.classList.add("nf-init-active");
 

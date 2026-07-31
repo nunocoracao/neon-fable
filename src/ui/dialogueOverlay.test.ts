@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fixtureCharacter } from "../character/testSupport";
 import { PLAYER_SPEAKER, type StoryArc, type StoryNode } from "../narrative";
-import { createNewGame } from "../state";
+import { createNewGame, recruitCompanion } from "../state";
 import { createDialogueOverlay } from "./dialogueOverlay";
 import type { OverlayHandle } from "./overlay";
 import { createSession, type Session } from "./session";
@@ -64,6 +64,14 @@ const arc: StoryArc = {
       choices: [endChoice],
     },
     {
+      id: "commented-line",
+      text: "The cage has not moved in a season.",
+      comments: [
+        { companionId: "vesper", text: "\"That's parked, not lost.\"" },
+      ],
+      choices: [endChoice],
+    },
+    {
       id: "staged-line",
       text: "The hour turns over.",
       dayPhase: "late",
@@ -109,6 +117,31 @@ afterEach(() => {
   handle = undefined;
   document.body.replaceChildren();
   vi.restoreAllMocks();
+});
+
+describe("companion asides", () => {
+  it("prints the active companion's line under the beat, named", () => {
+    session.state = {
+      ...session.state,
+      party: recruitCompanion(session.state.party, "vesper"),
+    };
+    open("commented-line");
+    const aside = document.querySelector(".nf-dialogue-aside");
+    expect(aside?.textContent).toContain("Vesper Kade");
+    expect(aside?.textContent).toContain("That's parked, not lost.");
+    expect(
+      aside?.querySelector(".nf-dialogue-aside-name")?.textContent,
+    ).toBe("Vesper Kade");
+  });
+
+  it("says nothing when nobody is walking with the player", () => {
+    open("commented-line");
+    expect(document.querySelector(".nf-dialogue-aside")).toBeNull();
+    // The beat itself is untouched.
+    expect(document.querySelector(".nf-dialogue-text")?.textContent).toBe(
+      "The cage has not moved in a season.",
+    );
+  });
 });
 
 describe("dialogue portraits", () => {

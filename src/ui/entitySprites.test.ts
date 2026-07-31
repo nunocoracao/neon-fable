@@ -5,6 +5,12 @@ import {
   interactableVisual,
   seededAppearance,
 } from "../character";
+import {
+  companionLook,
+  companionSpriteId,
+  companions,
+  getCompanion,
+} from "../data/companions";
 import { enemies, enemySpriteId, requireEnemy } from "../data/enemies";
 import { encounters, spawnLookIndex } from "../data/encounters";
 import { BODY_TIMING } from "../iso/animation";
@@ -21,6 +27,7 @@ import { requireMap } from "../data/maps";
 import { ambientSpriteId, createCrowd } from "../iso/ambient";
 import {
   ambientSpriteSource,
+  companionSpriteSource,
   enemyDeathStyle,
   enemySpriteSource,
   npcSpriteSource,
@@ -182,6 +189,79 @@ describe("ambientSpriteSource", () => {
       const id = ambientSpriteId(ped.lookSeed);
       expect(source(id)).toBe(source(id));
     }
+  });
+});
+
+describe("companionSpriteSource", () => {
+  it("composes the look a companion sprite id names, and memoizes it", () => {
+    const source = companionSpriteSource();
+    const vesper = getCompanion("vesper")!;
+    const id = companionSpriteId("vesper", vesper.defaultLookId);
+    expect(source(id)).toEqual(
+      characterArt(
+        composeVisual(companionLook(vesper, vesper.defaultLookId).visual),
+      ),
+    );
+    expect(source(id)).toBe(source(id));
+  });
+
+  it("draws every companion's every look, in every pose it can be asked for", () => {
+    // The same coverage guarantee the enemy spawns get: a companion
+    // walks maps and fights fights, so every frame of every set must
+    // resolve to sound art before either can put her on screen.
+    const source = companionSpriteSource();
+    for (const companion of companions) {
+      for (const look of companion.looks) {
+        const where = `${companion.id}/${look.id}`;
+        const art = source(companionSpriteId(companion.id, look.id));
+        expect(art, `${where} resolves`).toBeDefined();
+        if (!art) continue;
+        for (const facing of ["n", "e", "s", "w"] as const) {
+          for (const state of ["idle", "walk"] as const) {
+            for (let f = 0; f < BODY_TIMING[state].frameCount; f++) {
+              expect(
+                gridErrors(entityGrid(art, facing, state, f)),
+                `${where} ${state} ${facing} f${f}`,
+              ).toEqual([]);
+            }
+          }
+          const swing = entityAttackClass(art);
+          for (let f = 0; f < attackFrameCount(swing); f++) {
+            expect(
+              gridErrors(entityGrid(art, facing, "attack", f)),
+              `${where} attack ${facing} f${f}`,
+            ).toEqual([]);
+          }
+          // And the way she goes down, which benches her for a fight.
+          for (let f = 0; f < reactionFrameCount("collapse"); f++) {
+            expect(
+              gridErrors(
+                entityGrid(art, facing, "react", f, {
+                  kind: "collapse",
+                  awayX: 1,
+                }),
+              ),
+              `${where} collapse ${facing} f${f}`,
+            ).toEqual([]);
+          }
+        }
+      }
+    }
+  });
+
+  it("resolves nothing for anybody else's sprite id", () => {
+    const source = companionSpriteSource();
+    expect(source("player")).toBeUndefined();
+    expect(source("nme-auric-agent")).toBeUndefined();
+    // A companion a later build removed degrades to the provider's own
+    // fallback rather than a crash on the render loop.
+    expect(source(companionSpriteId("ghost", "any"))).toBeUndefined();
+  });
+
+  it("is what the explorable-map source hands back for a companion id", () => {
+    const scene = sceneSpriteSource();
+    const id = companionSpriteId("vesper", "quays-runner");
+    expect(scene(id)).toEqual(companionSpriteSource()(id));
   });
 });
 

@@ -19,6 +19,7 @@ import {
 } from "../character";
 import type { PixelGrid } from "../iso/art/pixel";
 import type { ExpressionId } from "../data/appearance";
+import { companionLook, getCompanion } from "../data/companions";
 import { enemyLook, getEnemy, parseEnemySpriteId } from "../data/enemies";
 import { DRONE_ART, MECH_ART } from "../iso";
 import type { EquipmentState } from "../inventory/equipment";
@@ -108,6 +109,27 @@ export function visualPortraitCanvas(
 /** No gear at all: what the fallback portrait wears. */
 function emptyPortraitEquipment(): EquipmentState {
   return { weapon: null, outfit: null, enhancements: {} };
+}
+
+/**
+ * The face for a companion, wearing the look the party member is in.
+ * Derived from the same CharacterVisual their sprite composes from, so
+ * the chip in the initiative rail is the body on the board. Unknown
+ * companion ids fall back to the stock look rather than an empty chip.
+ */
+export function companionPortraitCanvas(
+  companionId: string | null,
+  lookId: string | null,
+  expression: ExpressionId = "neutral",
+): HTMLCanvasElement {
+  const companion = companionId ? getCompanion(companionId) : undefined;
+  if (!companion) {
+    return portraitCanvas(defaultAppearance(), emptyPortraitEquipment(), expression);
+  }
+  return visualPortraitCanvas(
+    companionLook(companion, lookId ?? companion.defaultLookId).visual,
+    expression,
+  );
 }
 
 /**

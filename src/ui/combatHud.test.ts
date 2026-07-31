@@ -217,6 +217,7 @@ describe("actionButtons", () => {
       "no-steps",
       "no-room",
       "cannot-flee",
+      "player-only",
     ] as const;
     for (const reason of reasons) {
       expect(blockReasonText(reason).length, reason).toBeGreaterThan(0);
