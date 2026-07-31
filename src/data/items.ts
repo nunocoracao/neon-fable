@@ -204,6 +204,25 @@ export const items: Item[] = [
     effects: [{ type: "stat-mod", stat: "cool", amount: 1 }],
   },
   {
+    // The Last Mile's unique reward: a working courier's rig, given
+    // away by the courier who stopped needing it. Not armour and never
+    // pretending to be — it buys speed with everything it took off.
+    id: "out-highline-rig",
+    kind: "outfit",
+    name: "Highline Rig",
+    description:
+      "A scaffold courier's running harness, cut down over six levels " +
+      "until there was nothing left on it to catch. The clip line is " +
+      "spliced in three places, and every splice held.",
+    armor: 1,
+    // Clip-line splices glow cold blue along the webbing.
+    outfitLayer: { id: "harness", accent: "hologramBlue" },
+    effects: [
+      { type: "stat-mod", stat: "reflexes", amount: 2 },
+      { type: "stat-mod", stat: "body", amount: -1 },
+    ],
+  },
+  {
     id: "cyb-warden-optics",
     kind: "enhancement",
     name: "Warden Optics",
@@ -340,6 +359,20 @@ export const items: Item[] = [
       "Halex's off-book mandate orders on a cold-storage spool: the Cordon, " +
       "line by line, with the cycler shutdown signed in the director's own " +
       "key. Evidence enough to convene the Sprawl.",
+    tags: ["evidence", "auric"],
+  },
+  {
+    // What was in the courier's case, kept back off the board: the
+    // Last Mile's other unique reward, and the one that only exists on
+    // the road where the market was told.
+    id: "msc-assessment-roll",
+    kind: "misc",
+    name: "Boards Assessment Roll",
+    description:
+      "A ghost-copy of Auric's clearance survey for the light well: " +
+      "every pitch on the Vertical Market's six levels, ranked by how " +
+      "little trouble emptying it would be. The north row is near the " +
+      "top, and somebody has already initialled it.",
     tags: ["evidence", "auric"],
   },
   // --- Cyber enhancements ---

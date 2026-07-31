@@ -303,6 +303,20 @@ checks that every choice target, item id, encounter id, travel map id,
 companion id, reaction tag, and flag reference resolves — a broken
 reference fails the suite, not the player.
 
+Side quests are flags, not a subsystem. There is no quest log: a chain
+carries one stage flag whose value *is* its state, and the beat that
+opens it reads that flag and routes the player to whichever scene they
+left off at, so walking away is always a pause. "The Last Mile"
+(`src/data/story/lastMile.ts`) is the worked example — three scenes off
+Marrow's stool in the Vertical Market, gated approaches on stats and
+installed optics, a fight in the district's arena as one road through
+the middle, and two mutually exclusive endings. Its nodes are spread
+into the market arc rather than registered separately, because a choice
+target only resolves inside one arc. Each ending declares its own flag,
+payout, and intended faction swing in `LAST_MILE_OUTCOMES` — the
+contract the faction-reputation work reads, so the outcome and what it
+is worth are named in one place instead of two.
+
 ### Companions (`src/data/companions.ts`, `src/state/party.ts`)
 
 A companion is authored like a player character: base stats, gear by
