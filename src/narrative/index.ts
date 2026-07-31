@@ -107,6 +107,25 @@ export {
 } from "./engine";
 export { validateArc, type ArcIssue, type ArcIssueCode } from "./validate";
 export {
+  MAX_INTERLUDE_BEATS,
+  MIN_INTERLUDE_BEATS,
+  composeInterlude,
+  interludeReached,
+  interludeSeen,
+  interludeSeenFlag,
+  latestInterlude,
+  markInterludeSeen,
+  pendingInterlude,
+  selectBeats,
+  selectStrandBeat,
+  type ComposedInterlude,
+  type Interlude,
+  type InterludeBackdrop,
+  type InterludeBeat,
+  type InterludeStrand,
+  type InterludeVariant,
+} from "./interlude";
+export {
   EPILOGUE_SECTIONS,
   composeEpilogue,
   sectionRank,

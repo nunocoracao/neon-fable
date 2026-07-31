@@ -204,6 +204,7 @@ export {
   type InteractableDressing,
 } from "./mapDressing";
 export { endings, getEnding, type ChapterEnding } from "./endings";
+export { getInterlude, interludes } from "./interludes";
 export {
   STATIC_EPILOGUE_FLAGS,
   STATIC_HEAVY_PEAK,

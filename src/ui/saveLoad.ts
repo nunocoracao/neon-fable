@@ -1,5 +1,6 @@
 import { audio } from "../audio";
 import { getMap } from "../data";
+import type { Interlude } from "../narrative";
 import {
   SAVE_SLOTS,
   SaveError,
@@ -21,12 +22,20 @@ import type { Session } from "./session";
  * saves; the autosave slot is load-only everywhere. Deletes take a
  * second confirming click. All persistence goes through the state
  * module's save system.
+ *
+ * A mid-game run also gets a "Previously" line here: the act interlude
+ * the loaded save is past, offered for replay. The panel is handed the
+ * interlude already derived — it decides nothing about which one that
+ * is, and replaying records nothing.
  */
 export interface SaveLoadPanelOptions {
   mode: "game" | "menu";
   storage: SaveStorage;
   /** Required in "game" mode — the state that Save writes. */
   session?: Session;
+  /** Last act boundary this run is past; null offers no replay. */
+  latestInterlude?: Interlude | null;
+  onReplayInterlude?(interlude: Interlude): void;
   onLoaded(state: GameState): void;
   onClose(): void;
 }
@@ -165,6 +174,28 @@ export function createSaveLoadPanel(
     const saves = new Map(listSaves(storage).map((save) => [save.slot, save]));
     for (const slot of SAVE_SLOTS) {
       panel.append(renderSlotRow(slot, saves.get(slot)));
+    }
+
+    const previously = options.latestInterlude;
+    if (previously && options.onReplayInterlude) {
+      const row = document.createElement("div");
+      row.className = "nf-save-row nf-save-previously";
+      const info = document.createElement("div");
+      info.className = "nf-save-info";
+      const name = document.createElement("div");
+      name.className = "nf-save-slot";
+      name.textContent = "Previously";
+      const meta = document.createElement("div");
+      meta.className = "nf-save-meta";
+      meta.textContent = previously.title;
+      info.append(name, meta);
+      const actions = document.createElement("div");
+      actions.className = "nf-save-actions";
+      actions.append(
+        slotButton("Replay", () => options.onReplayInterlude?.(previously)),
+      );
+      row.append(info, actions);
+      panel.append(row);
     }
   }
 

@@ -964,6 +964,52 @@ describe("act 1 chapter flow", () => {
     click("Take the writ");
     expect(textOf(".nf-chapter-end")).toMatch(/A Signature in Grey Ink/);
   });
+
+  it("the act boundary plays an interlude once, replayable from the saves", () => {
+    const session = createSession({
+      ...testCharacterState(1),
+      location: "greywater-steps",
+    });
+    showScreen(
+      createGameScreen({ session, dialogueNodeId: "a1-end-court" }),
+    );
+    click("Climb toward the bells");
+    click("Keep Exploring");
+
+    // The vignette takes over from the chapter card, reading back the
+    // route this run actually took.
+    expect(textOf(".nf-interlude")).toMatch(/What the Night Set Moving/);
+    expect(textOf(".nf-interlude-beats")).toMatch(/Ledge Nine/);
+    // One press catches the beats up; the next one leaves.
+    click("Skip");
+    click("Continue");
+    expect(document.querySelector(".nf-interlude")).toBeNull();
+
+    // Walking back into the district does not play it again.
+    showScreen(createGameScreen({ session }));
+    expect(document.querySelector(".nf-interlude")).toBeNull();
+
+    // The saves panel keeps it on offer as "Previously".
+    click("Saves");
+    expect(textOf(".nf-save-previously")).toMatch(/Previously/);
+    click("Replay");
+    expect(textOf(".nf-interlude")).toMatch(/What the Night Set Moving/);
+  });
+
+  it("a save reopened past the boundary still gets its interlude", () => {
+    const session = createSession({
+      ...testCharacterState(1),
+      location: "greywater-steps",
+      flags: { "act1-complete": true, "act1-outcome": "broadcast" },
+    });
+    showScreen(createGameScreen({ session }));
+    expect(textOf(".nf-interlude-beats")).toMatch(/noodle stalls/);
+    // Playing it is recorded on the run, so the next arrival is quiet.
+    click("Skip");
+    click("Continue");
+    showScreen(createGameScreen({ session }));
+    expect(document.querySelector(".nf-interlude")).toBeNull();
+  });
 });
 
 describe("minimap", () => {
