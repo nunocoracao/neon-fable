@@ -114,11 +114,85 @@ describe("act3 arc shape", () => {
     ).toBe(false);
     const kinds = new Set((commune.requirements ?? []).map((r) => r.type));
     expect(kinds).toEqual(new Set(["flag-equals", "stat", "enhancement"]));
-    // The other three crown routes are all battles.
+    // Every other way through the last door is a battle: the three
+    // standing/ally routes, the three the muster call opens, and the
+    // one for a player nobody at all came for.
     const battles = door.choices.filter((c) =>
       (c.effects ?? []).some((e) => e.type === "start-combat"),
     );
-    expect(battles.length).toBe(3);
+    const ways = door.choices.filter((c) => c.id !== "back");
+    expect(battles.length).toBe(ways.length - 1);
+    expect(battles.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("puts a different crowd at the last door for each dominant faction", () => {
+    const rally = act3Arc.nodes.find((n) => n.id === "a3-rally")!;
+    const calls = rally.choices.flatMap((choice) => {
+      const gate = (choice.requirements ?? []).find(
+        (r) => r.type === "dominant-faction",
+      );
+      if (!gate || gate.type !== "dominant-faction") return [];
+      const allies = (choice.effects ?? []).find(
+        (e) => e.type === "set-flag" && e.key === "a3-allies",
+      );
+      return [
+        [
+          gate.factionId,
+          allies && allies.type === "set-flag" ? allies.value : null,
+        ] as const,
+      ];
+    });
+    // Four variants, one per power plus the city that cannot agree —
+    // and exactly one of them can ever pass (dominantFaction).
+    expect(new Map(calls)).toEqual(
+      new Map([
+        ["court", "court"],
+        ["auric", "auric"],
+        ["market", "market"],
+        ["none", "none"],
+      ]),
+    );
+
+    // What it changes is who is at the crown an hour later.
+    const door = act3Arc.nodes.find((n) => n.id === "a3-crown-door")!;
+    const breaches = door.choices.flatMap((choice) => {
+      const gate = (choice.requirements ?? []).find(
+        (r) => r.type === "flag-equals" && r.key === "a3-allies",
+      );
+      if (!gate || gate.type !== "flag-equals") return [];
+      return [[gate.value, choice.target] as const];
+    });
+    expect(new Map(breaches)).toEqual(
+      new Map([
+        ["court", "a3-crown-allies-court"],
+        ["auric", "a3-crown-allies-auric"],
+        ["market", "a3-crown-allies-market"],
+      ]),
+    );
+    // The split city gets the scene and no extra door — that is the
+    // consequence, not an authoring gap.
+    expect(breaches.map(([value]) => value)).not.toContain("none");
+  });
+
+  it("lets the Market's own accounts buy a debt out from under a fight", () => {
+    const collectors = act3Arc.nodes.find((n) => n.id === "a3-collectors")!;
+    const bought = collectors.choices.find((c) => c.id === "boards")!;
+    expect(bought.requirements).toEqual([
+      { type: "reputation", factionId: "market", value: "trusted" },
+    ]);
+    // No fight, and no 300 credits either: the trusted road past this
+    // beat costs nothing but the standing that opened it.
+    expect((bought.effects ?? []).some((e) => e.type === "start-combat")).toBe(
+      false,
+    );
+    expect((bought.effects ?? []).some((e) => e.type === "credits")).toBe(false);
+    expect(
+      collectors.choices.flatMap((c) =>
+        (c.effects ?? []).flatMap((e) =>
+          e.type === "start-combat" ? [e.encounterId] : [],
+        ),
+      ),
+    ).toEqual(["enc-spire-collectors"]);
   });
 
   it("brings allies, betrayals, and Act 2 side flags back into play", () => {

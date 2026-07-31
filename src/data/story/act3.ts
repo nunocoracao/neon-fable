@@ -557,6 +557,12 @@ export const act3Arc: StoryArc = {
             { type: "flag-equals", key: "hex-exchange", value: true },
           ],
         },
+        {
+          id: "rally",
+          label: "Call in what the city owes you, while there is still a crowd to call it in front of.",
+          target: "a3-rally",
+          requirements: [{ type: "flag-unset", key: "a3-allies" }],
+        },
         { id: "muster", label: "Work through the muster crowd.", target: "a3-muster" },
         {
           id: "riser",
@@ -584,6 +590,19 @@ export const act3Arc: StoryArc = {
       location: "spire:concourse",
       choices: [
         {
+          // The one thing a debt cannot survive: somebody with better
+          // standing than the creditor buying it first. Six levels of
+          // traders who count you their own do not haggle — they file.
+          id: "boards",
+          label: "\"Check who holds that paper now.\" (The Vertical Market)",
+          target: "a3-collectors-bought",
+          requirements: [
+            { type: "reputation", factionId: "market", value: "trusted" },
+          ],
+          ifUnavailable: "disabled",
+          effects: [{ type: "set-flag", key: "trust-bought", value: true }],
+        },
+        {
           id: "pay",
           label: "Settle the Trust's writ. (300 cr)",
           target: "a3-spire-arrival",
@@ -601,6 +620,191 @@ export const act3Arc: StoryArc = {
           effects: [
             { type: "start-combat", encounterId: "enc-spire-collectors" },
           ],
+        },
+      ],
+    },
+    {
+      id: "a3-collectors-bought",
+      text:
+        "The collector checks, because collectors always check. Then " +
+        "he checks again, and the tally drone's light goes from amber " +
+        "to a colour that means somebody upstairs is retyping a line. " +
+        "\"The writ was sold on at four this morning,\" he says, and " +
+        "for the first time the patience goes out of his voice. " +
+        "\"To a consortium of market accounts. All six levels of " +
+        "them.\" He folds the paper he no longer owns. \"They have " +
+        "instructed us that the debt is not to be collected. Ever. " +
+        "That is not a thing anybody can instruct.\" The good coats " +
+        "go back through the crowd the way water goes down a drain.",
+      location: "spire:concourse",
+      choices: [
+        {
+          id: "on",
+          label: "Let them go, and get on with the tower.",
+          target: "a3-spire-arrival",
+        },
+      ],
+    },
+    // ------------------------------------------------------------------
+    // The muster call — who comes when you call, and whether anyone does
+    //
+    // The act's one beat that reads the standings against each other
+    // rather than one at a time (dominantFaction, src/state/reputation).
+    // Exactly one of the four choices can pass, which is the point: the
+    // city has one answer to this and the player does not get to pick
+    // it. What it decides is who is at the crown door an hour later.
+    // ------------------------------------------------------------------
+    {
+      id: "a3-rally",
+      text:
+        "You get up on the barrier stanchion where the muster crowd is " +
+        "thickest and the Spire's own screens are behind you, which is " +
+        "the only kind of pulpit this city has ever recognized. Half " +
+        "the districts are down here tonight. Every one of them keeps " +
+        "an account of you — what you stopped, what you signed, whose " +
+        "water you left running — and in about ten seconds all of it " +
+        "is going to be read back out loud.",
+      location: "spire:concourse",
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"Say it plain,\" Kade says, hands cupped. \"Whoever comes, " +
+            "comes. Whoever doesn't was never coming.\"",
+        },
+        {
+          companionId: "sill",
+          text:
+            "\"You are about to find out what you are worth to this " +
+            "city,\" Sill says, \"in the only unit it keeps.\"",
+        },
+      ],
+      choices: [
+        {
+          id: "rally-court",
+          label: "Ring for the Undercroft. The Steps have been listening for you all week.",
+          target: "a3-rally-court",
+          requirements: [{ type: "dominant-faction", factionId: "court" }],
+          effects: [{ type: "set-flag", key: "a3-allies", value: "court" }],
+          standing: { court: 12, auric: -6 },
+          reactions: ["defiance"],
+        },
+        {
+          id: "rally-auric",
+          label: "Call the Combine's own field crews. You are, on paper, one of theirs.",
+          target: "a3-rally-auric",
+          requirements: [{ type: "dominant-faction", factionId: "auric" }],
+          effects: [{ type: "set-flag", key: "a3-allies", value: "auric" }],
+          standing: { auric: 12, court: -6 },
+          reactions: ["procedure"],
+        },
+        {
+          id: "rally-market",
+          label: "Put the call on the boards. Six levels can be here in twenty minutes.",
+          target: "a3-rally-market",
+          requirements: [{ type: "dominant-faction", factionId: "market" }],
+          effects: [{ type: "set-flag", key: "a3-allies", value: "market" }],
+          standing: { market: 12, auric: -4 },
+          reactions: ["record"],
+        },
+        {
+          id: "rally-none",
+          label: "Call anyway. Somebody down there must owe you something.",
+          target: "a3-rally-split",
+          requirements: [{ type: "dominant-faction", factionId: "none" }],
+          effects: [{ type: "set-flag", key: "a3-allies", value: "none" }],
+        },
+        {
+          id: "rally-wait",
+          label: "Get down. Whatever you have with this city, spend it later.",
+          target: "a3-spire-arrival",
+        },
+      ],
+    },
+    {
+      id: "a3-rally-court",
+      speaker: "Matron Ferrow",
+      text:
+        "They come up out of the Undercroft in under the hour and they " +
+        "come up wet: sappers with charge satchels, siphon crews with " +
+        "cutting gear, and Ferrow at the front of them in a coat that " +
+        "has been through two floods and lost neither of them. \"You " +
+        "rang the bell,\" she says, as if that settles a long argument " +
+        "she has been having with somebody else. \"The Court answers " +
+        "bells. It is the whole of what we are for.\" Behind her the " +
+        "Steps take up positions at the barrier line like people who " +
+        "have read the tide charts and know exactly how long they have.",
+      location: "spire:concourse",
+      choices: [
+        {
+          id: "back",
+          label: "Get them into position, and get on with the tower.",
+          target: "a3-spire-arrival",
+        },
+      ],
+    },
+    {
+      id: "a3-rally-auric",
+      text:
+        "It is not a crowd that answers; it is a dispatch. Four " +
+        "Combine field vans come off the ring road with their own " +
+        "clearance codes, and out of them steps a reclamation crew in " +
+        "corporate matte who look at the Spire the way surveyors look " +
+        "at a building with a fault in it. Their lead reads your name " +
+        "off a slate, then reads it again with the honorific attached. " +
+        "\"Succession's a corporate event, not a riot,\" she says. " +
+        "\"You want the crown floors, we can have you in them as an " +
+        "internal transfer. Everything else up there is somebody " +
+        "failing to file.\"",
+      location: "spire:concourse",
+      choices: [
+        {
+          id: "back",
+          label: "Take the clearance, and get on with the tower.",
+          target: "a3-spire-arrival",
+        },
+      ],
+    },
+    {
+      id: "a3-rally-market",
+      speaker: "Marrow",
+      text:
+        "The boards carry it before you are down off the stanchion. " +
+        "What arrives is not muscle and does not pretend to be: " +
+        "runners, riggers, two hoist crews, a woman with a bolt gun " +
+        "and a consignment book, and Marrow at the back with his " +
+        "optics clicking over the tower's face like a man pricing it. " +
+        "\"Six levels voted with their feet, which is the only vote " +
+        "we take,\" he says. \"You have thirty of us, a crane line, " +
+        "and every account on the Vertical Market standing behind the " +
+        "words 'good for it'. Spend it well. It does not renew.\"",
+      location: "spire:concourse",
+      choices: [
+        {
+          id: "back",
+          label: "Take the rigging, and get on with the tower.",
+          target: "a3-spire-arrival",
+        },
+      ],
+    },
+    {
+      id: "a3-rally-split",
+      text:
+        "You call, and the city hears you, and the city does not " +
+        "agree with itself about you. A knot of Steps people start " +
+        "forward and stop when the market runners don't. Somebody " +
+        "shouts your name like a cheer; somebody else shouts it like " +
+        "a charge sheet. In the end four strangers push through to " +
+        "the stanchion, shake your hand for reasons they don't " +
+        "explain, and go back into the crowd. The muster closes over " +
+        "the gap. Whatever happens up there tonight, it happens with " +
+        "the people already standing next to you and nobody else.",
+      location: "spire:concourse",
+      choices: [
+        {
+          id: "back",
+          label: "Fine. It was always going to be this way.",
+          target: "a3-spire-arrival",
         },
       ],
     },
@@ -1585,6 +1789,45 @@ export const act3Arc: StoryArc = {
           ],
         },
         {
+          // What the muster call bought, cashed at the last door. Which
+          // one of these three is even visible was decided downstairs,
+          // by the city, out loud.
+          id: "allies-court",
+          label: "Give the Steps the mark. They have been waiting on it since the concourse.",
+          target: "a3-crown-allies-court",
+          requirements: [
+            { type: "flag-equals", key: "a3-allies", value: "court" },
+          ],
+          effects: [
+            { type: "set-flag", key: "crown-route", value: "allies-court" },
+            { type: "start-combat", encounterId: "enc-crown-court" },
+          ],
+        },
+        {
+          id: "allies-auric",
+          label: "Let the reclamation crew file the doors open ahead of you.",
+          target: "a3-crown-allies-auric",
+          requirements: [
+            { type: "flag-equals", key: "a3-allies", value: "auric" },
+          ],
+          effects: [
+            { type: "set-flag", key: "crown-route", value: "allies-auric" },
+            { type: "start-combat", encounterId: "enc-crown-auric" },
+          ],
+        },
+        {
+          id: "allies-market",
+          label: "Send the hoist crews up the outside and go in through the ring's own glass.",
+          target: "a3-crown-allies-market",
+          requirements: [
+            { type: "flag-equals", key: "a3-allies", value: "market" },
+          ],
+          effects: [
+            { type: "set-flag", key: "crown-route", value: "allies-market" },
+            { type: "start-combat", encounterId: "enc-crown-alone" },
+          ],
+        },
+        {
           id: "breach-alone",
           label: "No standing, no override. Go in as the city's own bad filing.",
           target: "a3-crown-won",
@@ -1618,6 +1861,56 @@ export const act3Arc: StoryArc = {
           label: "Stand before the engine.",
           target: "a3-locus",
         },
+      ],
+    },
+    {
+      id: "a3-crown-allies-court",
+      text:
+        "The Undercroft takes the antechamber the way it takes a " +
+        "flooding gallery: fast, wet, and with somebody counting out " +
+        "loud. Charges walk the custodial aspects back one door at a " +
+        "time; siphon crews hold the corners with cutting gear meant " +
+        "for pipe. A sapper you do not know puts a hand flat on your " +
+        "back as she passes and says \"go on, then,\" and that is the " +
+        "whole ceremony. Behind you the Steps hold the last door open " +
+        "with their bodies so the ring cannot close it on you.",
+      location: "spire:crown-ring",
+      choices: [
+        { id: "stand", label: "Walk into the ring.", target: "a3-locus" },
+      ],
+    },
+    {
+      id: "a3-crown-allies-auric",
+      text:
+        "The reclamation crew do not fight the crown ring so much as " +
+        "process it. Clearance codes go ahead of you door by door; " +
+        "the custodial aspects are met with their own founding " +
+        "schedule and told, in the Combine's flat internal voice, " +
+        "that they are out of scope. What violence there is happens " +
+        "at the last door and is over in eleven seconds, conducted " +
+        "like a scheduled outage. The crew lead holds the ring open " +
+        "and does not follow you in. \"Above my clearance,\" she says. " +
+        "\"Congratulations.\"",
+      location: "spire:crown-ring",
+      choices: [
+        { id: "stand", label: "Walk into the ring.", target: "a3-locus" },
+      ],
+    },
+    {
+      id: "a3-crown-allies-market",
+      text:
+        "Six levels' worth of rigging comes up the Spire's outside " +
+        "face in the dark, and the crown ring's glass goes in on a " +
+        "count of three from a hoist crew who have taken worse " +
+        "buildings apart for scrap. The aspects turn to meet a breach " +
+        "that is on the wrong wall entirely. Marrow's runners hold " +
+        "the line long enough for you to get through and not one " +
+        "second past it — the boards were very clear about the terms " +
+        "— and then the whole market crew goes back down the ropes " +
+        "with the invoice already written.",
+      location: "spire:crown-ring",
+      choices: [
+        { id: "stand", label: "Walk into the ring.", target: "a3-locus" },
       ],
     },
     {

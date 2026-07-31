@@ -117,6 +117,34 @@ export const FACTION_STANDINGS: readonly StandingSource[] = [
     value: "severance",
     standing: { auric: -25, court: 25, market: -10 },
   },
+  // --- Act 3: who came when the muster was called
+  //
+  // Standing decided which of these a run could even offer, and then
+  // the call itself is a public alignment: the city watches you pick
+  // whose crowd you belong to, and prices it.
+  {
+    flag: "a3-allies",
+    value: "court",
+    standing: { court: 12, auric: -6 },
+  },
+  {
+    flag: "a3-allies",
+    value: "auric",
+    standing: { auric: 12, court: -6 },
+  },
+  {
+    flag: "a3-allies",
+    value: "market",
+    standing: { market: 12, auric: -4 },
+  },
+  {
+    // Calling on a city that cannot agree about you moves nothing,
+    // and the table has to say so out loud: a value nothing is worth
+    // is still a value the flag can hold.
+    flag: "a3-allies",
+    value: "none",
+    standing: {},
+  },
   // --- Act 3: who holds the city afterwards
   {
     flag: "act3-outcome",
