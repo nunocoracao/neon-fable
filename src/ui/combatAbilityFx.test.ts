@@ -178,6 +178,7 @@ function adeptState(seed: number): GameState {
       advancement: {
         pointsSpent: 0,
         abilityIds: abilities.map((a) => a.id),
+        perkIds: [],
       },
     },
   };

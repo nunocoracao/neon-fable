@@ -1,4 +1,9 @@
-import { createCharacter, defaultAllocation, defaultAppearance } from "../character";
+import {
+  createCharacter,
+  defaultAllocation,
+  defaultAppearance,
+  normalizePerkIds,
+} from "../character";
 import type { CharacterState } from "../character";
 import { DEFAULT_BACKGROUND_ID, getBackground } from "../data/backgrounds";
 import {
@@ -20,7 +25,7 @@ import type { RngState } from "./rng";
 import { clampVendors, emptyVendors, type VendorsState } from "./vendors";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 13;
+export const GAME_STATE_VERSION = 14;
 
 /**
  * Oldest save version migrateGameState can bring forward. Saves from
@@ -112,6 +117,13 @@ export interface GameState {
  *   written in, a save resumed mid-chapter finds every shelf full,
  *   which is the generous reading and the only one that cannot lose a
  *   player something they paid for.
+ * - v13 -> v14: the street started keeping score. Cred itself needs no
+ *   migration — it is derived from the deeds and the won fights an old
+ *   save already recorded, so a save resumed deep into Chapter 2 loads
+ *   with every milestone it has actually earned — but the picks those
+ *   milestones grant are stored, and an old save has taken none. The
+ *   normalize pass below (which runs at every version, like the lore
+ *   clamp) is what fills the empty list in rather than assuming it.
  */
 export function migrateGameState(
   state: GameState,
@@ -149,11 +161,22 @@ export function migrateGameState(
   // whose material this build no longer has, or one sitting on a coat
   // that lost its sprite layer, has to stop being worn rather than
   // quietly paint nothing.
+  //
+  // And perks, for a third time: a save from before the street kept
+  // score has no list at all, and one naming a perk this build retired
+  // has to stop paying out rather than quietly keep doing so.
   const withMods = sanitizeMods(migrated.player, migrated.inventory);
   const cleaned = sanitizeDyes(withMods.player, withMods.inventory);
+  const player: CharacterState = {
+    ...cleaned.player,
+    advancement: {
+      ...cleaned.player.advancement,
+      perkIds: normalizePerkIds(cleaned.player.advancement?.perkIds),
+    },
+  };
   return {
     ...migrated,
-    player: cleaned.player,
+    player,
     inventory: cleaned.inventory,
     lore: clampLore(migrated.lore),
     vendors: clampVendors(migrated.vendors),

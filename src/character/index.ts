@@ -99,3 +99,31 @@ export {
   type AdvancementErrorCode,
   type AdvancementView,
 } from "./advancement";
+export {
+  choosePerk,
+  credLines,
+  currentMilestone,
+  milestonesReached,
+  nextMilestone,
+  perkPicksAvailable,
+  perkPicksEarned,
+  perkPoolExhausted,
+  streetCred,
+  victoriesWon,
+  type CredLine,
+} from "./cred";
+export {
+  NO_PERKS,
+  availablePerks,
+  characterPerks,
+  dampenedLoad,
+  foldPerkEffects,
+  hasPerk,
+  healedAmount,
+  neuralCapacityOf,
+  normalizePerkIds,
+  perkIdsOf,
+  perkModifiers,
+  takenPerks,
+  type PerkModifiers,
+} from "./perks";

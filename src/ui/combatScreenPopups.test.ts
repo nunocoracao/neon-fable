@@ -193,7 +193,11 @@ function fighterState(seed: number): GameState {
     ...state,
     player: {
       ...loadout.character,
-      advancement: { pointsSpent: 0, abilityIds: abilities.map((a) => a.id) },
+      advancement: {
+        pointsSpent: 0,
+        abilityIds: abilities.map((a) => a.id),
+        perkIds: [],
+      },
     },
     inventory: loadout.inventory,
   };

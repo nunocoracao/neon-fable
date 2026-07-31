@@ -14,15 +14,22 @@ import {
 } from "./stats";
 
 /**
- * Advancement spending record. Earned points are never stored — they are
- * derived from chapter-completion flags (src/character/advancement.ts) —
- * so only what was spent needs to persist.
+ * Advancement spending record. Neither currency is stored — points are
+ * derived from chapter-completion flags (src/character/advancement.ts)
+ * and street cred from the run's deeds and won fights
+ * (src/character/cred.ts) — so only what was *taken* needs to persist.
  */
 export interface AdvancementState {
   /** Advancement points spent on stat raises and ability unlocks. */
   pointsSpent: number;
   /** Ability ids unlocked with points; folded into grantedAbilityIds. */
   abilityIds: string[];
+  /**
+   * Perks taken at street-cred milestones, in the order they were
+   * chosen. Permanent: nothing removes an id from this list, and the
+   * pool a later milestone offers is the pool less these.
+   */
+  perkIds: string[];
 }
 
 /**
@@ -108,6 +115,9 @@ export function createCharacter(input: CreateCharacterInput): CharacterState {
     equipment: emptyEquipment(),
     appearance: { ...input.appearance },
     tags: [...input.background.tags],
-    advancement: { pointsSpent: 0, abilityIds: [] },
+    // Nobody starts with a reputation — including a New Game+ runner,
+    // whose carry-over is deliberately gear and points and never the
+    // habits the last one earned (see src/state/ngplus.ts).
+    advancement: { pointsSpent: 0, abilityIds: [], perkIds: [] },
   };
 }
