@@ -377,9 +377,35 @@ export const ITEM_VALUES: Readonly<Record<string, number>> = {
   "mod-gyro-sleeve": 90,
   "mod-ballast-shim": 80,
   // --- Consumables ---
+  //
+  // The reasoning behind each of these is authored beside the item, in
+  // ./consumables.ts. In short: the Trauma Patch's 2cr per point of
+  // healing is the street rate, food undercuts it per dose and loses on
+  // rate, kits beat it on rate and cannot be opened in a fight, and the
+  // splint kit is priced against a clinic visit rather than against HP.
   "con-trauma-patch": 20,
+  // Stims: lift × turns, discounted by what the crash takes back.
+  "con-kick-stim": 20,
   "con-surge-stim": 30,
+  "con-hammerhead": 30,
+  "con-redline-amp": 55,
+  // Street food: cheap per dose, and the readied lift is most of it.
+  // Nothing here goes below 10cr, and that is a hard floor rather than
+  // taste: under it the resale spread collapses into the buy price and
+  // the no-arbitrage sweep in src/economy/price.test.ts fails, because
+  // rounding leaves the dearest sale and the cheapest purchase on the
+  // same credit. A cart line has to be cheap, not free.
+  "con-scrap-skewer": 10,
+  "con-cage-noodles": 16,
+  "con-basin-tea": 12,
+  // Field kits: out-of-combat healing, and the only wound-closer that
+  // is not a clinic.
   "con-field-kit": 45,
+  "con-medic-roll": 80,
+  "con-splint-kit": 150,
+  // The oddity, priced like the courtesy it is: the Steps cart keeps a
+  // wake bowl by the till and nobody calls what you leave a price.
+  "con-wake-sugar": 25,
   // --- Dye tins (the chapel shelf's own prices) ---
   "dye-signal-cyan": 30,
   "dye-cinder-black": 45,

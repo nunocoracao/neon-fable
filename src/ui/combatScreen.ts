@@ -96,6 +96,7 @@ import {
   combatEventText,
   combatantDisplayNames,
   companionName,
+  consumableOutcomeText,
   injuryLine,
   percentLabel,
   saveErrorMessage,
@@ -503,9 +504,12 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         setHint("Select an item. Esc cancels.");
         for (const option of itemOptions(combat)) {
           const item = getItem(option.itemId);
+          // The preview on the button is the outcome the engine is
+          // about to apply, not a re-reading of the item's data.
           selectionEl.append(
             selectionButton(
-              `${item?.name ?? option.itemId} ×${option.quantity}`,
+              `${item?.name ?? option.itemId} ×${option.quantity} — ` +
+                `${consumableOutcomeText(option.outcome)}`,
               () => apply({ type: "use-item", itemId: option.itemId }),
             ),
           );

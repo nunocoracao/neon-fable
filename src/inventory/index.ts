@@ -5,6 +5,9 @@
  * src/data/items.ts.
  */
 export {
+  CONSUMABLE_CONTEXTS,
+  CONSUMABLE_KINDS,
+  EFFECT_FAMILIES,
   ENHANCEMENT_SLOTS,
   InventoryError,
   MOD_SOCKET_KINDS,
@@ -12,8 +15,12 @@ export {
   dyesAnything,
   isStackable,
   storedDye,
+  type ConsumableContext,
   type ConsumableEffect,
   type ConsumableItem,
+  type ConsumableKind,
+  type EffectFamily,
+  type TimedEffect,
   type DyeItem,
   type EffectBearingItem,
   type EnhancementItem,
@@ -73,7 +80,17 @@ export {
   type EquipmentState,
   type Loadout,
 } from "./equipment";
-export { useConsumable } from "./consume";
+export { characterSubject, useConsumable } from "./consume";
+export {
+  consumableOutcome,
+  isConsumable,
+  outcomeMatters,
+  plainSubject,
+  refreshFamily,
+  usableIn,
+  type ConsumableOutcome,
+  type ConsumableSubject,
+} from "./consumables";
 export {
   CRIT_SHARE_BASE,
   MIN_WEAPON_DAMAGE,

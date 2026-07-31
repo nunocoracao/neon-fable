@@ -111,6 +111,13 @@ export {
 } from "./injury";
 export { combatResultFlag, resolveCombat } from "./outcome";
 export {
+  applyTimedEffect,
+  combatSubject,
+  expiredCrash,
+  settleTimedEffects,
+  tickTimedEffects,
+} from "./effects";
+export {
   COMBAT_ACTION_KINDS,
   abilityPreviews,
   actionAvailabilities,

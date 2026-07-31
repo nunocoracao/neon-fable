@@ -153,7 +153,9 @@ describe("actionButtons", () => {
     expect(tooltip("ability")).toBe(
       `${requireAbility("ability-stun-strike").name} — 2 dmg · stuns 1`,
     );
-    expect(tooltip("item")).toBe("Trauma Patch ×2");
+    // The count, and what the dose would actually be worth to this
+    // body — at full health, a patch is worth saying nothing about.
+    expect(tooltip("item")).toBe("Trauma Patch ×2 — no effect right now");
     // The ground count is the engine's, not a number this test invents.
     const { stepsLeft, tiles } = movePreview(state);
     expect(tooltip("move")).toBe(

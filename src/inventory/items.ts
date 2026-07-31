@@ -193,13 +193,94 @@ export interface OutfitItem extends ItemBase {
   effects: ItemEffect[];
 }
 
+/**
+ * Where a consumable may be opened. A dose is a decision about *when*
+ * as much as about what: a stim is a combat action spent instead of a
+ * swing, and a field kit is twenty minutes sitting on a crate, which is
+ * not a thing anybody does with a chassis walking at them.
+ *
+ * Both contexts is the ordinary reading for a battlefield dressing —
+ * the one thing you use either side of a fight.
+ */
+export const CONSUMABLE_CONTEXTS = ["combat", "exploration"] as const;
+
+export type ConsumableContext = (typeof CONSUMABLE_CONTEXTS)[number];
+
+/**
+ * What kind of thing a consumable is, for the shelf, the label, and
+ * nothing else. The *rules* are all in the effects below — this is the
+ * word a player would use for it.
+ */
+export const CONSUMABLE_KINDS = ["stim", "food", "kit", "oddity"] as const;
+
+export type ConsumableKind = (typeof CONSUMABLE_KINDS)[number];
+
+/**
+ * The slot a timed effect occupies on a body. Two effects of one family
+ * never run at once: a second dose *replaces* the first rather than
+ * adding to it, which is the whole of the stacking rule (see
+ * refreshFamily in ./consumables.ts).
+ *
+ * Families are named for what they occupy rather than for the item that
+ * grants them, so a cheap stim and an expensive one compete for the
+ * same nerve — and a crash occupies the family it came out of, which is
+ * what makes re-dosing push the crash back instead of doubling it.
+ */
+export const EFFECT_FAMILIES = [
+  /** Wired reflexes: the accelerant lines. */
+  "reflex-stim",
+  /** Braced frame: the ones that make a body hit harder. */
+  "bone-stim",
+  /** Having eaten: the small, long, cheap one. */
+  "well-fed",
+] as const;
+
+export type EffectFamily = (typeof EFFECT_FAMILIES)[number];
+
+/**
+ * A stat shift with a clock on it, and what the body owes when the
+ * clock runs out.
+ *
+ * `turns` is counted in the owner's own turns, exactly like every other
+ * duration in a fight (see ActiveBoost). `after` is the crash: it lands
+ * the moment the lift expires, in the same family, so a fresh dose
+ * replaces the crash as well as the lift — re-dosing postpones the bill
+ * rather than cancelling it.
+ */
+export interface TimedEffect {
+  family: EffectFamily;
+  stat: StatKey;
+  amount: number;
+  /** Owner's turns the shift lasts. */
+  turns: number;
+  /** What lands when it wears off; absent for a clean effect. */
+  after?: { stat: StatKey; amount: number; turns: number };
+}
+
 export type ConsumableEffect =
+  /** Hit points back, now. */
   | { type: "heal"; amount: number }
-  | { type: "combat-boost"; stat: StatKey; amount: number; turns: number };
+  /** A timed shift, starting in this fight. */
+  | { type: "boost"; boost: TimedEffect }
+  /** A timed shift held over for the *next* fight — what a meal is. */
+  | { type: "ready-boost"; boost: TimedEffect }
+  /** Closes the injury the user is carrying, with no clinic involved. */
+  | { type: "treat-injury" }
+  /**
+   * Settles a body: the cyberware noise banked this fight goes back to
+   * nothing (the surge clock restarts rather than being spent), and
+   * every after-cost still being carried is bled off with it.
+   */
+  | { type: "settle" };
 
 export interface ConsumableItem extends ItemBase {
   kind: "consumable";
-  effect: ConsumableEffect;
+  /** The word for it on a shelf; no rule reads this. */
+  consumableKind: ConsumableKind;
+  /** Where it may be opened; at least one, or nobody can use it. */
+  contexts: readonly ConsumableContext[];
+  /** Everything one dose does, applied in order. */
+  effects: readonly ConsumableEffect[];
 }
 
 /**

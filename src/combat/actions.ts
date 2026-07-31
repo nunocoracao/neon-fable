@@ -1,10 +1,17 @@
-import { NO_PERKS, healedAmount } from "../character/perks";
 import { requireAbility } from "../data/abilities";
 import { requireItem } from "../data/items";
+import { consumableOutcome, usableIn } from "../inventory/consumables";
 import type { ItemResolver } from "../inventory/items";
 import { nextFloat } from "../state/rng";
 import { abilityAreaTiles, abilityImpact } from "./area";
 import { chargeImpact, windUpTurns } from "./charge";
+import {
+  applyTimedEffect,
+  combatSubject,
+  expiredCrash,
+  settleTimedEffects,
+  tickTimedEffects,
+} from "./effects";
 import {
   abilityHit,
   attackDamage,
@@ -262,6 +269,15 @@ function doUseItem(
   if (!carried || carried.quantity < 1 || item.kind !== "consumable") {
     throw new CombatError("no-item", `No usable consumable "${itemId}"`);
   }
+  // A field kit is twenty minutes sitting down; a meal is a meal. What
+  // may be opened mid-fight is content's call (see ConsumableContext),
+  // and the engine only enforces it.
+  if (!usableIn(item, "combat")) {
+    throw new CombatError(
+      "wrong-context",
+      `"${item.name}" is not something you open mid-fight`,
+    );
+  }
 
   let next = withCombatant({ ...state, actionUsed: true }, actor.id, (c) => ({
     ...c,
@@ -284,39 +300,53 @@ function doUseItem(
     itemId,
   });
 
-  const effect = item.effect;
-  if (effect.type === "heal") {
-    // The same seam the out-of-combat use goes through, reading the
-    // figure off the snapshot rather than the character: a dose is
-    // worth what this body's habits make it worth, in here as out there.
-    const healed = Math.min(
-      healedAmount(effect.amount, actor.perks ?? NO_PERKS),
-      actor.maxHp - actor.hp,
-    );
+  // What the dose is worth to *this* body, off the one derivation the
+  // item button already quoted (see consumableOutcome) — so what the
+  // player was promised is what lands, healing perks and all.
+  const outcome = consumableOutcome(item, combatSubject(actor));
+
+  if (outcome.heal > 0) {
     next = withCombatant(next, actor.id, (c) => ({
       ...c,
-      hp: c.hp + healed,
+      hp: c.hp + outcome.heal,
     }));
-    return pushEvents(next, {
+    next = pushEvents(next, {
       type: "healed",
       combatantId: actor.id,
-      amount: healed,
+      amount: outcome.heal,
     });
   }
-  next = withCombatant(next, actor.id, (c) => ({
-    ...c,
-    boosts: [
-      ...c.boosts,
-      { stat: effect.stat, amount: effect.amount, turnsLeft: effect.turns },
-    ],
-  }));
-  return pushEvents(next, {
-    type: "boosted",
-    combatantId: actor.id,
-    stat: effect.stat,
-    amount: effect.amount,
-    turns: effect.turns,
-  });
+
+  for (const boost of outcome.boosts) {
+    next = withCombatant(next, actor.id, (c) => ({
+      ...c,
+      boosts: applyTimedEffect(c.boosts, boost),
+    }));
+    next = pushEvents(next, {
+      type: "boosted",
+      combatantId: actor.id,
+      stat: boost.stat,
+      amount: boost.amount,
+      turns: boost.turns,
+    });
+  }
+
+  if (outcome.settles) {
+    // The chrome's clock back to nothing — restarted, not spent, so a
+    // runner who settles early still has the surge waiting for them —
+    // and every bill they were carrying bled off with it.
+    next = withCombatant(next, actor.id, (c) => ({
+      ...c,
+      boosts: settleTimedEffects(c.boosts),
+    }));
+    const surge = next.surge;
+    if (surge && !surge.spent && surge.combatantId === actor.id) {
+      next = { ...next, surge: { ...surge, charge: 0, armed: false } };
+    }
+    next = pushEvents(next, { type: "settled", combatantId: actor.id });
+  }
+
+  return next;
 }
 
 function doUseAbility(
@@ -537,11 +567,25 @@ function advanceTurn(state: CombatState): CombatState {
   // Read before anything is ticked: venting is this turn's action given
   // up, so what matters is whether it was spent by the time it ended.
   const vented = closeSurgeTurn(state, actor.id, state.actionUsed);
+  // What comes due as this turn closes: a stim whose lift has run out
+  // hands back its crash, and the log says so before the turn passes.
+  const crashes: CombatEvent[] = actor.boosts.flatMap((boost) => {
+    const crash = expiredCrash(boost);
+    return crash
+      ? [
+          {
+            type: "crashed" as const,
+            combatantId: actor.id,
+            stat: crash.stat,
+            amount: crash.amount,
+            turns: crash.turnsLeft,
+          },
+        ]
+      : [];
+  });
   let next = withCombatant(vented, actor.id, (c) => ({
     ...c,
-    boosts: c.boosts
-      .map((b) => ({ ...b, turnsLeft: b.turnsLeft - 1 }))
-      .filter((b) => b.turnsLeft > 0),
+    boosts: tickTimedEffects(c.boosts),
     cooldowns: Object.fromEntries(
       Object.entries(c.cooldowns).map(([id, turns]) => [
         id,
@@ -549,6 +593,7 @@ function advanceTurn(state: CombatState): CombatState {
       ]),
     ),
   }));
+  next = pushEvents(next, ...crashes);
 
   let queued: CombatEvent[] = [];
   let index = next.turnIndex;

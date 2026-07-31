@@ -1,3 +1,4 @@
+import { clearReadied } from "../character/readied";
 import { requireEncounter } from "../data/encounters";
 import { requireItem } from "../data/items";
 import { alertFlag } from "../data/stealth";
@@ -64,7 +65,10 @@ export function resolveCombat(
     ...state,
     // Defeat leaves the player staggered at 1 hp; the narrative reacts to
     // the outcome flag, not to a dead character.
-    player: { ...state.player, hp: Math.max(1, player.hp) },
+    //
+    // And whatever was eaten before the door is eaten: a meal buys the
+    // *next* fight, and this was it, however it went.
+    player: { ...clearReadied(state.player), hp: Math.max(1, player.hp) },
     party,
     flags,
     inventory,

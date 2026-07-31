@@ -43,9 +43,15 @@ export class RouteFightLost extends Error {}
 function chooseAction(combat: CombatState): CombatAction {
   const player = playerCombatant(combat);
 
-  const item = itemOptions(combat)[0];
-  if (item && player.hp <= player.maxHp - 10) {
-    return { type: "use-item", itemId: item.itemId };
+  // The dose worth taking, off the same preview the combat screen's
+  // item buttons quote: the biggest heal actually on offer. Reading the
+  // outcome rather than the first stack keeps the policy from burning a
+  // stim on a wound it does nothing for.
+  const heal = itemOptions(combat)
+    .filter((option) => option.outcome.heal > 0)
+    .sort((a, b) => b.outcome.heal - a.outcome.heal)[0];
+  if (heal && player.hp <= player.maxHp - 10) {
+    return { type: "use-item", itemId: heal.itemId };
   }
 
   const ability = abilityOptions(combat).find((o) => o.targets.length > 0);

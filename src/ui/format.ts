@@ -15,13 +15,18 @@ import { getItem } from "../data/items";
 import { staticBand, type StaticBand } from "../data/static";
 import { UNINSTALL_TRAUMA_PER_LOAD } from "../inventory/equipment";
 import { bearsEffects } from "../inventory/items";
+import type { ConsumableOutcome } from "../inventory/consumables";
 import type {
+  ConsumableContext,
+  ConsumableItem,
+  ConsumableKind,
   EnhancementItem,
   EnhancementSlot,
   Item,
   ModEffect,
   ModSocketKind,
   OutfitDye,
+  TimedEffect,
 } from "../inventory/items";
 import type { StaticReading, StaticShift } from "../inventory/staticLoad";
 import type { MaterialName } from "../iso/art/palette";
@@ -231,10 +236,10 @@ export function itemSummary(item: Item): string {
     case "outfit":
       return `Outfit · armor ${item.armor}`;
     case "consumable":
-      return item.effect.type === "heal"
-        ? `Consumable · heals ${item.effect.amount} HP`
-        : `Consumable · ${signedNumber(item.effect.amount)} ` +
-            `${statLabel(item.effect.stat)} for ${item.effect.turns} turns (combat only)`;
+      return (
+        `${consumableKindLabel(item.consumableKind)} · ` +
+        `${consumableEffectText(item)} · ${contextLabel(item.contexts)}`
+      );
     case "enhancement":
       // Both costs on one line, and the dampener says which way it
       // pulls: a shelf label that only quoted neural load would price
@@ -250,6 +255,87 @@ export function itemSummary(item: Item): string {
     case "misc":
       return "Item";
   }
+}
+
+/** "Stim", "Street food", "Field kit" — the word for it on a shelf. */
+export function consumableKindLabel(kind: ConsumableKind): string {
+  switch (kind) {
+    case "stim":
+      return "Stim";
+    case "food":
+      return "Street food";
+    case "kit":
+      return "Field kit";
+    case "oddity":
+      return "Oddity";
+  }
+}
+
+/** "in a fight", "out of combat", "either side of a fight". */
+export function contextLabel(
+  contexts: readonly ConsumableContext[],
+): string {
+  const inFight = contexts.includes("combat");
+  const outside = contexts.includes("exploration");
+  if (inFight && outside) return "either side of a fight";
+  if (inFight) return "in a fight";
+  if (outside) return "out of combat";
+  return "nowhere";
+}
+
+/** "+2 Reflexes for 3 turns, then −1 for 2" — one timed effect, in full. */
+export function timedEffectText(effect: TimedEffect): string {
+  const lift =
+    `${signedNumber(effect.amount)} ${statLabel(effect.stat)} for ` +
+    `${effect.turns} turn${effect.turns === 1 ? "" : "s"}`;
+  if (!effect.after) return lift;
+  // The crash is never hidden behind the lift: an after-cost the label
+  // did not name would be a price the player only learns by paying it.
+  return (
+    `${lift}, then ${signedNumber(effect.after.amount)} ` +
+    `${statLabel(effect.after.stat)} for ${effect.after.turns}`
+  );
+}
+
+/**
+ * What an item's dose does, read off the item's authored effects — the
+ * shelf label, before any particular body is involved. What it is worth
+ * to somebody in particular is consumableOutcomeText below.
+ */
+export function consumableEffectText(item: ConsumableItem): string {
+  const parts = item.effects.map((effect) => {
+    switch (effect.type) {
+      case "heal":
+        return `heals ${effect.amount} HP`;
+      case "boost":
+        return timedEffectText(effect.boost);
+      case "ready-boost":
+        return `next fight: ${timedEffectText(effect.boost)}`;
+      case "treat-injury":
+        return "closes an injury";
+      case "settle":
+        return "settles the chrome, clears the crash";
+    }
+  });
+  return parts.length > 0 ? parts.join(" · ") : "does nothing";
+}
+
+/**
+ * What a dose would do to *this* body, off the shared derivation the
+ * fight and the inventory screen both read (see consumableOutcome). The
+ * figures are the ones about to be applied — healing capped by the room
+ * left, an injury named only when there is one to close.
+ */
+export function consumableOutcomeText(outcome: ConsumableOutcome): string {
+  const parts: string[] = [];
+  if (outcome.heal > 0) parts.push(`+${outcome.heal} HP`);
+  for (const boost of outcome.boosts) parts.push(timedEffectText(boost));
+  for (const boost of outcome.readied) {
+    parts.push(`next fight: ${timedEffectText(boost)}`);
+  }
+  if (outcome.treatsInjury) parts.push("closes the injury");
+  if (outcome.settles) parts.push("settles the chrome");
+  return parts.length > 0 ? parts.join(" · ") : "no effect right now";
 }
 
 /**
@@ -705,6 +791,16 @@ export function combatEventText(
         `${nameOf(event.combatantId)} gains ${signedNumber(event.amount)} ` +
         `${statLabel(event.stat)} for ${event.turns} turns.`
       );
+    case "crashed":
+      // The bill, named as the bill: a stim that only ever showed its
+      // lift would read as a free action several turns later.
+      return (
+        `The stim leaves ${nameOf(event.combatantId)} — ` +
+        `${signedNumber(event.amount)} ${statLabel(event.stat)} for ` +
+        `${event.turns} turns.`
+      );
+    case "settled":
+      return `${nameOf(event.combatantId)} settles. The chrome goes quiet.`;
     case "flee-attempted":
       return event.success
         ? `${nameOf(event.combatantId)} breaks away from the fight!`

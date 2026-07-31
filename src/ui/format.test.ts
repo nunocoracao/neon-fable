@@ -213,20 +213,37 @@ describe("item formatting", () => {
       itemSummary({
         id: "patch",
         kind: "consumable",
+        consumableKind: "kit",
         name: "Patch",
         description: "",
-        effect: { type: "heal", amount: 10 },
+        contexts: ["combat", "exploration"],
+        effects: [{ type: "heal", amount: 10 }],
       }),
-    ).toBe("Consumable · heals 10 HP");
+    ).toBe("Field kit · heals 10 HP · either side of a fight");
     expect(
       itemSummary({
         id: "stim",
         kind: "consumable",
+        consumableKind: "stim",
         name: "Stim",
         description: "",
-        effect: { type: "combat-boost", stat: "reflexes", amount: 2, turns: 3 },
+        contexts: ["combat"],
+        effects: [
+          {
+            type: "boost",
+            boost: {
+              family: "reflex-stim",
+              stat: "reflexes",
+              amount: 2,
+              turns: 3,
+              after: { stat: "reflexes", amount: -1, turns: 2 },
+            },
+          },
+        ],
       }),
-    ).toBe("Consumable · +2 Reflexes for 3 turns (combat only)");
+      // The crash is on the shelf label, not a surprise several turns
+      // into the fight.
+    ).toBe("Stim · +2 Reflexes for 3 turns, then -1 Reflexes for 2 · in a fight");
     expect(
       itemSummary({
         id: "m",

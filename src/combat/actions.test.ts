@@ -280,7 +280,14 @@ describe("use-item", () => {
     const player = playerCombatant(next);
     expect(combatStat(player, "reflexes")).toBe(7); // 5 + 2
     expect(player.boosts).toEqual([
-      { stat: "reflexes", amount: 2, turnsLeft: 3 },
+      {
+        stat: "reflexes",
+        amount: 2,
+        turnsLeft: 3,
+        family: "reflex-stim",
+        // The bill, carried on the lift that owes it.
+        after: { stat: "reflexes", amount: -1, turns: 2 },
+      },
     ]);
     expect(player.consumables).toEqual([]);
   });

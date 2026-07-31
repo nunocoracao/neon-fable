@@ -1,4 +1,13 @@
 import { requireAbility } from "../data/abilities";
+import { requireItem } from "../data/items";
+import {
+  consumableOutcome,
+  isConsumable,
+  usableIn,
+  type ConsumableOutcome,
+} from "../inventory/consumables";
+import type { ItemResolver } from "../inventory/items";
+import { combatSubject } from "./effects";
 import {
   abilityHit,
   attackDamage,
@@ -57,6 +66,13 @@ export interface AbilityOption {
 export interface ItemOption {
   itemId: string;
   quantity: number;
+  /**
+   * What opening it now would do to the body holding it, off the one
+   * derivation the inventory screen also reads (see consumableOutcome).
+   * The item button quotes this rather than re-reading the item, so the
+   * preview and the dose cannot disagree.
+   */
+  outcome: ConsumableOutcome;
 }
 
 function mainActionAvailable(state: CombatState): boolean {
@@ -150,17 +166,34 @@ export function abilityOptions(state: CombatState): AbilityOption[] {
 }
 
 /**
- * Consumables the active combatant may use. The player's own kit, and
- * only theirs: a companion fights with what they brought, not out of
- * your pockets.
+ * Consumables the active combatant may use, each with what it would do.
+ * The player's own kit, and only theirs: a companion fights with what
+ * they brought, not out of your pockets.
+ *
+ * The snapshot already holds only what may be opened mid-fight (see
+ * playerConsumables), so a bag of field kits comes back empty here
+ * rather than offering a button the engine would refuse.
  */
-export function itemOptions(state: CombatState): ItemOption[] {
+export function itemOptions(
+  state: CombatState,
+  resolve: ItemResolver = requireItem,
+): ItemOption[] {
   if (!mainActionAvailable(state)) return [];
   const actor = activeCombatant(state);
   if (actor.kind !== "player") return [];
-  return actor.consumables
-    .filter((stack) => stack.quantity > 0)
-    .map(({ itemId, quantity }) => ({ itemId, quantity }));
+  const subject = combatSubject(actor);
+  const options: ItemOption[] = [];
+  for (const { itemId, quantity } of actor.consumables) {
+    if (quantity <= 0) continue;
+    const item = resolve(itemId);
+    if (!isConsumable(item) || !usableIn(item, "combat")) continue;
+    options.push({
+      itemId,
+      quantity,
+      outcome: consumableOutcome(item, subject),
+    });
+  }
+  return options;
 }
 
 /**

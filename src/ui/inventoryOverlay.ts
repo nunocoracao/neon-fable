@@ -13,8 +13,14 @@ import {
   type EnhancementSlot,
   type Loadout,
 } from "../inventory";
+import {
+  characterSubject,
+  consumableOutcome,
+  usableIn,
+} from "../inventory";
 import { factionRows } from "./factionModel";
 import {
+  consumableOutcomeText,
   dyeChannelSummary,
   injuryEffectText,
   injuryName,
@@ -419,11 +425,27 @@ export function createInventoryOverlay(
             ),
           );
         } else if (item.kind === "consumable") {
-          card.append(
-            actionButton("Use", () =>
-              apply(() => useConsumable(player, inventory, item.id), "item-use"),
-            ),
-          );
+          // What this dose would do to *this* body right now, off the
+          // same derivation the fight's item list quotes — so a patch
+          // reads the same on both screens, and a kit that would do
+          // nothing says so before it is opened.
+          const outcome = consumableOutcome(item, characterSubject(player));
+          const preview = document.createElement("div");
+          preview.className = "nf-item-effects";
+          preview.textContent = usableIn(item, "exploration")
+            ? consumableOutcomeText(outcome)
+            : "Only in a fight.";
+          card.append(preview);
+          if (usableIn(item, "exploration")) {
+            card.append(
+              actionButton("Use", () =>
+                apply(
+                  () => useConsumable(player, inventory, item.id),
+                  "item-use",
+                ),
+              ),
+            );
+          }
         }
       } else {
         console.error(`Unknown item id in inventory: ${stack.itemId}`);

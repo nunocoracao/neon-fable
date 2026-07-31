@@ -173,7 +173,18 @@ describe("itemOptions", () => {
     const state = makeCombat([
       player({ consumables: [{ itemId: "con-trauma-patch", quantity: 2 }] }),
     ]);
-    expect(itemOptions(state)).toEqual([{ itemId: "con-trauma-patch", quantity: 2 }]);
+    expect(itemOptions(state)).toEqual([
+      {
+        itemId: "con-trauma-patch",
+        quantity: 2,
+        // Every option carries what it would do to this body, so the
+        // button quoting it and the engine applying it are one figure.
+        outcome: expect.objectContaining({
+          itemId: "con-trauma-patch",
+          heal: expect.any(Number),
+        }),
+      },
+    ]);
   });
 
   it("is empty for enemies, spent actions, and empty packs", () => {

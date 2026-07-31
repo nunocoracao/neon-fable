@@ -67,7 +67,11 @@ function choosePlayerStep(
   const player = playerCombatant(combat);
   const nameOf = (id: string): string => names[id] ?? id;
 
-  const item = itemOptions(combat)[0];
+  // The biggest heal actually on offer, off the option's own preview —
+  // the same reading the screen's item buttons show.
+  const item = itemOptions(combat)
+    .filter((option) => option.outcome.heal > 0)
+    .sort((a, b) => b.outcome.heal - a.outcome.heal)[0];
   if (item && player.hp <= player.maxHp - 10) {
     return {
       step: { kind: "item", itemName: getItem(item.itemId)?.name ?? item.itemId },
