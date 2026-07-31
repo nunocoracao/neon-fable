@@ -2,15 +2,12 @@ import { audio } from "../audio";
 import {
   HUB_MAP_ID,
   companionSpriteId,
-  dressMap,
   epilogueVignettes,
   findArcByNode,
   getEncounter,
   getEnding,
   getMap,
-  requireMap,
   type ChapterEnding,
-  type NewsChannelId,
 } from "../data";
 import { availablePoints } from "../character";
 import { isWounded, selectVignettes } from "../narrative";
@@ -32,8 +29,8 @@ import {
   type IsoScene,
 } from "../iso";
 import { settings } from "../settings";
-import { deriveWorldState, newsStrip, populateMap } from "../world";
 import { interactPrompt } from "./format";
+import { resolveDistrict } from "./district";
 import { runMapTransition, type MapTransitionHandle } from "./mapTransition";
 import { npcSpriteSource, sceneSpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
@@ -162,39 +159,11 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     );
   }
   const mapId = getMap(session.state.location) ? session.state.location : HUB_MAP_ID;
-  // What the city has noticed about this run: a set of condition ids
-  // derived once per mount, from which every reactive channel — who is
-  // on the street, what the screens are saying — is a pure function.
-  const world = deriveWorldState(session.state);
-  // The district as this run has left it, in two passes. dressMap
-  // rewrites an interactable a settled quest changed (data/mapDressing
-  // .ts); populateMap puts the people a live world condition posts here
-  // on the map and takes off the ones it has moved on (world/population
-  // .ts). Both resolve once per mount, and a mount is what arriving on
-  // a map is — so a street the story changed is different the next time
-  // the player walks into it, never under their feet.
-  const map = populateMap(
-    dressMap(requireMap(mapId), session.state.flags),
-    world,
-  );
-
-  /**
-   * The running order for every public screen on this map, by screen
-   * id. Fixed for the visit: the city's news changes when the city
-   * does, which is between mounts, not mid-scene.
-   */
-  function districtNews(): Record<string, string[]> {
-    const strips: Record<string, string[]> = {};
-    for (const screen of map.screens ?? []) {
-      strips[screen.id] = newsStrip(
-        map.id,
-        screen.id,
-        screen.channel as NewsChannelId,
-        world,
-      );
-    }
-    return strips;
-  }
+  // The district as this run has left it — the authored map, dressed by
+  // what the story settled and populated by what the city has noticed,
+  // plus whatever its public screens are carrying tonight. See
+  // ./district.ts for the order the three layers land in.
+  const { map, newsStrips } = resolveDistrict(session.state, mapId);
 
   function refreshHud(): void {
     if (!hudStatus) return;
@@ -667,7 +636,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         // What this district's screens are carrying tonight. Resolved
         // here, from the world state, because which headlines a run has
         // earned is content — the scene only scrolls what it is given.
-        newsStrips: districtNews(),
+        newsStrips,
         sprites: createPixelArtSprites({
           player: playerSpriteSource(session),
           npc: npcSpriteSource(map),
