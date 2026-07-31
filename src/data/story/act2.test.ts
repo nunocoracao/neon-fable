@@ -195,8 +195,8 @@ describe("act2 arc shape", () => {
     // The other road onto the same floor costs credits — a door the
     // Combine will not open for you is a door you buy.
     const paid = lift.choices.find((c) => c.id === "bonded-clerk")!;
-    expect(paid.requirements).toEqual([{ type: "credits", value: 200 }]);
-    expect(paid.effects).toContainEqual({ type: "credits", amount: -200 });
+    expect(paid.requirements).toEqual([{ type: "credits", value: 150 }]);
+    expect(paid.effects).toContainEqual({ type: "credits", amount: -150 });
     expect(onStanding.target).toBe(paid.target);
     // And the lift is a one-visit door, so the floor cannot be farmed.
     const arrival = act2Arc.nodes.find((n) => n.id === "a2-vent-arrival")!;

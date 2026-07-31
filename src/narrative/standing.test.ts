@@ -169,7 +169,12 @@ describe("the dominant-faction requirement", () => {
   });
 
   it("opens the split-city variant when nobody stands above the rest", () => {
-    for (const standing of [{}, { court: 40, market: 40 }, { court: 12 }]) {
+    const splits: Record<string, number>[] = [
+      {},
+      { court: 40, market: 40 },
+      { court: 12 },
+    ];
+    for (const standing of splits) {
       const state = makeState(standing);
       expect(
         checkRequirement(state, { type: "dominant-faction", factionId: "none" }),

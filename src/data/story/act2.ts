@@ -1070,12 +1070,12 @@ export const act2Arc: StoryArc = {
         },
         {
           id: "bonded-clerk",
-          label: "Buy the clerk's cycle key instead. (200 cr)",
+          label: "Buy the clerk's cycle key instead. (150 cr)",
           target: "a2-vent-bonded-floor",
-          requirements: [{ type: "credits", value: 200 }],
+          requirements: [{ type: "credits", value: 150 }],
           ifUnavailable: "disabled",
           effects: [
-            { type: "credits", amount: -200 },
+            { type: "credits", amount: -150 },
             { type: "set-flag", key: "bonded-floor", value: "paid" },
           ],
           reactions: ["deception"],
