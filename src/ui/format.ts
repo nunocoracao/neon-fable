@@ -98,6 +98,8 @@ export function requirementLabel(
       return `[${requirement.key}: ${String(requirement.value)}]`;
     case "flag-at-least":
       return `[${requirement.key} ${requirement.value}+]`;
+    case "flag-set":
+      return `[${requirement.key}: settled]`;
     case "flag-unset":
       return `[${requirement.key}: unsettled]`;
     case "credits":

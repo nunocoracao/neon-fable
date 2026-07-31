@@ -89,6 +89,35 @@ describe("checkRequirement", () => {
     });
   });
 
+  describe("flag-set", () => {
+    it("asks only whether the flag was ever written, not what it says", () => {
+      const state = makeState();
+      expect(checkRequirement(state, { type: "flag-set", key: "cage" })).toBe(
+        false,
+      );
+      // Every value counts, including the falsy ones a "did it happen"
+      // gate would otherwise miss.
+      for (const value of ["hauled", false, 0, ""] as const) {
+        state.flags.cage = value;
+        expect(
+          checkRequirement(state, { type: "flag-set", key: "cage" }),
+          String(value),
+        ).toBe(true);
+      }
+    });
+
+    it("is the exact mirror of flag-unset", () => {
+      const state = makeState();
+      state.flags.cage = "dived";
+      for (const key of ["cage", "never-touched"]) {
+        expect(
+          checkRequirement(state, { type: "flag-set", key }),
+          key,
+        ).toBe(!checkRequirement(state, { type: "flag-unset", key }));
+      }
+    });
+  });
+
   describe("stat", () => {
     it("checks effective stats, so equipment mods count", () => {
       const state = makeState("gutter-courier");

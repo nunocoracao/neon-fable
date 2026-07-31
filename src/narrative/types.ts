@@ -15,6 +15,7 @@ import type { FlagValue } from "../state/flags";
 export type Requirement =
   | FlagEqualsRequirement
   | FlagAtLeastRequirement
+  | FlagSetRequirement
   | FlagUnsetRequirement
   | StatRequirement
   | ItemRequirement
@@ -36,6 +37,18 @@ export interface FlagAtLeastRequirement {
   type: "flag-at-least";
   key: string;
   value: number;
+}
+
+/**
+ * Flag must have been written, whatever it says — the "you have been
+ * here" gate, and the mirror of flag-unset. What it is for is a beat
+ * that recorded *how* something went in one flag with several values:
+ * a later scene that only needs to know it happened at all asks once
+ * here instead of carrying one choice per value.
+ */
+export interface FlagSetRequirement {
+  type: "flag-set";
+  key: string;
 }
 
 /**

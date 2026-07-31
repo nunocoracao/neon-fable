@@ -109,6 +109,12 @@ describe("requirementLabel", () => {
     expect(
       requirementLabel({ type: "flag-at-least", key: "rep", value: 3 }),
     ).toBe("[rep 3+]");
+    expect(requirementLabel({ type: "flag-set", key: "quays-cage" })).toBe(
+      "[quays-cage: settled]",
+    );
+    expect(requirementLabel({ type: "flag-unset", key: "quays-cage" })).toBe(
+      "[quays-cage: unsettled]",
+    );
   });
 
   it("names the person, not the number, for loyalty gates", () => {
