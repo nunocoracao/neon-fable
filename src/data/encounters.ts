@@ -361,6 +361,24 @@ export const encounters: Encounter[] = [
     },
   },
   {
+    // The executive floor's strongroom detail: one Warden Chassis, which
+    // is two tiles by two of it (see nme-warden-chassis). Spawned at
+    // (6, 2) it stands on (6,2)-(7,3) — the block has to fit the 9×7
+    // arena, and a maps.test lint checks exactly that for every spawn.
+    id: "enc-exec-warden",
+    name: "The Warden Chassis",
+    grid: { width: 9, height: 7 },
+    arenaMapId: "exec-floor-arena",
+    playerStart: { x: 1, y: 3 },
+    enemies: [{ enemyId: "nme-warden-chassis", position: { x: 6, y: 2 } }],
+    rewards: {
+      credits: 220,
+      items: [{ itemId: "con-field-kit" }, { itemId: "con-trauma-patch", quantity: 2 }],
+    },
+    // A strongroom door does not let you back out of the room.
+    fleeable: false,
+  },
+  {
     id: "enc-crown-court",
     name: "The Crown Ring — Sappers' Breach",
     grid: { width: 9, height: 7 },

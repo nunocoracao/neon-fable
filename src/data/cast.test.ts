@@ -7,7 +7,13 @@ import {
 } from "../character";
 import { PLAYER_SPEAKER } from "../narrative";
 import { EXPRESSION_IDS } from "./appearance";
-import { cast, castVisual, resolveSpeakerPortrait } from "./cast";
+import {
+  MACHINE_SPEAKERS,
+  cast,
+  castVisual,
+  resolveSpeakerPortrait,
+} from "./cast";
+import { getEnemy } from "./enemies";
 import { getItem } from "./items";
 import { storyArcs } from "./story";
 
@@ -47,16 +53,34 @@ describe("cast catalog", () => {
     }
   });
 
+  it("machine speakers name a real archetype that carries its own face", () => {
+    for (const [name, enemyId] of Object.entries(MACHINE_SPEAKERS)) {
+      const enemy = getEnemy(enemyId);
+      expect(enemy, `${name} -> ${enemyId}`).toBeDefined();
+      // The whole reason a machine is not on the cast list: it has no
+      // appearance to compose, so its portrait has to be authored.
+      expect(enemy?.spriteKind, name).not.toBe("humanoid");
+      expect(castVisual(name), `${name} is not also a person`).toBeUndefined();
+      expect(resolveSpeakerPortrait({ speaker: name })).toEqual({
+        kind: "machine",
+        name,
+        enemyId,
+      });
+    }
+  });
+
   it("every named speaker in every authored arc has a cast entry", () => {
     for (const arc of storyArcs) {
       for (const node of arc.nodes) {
         if (node.speaker === undefined || node.speaker === PLAYER_SPEAKER) {
           continue;
         }
+        // A speaker is either an authored person or an authored
+        // machine; either way the line has a face beside it.
         expect(
-          castVisual(node.speaker),
+          resolveSpeakerPortrait(node).kind,
           `arc "${arc.id}" node "${node.id}" speaker "${node.speaker}"`,
-        ).toBeDefined();
+        ).not.toBe("unlisted");
       }
     }
   });

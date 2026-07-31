@@ -6,6 +6,8 @@ import {
 } from "../character";
 import { composedCharacterKey } from "../iso/art/layers";
 import { DRONE_ART } from "../iso/art/drone";
+import { MECH_ART } from "../iso/art/mech";
+import { requireAbility } from "./abilities";
 import { ENHANCEMENT_SLOTS } from "../inventory/items";
 import {
   enemies,
@@ -66,13 +68,15 @@ describe("enemy chassis", () => {
 describe("sprite kinds", () => {
   it("every archetype declares which art system draws it", () => {
     for (const enemy of enemies) {
-      expect(["humanoid", "drone"], enemy.id).toContain(enemy.spriteKind);
+      expect(["humanoid", "drone", "mech"], enemy.id).toContain(
+        enemy.spriteKind,
+      );
     }
   });
 
   it("the roster fights both people and things that never were", () => {
     expect(new Set(enemies.map((e) => e.spriteKind))).toEqual(
-      new Set(["humanoid", "drone"]),
+      new Set(["humanoid", "drone", "mech"]),
     );
   });
 
@@ -85,6 +89,57 @@ describe("sprite kinds", () => {
     // callers never branch on the kind to count faces.
     expect(enemyLookCount(drone)).toBe(1);
     expect(enemyLook(drone, 0)).toBeUndefined();
+  });
+
+  it("a mech archetype names an authored chassis and carries no looks", () => {
+    const mech = requireEnemy("nme-warden-chassis");
+    expect(mech.spriteKind).toBe("mech");
+    if (mech.spriteKind !== "mech") return;
+    expect(MECH_ART[mech.mechArt], "the chassis is authored").toBeTruthy();
+    expect(enemyLookCount(mech)).toBe(1);
+    expect(enemyLook(mech, 0)).toBeUndefined();
+  });
+});
+
+/**
+ * Footprints are a plain field on every archetype, not a property of
+ * being a boss — so the roster is checked as a roster: almost everything
+ * stands on one tile, whatever declares more declares something sane,
+ * and the one that does is the one the content says it is.
+ */
+describe("footprints", () => {
+  it("leaves almost everything on the single tile it always stood on", () => {
+    const big = enemies.filter((e) => e.footprint !== undefined);
+    expect(big.map((e) => e.id)).toEqual(["nme-warden-chassis"]);
+  });
+
+  it("declares whole tiles, at least one in each direction", () => {
+    for (const enemy of enemies) {
+      if (!enemy.footprint) continue;
+      const { width, height } = enemy.footprint;
+      for (const [label, value] of [["width", width], ["height", height]] as const) {
+        expect(Number.isInteger(value), `${enemy.id} ${label}`).toBe(true);
+        expect(value, `${enemy.id} ${label}`).toBeGreaterThanOrEqual(1);
+        // Bigger than a 3×3 would not fit the smallest arena with room
+        // to fight around it; nothing has needed one.
+        expect(value, `${enemy.id} ${label}`).toBeLessThanOrEqual(3);
+      }
+    }
+  });
+
+  it("gives the Warden Chassis the 2x2 block its art is drawn over", () => {
+    const warden = requireEnemy("nme-warden-chassis");
+    expect(warden.footprint).toEqual({ width: 2, height: 2 });
+    // A machine, so it sparks out rather than crumpling.
+    expect(warden.chassis).toBe("machine");
+    // And it fights with both of the things its art can swing: a piston
+    // up close and a shoulder battery it announces a turn ahead.
+    expect(warden.abilityIds).toContain("ability-piston-smash");
+    expect(warden.abilityIds).toContain("ability-shoulder-volley");
+    expect(
+      requireAbility("ability-shoulder-volley").windUp,
+      "the volley is telegraphed",
+    ).toBeGreaterThan(0);
   });
 });
 

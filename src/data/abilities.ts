@@ -49,13 +49,34 @@ export interface Ability {
   id: string;
   name: string;
   description: string;
-  /** Maximum Manhattan distance to the target; 1 = melee reach. */
+  /**
+   * Maximum distance to the target, measured block to block — 1 = melee
+   * reach, from whichever tile of the caster is nearest whichever tile
+   * of the target (see src/combat/footprint.ts).
+   */
   range: number;
   /** Turns the ability stays unusable after firing. */
   cooldown: number;
   effect: AbilityEffect;
   /** Tiles it covers around the target; absent hits that tile alone. */
   area?: AbilityArea;
+  /**
+   * Caster turns spent winding this up before it is thrown. Absent (or
+   * 0) resolves on the spot, which is what almost everything does. A
+   * positive count makes the ability *declared* rather than used: the
+   * shape is frozen and marked on the ground at once, and it lands at
+   * the start of the caster's turn this many turns later, on whatever is
+   * standing in it by then. See src/combat/charge.ts — walking out of a
+   * marked lane is the whole answer to a charged attack.
+   */
+  windUp?: number;
+  /**
+   * Which of the caster's attack animations throws this cast, for art
+   * that has more than one (a chassis smashes with a piston and fires
+   * with a shoulder cannon). 0 — its default swing — for everything
+   * else, which is everything with a single authored set.
+   */
+  attackVariant?: number;
   /** The effect archetype this plays as; see src/iso/abilityFx.ts. */
   effectRef: AbilityFxId;
 }
@@ -154,6 +175,41 @@ export const abilities: Ability[] = [
     cooldown: 3,
     effect: { type: "damage", amount: 6, ignoresArmor: true },
     effectRef: "kinetic-slam",
+  },
+  {
+    id: "ability-piston-smash",
+    name: "Piston Smash",
+    description:
+      "Four tonnes of hydraulic arm brought down on a footprint the size " +
+      "of a manhole. The floor takes most of it. You take the rest.",
+    range: 1,
+    cooldown: 2,
+    effect: { type: "damage", amount: 8, ignoresArmor: true },
+    // The deck cracks around the strike; anything pressed in beside the
+    // body it landed on wears the shockwave too.
+    area: { shape: "blast", radius: 1 },
+    effectRef: "kinetic-slam",
+  },
+  {
+    id: "ability-shoulder-volley",
+    name: "Shoulder Volley",
+    description:
+      "The chassis plants, drops its shoulder battery into line, and " +
+      "spends a full turn telling the room exactly where it intends to " +
+      "put the salvo. Everything still standing in that lane when the " +
+      "capacitors dump is downrange.",
+    range: 6,
+    cooldown: 3,
+    effect: { type: "damage", amount: 7 },
+    // One lane, walked from the chassis to the mark it called.
+    area: { shape: "line" },
+    // Called a turn ahead: the ground is marked the instant it plants,
+    // and it fires at the start of its next turn — into the lane, not at
+    // whoever was in it. Reading the floor is the counterplay.
+    windUp: 1,
+    // Thrown by the shoulder battery, not the piston arm.
+    attackVariant: 1,
+    effectRef: "volley-streak",
   },
   {
     id: "ability-bulwark-surge",
