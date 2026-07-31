@@ -9,6 +9,7 @@ import {
   actionAvailability,
   attackPreview,
   movePreview,
+  outcomesFor,
 } from "./preview";
 import { makeCombat, makeCombatant } from "./testSupport";
 import type { CombatActionKind } from "./preview";
@@ -285,5 +286,145 @@ describe("actionAvailability", () => {
     expect(actionAvailabilities(state).map((a) => a.kind)).toEqual([
       ...COMBAT_ACTION_KINDS,
     ]);
+  });
+});
+
+describe("outcomesFor", () => {
+  it("prices a weapon shot as a span, because it can miss", () => {
+    const state = makeCombat([
+      player(),
+      makeCombatant({ id: "thug", position: { x: 3, y: 2 }, armor: 1 }),
+    ]);
+    const [outcome] = outcomesFor(state, { kind: "attack" }, "thug");
+    const option = attackOptions(state).find((o) => o.targetId === "thug");
+    expect(outcome?.primary).toBe(true);
+    expect(outcome?.hitChance).toBe(option?.hitChance);
+    expect(outcome?.damageMax).toBe(option?.damage);
+    // Nothing lands on the turns it misses, and the chip must say so.
+    expect(outcome?.damageMin).toBe(0);
+    expect(outcome?.statuses).toEqual([]);
+  });
+
+  it("prices an ability as a certainty, because it cannot miss", () => {
+    const state = makeCombat([
+      player({ abilityIds: ["ability-shock-dart"] }),
+      makeCombatant({ id: "thug", position: { x: 5, y: 2 }, armor: 1 }),
+    ]);
+    const [outcome] = outcomesFor(
+      state,
+      { kind: "ability", abilityId: "ability-shock-dart" },
+      "thug",
+    );
+    expect(outcome?.hitChance).toBeNull();
+    expect(outcome?.damageMin).toBe(outcome?.damageMax);
+    const effect = requireAbility("ability-shock-dart").effect;
+    expect(outcome?.damageMax).toBe(
+      effect.type === "damage" ? effect.amount - 1 : 0,
+    );
+  });
+
+  it("prices every body an area ability reaches, the aimed one first", () => {
+    const state = makeCombat([
+      player({ abilityIds: ["ability-stun-strike"] }),
+      makeCombatant({ id: "aimed", position: { x: 3, y: 2 } }),
+      makeCombatant({ id: "beside", position: { x: 3, y: 3 }, armor: 1 }),
+      makeCombatant({ id: "clear", position: { x: 7, y: 7 } }),
+    ]);
+    const outcomes = outcomesFor(
+      state,
+      { kind: "ability", abilityId: "ability-stun-strike" },
+      "aimed",
+    );
+    expect(outcomes.map((o) => o.targetId)).toEqual(["aimed", "beside"]);
+    expect(outcomes.map((o) => o.primary)).toEqual([true, false]);
+    // Armor is read per body, not once for the whole blast.
+    expect(outcomes[0]?.damageMax).toBe(2);
+    expect(outcomes[1]?.damageMax).toBe(1);
+    for (const outcome of outcomes) {
+      expect(outcome.statuses, outcome.targetId).toEqual([
+        { kind: "stun", turns: 1 },
+      ]);
+    }
+  });
+
+  it("prices a self-boost as the boost it grants, aimed at nobody else", () => {
+    const state = makeCombat([
+      player({ abilityIds: ["ability-combat-focus"] }),
+      makeCombatant({ id: "thug", position: { x: 3, y: 2 } }),
+    ]);
+    const intent = { kind: "ability", abilityId: "ability-combat-focus" } as const;
+    expect(outcomesFor(state, intent, "thug")).toEqual([]);
+    const [outcome] = outcomesFor(state, intent, "player");
+    expect(outcome?.damageMax).toBe(0);
+    expect(outcome?.statuses).toEqual([
+      { kind: "boost", stat: "reflexes", amount: 2, turns: 2 },
+    ]);
+  });
+
+  it("prices nothing the engine would refuse", () => {
+    const far = makeCombatant({ id: "far", position: { x: 7, y: 7 } });
+    const near = makeCombatant({ id: "near", position: { x: 3, y: 2 } });
+    // Out of the weapon's reach.
+    expect(
+      outcomesFor(makeCombat([player(), far]), { kind: "attack" }, "far"),
+    ).toEqual([]);
+    // The turn's action already spent.
+    expect(
+      outcomesFor(
+        makeCombat([player(), near], { actionUsed: true }),
+        { kind: "attack" },
+        "near",
+      ),
+    ).toEqual([]);
+    // An ability the actor does not carry, and one still cooling down.
+    expect(
+      outcomesFor(
+        makeCombat([player(), near]),
+        { kind: "ability", abilityId: "ability-shock-dart" },
+        "near",
+      ),
+    ).toEqual([]);
+    expect(
+      outcomesFor(
+        makeCombat([
+          player({
+            abilityIds: ["ability-shock-dart"],
+            cooldowns: { "ability-shock-dart": 1 },
+          }),
+          near,
+        ]),
+        { kind: "ability", abilityId: "ability-shock-dart" },
+        "near",
+      ),
+    ).toEqual([]);
+    // And nothing at all once the fight is over.
+    expect(
+      outcomesFor(
+        makeCombat([player(), near], { status: "victory" }),
+        { kind: "attack" },
+        "near",
+      ),
+    ).toEqual([]);
+  });
+
+  it("is the one source the action bar's own figures come from", () => {
+    // abilityPreviews feeds the tooltips; if it ever stops reading
+    // outcomesFor, a chip and a tooltip can disagree about one aim.
+    const state = makeCombat([
+      player({ abilityIds: ["ability-stun-strike"] }),
+      makeCombatant({ id: "aimed", position: { x: 3, y: 2 } }),
+      makeCombatant({ id: "beside", position: { x: 3, y: 3 } }),
+    ]);
+    const preview = abilityPreviews(state).find(
+      (p) => p.abilityId === "ability-stun-strike",
+    );
+    const outcomes = outcomesFor(
+      state,
+      { kind: "ability", abilityId: "ability-stun-strike" },
+      "aimed",
+    );
+    expect(preview?.bodies).toBe(outcomes.length);
+    expect(preview?.damage).toBe(outcomes[0]?.damageMax);
+    expect(preview?.stunTurns).toBe(1);
   });
 });

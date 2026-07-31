@@ -6,6 +6,11 @@
 export { takeAction } from "./actions";
 export { chooseEnemyAction, runEnemyTurns } from "./ai";
 export {
+  abilityAreaTiles,
+  abilityImpact,
+  areaTiles,
+} from "./area";
+export {
   BASE_FLEE_CHANCE,
   BASE_HIT_CHANCE,
   CRITICAL_DAMAGE_SHARE,
@@ -13,6 +18,7 @@ export {
   RANGED_RANGE,
   UNARMED_WEAPON,
   abilityDamage,
+  abilityHit,
   attackDamage,
   attackStatKey,
   damageBonus,
@@ -21,6 +27,7 @@ export {
   isCriticalBlow,
   isGlancingBlow,
   weaponRange,
+  type AbilityHit,
 } from "./damage";
 export { inBounds, isOccupied, manhattan, moveSpeed } from "./grid";
 export {
@@ -43,13 +50,31 @@ export {
   actionAvailability,
   attackPreview,
   movePreview,
+  outcomesFor,
   type AbilityPreview,
   type ActionAvailability,
   type ActionBlockReason,
   type AttackPreview,
   type CombatActionKind,
   type MovePreview,
+  type OutcomePreview,
+  type OutcomeStatus,
+  type PreviewIntent,
 } from "./preview";
+export {
+  TELEGRAPH_REASONS,
+  TELEGRAPH_ROLES,
+  resolveTelegraphTiles,
+  telegraphField,
+  telegraphHover,
+  telegraphTargetAt,
+  telegraphTiles,
+  type TelegraphHover,
+  type TelegraphIntent,
+  type TelegraphReason,
+  type TelegraphRole,
+  type TelegraphTile,
+} from "./telegraph";
 export { PLAYER_COMBATANT_ID, createCombat } from "./setup";
 export {
   activeCombatant,

@@ -1,4 +1,5 @@
 import type { StatKey } from "../character/stats";
+import type { AbilityEffect } from "../data/abilities";
 import type { RangeType } from "../inventory/items";
 import type { CombatWeapon } from "./types";
 
@@ -105,6 +106,28 @@ export function abilityDamage(
   ignoresArmor: boolean,
 ): number {
   return Math.max(1, amount - (ignoresArmor ? 0 : targetArmor));
+}
+
+/** What an offensive ability does to one body it reaches. */
+export interface AbilityHit {
+  damage: number;
+  /** Turns the body loses; 0 when the ability never stuns. */
+  stunTurns: number;
+}
+
+/**
+ * The one place an ability's effect on a body is worked out. The engine
+ * applies exactly this, the legal-option queries quote exactly this, and
+ * the grid telegraph previews exactly this — so a figure on a chip is
+ * the figure that will land. A boost has no per-body figures and comes
+ * back as nothing.
+ */
+export function abilityHit(effect: AbilityEffect, targetArmor: number): AbilityHit {
+  if (effect.type !== "damage") return { damage: 0, stunTurns: 0 };
+  return {
+    damage: abilityDamage(effect.amount, targetArmor, effect.ignoresArmor ?? false),
+    stunTurns: effect.stunTurns ?? 0,
+  };
 }
 
 /** Chance to escape: player Reflexes vs the living enemies' average. */

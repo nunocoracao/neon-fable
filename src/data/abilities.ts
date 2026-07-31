@@ -25,6 +25,26 @@ export type AbilityEffect =
     }
   | { type: "boost"; stat: StatKey; amount: number; turns: number };
 
+/**
+ * How far an ability spreads past the body it was aimed at. Absent means
+ * it touches exactly that body's tile. Everything hostile standing on a
+ * covered tile takes the ability's whole effect — damage and stun alike —
+ * so a shape is the entire promise the telegraph makes.
+ *
+ * Shapes are resolved once, in src/combat/area.ts, and read by both the
+ * engine (which damages exactly those bodies) and the grid telegraph
+ * (which tints exactly those tiles).
+ */
+export type AbilityArea =
+  /** A Manhattan disc centered on the target's tile. Radius 0 = one tile. */
+  | { shape: "blast"; radius: number }
+  /**
+   * Every tile the shot crosses between caster and target, target
+   * included: the lane, walked dominant-axis-first — the same rule the
+   * arena moves and paths everything else by.
+   */
+  | { shape: "line" };
+
 export interface Ability {
   id: string;
   name: string;
@@ -34,6 +54,8 @@ export interface Ability {
   /** Turns the ability stays unusable after firing. */
   cooldown: number;
   effect: AbilityEffect;
+  /** Tiles it covers around the target; absent hits that tile alone. */
+  area?: AbilityArea;
   /** The effect archetype this plays as; see src/iso/abilityFx.ts. */
   effectRef: AbilityFxId;
 }
@@ -44,10 +66,13 @@ export const abilities: Ability[] = [
     name: "Stun Strike",
     description:
       "A crackling overhead blow that scrambles nerves and servos alike, " +
-      "dropping the target out of the fight for a beat.",
+      "dropping the target out of the fight for a beat. The discharge " +
+      "jumps to anything pressed in beside them.",
     range: 1,
     cooldown: 3,
     effect: { type: "damage", amount: 2, stunTurns: 1 },
+    // The arc earths itself through whoever is standing too close.
+    area: { shape: "blast", radius: 1 },
     effectRef: "shock-arc",
   },
   {
@@ -110,10 +135,13 @@ export const abilities: Ability[] = [
     name: "Overclock Burst",
     description:
       "A trained micro-seizure of the reflex chain: three shots downrange " +
-      "in the time most people spend deciding to flinch.",
+      "in the time most people spend deciding to flinch. Everything in " +
+      "the lane is downrange.",
     range: 5,
     cooldown: 3,
     effect: { type: "damage", amount: 5 },
+    // Three rounds walked down one lane; nobody standing in it is spared.
+    area: { shape: "line" },
     effectRef: "volley-streak",
   },
   {

@@ -10,17 +10,21 @@ import {
   isAlive,
   isGlancingBlow,
   itemOptions,
-  manhattanPath,
+  playerCombatant,
   reachableTiles,
   resolveCombat,
   runEnemyTurns,
   takeAction,
+  telegraphHover,
+  telegraphTargetAt,
+  telegraphTiles,
   type CombatAction,
   type CombatActionKind,
   type Combatant,
   type CombatEvent,
   type CombatState,
   type GridPosition,
+  type TelegraphIntent,
 } from "../combat";
 import { defaultAppearance } from "../character";
 import { emptyEquipment } from "../inventory";
@@ -52,16 +56,21 @@ import {
   actionButtons,
   initiativeChips,
   targetCard,
+  telegraphChip,
+  telegraphTileViews,
   type ActionButton,
   type InitiativeChip,
   type TargetCard,
+  type TelegraphChip,
 } from "./combatHud";
 import {
   createActionBar,
   createInitiativeRail,
   createTargetCard,
+  createTelegraphChip,
   type HudView,
   type InitiativeRailModel,
+  type TelegraphChipAnchor,
 } from "./combatHudView";
 import { enemyDeathStyle, enemySpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
@@ -157,6 +166,14 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
    * put something in the card, not leave a gap where one goes.
    */
   let hoverTargetId: string | null = null;
+  /**
+   * The tile under the pointer and where the pointer is on screen. The
+   * telegraph is recomputed from these on every sync, so the tints and
+   * the outcome chip follow the fight as it changes under a still
+   * cursor — not only when the cursor moves.
+   */
+  let hoverTile: GridPosition | null = null;
+  let hoverAt: { x: number; y: number } | null = null;
 
   let topBar: HTMLElement | null = null;
   let logEl: HTMLElement | null = null;
@@ -168,6 +185,10 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
   let rail: HudView<InitiativeRailModel> | null = null;
   let actionBar: HudView<readonly ActionButton[]> | null = null;
   let targetCardView: HudView<TargetCard | null> | null = null;
+  let telegraphChipView: HudView<{
+    chip: TelegraphChip | null;
+    at: TelegraphChipAnchor | null;
+  }> | null = null;
 
   function nameOf(id: string): string {
     return displayNames[id] ?? getCombatant(combat!, id)?.name ?? id;
@@ -429,33 +450,50 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     }
   }
 
-  function targetTiles(): TilePoint[] {
-    if (!combat || !playerCanAct()) return [];
-    if (mode.kind === "attack") {
-      return attackOptions(combat)
-        .map((o) => getCombatant(combat!, o.targetId)?.position)
-        .filter((p): p is GridPosition => p !== undefined);
+  /**
+   * The open action, as the telegraph reads it. An ability with no
+   * ability picked yet telegraphs nothing — there is no reach to show
+   * until the player has said which one.
+   */
+  function telegraphIntent(): TelegraphIntent {
+    if (!playerCanAct()) return { kind: "none" };
+    switch (mode.kind) {
+      case "move":
+        return { kind: "move" };
+      case "attack":
+        return { kind: "attack" };
+      case "ability":
+        return mode.abilityId === null
+          ? { kind: "none" }
+          : { kind: "ability", abilityId: mode.abilityId };
+      default:
+        return { kind: "none" };
     }
-    if (mode.kind === "ability" && mode.abilityId !== null) {
-      const abilityId = mode.abilityId;
-      const option = abilityOptions(combat).find(
-        (o) => o.abilityId === abilityId,
-      );
-      return (option?.targets ?? [])
-        .map((t) => getCombatant(combat!, t.targetId)?.position)
-        .filter((p): p is GridPosition => p !== undefined);
-    }
-    return [];
   }
 
+  /**
+   * Repaints every telegraph layer from the open intent and whatever
+   * the pointer is over: the tinted tiles, the dotted walk, and the
+   * outcome chip. One pass — the engine resolves all three from the
+   * same hover, so they can never describe different tiles.
+   */
   function refreshHighlights(): void {
     if (!scene || !combat) return;
+    const intent = telegraphIntent();
+    const hover =
+      hoverTile === null ? null : telegraphHover(combat, intent, hoverTile);
     scene.setHighlights({
-      reachable:
-        playerCanAct() && mode.kind === "move" ? reachableTiles(combat) : [],
-      targets: targetTiles(),
-      path: [],
-      hover: null,
+      tiles: telegraphTileViews(telegraphTiles(combat, intent, hover)),
+      // Drawn from the walker's own feet through the previewed steps.
+      pathLine:
+        hover && hover.path.length > 0
+          ? [playerCombatant(combat).position, ...hover.path]
+          : [],
+      hover: hoverTile,
+    });
+    telegraphChipView?.update({
+      chip: telegraphChip(combat, intent, hover, displayNames),
+      at: hoverAt,
     });
   }
 
@@ -756,31 +794,17 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     }
   }
 
-  function onTileHover(tile: TilePoint | null): void {
+  function onTileHover(
+    tile: TilePoint | null,
+    at: { x: number; y: number } | null,
+  ): void {
     if (!scene || !combat) return;
+    hoverTile = tile === null ? null : { x: tile.x, y: tile.y };
+    hoverAt = at;
     // Pointing anywhere in the arena inspects whoever is standing there,
     // in or out of a targeting mode — the card is how you read a body.
-    inspect(
-      tile === null
-        ? null
-        : combat.combatants.find(
-            (c) =>
-              isAlive(c) && c.position.x === tile.x && c.position.y === tile.y,
-          )?.id ?? null,
-    );
-    if (!playerCanAct() || mode.kind !== "move" || tile === null) {
-      scene.setHighlights({ hover: tile, path: [] });
-      return;
-    }
-    const reachable = reachableTiles(combat).some(
-      (t) => t.x === tile.x && t.y === tile.y,
-    );
-    const player = getCombatant(combat, PLAYER_COMBATANT_ID);
-    scene.setHighlights({
-      hover: tile,
-      path:
-        reachable && player ? manhattanPath(player.position, tile) : [],
-    });
+    inspect(telegraphTargetAt(combat, hoverTile));
+    refreshHighlights();
   }
 
   function onKeyDown(event: KeyboardEvent): void {
@@ -1030,6 +1054,9 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       });
       root.append(targetCardView.el);
 
+      telegraphChipView = createTelegraphChip();
+      root.append(telegraphChipView.el);
+
       bottomBar = document.createElement("div");
       bottomBar.className = "nf-combat-bottom";
       statusEl = document.createElement("div");
@@ -1061,6 +1088,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       logEl?.remove();
       bottomBar?.remove();
       targetCardView?.el.remove();
+      telegraphChipView?.el.remove();
       overlayEl?.remove();
       topBar = null;
       logEl = null;
@@ -1072,7 +1100,10 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       rail = null;
       actionBar = null;
       targetCardView = null;
+      telegraphChipView = null;
       hoverTargetId = null;
+      hoverTile = null;
+      hoverAt = null;
       if (root) {
         root.style.pointerEvents = "";
         root = null;

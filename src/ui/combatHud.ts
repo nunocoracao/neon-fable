@@ -11,14 +11,28 @@ import {
   manhattan,
   movePreview,
   playerCombatant,
+  resolveTelegraphTiles,
   type AbilityPreview,
   type ActionBlockReason,
   type CombatActionKind,
   type CombatState,
   type Combatant,
+  type OutcomePreview,
+  type OutcomeStatus,
+  type TelegraphHover,
+  type TelegraphIntent,
+  type TelegraphReason,
+  type TelegraphRole,
+  type TelegraphTile,
 } from "../combat";
 import { getAbility, getItem } from "../data";
-import { STATUS_MARKERS, statusFamilies, type StatusFamilyId } from "../iso";
+import {
+  STATUS_MARKERS,
+  statusFamilies,
+  type StatusFamilyId,
+  type TelegraphTileView,
+  type TelegraphTintId,
+} from "../iso";
 import type { ActionIconId } from "../iso/art/actionIcons";
 import { percentLabel } from "./format";
 
@@ -255,7 +269,10 @@ export function abilityTooltipLine(preview: AbilityPreview): string {
     return `${name} — nothing within ${preview.range}`;
   }
   const stun = preview.stunTurns > 0 ? ` · stuns ${preview.stunTurns}` : "";
-  return `${name} — ${preview.damage} dmg${stun}`;
+  // An area ability says how many bodies its best aim catches, so the
+  // reason to line enemies up is legible before you go aiming it.
+  const bodies = preview.bodies > 1 ? ` · hits ${preview.bodies}` : "";
+  return `${name} — ${preview.damage} dmg${stun}${bodies}`;
 }
 
 /** Conditions the HUD applies on top of the engine's own availability. */
@@ -368,4 +385,178 @@ export function targetCard(
 /** "HP 12/18" — the same reading on a chip, a card, and the status row. */
 export function hpLabel(hp: number, maxHp: number): string {
   return `HP ${Math.max(0, hp)}/${maxHp}`;
+}
+
+/* --- Grid telegraph -------------------------------------------------- */
+
+/**
+ * Engine tile roles to the tints the scene paints. Two vocabularies
+ * meet here on purpose: the combat layer names *why* a tile is lit and
+ * the iso layer names *how* it looks, and neither imports the other.
+ * The table is exhaustive both ways, and a test pins that.
+ */
+export const TELEGRAPH_TINT_BY_ROLE: Readonly<
+  Record<TelegraphRole, TelegraphTintId>
+> = {
+  origin: "origin",
+  reach: "reach",
+  range: "range",
+  path: "path",
+  impact: "impact",
+  denied: "denied",
+};
+
+/** Engine-tinted tiles as the scene wants them, overlaps already settled. */
+export function telegraphTileViews(
+  tiles: readonly TelegraphTile[],
+): TelegraphTileView[] {
+  return resolveTelegraphTiles(tiles).map((tile) => ({
+    x: tile.x,
+    y: tile.y,
+    tint: TELEGRAPH_TINT_BY_ROLE[tile.role],
+  }));
+}
+
+/** Why a hovered tile was refused, in words. */
+export function telegraphReasonText(reason: TelegraphReason): string {
+  switch (reason) {
+    case "combat-over":
+      return "The fight is over.";
+    case "not-your-turn":
+      return "Not your turn.";
+    case "action-used":
+      return "No AP — this turn's action is spent.";
+    case "off-grid":
+      return "Outside the arena.";
+    case "no-steps":
+      return "No steps left this turn.";
+    case "same-tile":
+      return "You are already standing here.";
+    case "occupied":
+      return "Someone is standing here.";
+    case "out-of-range":
+      return "Out of range.";
+    case "no-target":
+      return "Nothing to hit here.";
+    case "on-cooldown":
+      return "Still cooling down.";
+    case "self-only":
+      return "This one only ever hits you.";
+  }
+}
+
+/** Damage as the span it can land in: one figure when nothing can miss. */
+export function damageRangeLabel(min: number, max: number): string {
+  return min === max ? `${max} dmg` : `${min}–${max} dmg`;
+}
+
+/** One condition an outcome would apply, in words. */
+export function outcomeStatusLabel(status: OutcomeStatus): string {
+  return status.kind === "stun"
+    ? `stuns ${status.turns}`
+    : `+${status.amount} ${status.stat} for ${status.turns} turns`;
+}
+
+/** One body's line on the outcome chip. */
+export interface TelegraphOutcomeLine {
+  combatantId: string;
+  name: string;
+  /** True for the body actually aimed at; the rest are caught by area. */
+  primary: boolean;
+  /** "62% to hit · 0–5 dmg · stuns 1" — the engine's own figures. */
+  text: string;
+}
+
+/**
+ * The chip that hangs off the cursor: what the hovered tile would cost
+ * or do, or the reason it would do nothing. Null when there is nothing
+ * to say — no intent open, or the pointer is off the arena entirely.
+ */
+export interface TelegraphChip {
+  /** "Move", the weapon's name, or the ability's. */
+  title: string;
+  /** The move's cost line; empty for aimed actions. */
+  cost: string | null;
+  /** One line per body the action would reach; empty for a refusal. */
+  outcomes: TelegraphOutcomeLine[];
+  /** Why it was refused, or null when the hover is legal. */
+  denial: string | null;
+}
+
+/**
+ * The outcome chip for one hover. Every figure on it comes from
+ * outcomesFor — the same function the action bar's tooltips are built
+ * from — so the chip under the cursor and the tooltip on the button
+ * quote one set of numbers, never two.
+ */
+export function telegraphChip(
+  state: CombatState,
+  intent: TelegraphIntent,
+  hover: TelegraphHover | null,
+  names: Readonly<Record<string, string>> = {},
+): TelegraphChip | null {
+  if (!hover || intent.kind === "none") return null;
+  const title = telegraphTitle(state, intent);
+  if (!hover.valid) {
+    if (hover.reason === null) return null;
+    return {
+      title,
+      cost: null,
+      outcomes: [],
+      denial: telegraphReasonText(hover.reason),
+    };
+  }
+  if (intent.kind === "move") {
+    const steps = hover.cost ?? 0;
+    const left = hover.stepsLeft ?? 0;
+    return {
+      title,
+      cost:
+        `${steps} step${steps === 1 ? "" : "s"} · ` +
+        `${left} left after`,
+      outcomes: [],
+      denial: null,
+    };
+  }
+  return {
+    title,
+    cost: null,
+    outcomes: hover.outcomes.map((outcome) => ({
+      combatantId: outcome.targetId,
+      name:
+        names[outcome.targetId] ??
+        getCombatant(state, outcome.targetId)?.name ??
+        outcome.targetId,
+      primary: outcome.primary,
+      text: outcomeText(outcome),
+    })),
+    denial: null,
+  };
+}
+
+/** What the chip is about: the action, named as the player selected it. */
+function telegraphTitle(state: CombatState, intent: TelegraphIntent): string {
+  switch (intent.kind) {
+    case "none":
+      return "";
+    case "move":
+      return "Move";
+    case "attack":
+      return activeCombatant(state).weapon.name;
+    case "ability":
+      return getAbility(intent.abilityId)?.name ?? intent.abilityId;
+  }
+}
+
+/** One outcome's figures, in the order a player reads them. */
+function outcomeText(outcome: OutcomePreview): string {
+  const parts: string[] = [];
+  if (outcome.hitChance !== null) {
+    parts.push(`${percentLabel(outcome.hitChance)} to hit`);
+  }
+  if (outcome.damageMax > 0) {
+    parts.push(damageRangeLabel(outcome.damageMin, outcome.damageMax));
+  }
+  parts.push(...outcome.statuses.map(outcomeStatusLabel));
+  return parts.length > 0 ? parts.join(" · ") : "no effect";
 }

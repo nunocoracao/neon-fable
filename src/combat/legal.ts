@@ -1,6 +1,6 @@
 import { requireAbility } from "../data/abilities";
 import {
-  abilityDamage,
+  abilityHit,
   attackDamage,
   attackStatKey,
   fleeChance,
@@ -114,7 +114,6 @@ export function abilityOptions(state: CombatState): AbilityOption[] {
           : [],
       };
     }
-    const { amount, ignoresArmor, stunTurns } = ability.effect;
     const targets = ready
       ? state.combatants
           .filter(
@@ -125,8 +124,7 @@ export function abilityOptions(state: CombatState): AbilityOption[] {
           )
           .map((target) => ({
             targetId: target.id,
-            damage: abilityDamage(amount, target.armor, ignoresArmor ?? false),
-            stunTurns: stunTurns ?? 0,
+            ...abilityHit(ability.effect, target.armor),
           }))
       : [];
     return { abilityId, cooldown, ready, selfTarget: false, targets };

@@ -194,7 +194,20 @@ export {
   type CombatSceneEntity,
   type CombatSceneOptions,
   type HitFxOptions,
+  type TelegraphTileView,
 } from "./combatScene";
+export {
+  DEFAULT_TELEGRAPH_PALETTE,
+  TELEGRAPH_PAINT_ORDER,
+  TELEGRAPH_PALETTES,
+  TELEGRAPH_PALETTE_IDS,
+  TELEGRAPH_PATH_LINE,
+  TELEGRAPH_TINT_IDS,
+  telegraphStyle,
+  type TelegraphPaletteId,
+  type TelegraphStyle,
+  type TelegraphTintId,
+} from "./telegraphPalette";
 export {
   POPUP_BADGE_IDS,
   POPUP_KINDS,

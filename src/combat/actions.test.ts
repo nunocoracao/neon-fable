@@ -507,3 +507,125 @@ describe("end-turn and rounds", () => {
     expect(player.cooldowns["ability-crush"]).toBe(1);
   });
 });
+
+describe("area abilities", () => {
+  /** A player with the arc, two enemies pressed together, one clear. */
+  function crowd(): CombatState {
+    return makeCombat([
+      makeCombatant({
+        id: "player",
+        kind: "player",
+        position: { x: 1, y: 1 },
+        abilityIds: ["ability-stun-strike"],
+      }),
+      makeCombatant({ id: "aimed", position: { x: 2, y: 1 } }),
+      makeCombatant({ id: "beside", position: { x: 3, y: 1 } }),
+      makeCombatant({ id: "clear", position: { x: 6, y: 6 } }),
+    ]);
+  }
+
+  it("damages and stuns everyone the shape covers, not only the aim", () => {
+    const state = takeAction(crowd(), {
+      type: "use-ability",
+      abilityId: "ability-stun-strike",
+      targetId: "aimed",
+    });
+    // Stun Strike is a blast of radius 1: the tile beside the aim is in.
+    expect(getCombatant(state, "aimed")!.hp).toBe(18);
+    expect(getCombatant(state, "beside")!.hp).toBe(18);
+    expect(getCombatant(state, "aimed")!.stunTurns).toBe(1);
+    expect(getCombatant(state, "beside")!.stunTurns).toBe(1);
+    // And a body outside the shape is untouched.
+    expect(getCombatant(state, "clear")!.hp).toBe(20);
+    expect(getCombatant(state, "clear")!.stunTurns).toBe(0);
+  });
+
+  it("logs one blow per body, the aimed one first", () => {
+    const state = takeAction(crowd(), {
+      type: "use-ability",
+      abilityId: "ability-stun-strike",
+      targetId: "aimed",
+    });
+    const used = state.log.filter((e) => e.type === "ability-used");
+    expect(used.map((e) => (e.type === "ability-used" ? e.targetId : ""))).toEqual([
+      "aimed",
+      "beside",
+    ]);
+  });
+
+  it("still spends one action and one cooldown, however many it caught", () => {
+    const state = takeAction(crowd(), {
+      type: "use-ability",
+      abilityId: "ability-stun-strike",
+      targetId: "aimed",
+    });
+    expect(state.actionUsed).toBe(true);
+    expect(playerCombatant(state).cooldowns["ability-stun-strike"]).toBe(3);
+  });
+
+  it("reports every body it put down", () => {
+    const frail = makeCombat([
+      makeCombatant({
+        id: "player",
+        kind: "player",
+        position: { x: 1, y: 1 },
+        abilityIds: ["ability-stun-strike"],
+      }),
+      makeCombatant({ id: "aimed", hp: 1, position: { x: 2, y: 1 } }),
+      makeCombatant({ id: "beside", hp: 1, position: { x: 3, y: 1 } }),
+    ]);
+    const state = takeAction(frail, {
+      type: "use-ability",
+      abilityId: "ability-stun-strike",
+      targetId: "aimed",
+    });
+    const defeated = state.log
+      .filter((e) => e.type === "defeated")
+      .map((e) => (e.type === "defeated" ? e.combatantId : ""));
+    expect(defeated).toEqual(["aimed", "beside"]);
+    expect(state.status).toBe("victory");
+  });
+
+  it("leaves an ability with no shape hitting exactly what it was aimed at", () => {
+    const state = takeAction(
+      makeCombat([
+        makeCombatant({
+          id: "player",
+          kind: "player",
+          position: { x: 1, y: 1 },
+          abilityIds: ["ability-crush"],
+        }),
+        makeCombatant({ id: "aimed", position: { x: 2, y: 1 } }),
+        makeCombatant({ id: "beside", position: { x: 3, y: 1 } }),
+      ]),
+      { type: "use-ability", abilityId: "ability-crush", targetId: "aimed" },
+    );
+    expect(getCombatant(state, "aimed")!.hp).toBe(13);
+    expect(getCombatant(state, "beside")!.hp).toBe(20);
+  });
+
+  it("spares the caster's own side under its own blast", () => {
+    const state = takeAction(
+      makeCombat([
+        makeCombatant({
+          id: "player",
+          kind: "player",
+          position: { x: 1, y: 1 },
+          abilityIds: ["ability-stun-strike"],
+        }),
+        makeCombatant({
+          id: "ally",
+          kind: "player",
+          position: { x: 2, y: 2 },
+        }),
+        makeCombatant({ id: "aimed", position: { x: 2, y: 1 } }),
+      ]),
+      {
+        type: "use-ability",
+        abilityId: "ability-stun-strike",
+        targetId: "aimed",
+      },
+    );
+    expect(getCombatant(state, "ally")!.hp).toBe(20);
+  });
+});

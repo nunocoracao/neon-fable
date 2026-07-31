@@ -36,6 +36,49 @@ describe("ability content", () => {
   });
 });
 
+describe("what an ability covers", () => {
+  it("gives every shape a size the grid can resolve", () => {
+    for (const ability of abilities) {
+      const area = ability.area;
+      if (!area) continue;
+      // A shape is only a promise if the telegraph can draw it and the
+      // engine can walk it; a negative blast is neither.
+      if (area.shape === "blast") {
+        expect(Number.isInteger(area.radius), ability.id).toBe(true);
+        expect(area.radius, ability.id).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it("never spreads a self buff — an aura has nobody else to reach", () => {
+    for (const ability of abilities) {
+      if (ability.effect.type !== "boost") continue;
+      expect(ability.area, `${ability.id} is a self buff`).toBeUndefined();
+    }
+  });
+
+  it("keeps a lane long enough to be a lane", () => {
+    // A line shape over range 1 covers exactly the tile a blast of
+    // radius 0 would; the shape would be a lie about how it plays.
+    for (const ability of abilities) {
+      if (ability.area?.shape !== "line") continue;
+      expect(ability.range, `${ability.id} lane`).toBeGreaterThan(1);
+    }
+  });
+
+  it("puts an area on the abilities whose descriptions promise one", () => {
+    // Content check, not a rule: these two are the game's area abilities
+    // and the telegraph's own worked examples.
+    expect(requireAbility("ability-stun-strike").area).toEqual({
+      shape: "blast",
+      radius: 1,
+    });
+    expect(requireAbility("ability-overclock-burst").area).toEqual({
+      shape: "line",
+    });
+  });
+});
+
 describe("what an ability looks like", () => {
   it("gives every ability an archetype with timing and art behind it", () => {
     for (const ability of abilities) {

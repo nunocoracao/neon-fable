@@ -1,19 +1,28 @@
 import { describe, expect, it } from "vitest";
 import {
   COMBAT_ACTION_KINDS,
+  TELEGRAPH_REASONS,
+  TELEGRAPH_ROLES,
   movePreview,
+  telegraphHover,
   type CombatActionKind,
 } from "../combat";
 import { makeCombat, makeCombatant } from "../combat/testSupport";
 import { requireAbility } from "../data/abilities";
+import { TELEGRAPH_TINT_IDS } from "../iso";
 import {
+  TELEGRAPH_TINT_BY_ROLE,
   actionButtons,
   actionForHotkey,
   actionHotkey,
   blockReasonText,
+  damageRangeLabel,
   hpLabel,
   initiativeChips,
   targetCard,
+  telegraphChip,
+  telegraphReasonText,
+  telegraphTileViews,
 } from "./combatHud";
 
 /**
@@ -275,5 +284,157 @@ describe("hpLabel", () => {
   it("never reads a body below zero", () => {
     expect(hpLabel(12, 18)).toBe("HP 12/18");
     expect(hpLabel(-4, 18)).toBe("HP 0/18");
+  });
+});
+
+describe("telegraph tint mapping", () => {
+  it("paints every role the engine can produce", () => {
+    // Two vocabularies meet in this table — the combat layer's reasons
+    // and the iso layer's tints. Either drifting silently would leave a
+    // tinted tile painted as undefined.
+    for (const role of TELEGRAPH_ROLES) {
+      const tint = TELEGRAPH_TINT_BY_ROLE[role];
+      expect(TELEGRAPH_TINT_IDS, role).toContain(tint);
+    }
+    expect(Object.keys(TELEGRAPH_TINT_BY_ROLE).sort()).toEqual(
+      [...TELEGRAPH_ROLES].sort(),
+    );
+  });
+
+  it("hands the scene one entry per tile, overlaps already settled", () => {
+    const views = telegraphTileViews([
+      { x: 1, y: 1, role: "reach" },
+      { x: 2, y: 1, role: "reach" },
+      { x: 1, y: 1, role: "path" },
+    ]);
+    expect(views).toHaveLength(2);
+    expect(views.find((v) => v.x === 1 && v.y === 1)?.tint).toBe("path");
+  });
+});
+
+describe("telegraphChip", () => {
+  const at = (x: number, y: number) => ({ x, y });
+
+  it("says nothing at all with no intent open", () => {
+    const state = makeCombat([player(), foe("thug", { position: { x: 3, y: 2 } })]);
+    const hover = telegraphHover(state, { kind: "none" }, at(3, 2));
+    expect(telegraphChip(state, { kind: "none" }, hover)).toBeNull();
+    expect(telegraphChip(state, { kind: "attack" }, null)).toBeNull();
+  });
+
+  it("prices a walk in steps, and what is left after it", () => {
+    const state = makeCombat([player(), foe("thug", { position: { x: 7, y: 7 } })], {
+      moveRemaining: 3,
+    });
+    const intent = { kind: "move" } as const;
+    const chip = telegraphChip(
+      state,
+      intent,
+      telegraphHover(state, intent, at(4, 2)),
+    );
+    expect(chip?.title).toBe("Move");
+    expect(chip?.cost).toBe("2 steps · 1 left after");
+    expect(chip?.denial).toBeNull();
+    expect(chip?.outcomes).toEqual([]);
+  });
+
+  it("counts a single step in the singular", () => {
+    const state = makeCombat([player(), foe("thug", { position: { x: 7, y: 7 } })], {
+      moveRemaining: 3,
+    });
+    const intent = { kind: "move" } as const;
+    expect(
+      telegraphChip(state, intent, telegraphHover(state, intent, at(3, 2)))?.cost,
+    ).toBe("1 step · 2 left after");
+  });
+
+  it("quotes a shot's odds and its span under the weapon's own name", () => {
+    const state = makeCombat([
+      player(),
+      foe("thug", { position: { x: 3, y: 2 }, armor: 1 }),
+    ]);
+    const intent = { kind: "attack" } as const;
+    const chip = telegraphChip(
+      state,
+      intent,
+      telegraphHover(state, intent, at(3, 2)),
+      { thug: "Rustyard Bruiser" },
+    );
+    expect(chip?.title).toBe("Shard Knife");
+    expect(chip?.outcomes).toHaveLength(1);
+    expect(chip?.outcomes[0]?.name).toBe("Rustyard Bruiser");
+    expect(chip?.outcomes[0]?.primary).toBe(true);
+    expect(chip?.outcomes[0]?.text).toContain("to hit");
+    // A weapon can miss, so its damage reads as the span it can land in.
+    expect(chip?.outcomes[0]?.text).toContain("0–4 dmg");
+  });
+
+  it("lists every body an area ability reaches, the aim leading", () => {
+    const state = makeCombat([
+      player({ abilityIds: ["ability-stun-strike"] }),
+      foe("aimed", { position: { x: 3, y: 2 } }),
+      foe("beside", { position: { x: 3, y: 3 } }),
+    ]);
+    const intent = {
+      kind: "ability",
+      abilityId: "ability-stun-strike",
+    } as const;
+    const chip = telegraphChip(
+      state,
+      intent,
+      telegraphHover(state, intent, at(3, 2)),
+      { aimed: "Bruiser", beside: "Runner" },
+    );
+    expect(chip?.title).toBe("Stun Strike");
+    expect(chip?.outcomes.map((o) => o.name)).toEqual(["Bruiser", "Runner"]);
+    expect(chip?.outcomes.map((o) => o.primary)).toEqual([true, false]);
+    // No odds on an ability — it cannot miss, and must not pretend to.
+    for (const outcome of chip?.outcomes ?? []) {
+      expect(outcome.text, outcome.name).not.toContain("to hit");
+      expect(outcome.text, outcome.name).toContain("stuns 1");
+    }
+  });
+
+  it("names a self-boost's own effect rather than a damage figure", () => {
+    const state = makeCombat([player({ abilityIds: ["ability-combat-focus"] })]);
+    const intent = {
+      kind: "ability",
+      abilityId: "ability-combat-focus",
+    } as const;
+    const chip = telegraphChip(
+      state,
+      intent,
+      telegraphHover(state, intent, at(2, 2)),
+      { player: "Vex" },
+    );
+    expect(chip?.outcomes[0]?.text).toBe("+2 reflexes for 2 turns");
+  });
+
+  it("turns a refusal into the one sentence saying what to change", () => {
+    const state = makeCombat([player(), foe("far", { position: { x: 7, y: 7 } })]);
+    const intent = { kind: "attack" } as const;
+    const chip = telegraphChip(
+      state,
+      intent,
+      telegraphHover(state, intent, at(7, 7)),
+    );
+    expect(chip?.denial).toBe("Out of range.");
+    expect(chip?.outcomes).toEqual([]);
+    expect(chip?.cost).toBeNull();
+  });
+
+  it("has words for every reason the engine can give", () => {
+    for (const reason of TELEGRAPH_REASONS) {
+      const text = telegraphReasonText(reason);
+      expect(text.length, reason).toBeGreaterThan(0);
+      expect(text.endsWith("."), reason).toBe(true);
+    }
+  });
+});
+
+describe("damageRangeLabel", () => {
+  it("reads as one figure when nothing can miss, and a span when it can", () => {
+    expect(damageRangeLabel(4, 4)).toBe("4 dmg");
+    expect(damageRangeLabel(0, 4)).toBe("0–4 dmg");
   });
 });
