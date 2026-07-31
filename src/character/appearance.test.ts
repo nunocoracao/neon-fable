@@ -4,6 +4,7 @@ import {
   composeCharacter,
   composeVisual,
   defaultAppearance,
+  outfitDyeRemap,
   presetAppearanceFor,
   randomAppearance,
   randomizeUnlocked,
@@ -30,6 +31,7 @@ import {
   layerArtGrid,
 } from "../iso/art/layers";
 import { cyberArtId, cyberPulseFrames } from "../iso/art/layers/cyberware";
+import { REMAP_CHANNELS } from "../iso/art/palette";
 import { gridErrors } from "../iso/art/pixel";
 import { createRng } from "../state/rng";
 
@@ -857,5 +859,53 @@ describe("composeVisual", () => {
   it("rejects an invalid appearance", () => {
     const broken = { ...defaultAppearance(), hairStyle: "bogus" };
     expect(() => composeVisual({ appearance: broken })).toThrow(/hairStyle/);
+  });
+
+  it("lays a crew dye over the outfit layer's own material remap", () => {
+    const visual: CharacterVisual = {
+      appearance: defaultAppearance(),
+      outfit: "out-spire-suit",
+      outfitDye: { accent: "hazardAmber" },
+    };
+    const plain = composeVisual({ ...visual, outfitDye: undefined });
+    const dyed = composeVisual(visual);
+    const outfitOf = (c: typeof dyed) =>
+      c.layers.find((layer) => layer.slot === "outfit");
+    // Same layer, same art, different colors — and every other layer
+    // untouched, because only cloth is dyed.
+    expect(outfitOf(dyed)?.art).toBe(outfitOf(plain)?.art);
+    expect(outfitOf(dyed)?.remap).not.toEqual(outfitOf(plain)?.remap);
+    expect(dyed.layers.filter((l) => l.slot !== "outfit")).toEqual(
+      plain.layers.filter((l) => l.slot !== "outfit"),
+    );
+  });
+
+  it("keeps the channels a dye does not name", () => {
+    const base: CharacterVisual = {
+      appearance: defaultAppearance(),
+      outfit: "out-cordon-plate",
+    };
+    const plain = composeVisual(base);
+    const dyed = composeVisual({ ...base, outfitDye: { accent: "neonCyan" } });
+    const outfitOf = (c: typeof dyed) =>
+      c.layers.find((layer) => layer.slot === "outfit")?.remap ?? {};
+    const [primaryShade] = REMAP_CHANNELS.outfitPrimary;
+    // The plate's own brushed-chrome cloth survives an accent-only dye.
+    expect(outfitOf(dyed)[primaryShade as string]).toBe(
+      outfitOf(plain)[primaryShade as string],
+    );
+  });
+
+  it("ignores a dye on a look wearing nothing to dye", () => {
+    const bare: CharacterVisual = { appearance: defaultAppearance() };
+    expect(composeVisual({ ...bare, outfitDye: { accent: "neonCyan" } })).toEqual(
+      composeVisual(bare),
+    );
+  });
+
+  it("resolves an empty dye to nothing at all", () => {
+    expect(outfitDyeRemap(undefined)).toBeNull();
+    expect(outfitDyeRemap({})).toBeNull();
+    expect(outfitDyeRemap({ accent: "neonCyan" })).not.toBeNull();
   });
 });

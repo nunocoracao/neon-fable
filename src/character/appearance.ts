@@ -19,7 +19,7 @@ import {
 } from "../iso/art/layers/cyberware";
 import { outfitArtId } from "../iso/art/layers/outfits";
 import { weaponArtId } from "../iso/art/layers/weapons";
-import { REMAP_CHANNELS } from "../iso/art/palette";
+import { REMAP_CHANNELS, type MaterialName } from "../iso/art/palette";
 import {
   ENHANCEMENT_SLOTS,
   type EnhancementSlot,
@@ -167,6 +167,18 @@ export function seededAppearance(seed: number): Appearance {
 }
 
 /**
+ * A recolor of the outfit layer's two material channels, overriding the
+ * ones the worn item declares. This is how one issued coat serves a
+ * whole look family: a crew's colors are the accent channel, a
+ * different cloth is the primary. Absent channels keep the item's own
+ * materials, so a dye that names only an accent leaves the cloth alone.
+ */
+export interface OutfitDye {
+  readonly primary?: MaterialName;
+  readonly accent?: MaterialName;
+}
+
+/**
  * The authored look of a non-player character: an appearance plus the
  * gear item ids drawn on the sprite, resolved exactly like player
  * equipment (outfit layer, held weapon, cyberware overlays). Content
@@ -182,6 +194,12 @@ export interface CharacterVisual {
   outfit?: string;
   /** Installed enhancement item ids per cyber slot, if any. */
   enhancements?: Partial<Record<EnhancementSlot, string>>;
+  /**
+   * Crew colors: overrides the worn outfit's material channels. Only
+   * meaningful with an outfit whose item carries a layer reference —
+   * there is no cloth to dye otherwise.
+   */
+  outfitDye?: OutfitDye;
 }
 
 /**
@@ -198,15 +216,45 @@ export function visualEquipment(visual: CharacterVisual): EquipmentState {
 }
 
 /**
+ * The extra channel remap a dye lays over a resolved outfit layer, or
+ * null when the look wears no crew colors. Shared by the sprite and
+ * portrait paths so a dyed coat is the same color in both.
+ */
+export function outfitDyeRemap(
+  dye: OutfitDye | undefined,
+): Readonly<Record<string, string>> | null {
+  if (!dye || (dye.primary === undefined && dye.accent === undefined)) {
+    return null;
+  }
+  return outfitChannelRemap(dye.primary, dye.accent);
+}
+
+/**
  * Compose a CharacterVisual into the layer engine's render descriptor —
  * the NPC/enemy counterpart of composeCharacter over player state.
+ * A crew dye lands on top of the outfit layer's own material remap, so
+ * the channels it names win and the rest keep the item's colors.
  * Throws AppearanceValidationError on unknown appearance ids.
  */
 export function composeVisual(
   visual: CharacterVisual,
   lookupItem: ItemLookup = getItem,
 ): ComposedCharacter {
-  return composeCharacter(visual.appearance, visualEquipment(visual), lookupItem);
+  const composed = composeCharacter(
+    visual.appearance,
+    visualEquipment(visual),
+    lookupItem,
+  );
+  const dye = outfitDyeRemap(visual.outfitDye);
+  if (!dye) return composed;
+  return {
+    ...composed,
+    layers: composed.layers.map((layer) =>
+      layer.slot === "outfit"
+        ? { ...layer, remap: { ...layer.remap, ...dye } }
+        : layer,
+    ),
+  };
 }
 
 /**

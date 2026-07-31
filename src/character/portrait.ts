@@ -27,7 +27,14 @@ import {
 } from "../iso/art/layers/portrait";
 import { REMAP_CHANNELS } from "../iso/art/palette";
 import { mirrored, type PixelGrid } from "../iso/art/pixel";
-import { validateAppearance, type Appearance, type ItemLookup } from "./appearance";
+import {
+  outfitDyeRemap,
+  validateAppearance,
+  visualEquipment,
+  type Appearance,
+  type CharacterVisual,
+  type ItemLookup,
+} from "./appearance";
 
 /**
  * Portrait composition: the 48×48 head-and-shoulders render derived
@@ -213,6 +220,34 @@ export function resolvePortraitParts(
 }
 
 /**
+ * The portrait layer stack for an authored non-player look — a named
+ * NPC, one record of an enemy archetype's look family. Gear resolves
+ * exactly like player equipment, and a crew dye recolors the shoulder
+ * band the same channels it recolors the sprite's coat, so a look's
+ * portrait and its sprite are never two different outfits.
+ */
+export function resolveVisualPortraitParts(
+  visual: CharacterVisual,
+  expression: ExpressionId = "neutral",
+  lookupItem: ItemLookup = getItem,
+): PortraitPart[] {
+  const parts = resolvePortraitParts(
+    visual.appearance,
+    visualEquipment(visual),
+    expression,
+    lookupItem,
+  );
+  const dye = outfitDyeRemap(visual.outfitDye);
+  if (!dye) return parts;
+  // The head part carries the shoulder band's outfit channels; nothing
+  // else in a portrait is cloth.
+  const [head, ...rest] = parts;
+  return head
+    ? [{ ...head, remap: { ...head.remap, ...dye } }, ...rest]
+    : parts;
+}
+
+/**
  * Compose the portrait for an appearance, equipment, and expression:
  * a 48×48 palette-indexed grid, pure and deterministic. The UI bakes
  * and caches it keyed by portraitKey, exactly like sprite frames.
@@ -244,7 +279,34 @@ export function portraitKey(
   expression: ExpressionId = "neutral",
   lookupItem: ItemLookup = getItem,
 ): string {
-  return resolvePortraitParts(appearance, equipment, expression, lookupItem)
-    .map((part) => `${part.key}${remapKey(part.remap)}`)
-    .join("|");
+  return partsKey(
+    resolvePortraitParts(appearance, equipment, expression, lookupItem),
+  );
+}
+
+function partsKey(parts: readonly PortraitPart[]): string {
+  return parts.map((part) => `${part.key}${remapKey(part.remap)}`).join("|");
+}
+
+/** The 48×48 portrait grid for an authored look, crew dye included. */
+export function composeVisualPortrait(
+  visual: CharacterVisual,
+  expression: ExpressionId = "neutral",
+  lookupItem: ItemLookup = getItem,
+): PixelGrid {
+  return composeGrids(
+    resolveVisualPortraitParts(visual, expression, lookupItem).map(
+      ({ grid, remap }): LayerPart => ({ grid, remap }),
+    ),
+    PORTRAIT_FRAME,
+  );
+}
+
+/** Bake-cache key for an authored look's portrait; see portraitKey. */
+export function visualPortraitKey(
+  visual: CharacterVisual,
+  expression: ExpressionId = "neutral",
+  lookupItem: ItemLookup = getItem,
+): string {
+  return partsKey(resolveVisualPortraitParts(visual, expression, lookupItem));
 }
