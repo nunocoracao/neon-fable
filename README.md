@@ -82,9 +82,15 @@ entry that drops you on the hub map without a character).
   and Act 2 outcomes pick the opening, kept allies open doors and join
   the final battle, betrayed parties come back armed, and an active (or
   suspended) warrant changes how the Auric Spire's gates read you.
-  There are four endings, gated on your cumulative history — including
-  one fully non-combat resolution behind steep stat, enhancement, and
-  ally requirements. After the ending, an epilogue screen tells you
+  Before the tower, one muster call reads the three standings against
+  each other and the city answers it — whichever power counts you
+  highest sends the crowd that is at the crown door an hour later, and
+  a city that cannot agree about you sends nobody.
+  There are seven endings. Four are gated on your cumulative history —
+  including one fully non-combat resolution behind steep stat,
+  enhancement, and ally requirements — and three more open only at
+  **trusted** standing with one of the powers, whatever else the run
+  did. After the ending, an epilogue screen tells you
   what became of each faction and ally; a finished save reopens to that
   epilogue.
 
@@ -285,7 +291,12 @@ A `StoryArc` is a list of nodes; each node has `speaker`, `text`, and
   without carrying one choice per value. A `reputation` requirement
   asks how a faction reads the player — give it a band id
   (`"warm"`), not a number, so a re-tune of what an act outcome is
-  worth never silently moves a door.
+  worth never silently moves a door. A `dominant-faction` requirement
+  asks the other question: whose city this reads as, comparing the
+  three standings rather than testing one (`dominantFaction`, floor
+  `"warm"` by default, ties and an empty field both naming nobody).
+  Author that beat as four choices — one per power plus
+  `factionId: "none"` — and exactly one of them can ever pass.
 - `effects` — `set-flag`, `increment-flag`, `add-item` / `remove-item`,
   `credits` (grants or spends, clamped at zero — gate purchases with a
   `credits` requirement), `start-combat` (launches the encounter, then
@@ -333,6 +344,16 @@ favour, as both side chains do) scales them into standing with
 `scaleStanding(weights, SIDE_CHAIN_STEP)` — write that expression in
 the choice rather than the multiplied literal, so the chain's own
 table stays the one place its outcomes are valued.
+
+Standing is meant to be spent. Band-gated content is authored like any
+other gate (the Market's freight stair into the Exchange at `warm`,
+the Combine's bonded lift at `warm` with a bought alternative for
+everyone else, the boards buying out the Trust's writ at `trusted`),
+and the three trusted dispositions at the founders' keys are the
+ending axis it feeds. When you add one, prove it with a route:
+`factionEndings.walkthrough.test.ts` earns each band the long way,
+because a gate no reachable standing opens is content that does not
+exist.
 
 A node may also carry `comments`: companion asides, each tagged with a
 `companionId` and its own optional `requirements`. The dialogue box
