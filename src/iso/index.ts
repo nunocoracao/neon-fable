@@ -196,6 +196,18 @@ export {
   type SetPieceOptions,
   type TrainRun,
 } from "./setpiece";
+export {
+  FOLLOW_CATCH_UP,
+  FOLLOW_GAP,
+  FOLLOW_SPEED,
+  FOLLOW_TRAIL_LIMIT,
+  createFollowState,
+  isFollowMoving,
+  leaderEntered,
+  stepFollow,
+  type FollowOptions,
+  type FollowState,
+} from "./follow";
 export { createIsoScene, type IsoScene, type IsoSceneOptions } from "./scene";
 export {
   type FocusView,

@@ -12,6 +12,13 @@ import {
 } from "./affordance";
 import { createCrowd, crowdEntities, stepCrowd, type AmbientCrowd } from "./ambient";
 import { facingFromDelta, type Facing } from "./animation";
+import {
+  createFollowState,
+  isFollowMoving,
+  leaderEntered,
+  stepFollow,
+  type FollowState,
+} from "./follow";
 import { hasOpeningArt } from "./art/interactables";
 import { createPixelArtSprites } from "./art/provider";
 import {
@@ -85,9 +92,24 @@ export interface IsoSceneOptions {
    * leaves the map's own declaration in charge. See ./dayPhase.ts.
    */
   dayPhase?: DayPhaseId | null;
+  /**
+   * A companion walking with the player: the sprite id to draw them
+   * under. They trail the player's own steps a couple of tiles back
+   * (see ./follow.ts) and are scenery as far as input is concerned —
+   * nothing picks them, nothing routes around them, and they can
+   * neither block nor trigger an interactable.
+   */
+  followerSpriteId?: string | null;
 }
 
 export interface IsoScene {
+  /**
+   * Take on a companion, swap which one is following, or drop back to
+   * walking alone (null). Somebody joining mid-scene falls in from the
+   * player's own tile rather than sprinting in from the edge of the
+   * map, which is what just happened in the fiction.
+   */
+  setFollower(spriteId: string | null): void;
   /**
    * Move the scene's clock: a story beat's hour, or null to fall back
    * to the map's own. Re-bakes lazily — the provider caches per phase,
@@ -136,6 +158,16 @@ export function createIsoScene(
   let walkProgress = 0;
   /** Interactable to trigger once the walk finishes adjacent to it. */
   let pendingInteractable: Interactable | null = null;
+  /**
+   * The companion walking with the player, if there is one. They start
+   * on the player's own spawn tile — in formation, owing nothing — so
+   * an arrival never opens with somebody sprinting across the map.
+   */
+  let followerSpriteId: string | null = options.followerSpriteId ?? null;
+  let follower: FollowState | null =
+    followerSpriteId != null
+      ? createFollowState({ x: spawn.x, y: spawn.y }, playerFacing)
+      : null;
   /**
    * The interactable playing its opening, and the frame clock it
    * started on — null until the first frame after the request, so the
@@ -346,6 +378,16 @@ export function createIsoScene(
     }
   }
 
+  /**
+   * Moves the companion along the ground the player has covered. The
+   * breadcrumb is dropped from the tile the player is *standing* on, so
+   * the trail is only ever walkable ground.
+   */
+  function stepFollower(dt: number): void {
+    if (!follower) return;
+    follower = stepFollow(leaderEntered(follower, playerTile), dt);
+  }
+
   function stepWalk(dt: number): void {
     if (walkQueue.length === 0) return;
     walkProgress += WALK_SPEED * dt;
@@ -442,6 +484,7 @@ export function createIsoScene(
     const dt = lastTime === null ? 0 : Math.min((time - lastTime) / 1000, 0.1);
     lastTime = time;
     stepWalk(dt);
+    stepFollower(dt);
     resolveFocus();
     const reducedMotion = settings.get().reducedMotion;
     // Reduced motion stills the crowd along with the rest of the
@@ -472,6 +515,19 @@ export function createIsoScene(
           facing: playerFacing,
           moving: walkQueue.length > 0,
         },
+        // The companion rides the same depth-sorted entity list as the
+        // player and the crowd, so they layer correctly walking in
+        // front of or behind anything on the map.
+        ...(follower && followerSpriteId
+          ? [
+              {
+                spriteId: followerSpriteId,
+                position: follower.position,
+                facing: follower.facing,
+                moving: isFollowMoving(follower),
+              },
+            ]
+          : []),
         ...crowdEntities(crowd),
       ],
       // Reduced motion freezes the animation clock: neon flicker, water
@@ -536,6 +592,17 @@ export function createIsoScene(
   rafId = requestAnimationFrame(frame);
 
   return {
+    setFollower(spriteId: string | null): void {
+      if (spriteId === followerSpriteId) return;
+      followerSpriteId = spriteId;
+      // Joining mid-scene: they step out of the player's own tile, in
+      // formation, owing nothing. Leaving: they are simply not drawn.
+      follower =
+        spriteId === null
+          ? null
+          : (follower ?? createFollowState(playerTile, playerFacing));
+    },
+
     setDayPhase(story: DayPhaseId | null): void {
       const next = resolveDayPhase(map, story);
       if (next === dayPhase) return;
