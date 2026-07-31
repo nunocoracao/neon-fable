@@ -45,6 +45,16 @@ export {
   type AbilityHit,
 } from "./damage";
 export {
+  SURGE_ARM_TURNS,
+  SURGE_STUN_TURNS,
+  closeSurgeTurn,
+  isSurgeArmed,
+  openSurgeTurn,
+  pendingSurge,
+  startingSurge,
+  surgeTurnsToArm,
+} from "./surge";
+export {
   chargeImpact,
   isCharged,
   isUnderThreat,
@@ -133,6 +143,7 @@ export {
   combatStat,
   getCombatant,
   isAlive,
+  initiativeScore,
   isHostile,
   isPlayerControlled,
   livingCrew,
@@ -155,4 +166,5 @@ export {
   type CombatantKind,
   type GridPosition,
   type GridSize,
+  type StaticSurge,
 } from "./types";

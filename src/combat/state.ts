@@ -76,6 +76,17 @@ export function livingCrew(state: CombatState): Combatant[] {
   return state.combatants.filter((c) => isPlayerControlled(c) && isAlive(c));
 }
 
+/**
+ * Where a body sits in the initiative order: its Reflexes with any
+ * fixed shift folded in (see Combatant.initiativeMod). The *only* place
+ * a shift is read — steps per turn, hit rolls, and flee odds all go on
+ * asking `combatStat` for plain Reflexes — which is what keeps a
+ * screaming runner slow to the draw and no worse at anything else.
+ */
+export function initiativeScore(combatant: Combatant): number {
+  return combatStat(combatant, "reflexes") + (combatant.initiativeMod ?? 0);
+}
+
 /** A stat with the combatant's active boosts folded in (never below 1). */
 export function combatStat(combatant: Combatant, stat: StatKey): number {
   const boosted = combatant.boosts.reduce(

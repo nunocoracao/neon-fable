@@ -62,6 +62,24 @@ export interface ChargedAction {
 }
 
 /**
+ * The noise a screaming Static band builds over a fight, and the one
+ * discharge it is allowed (see ./surge.ts). Plain data like everything
+ * else on CombatState, and absent entirely on a runner quiet enough
+ * that nothing can build — which is every fight the feature is not
+ * about.
+ */
+export interface StaticSurge {
+  /** Whose chrome this is; the player's, always. */
+  combatantId: string;
+  /** Turns of noise banked so far; it arms at SURGE_ARM_TURNS. */
+  charge: number;
+  /** Armed: it takes the owner's next turn unless they bleed it off. */
+  armed: boolean;
+  /** Gone off, or vented. Either way it never comes back this fight. */
+  spent: boolean;
+}
+
+/**
  * A participant. Player stats/gear are snapshotted from GameState at setup
  * (via effectiveStats and equipment selectors) so combat math never reaches
  * back into inventory; enemies come from src/data/enemies.ts.
@@ -100,6 +118,16 @@ export interface Combatant {
   weapon: CombatWeapon;
   armor: number;
   abilityIds: string[];
+  /**
+   * A fixed shift applied to this body's place in the initiative order,
+   * and to nothing else. Absent on almost everything; the player picks
+   * one up from a screaming Static band (see src/data/static.ts), which
+   * is the whole of that band's effect on the fight's *ordering* — the
+   * stat itself is untouched, so steps per turn and every roll that
+   * reads Reflexes stay exactly where they were. Chance-free by
+   * construction: the same loadout always falls the same distance.
+   */
+  initiativeMod?: number;
   /** The block's minimum-x, minimum-y tile (see ./footprint.ts). */
   position: GridPosition;
   /**
@@ -179,6 +207,29 @@ export type CombatEvent =
       /** Bodies the frozen shape actually caught; 0 is a clean dodge. */
       bodies: number;
     }
+  | {
+      /**
+       * The chrome has banked as much noise as it can hold. One turn of
+       * warning: this is the turn the player has to bleed it off.
+       */
+      type: "static-armed";
+      combatantId: string;
+    }
+  | {
+      /** Bled off by holding still — the noise goes, the turn is kept. */
+      type: "static-vented";
+      combatantId: string;
+    }
+  | {
+      /**
+       * It went off. The stun follows as the ordinary `stun-skipped`
+       * entry the turn loop already writes, so a surge costs a turn in
+       * exactly the way every other stun does.
+       */
+      type: "static-surge";
+      combatantId: string;
+      stunTurns: number;
+    }
   | { type: "item-used"; combatantId: string; itemId: string }
   | { type: "healed"; combatantId: string; amount: number }
   | {
@@ -208,6 +259,13 @@ export interface CombatState {
   rng: RngState;
   status: CombatStatus;
   fleeable: boolean;
+  /**
+   * The player's cyberware noise building toward its one discharge, or
+   * absent when their Static band is quiet enough that nothing builds.
+   * Optional so a fight saved before Static existed loads as exactly
+   * what it was: a fight where nothing was going to go off.
+   */
+  surge?: StaticSurge | null;
   /** Consumables spent, removed from the inventory when combat resolves. */
   itemsConsumed: CombatConsumable[];
   log: CombatEvent[];

@@ -11,9 +11,11 @@ import type { ItemResolver } from "../inventory/items";
 import type { GameState } from "../state/gameState";
 import { activeMembers } from "../state/party";
 import { nextFloat, type RngState } from "../state/rng";
+import { staticEffects } from "../inventory/staticLoad";
 import { allyCombatant, allyStartTile } from "./ally";
 import { moveSpeed } from "./grid";
-import { combatStat } from "./state";
+import { combatStat, initiativeScore } from "./state";
+import { openSurgeTurn, startingSurge } from "./surge";
 import {
   type Combatant,
   type CombatConsumable,
@@ -65,6 +67,11 @@ export function createCombat(
 ): CombatState {
   const encounter = requireEncounter(encounterId);
 
+  // What the noise costs, taken once here and carried on the combatant
+  // like every other snapshotted figure — the engine never learns that
+  // Static exists, it simply orders a body that is a step slow.
+  const staticBand = staticEffects(state.player, resolve);
+
   const player: Combatant = {
     id: PLAYER_COMBATANT_ID,
     kind: "player",
@@ -75,6 +82,9 @@ export function createCombat(
     weapon: playerWeapon(state, resolve),
     armor: armorValue(state.player, resolve),
     abilityIds: grantedAbilityIds(state.player, resolve),
+    ...(staticBand.initiativePenalty > 0
+      ? { initiativeMod: -staticBand.initiativePenalty }
+      : {}),
     position: { ...encounter.playerStart },
     boosts: [],
     stunTurns: 0,
@@ -139,7 +149,7 @@ export function createCombat(
   }
   const initiativeOrder = [...combatants]
     .sort((a, b) => {
-      const byReflexes = combatStat(b, "reflexes") - combatStat(a, "reflexes");
+      const byReflexes = initiativeScore(b) - initiativeScore(a);
       if (byReflexes !== 0) return byReflexes;
       const byRoll = tiebreaks.get(b.id)! - tiebreaks.get(a.id)!;
       if (byRoll !== 0) return byRoll;
@@ -154,7 +164,7 @@ export function createCombat(
     { type: "turn-started", combatantId: first.id },
   ];
 
-  return {
+  const opening: CombatState = {
     encounterId,
     grid: { ...encounter.grid },
     combatants,
@@ -166,7 +176,12 @@ export function createCombat(
     rng,
     status: "active",
     fleeable: encounter.fleeable ?? true,
+    surge: startingSurge(state.player, PLAYER_COMBATANT_ID, resolve),
     itemsConsumed: [],
     log,
   };
+  // The opening turn is a turn like any other, so the noise starts
+  // banking on it rather than on the second one — otherwise a player
+  // who wins initiative gets a free turn of quiet for winning it.
+  return openSurgeTurn(opening, first.id);
 }
