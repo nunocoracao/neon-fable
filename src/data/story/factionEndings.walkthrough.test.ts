@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { selectVignettes } from "../../narrative";
+import { fixtureCharacter } from "../../character/testSupport";
+import { availableChoices, selectVignettes } from "../../narrative";
 import {
+  applyStanding,
   bandOf,
+  createNewGame,
   deriveCodex,
   dominantFaction,
   emptyMetaProgress,
+  emptyReputation,
   recordCompletion,
   reputationOf,
   type GameState,
@@ -322,6 +326,49 @@ describe("the standing endings, played end to end", () => {
     expect(state.flags["combat:enc-spire-collectors"]).toBeUndefined();
     expect(state.flags["a3-allies"]).toBe("market");
     expect(vignetteIds(state)).toContain("city-consortium");
+  });
+});
+
+describe("the muster call, on a city that cannot agree", () => {
+  const rally = act3Arc.nodes.find((n) => n.id === "a3-rally")!;
+
+  function offered(standing: Record<string, number>): string[] {
+    const base = createNewGame({ character: fixtureCharacter({}), seed: 5 });
+    const state = {
+      ...base,
+      reputation: applyStanding(emptyReputation(), standing),
+    };
+    return availableChoices(state, rally).map((p) => p.choice.id);
+  }
+
+  it("offers exactly one call, whoever the city has decided you are", () => {
+    // Every road out of the scene, including the one for a run that
+    // never made a friend — the split-city variant is playable, not a
+    // hole the graph falls through.
+    expect(offered({})).toEqual(["rally-none", "rally-wait"]);
+    expect(offered({ court: 62, auric: -70 })).toEqual([
+      "rally-court",
+      "rally-wait",
+    ]);
+    expect(offered({ auric: 65 })).toEqual(["rally-auric", "rally-wait"]);
+    expect(offered({ market: 44, court: 30 })).toEqual([
+      "rally-market",
+      "rally-wait",
+    ]);
+    // Two powers level at the top is the split city too: neither of
+    // them will stand in front of the other for you.
+    expect(offered({ court: 40, market: 40 })).toEqual([
+      "rally-none",
+      "rally-wait",
+    ]);
+  });
+
+  it("leaves the concourse alone once the call has been made", () => {
+    const arrival = act3Arc.nodes.find((n) => n.id === "a3-spire-arrival")!;
+    const call = arrival.choices.find((c) => c.target === "a3-rally")!;
+    expect(call.requirements).toEqual([
+      { type: "flag-unset", key: "a3-allies" },
+    ]);
   });
 });
 
