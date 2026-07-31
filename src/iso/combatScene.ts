@@ -29,6 +29,29 @@ import {
 } from "./animation";
 import { attackSequence, type AttackClassId, type AttackSequence } from "./attack";
 import {
+  IMPACT_FEEL,
+  NO_PAUSES,
+  advancePauses,
+  combinedShakeAt,
+  glideCameraAt,
+  glideDone,
+  hitPauseMs,
+  insertPause,
+  planCameraGlide,
+  resolveCombatFeel,
+  sceneTimeAt,
+  shakeAmplitudePx,
+  shakeDirection,
+  shakeFinished,
+  type CameraGlide,
+  type CombatFeel,
+  type ImpactWeight,
+  type PauseTimeline,
+  type ShakeSource,
+  type TurnPace,
+} from "./cameraFeel";
+import {
+  ATTACK_FX_STYLE,
   effectFrameAt,
   effectSpriteId,
   impactSequence,
@@ -68,6 +91,7 @@ import { createPixelArtSprites } from "./art/provider";
 import {
   cameraTranslation,
   clampCamera,
+  focusCamera,
   mapPixelBounds,
   snapToPixelGrid,
   viewportToWorld,
@@ -157,6 +181,14 @@ export interface HitFxOptions {
    * plays instead of a full flinch.
    */
   glancing?: boolean;
+  /**
+   * What the blow weighed, read off the figures the combat math already
+   * produced (see ../ui/combatFeel.ts). It decides the camera's answer
+   * and nothing else: how long the scene holds on contact, and how hard
+   * it is thrown. Absent reads as a solid hit, or a glance when the
+   * caller said so.
+   */
+  weight?: ImpactWeight;
 }
 
 /** One tinted tile, already resolved to the tint it is painted with. */
@@ -265,6 +297,15 @@ export interface CombatScene {
    * over one column stack rather than overlap.
    */
   popup(request: CombatPopupRequest): void;
+  /**
+   * Frame whoever is about to act: the camera glides to their tile and
+   * eases in, rather than cutting. The AI's turns glide faster than the
+   * player's own (see TurnPace). Does nothing when the arena already
+   * fits the viewport — the target clamps to where the camera is — and
+   * nothing at all when the camera feel is switched off, which leaves
+   * the fixed arena view exactly as it was.
+   */
+  focusOn(entityId: string, options?: { pace?: TurnPace }): void;
   destroy(): void;
 }
 
@@ -465,6 +506,32 @@ export function createCombatScene(
   const telegraphPalette =
     options.telegraphPalette ?? DEFAULT_TELEGRAPH_PALETTE;
 
+  /**
+   * The scene clock's debt: every hit-pause still to be served, and the
+   * raw time already given to the ones behind us. Scene time is the raw
+   * frame timestamp with this taken out (see ./cameraFeel.ts), and every
+   * sequence in the scene — swings, tracers, flinches, readouts — is
+   * scheduled against it, which is what makes a freeze a freeze rather
+   * than a desync.
+   */
+  let pauses: PauseTimeline = NO_PAUSES;
+  /** Kicks in flight; pruned as they decay to nothing. */
+  const shakes: ShakeSource[] = [];
+  /** The reframing in flight, or null when the camera is settled. */
+  let glide: CameraGlide | null = null;
+  /** Which of the three camera effects the player has left switched on. */
+  let feel: CombatFeel = resolveCombatFeel(settings.get());
+
+  /** Follows the feel settings mid-fight, like the weather toggle. */
+  function syncFeel(): void {
+    feel = resolveCombatFeel(settings.get());
+  }
+
+  /** The scene clock right now: raw time, less every pause served. */
+  function now(): number {
+    return sceneTimeAt(pauses, performance.now());
+  }
+
   let viewportW = 0;
   let viewportH = 0;
   let dpr = 1;
@@ -498,6 +565,16 @@ export function createCombatScene(
     ctx!.setTransform(scale, 0, 0, scale, 0, 0);
     // At higher zoom the viewport spans fewer world units.
     camera = clampCamera(camera, bounds, viewportW / zoom, viewportH / zoom);
+    // A reframing in flight was planned against the old viewport; both
+    // of its ends are re-clamped rather than dropped, so a resize (or a
+    // zoom step) mid-glide neither cuts nor sails off the map.
+    if (glide) {
+      glide = {
+        ...glide,
+        from: clampCamera(glide.from, bounds, viewportW / zoom, viewportH / zoom),
+        to: clampCamera(glide.to, bounds, viewportW / zoom, viewportH / zoom),
+      };
+    }
   }
 
   /** Follows the zoom setting mid-fight, like the weather toggle. */
@@ -688,6 +765,51 @@ export function createCombatScene(
   function drawsDead(entity: EntityView, now: number): boolean {
     if (entity.fadeStart > 0) return now - entity.fadeStart < DEATH_FADE_MS;
     return reactions.some((r) => r.entityId === entity.id);
+  }
+
+  /** The class a combatant swings with; bare hands for anything unknown. */
+  function classOf(entity: EntityView): AttackClassId {
+    return sprites.attackClass?.(entity.spriteId) ?? "unarmed";
+  }
+
+  /** Screen-space line from one combatant to another, for the shake. */
+  function lineBetween(
+    from: EntityView | undefined,
+    to: EntityView,
+  ): { x: number; y: number } {
+    if (!from) return shakeDirection(0, 0);
+    const a = worldToScreen(from.visual.x, from.visual.y);
+    const b = worldToScreen(to.visual.x, to.visual.y);
+    return shakeDirection(b.sx - a.sx, b.sy - a.sy);
+  }
+
+  /**
+   * The camera's answer to something landing: hold the scene on the
+   * contact frame, then throw the view along the line the blow came in
+   * on. Both are scheduled on the beat itself rather than on the moment
+   * the caller asked, so a round still in the air freezes nothing — and
+   * both are switched off independently by the player's settings.
+   */
+  function feelImpact(
+    weight: ImpactWeight,
+    melee: boolean,
+    beatMs: number,
+    dir: { x: number; y: number },
+  ): void {
+    syncFeel();
+    if (feel.hitPause) {
+      pauses = insertPause(pauses, beatMs, hitPauseMs(weight, melee), now());
+    }
+    if (!feel.shake) return;
+    const amplitudePx = shakeAmplitudePx(weight, feel.shakeScale);
+    if (amplitudePx <= 0) return;
+    shakes.push({
+      startMs: beatMs,
+      durationMs: IMPACT_FEEL[weight].shakeMs,
+      amplitudePx,
+      dirX: dir.x,
+      dirY: dir.y,
+    });
   }
 
   /** Screen-x direction away from the attacker, for the recoil. */
@@ -1052,10 +1174,25 @@ export function createCombatScene(
 
   function render(now: number): void {
     syncZoom();
+    syncFeel();
     ctx!.clearRect(0, 0, viewportW / zoom, viewportH / zoom);
     ctx!.imageSmoothingEnabled = false;
     ctx!.save();
-    const { tx, ty } = cameraTranslation(camera, viewportW, viewportH, zoom, dpr);
+    // Where the camera has glided to, plus whatever is still shaking it.
+    // Both ride the scene clock, so both hold through a hit-pause.
+    if (glide) {
+      camera = glideCameraAt(glide, now);
+      if (glideDone(glide, now)) glide = null;
+    }
+    for (let i = shakes.length - 1; i >= 0; i--) {
+      const shake = shakes[i];
+      if (shake && shakeFinished(shake, now)) shakes.splice(i, 1);
+    }
+    const kick = feel.shake ? combinedShakeAt(shakes, now) : { x: 0, y: 0 };
+    // Picking still reads the unshaken camera: a click lands where the
+    // ground is, not where a blow just threw the view.
+    const shown: Camera = { sx: camera.sx + kick.x, sy: camera.sy + kick.y };
+    const { tx, ty } = cameraTranslation(shown, viewportW, viewportH, zoom, dpr);
     ctx!.translate(tx, ty);
 
     // Ground pass. Reduced motion freezes the ambient clock so neon
@@ -1140,10 +1277,16 @@ export function createCombatScene(
   let rafId = 0;
   let lastTime: number | null = null;
   function frame(time: number): void {
-    const dt = lastTime === null ? 0 : Math.min((time - lastTime) / 1000, 0.1);
-    lastTime = time;
+    // The whole frame runs on scene time: raw time with the pauses it
+    // still owes taken out. During a freeze the clock holds, so dt is 0
+    // and walks stop with everything else — one clock, no desync.
+    const advanced = advancePauses(pauses, time);
+    pauses = advanced.timeline;
+    const sceneMs = advanced.sceneMs;
+    const dt = lastTime === null ? 0 : Math.min((sceneMs - lastTime) / 1000, 0.1);
+    lastTime = sceneMs;
     stepEntities(dt);
-    render(time);
+    render(sceneMs);
     rafId = requestAnimationFrame(frame);
   }
 
@@ -1179,10 +1322,10 @@ export function createCombatScene(
           // Already down when the scene first saw it (a fight re-entered
           // mid-battle): skip the fall and lay the heap out directly.
           if (!incoming.alive && !settings.get().reducedMotion) {
-            const now = performance.now();
+            const at = now();
             const style = view.deathStyle ?? DEFAULT_DEATH_STYLE;
-            queueReaction(view, style, now, {
-              beatMs: now - reactionDurationMs(style),
+            queueReaction(view, style, at, {
+              beatMs: at - reactionDurationMs(style),
             });
           }
           continue;
@@ -1193,7 +1336,7 @@ export function createCombatScene(
         if (justDied) {
           existing.queue = [];
           existing.visual = { ...incoming.position };
-          killEntity(existing, performance.now());
+          killEntity(existing, now());
         }
         if (moved && incoming.alive) {
           const fromTile = {
@@ -1228,20 +1371,19 @@ export function createCombatScene(
       // when every other part of the sequence is switched off.
       faceToward(attacker, target);
       const hit = options.hit ?? true;
-      const attackClass: AttackClassId =
-        sprites.attackClass?.(attacker.spriteId) ?? "unarmed";
-      const now = performance.now();
+      const attackClass = classOf(attacker);
+      const at = now();
       // Reduced motion: face the target and let the whole exchange
       // resolve on the spot — no swing, no travel, no delayed beats.
       // One held impact frame stays, so a hit is still visibly a hit.
       if (settings.get().reducedMotion) {
-        spawnImpact(attacker, target, attackClass, hit, now, true);
+        spawnImpact(attacker, target, attackClass, hit, at, true);
         return 0;
       }
-      throwAt(attacker, target, attackClass, now);
+      throwAt(attacker, target, attackClass, at);
       // The blow lands when its effects say it does: for a fired round
       // that is the swing's own impact beat plus the flight time.
-      return spawnImpact(attacker, target, attackClass, hit, now, false)
+      return spawnImpact(attacker, target, attackClass, hit, at, false)
         .contactMs;
     },
 
@@ -1256,10 +1398,9 @@ export function createCombatScene(
         .map((id) => entities.get(id))
         .filter((entity): entity is EntityView => entity !== undefined);
       if (targets.length === 0) return 0;
-      const now = performance.now();
+      const at = now();
       const reducedMotion = settings.get().reducedMotion;
-      const attackClass: AttackClassId =
-        sprites.attackClass?.(caster.spriteId) ?? "unarmed";
+      const attackClass = classOf(caster);
       // A cast thrown at somebody turns the caster toward them and runs
       // its weapon's swing; an aura is the caster lighting up where it
       // stands, so neither happens. Reduced motion keeps the turn and
@@ -1268,7 +1409,7 @@ export function createCombatScene(
       const first = targets[0];
       if (thrown && first && first !== caster) {
         faceToward(caster, first);
-        if (!reducedMotion) throwAt(caster, first, attackClass, now);
+        if (!reducedMotion) throwAt(caster, first, attackClass, at);
       }
       const plan = planAbilityCast(
         fx,
@@ -1287,13 +1428,24 @@ export function createCombatScene(
       casts.push({
         fx,
         plan,
-        startMs: now,
+        startMs: at,
         from: muzzlePoint(caster),
         points: plan.plays.map((play) => {
           const entity = byId.get(play.entityId) ?? caster;
           return chestPoint(entity.visual);
         }),
       });
+      // A blast going off pushes the view outward from the caster's own
+      // line as it lands. Nothing connected, so nothing freezes — the
+      // shake is the whole of it (see IMPACT_FEEL.explosion).
+      if (!reducedMotion && ABILITY_FX[fx].form === "burst") {
+        feelImpact(
+          "explosion",
+          false,
+          at + plan.sequence.contactMs,
+          lineBetween(caster, first ?? caster),
+        );
+      }
       return plan.sequence.contactMs;
     },
 
@@ -1303,17 +1455,57 @@ export function createCombatScene(
       // Reduced motion: no flash, no shake, no recoil — floating
       // numbers and the combat log still report every hit.
       if (settings.get().reducedMotion) return;
-      const now = performance.now();
+      const at = now();
+      const beatMs = at + Math.max(0, options.delayMs ?? 0);
       entity.awayX = awayFrom(entity, options.attackerId);
       const scheduled = queueReaction(
         entity,
         options.glancing === true ? "shudder" : "flinch",
-        now,
-        { beatMs: now + Math.max(0, options.delayMs ?? 0) },
+        at,
+        { beatMs },
       );
       // The flash lights on the frame the recoil starts on, however far
       // down the queue that turned out to be.
       entity.flashStart = scheduled.startMs;
+      // The camera answers the blow on the beat it lands on — the same
+      // beat the flinch and the figure ride, never the beat it was
+      // thrown on. A blow with nobody behind it counts as thrown by
+      // hand: there is no muzzle to have fired it from.
+      const attacker = options.attackerId
+        ? entities.get(options.attackerId)
+        : undefined;
+      const melee = attacker
+        ? ATTACK_FX_STYLE[classOf(attacker)] !== "tracer"
+        : true;
+      const weight: ImpactWeight =
+        options.weight ?? (options.glancing === true ? "glancing" : "solid");
+      feelImpact(weight, melee, beatMs, lineBetween(attacker, entity));
+    },
+
+    focusOn(entityId: string, options: { pace?: TurnPace } = {}): void {
+      const entity = entities.get(entityId);
+      if (!entity) return;
+      syncFeel();
+      if (!feel.focus) return;
+      const target = focusCamera(
+        map,
+        entity.position,
+        viewportW,
+        viewportH,
+        zoom,
+      );
+      // Planned from wherever the camera is *now*, mid-glide included,
+      // so turns following one another read as one continuous move.
+      const planned = planCameraGlide(
+        camera,
+        target,
+        now(),
+        options.pace ?? "player",
+      );
+      glide = planned;
+      // Nothing worth animating (an arena that fits the viewport clamps
+      // every target to one point): settle there and stay still.
+      if (!planned) camera = target;
     },
 
     popup(request: CombatPopupRequest): void {
