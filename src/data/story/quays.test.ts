@@ -253,10 +253,11 @@ describe("Vesper Kade's recruitment", () => {
       "fq-cage",
       "fq-diver",
     ]);
+    // Her own district: she has a line on every beat of it, and where
+    // the auditor also has one, hers is first — the specific voice
+    // before the visiting one, the way asides are ordered everywhere.
     for (const node of commented) {
-      for (const comment of node.comments ?? []) {
-        expect(comment.companionId).toBe("vesper");
-      }
+      expect(node.comments?.[0]?.companionId, node.id).toBe("vesper");
     }
     // With her aboard the aside lands; alone the same node is unchanged.
     const cage = nodesById.get("fq-cage")!;

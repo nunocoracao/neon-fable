@@ -111,6 +111,20 @@ describe("requirementLabel", () => {
     ).toBe("[rep 3+]");
   });
 
+  it("names the person, not the number, for loyalty gates", () => {
+    expect(
+      requirementLabel({ type: "loyalty", companionId: "sill", value: 4 }),
+    ).toBe("[Deacon Sill trusts you]");
+    expect(
+      requirementLabel({
+        type: "loyalty",
+        companionId: "vesper",
+        value: -3,
+        mode: "at-most",
+      }),
+    ).toBe("[Vesper Kade has had enough]");
+  });
+
   it("joins multiple requirements with spaces", () => {
     expect(
       requirementLabels(

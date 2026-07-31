@@ -6,12 +6,13 @@ import {
   availableChoices,
   companionAside,
   getNode,
+  type LoyaltyChange,
   type StoryArc,
   type StoryNode,
 } from "../narrative";
 import { revealDelayMs, settings } from "../settings";
 import { focusFirst } from "./focus";
-import { companionName, requirementLabels } from "./format";
+import { companionName, loyaltyNote, requirementLabels } from "./format";
 import type { OverlayHandle } from "./overlay";
 import { enemyPortraitCanvas, portraitCanvas } from "./portraits";
 import type { Session } from "./session";
@@ -52,6 +53,12 @@ export function createDialogueOverlay(
 ): OverlayHandle {
   const { session, arc } = options;
   let nodeId = options.nodeId;
+  /**
+   * What the last choice moved with the people who watched it, shown
+   * once on the beat that follows and then spent. A reaction belongs to
+   * the moment it was earned, not to the rest of the conversation.
+   */
+  let lastLoyalty: LoyaltyChange[] = [];
 
   const el = document.createElement("div");
   el.className = "nf-overlay nf-overlay-bottom";
@@ -174,6 +181,14 @@ export function createDialogueOverlay(
       main.append(line);
     }
 
+    if (lastLoyalty.length > 0) {
+      const line = document.createElement("p");
+      line.className = "nf-dialogue-loyalty";
+      line.textContent = loyaltyNote(lastLoyalty);
+      main.append(line);
+      lastLoyalty = [];
+    }
+
     const choices = document.createElement("div");
     choices.className = "nf-dialogue-choices";
     for (const presented of availableChoices(session.state, node)) {
@@ -242,6 +257,7 @@ export function createDialogueOverlay(
     audio.play(presented.length > 1 ? "choice-select" : "dialogue-advance");
     const outcome = applyChoice(session.state, node, choiceId);
     session.state = outcome.state;
+    lastLoyalty = outcome.loyalty;
     options.onStateChange();
     if (outcome.encounterId) {
       options.onCombat(outcome.encounterId, outcome.nextNodeId);

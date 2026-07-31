@@ -182,6 +182,71 @@ describe("validateArc", () => {
     );
   });
 
+  it("flags reaction tags no companion could ever feel", () => {
+    const arc = arcWith({
+      nodes: [
+        {
+          id: "a",
+          text: "",
+          choices: [
+            {
+              id: "go",
+              label: "",
+              target: "b",
+              // A typo here is a line of content that silently does
+              // nothing: every companion scores it zero, forever.
+              reactions: ["salvage", "mercyy" as "mercy"],
+            },
+          ],
+        },
+        {
+          id: "b",
+          text: "",
+          choices: [{ id: "stop", label: "", effects: [{ type: "end" }] }],
+        },
+      ],
+    });
+    expect(validateArc(arc)).toEqual([
+      expect.objectContaining({
+        code: "unknown-reaction",
+        choiceId: "go",
+        detail: expect.stringContaining("mercyy"),
+      }),
+    ]);
+  });
+
+  it("flags a loyalty gate on somebody who does not exist", () => {
+    const arc = arcWith({
+      nodes: [
+        {
+          id: "a",
+          text: "",
+          choices: [
+            {
+              id: "go",
+              label: "",
+              target: "b",
+              requirements: [
+                { type: "loyalty", companionId: "nobody", value: 3 },
+              ],
+            },
+          ],
+        },
+        {
+          id: "b",
+          text: "",
+          choices: [{ id: "stop", label: "", effects: [{ type: "end" }] }],
+        },
+      ],
+    });
+    expect(validateArc(arc)).toEqual([
+      expect.objectContaining({
+        code: "unknown-companion",
+        detail: expect.stringContaining("nobody"),
+      }),
+    ]);
+  });
+
   it("flags unknown item ids in requirements and effects", () => {
     const arc = arcWith({
       nodes: [

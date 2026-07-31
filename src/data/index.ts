@@ -61,14 +61,19 @@ export {
 } from "./cast";
 export {
   CompanionError,
+  REACTION_TAGS,
   companionLook,
   companionSpriteId,
   companions,
   getCompanion,
   parseCompanionSpriteId,
+  reactionValue,
   requireCompanion,
   type Companion,
   type CompanionLook,
+  type CompanionPersonalScene,
+  type CompanionValues,
+  type ReactionTag,
 } from "./companions";
 export { getItem, items, requireItem } from "./items";
 export {
@@ -122,6 +127,7 @@ export {
   act2Arc,
   act3Arc,
   chapelArc,
+  companionsArc,
   findArcByNode,
   getArc,
   introArc,

@@ -12,6 +12,16 @@ import type { StoryArc } from "../../narrative/types";
  * gates on one, or moves the player anywhere but between the two maps.
  * What it does leave behind is `market-known`, which a later arc can
  * use to tell a first visit from a return.
+ *
+ * The district also hands over the game's second companion. Deacon Sill
+ * keeps a rented pitch under the north gallery and takes statements
+ * nobody has asked him for, and the fork in his chain — give him
+ * something for the file, or make him buy it — is what he remembers
+ * about the player: recorded as `sill-joined` ("witnessed" | "priced")
+ * and as the loyalty his party record opens on. Only one companion
+ * walks out at a time, so taking him on benches whoever was already
+ * along (see recruitCompanion) — the scene says so rather than letting
+ * it happen quietly.
  */
 export const marketArc: StoryArc = {
   id: "vertical-market",
@@ -77,6 +87,11 @@ export const marketArc: StoryArc = {
           id: "to-locker",
           label: "Look at the consignment locker bolted under the gallery.",
           target: "vm-stash",
+        },
+        {
+          id: "to-auditor",
+          label: "A man under the gallery is taking statements at a card table.",
+          target: "vm-auditor",
         },
         {
           id: "to-stair",
@@ -330,6 +345,268 @@ export const marketArc: StoryArc = {
         },
       ],
     },
+    // --- Deacon Sill: the pitch, the fork, and the man who comes with you
+    //
+    // A self-contained recruitment chain, built like Kade's on the
+    // Quays: two roads to the same offer, and what the fork decides is
+    // what he thinks of the player on the way out — recorded as
+    // `sill-joined` and as an opening loyalty figure on the party
+    // member itself.
+    {
+      id: "vm-auditor",
+      speaker: "Deacon Sill",
+      text:
+        "Under the gallery, between a bootleg tea stall and the " +
+        "consignment lockers, somebody has rented a pitch and furnished " +
+        "it with a card table, a folding stool, and a hand-lettered sign " +
+        "reading STATEMENTS TAKEN — NO FEE. The man behind it wears a " +
+        "tower suit gone shiny at the elbows and an auditor's visor " +
+        "pushed up on his forehead, and he is writing when you stop, and " +
+        "keeps writing. \"Name optional,\" he says. \"Date isn't.\"",
+      location: "vertical-market:gallery",
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"Auric cut,\" she says, of the suit. \"Nobody wears that " +
+            "up here unless they can't afford anything else.\"",
+        },
+      ],
+      choices: [
+        {
+          id: "sill-what",
+          label: "\"Statements about what?\"",
+          target: "vm-auditor-case",
+        },
+        {
+          id: "sill-form",
+          label: "Read the form upside down. You have filed that form.",
+          target: "vm-auditor-form",
+          requirements: [{ type: "background", tag: "corp" }],
+        },
+        {
+          id: "sill-give",
+          label: "Give him something worth writing down. Sign it.",
+          target: "vm-auditor-witness",
+          effects: [{ type: "set-flag", key: "sill-met", value: "witnessed" }],
+          // Putting your name under a thing is the tag itself.
+          reactions: ["record"],
+        },
+        {
+          id: "sill-price",
+          label: "\"Everyone in this market sells something. What's yours?\"",
+          target: "vm-auditor-price",
+          effects: [{ type: "set-flag", key: "sill-met", value: "priced" }],
+        },
+        {
+          id: "sill-leave",
+          label: "Leave him to his queue of nobody.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "vm-auditor-case",
+      speaker: "Deacon Sill",
+      text:
+        "\"The cyclers. Nine years I certified them, and the last year I " +
+        "wrote a variance report saying the wind-down schedule would kill " +
+        "the levels under Four by arithmetic rather than by accident.\" He " +
+        "sets the stylus down, squarely. \"Auric struck me off the " +
+        "register at four in the morning by notice slid under a door. Not " +
+        "a hearing. A notice.\" The visor catches the lamp. \"So I take " +
+        "statements. A case is only ever a stack of small true things, " +
+        "and I have nothing else to do with my evenings.\"",
+      location: "vertical-market:gallery",
+      choices: [
+        {
+          id: "case-back",
+          label: "\"All right. Then —\"",
+          target: "vm-auditor",
+        },
+        {
+          id: "case-leave",
+          label: "Leave the stack where it is.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "vm-auditor-form",
+      speaker: "Deacon Sill",
+      expression: "smile",
+      text:
+        "It is a Schedule Nine variance annexe, and you have filled in " +
+        "enough of them to know he has been keeping the box for the " +
+        "authorising key open at the bottom instead of closing it out — " +
+        "which is not sloppiness. It is a man leaving room for a name he " +
+        "has not been able to prove yet. Sill watches you read it and " +
+        "something goes out of his shoulders. \"Well,\" he says. \"That's " +
+        "the first time in two years anybody's known what they were " +
+        "looking at.\"",
+      location: "vertical-market:gallery",
+      choices: [
+        {
+          id: "form-back",
+          label: "Hand the slate back the right way up.",
+          target: "vm-auditor",
+        },
+        {
+          id: "form-leave",
+          label: "Say nothing about the empty box. Go.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "vm-auditor-witness",
+      speaker: "Deacon Sill",
+      text:
+        "He takes it down in a hand like printing, reads it back to you " +
+        "word for word, and waits while you put your name under it. Then " +
+        "he does something the market has clearly never seen him do: he " +
+        "closes the slate. \"That is the ninety-first,\" he says. \"Ninety " +
+        "of them are people telling me what happened to their sister. " +
+        "Yours is the first from somebody who was in the room where it " +
+        "was decided.\" He looks up. \"I have been sitting at this table " +
+        "for two years waiting for the file to grow legs.\"",
+      location: "vertical-market:gallery",
+      choices: [
+        {
+          id: "witness-on",
+          label: "\"So stop sitting at it.\"",
+          target: "vm-auditor-join",
+        },
+      ],
+    },
+    {
+      id: "vm-auditor-price",
+      speaker: "Deacon Sill",
+      expression: "grim",
+      text:
+        "\"Nothing. That's rather the point of the sign.\" He says it " +
+        "without heat, the way a man states a figure he has already lost " +
+        "an argument about. Then the visor comes down an inch and he " +
+        "looks at you properly — the walk, the wear on your gear, what " +
+        "you are plainly in the market to do. \"But you are not asking " +
+        "what I sell. You are asking what I pay.\" A long pause. \"Third " +
+        "of anything the case recovers. Which is currently a third of " +
+        "nothing, and I would like it noted that you asked anyway.\"",
+      location: "vertical-market:gallery",
+      choices: [
+        {
+          id: "price-take",
+          label: "\"A third. In writing.\"",
+          target: "vm-auditor-terms",
+        },
+      ],
+    },
+    {
+      id: "vm-auditor-join",
+      speaker: "Deacon Sill",
+      text:
+        "He stands, and folds the table, and it takes him three tries " +
+        "because the hinge has rusted into the shape of two years. \"I " +
+        "can read any civic system in this city and most of the private " +
+        "ones,\" he says. \"I can tell you which signature on a door " +
+        "order is real. I cannot fight, and I will not pretend to be " +
+        "surprised when that becomes relevant.\" The sign goes under his " +
+        "arm, face in. \"Where are we going?\"",
+      location: "vertical-market:gallery",
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"He's a clipboard, and clipboards are how they took the " +
+            "Quays.\" She does not lower her voice. \"Bring him. I want " +
+            "to watch.\"",
+        },
+      ],
+      choices: [
+        {
+          id: "join-yes",
+          label: "\"Somewhere they'll want to see the paperwork.\"",
+          target: "vm-auditor-aboard",
+          effects: [
+            { type: "recruit-companion", companionId: "sill" },
+            // He was given the thing he had given up asking for.
+            { type: "companion-loyalty", companionId: "sill", amount: 2 },
+            { type: "set-flag", key: "sill-joined", value: "witnessed" },
+          ],
+        },
+        {
+          id: "join-no",
+          label: "\"Nowhere you'd survive. Keep the table.\"",
+          effects: [
+            { type: "set-flag", key: "sill-declined", value: true },
+            { type: "end" },
+          ],
+        },
+      ],
+    },
+    {
+      id: "vm-auditor-terms",
+      speaker: "Deacon Sill",
+      text:
+        "He writes the terms out twice, signs both, and hands you one — " +
+        "and the copy in your hand is, you notice, the one with the date " +
+        "on it. \"There. You are retained.\" He folds the table under his " +
+        "arm with the sign face in. \"Understand what you have just " +
+        "bought, though. I do not need a bodyguard. I need somebody who " +
+        "can get me into rooms, and who will still be standing in them " +
+        "when I ask the question I came to ask.\"",
+      location: "vertical-market:gallery",
+      comments: [
+        {
+          companionId: "vesper",
+          text:
+            "\"He *paid* you.\" She sounds delighted and slightly " +
+            "appalled. \"With a contract. Out loud. In this market.\"",
+        },
+      ],
+      choices: [
+        {
+          id: "terms-yes",
+          label: "\"Then let's go and find you a room.\"",
+          target: "vm-auditor-aboard",
+          effects: [
+            { type: "recruit-companion", companionId: "sill" },
+            // Retained is not trusted, and he has been sold before.
+            { type: "companion-loyalty", companionId: "sill", amount: -1 },
+            { type: "set-flag", key: "sill-joined", value: "priced" },
+          ],
+        },
+        {
+          id: "terms-no",
+          label: "\"Keep your third. I don't work on paper.\"",
+          effects: [
+            { type: "set-flag", key: "sill-declined", value: true },
+            { type: "end" },
+          ],
+        },
+      ],
+    },
+    {
+      id: "vm-auditor-aboard",
+      speaker: "Deacon Sill",
+      text:
+        "He falls in at your shoulder with the table under one arm, and " +
+        "in the aisle he stops at the consignment lockers, reads three " +
+        "expired tags without appearing to slow down, and files them " +
+        "somewhere behind the visor. \"One condition,\" he says. \"When " +
+        "I ask you what a thing's serial number was, you tell me, and we " +
+        "do not have the argument about why.\" Whoever else was walking " +
+        "with you tonight has already stepped back a pace, the way " +
+        "people do when a queue forms.",
+      location: "vertical-market:gallery",
+      choices: [
+        {
+          id: "aboard-go",
+          label: "Get off the boards before the drones come round again.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
     {
       id: "vm-stash",
       text:
@@ -351,6 +628,7 @@ export const marketArc: StoryArc = {
             { type: "credits", amount: 25 },
             { type: "set-flag", key: "market-locker", value: "forced" },
           ],
+          reactions: ["salvage"],
         },
         {
           id: "pick",
@@ -363,6 +641,7 @@ export const marketArc: StoryArc = {
             { type: "credits", amount: 25 },
             { type: "set-flag", key: "market-locker", value: "picked" },
           ],
+          reactions: ["salvage"],
         },
         {
           id: "leave-locker",

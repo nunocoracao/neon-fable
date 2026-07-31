@@ -118,6 +118,26 @@ export const items: Item[] = [
     weaponLayer: { id: "lash", accent: "neonCyan" },
     effects: [],
   },
+  {
+    // Deacon Sill's, and the only thing he took with him when Auric
+    // struck him off: a compliance seal, built to fire a numbered tag
+    // into a crate nobody was supposed to be able to close again.
+    // Never sold anywhere — he brings it with him (see ./companions).
+    id: "wpn-writ-seal",
+    kind: "weapon",
+    name: "Writ Seal",
+    description:
+      "An auditor's sealing tool: a numbered evidence tag driven down a " +
+      "guide wire hard enough to set in plate. Everything it touches is " +
+      "logged, timestamped, and, at this distance, bleeding.",
+    damage: 6,
+    rangeType: "ranged",
+    requirement: { stat: "intelligence", value: 5 },
+    // Held like the sidearm it is not: chrome housing, no glow — an
+    // office tool with a trigger, which is the whole joke of it.
+    weaponLayer: { id: "pistol" },
+    effects: [],
+  },
   // --- Tier-2 gear (Act 2+ shops and rewards; steep prices, stiff
   // stat requirements — not meant to be reachable on Act 1 money) ---
   {

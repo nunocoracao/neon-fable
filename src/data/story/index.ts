@@ -3,6 +3,7 @@ import { act1Arc } from "./act1";
 import { act2Arc } from "./act2";
 import { act3Arc } from "./act3";
 import { chapelArc } from "./chapel";
+import { companionsArc } from "./companions";
 import { introArc } from "./intro";
 import { marketArc } from "./market";
 import { quaysArc } from "./quays";
@@ -14,6 +15,7 @@ export const storyArcs: StoryArc[] = [
   act2Arc,
   act3Arc,
   chapelArc,
+  companionsArc,
   marketArc,
   quaysArc,
 ];
@@ -33,6 +35,7 @@ export {
   act2Arc,
   act3Arc,
   chapelArc,
+  companionsArc,
   marketArc,
   quaysArc,
 };

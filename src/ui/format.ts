@@ -17,6 +17,7 @@ import type {
 } from "../inventory/items";
 import type { CombatEvent } from "../combat/types";
 import type { InteractableSpriteId, MapInteraction } from "../iso";
+import type { LoyaltyChange } from "../narrative/loyalty";
 import type { Requirement } from "../narrative/types";
 import type { SaveError, SaveSlot } from "../state/save";
 
@@ -46,6 +47,32 @@ export function companionName(companionId: string): string {
   return getCompanion(companionId)?.name ?? companionId;
 }
 
+/**
+ * Where a companion stands, as a word. The player never sees the
+ * number — a relationship is not a bar — but the bands are the ones
+ * content gates on, so "Loyal" is exactly the point at which somebody
+ * has something of their own to say (see personalScene thresholds).
+ */
+export function loyaltyLabel(loyalty: number): string {
+  if (loyalty >= 7) return "Sworn to you";
+  if (loyalty >= 4) return "Loyal";
+  if (loyalty >= 2) return "Warm";
+  if (loyalty >= 0) return "Professional";
+  if (loyalty >= -3) return "Wary";
+  if (loyalty >= -6) return "Cold";
+  return "Done with you";
+}
+
+/** What a choice just cost — or earned — with the people who saw it. */
+export function loyaltyNote(changes: readonly LoyaltyChange[]): string {
+  return changes
+    .map(
+      ({ companionId, delta }) =>
+        `${companionName(companionId)} ${delta > 0 ? "approves" : "disapproves"}`,
+    )
+    .join(" · ");
+}
+
 /** Short bracketed reason a gated choice is shown disabled, e.g. "[Tech 6]". */
 export function requirementLabel(
   requirement: Requirement,
@@ -71,12 +98,20 @@ export function requirementLabel(
       return `[${requirement.key}: ${String(requirement.value)}]`;
     case "flag-at-least":
       return `[${requirement.key} ${requirement.value}+]`;
+    case "flag-unset":
+      return `[${requirement.key}: unsettled]`;
     case "credits":
       return `[${requirement.value} cr]`;
     case "companion":
       return requirement.status === "recruited"
         ? `[Knows: ${companionName(requirement.companionId)}]`
         : `[With: ${companionName(requirement.companionId)}]`;
+    case "loyalty":
+      // Where somebody stands is their business: the label names the
+      // person and the direction, never the number behind the curtain.
+      return requirement.mode === "at-most"
+        ? `[${companionName(requirement.companionId)} has had enough]`
+        : `[${companionName(requirement.companionId)} trusts you]`;
   }
 }
 

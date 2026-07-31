@@ -33,7 +33,7 @@ import {
   SPIRE_SECURITY_VISUAL,
   VESPER_VISUAL,
 } from "./cast";
-import { VESPER_KADE_LOOK } from "./companions";
+import { DEACON_SILL_LOOK, VESPER_KADE_LOOK } from "./companions";
 
 /**
  * Authored looks for named story NPCs, rendered through the layered
@@ -954,6 +954,17 @@ const verticalMarket: IsoMap = {
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "vm-broker" },
       visual: QUILL_VISUAL,
+    },
+    {
+      id: "market-auditor",
+      // Working a rented pitch under the north gallery, one aisle off
+      // the consignment lockers he spends his evenings reading.
+      x: 13,
+      y: 3,
+      label: "Deacon Sill",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "vm-auditor" },
+      visual: DEACON_SILL_LOOK,
     },
     {
       id: "market-fixer",

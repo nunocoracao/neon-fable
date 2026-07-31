@@ -481,6 +481,13 @@ export const quaysArc: StoryArc = {
             "\"Grease pencil,\" she says, and does not explain, and " +
             "stands there reading it a while longer than you do.",
         },
+        {
+          companionId: "sill",
+          text:
+            "\"Eleven years, weekly, unsigned.\" He sounds personally " +
+            "wounded. \"That is a dataset. Somebody put a decade into " +
+            "a dataset and then declined to be its author.\"",
+        },
       ],
       choices: [
         {
@@ -508,6 +515,13 @@ export const quaysArc: StoryArc = {
             "\"That's parked, not lost. Somebody's coming back for it.\" " +
             "A beat. \"They're not coming back for it.\"",
         },
+        {
+          companionId: "sill",
+          text:
+            "\"There is a consignment number stamped on that chain,\" " +
+            "he says, without going any closer. \"Which means there is " +
+            "a person. I would rather we knew which person first.\"",
+        },
       ],
       choices: [
         {
@@ -521,6 +535,7 @@ export const quaysArc: StoryArc = {
             { type: "credits", amount: 30 },
             { type: "set-flag", key: "quays-cage", value: "hauled" },
           ],
+          reactions: ["salvage"],
         },
         {
           id: "dive",
@@ -533,6 +548,7 @@ export const quaysArc: StoryArc = {
             { type: "credits", amount: 30 },
             { type: "set-flag", key: "quays-cage", value: "dived" },
           ],
+          reactions: ["salvage"],
         },
         {
           id: "leave-cage",

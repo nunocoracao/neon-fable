@@ -3,7 +3,7 @@ import { hasItem, countItem } from "../inventory/inventory";
 import type { ItemResolver } from "../inventory/items";
 import { effectiveStats } from "../inventory/selectors";
 import type { GameState } from "../state/gameState";
-import { getMember } from "../state/party";
+import { getMember, loyaltyOf } from "../state/party";
 import type { Requirement } from "./types";
 
 /**
@@ -24,6 +24,8 @@ export function checkRequirement(
       const value = state.flags[requirement.key];
       return (typeof value === "number" ? value : 0) >= requirement.value;
     }
+    case "flag-unset":
+      return !(requirement.key in state.flags);
     case "stat":
       return (
         effectiveStats(state.player, resolve)[requirement.stat] >=
@@ -46,6 +48,12 @@ export function checkRequirement(
       const member = getMember(state.party, requirement.companionId);
       if (!member?.recruited) return false;
       return requirement.status === "recruited" ? true : member.active;
+    }
+    case "loyalty": {
+      const standing = loyaltyOf(state.party, requirement.companionId);
+      return requirement.mode === "at-most"
+        ? standing <= requirement.value
+        : standing >= requirement.value;
     }
   }
 }

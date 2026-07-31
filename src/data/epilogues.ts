@@ -360,6 +360,115 @@ export const epilogueVignettes: EpilogueVignette[] = [
       "is the highest craft there is.",
   },
   // ------------------------------------------------------------------
+  // The crew — only for the companions who actually travelled with you
+  //
+  // No fallback on either subject, on purpose: a player who never went
+  // down to the Quays or never stopped at the card table gets no line
+  // about a person they never met. The bond flags come from each
+  // companion's personal scene, the vault call from the beat where
+  // their agendas collided, and where they stand is read straight off
+  // the party record.
+  // ------------------------------------------------------------------
+  {
+    id: "vesper-sworn",
+    subject: "vesper",
+    title: "Vesper Kade",
+    requires: [{ type: "flag-equals", key: "vesper-bond", value: "sworn" }],
+    text:
+      "The grease-pencil column on the wharf goes on, in two hands now. " +
+      "Kade works the four streets nobody else will and comes up every " +
+      "time with something that used to belong to somebody, and a name " +
+      "for it. The board is nine years from being underwater. She has " +
+      "already chosen the wall she will start the next one on.",
+  },
+  {
+    id: "vesper-salvage",
+    subject: "vesper",
+    title: "Vesper Kade",
+    requires: [
+      { type: "flag-equals", key: "vent-vault-call", value: "salvage" },
+    ],
+    text:
+      "Kade runs crews now — four divers, two boats, and a rule about " +
+      "the floor being rotten that nobody argues with twice. She still " +
+      "says the vent-crew lockers were the right call, loudly, to people " +
+      "who did not ask. The ones who were there say she is the only one " +
+      "who ever brings it up.",
+  },
+  {
+    id: "vesper-parted",
+    subject: "vesper",
+    title: "Vesper Kade",
+    requires: [{ type: "flag-equals", key: "vesper-bond", value: "parted" }],
+    text:
+      "Kade works the basin alone again, and well, and takes a cut off " +
+      "everybody who goes down there after her. Somebody still writes " +
+      "the tide board every week in grease pencil. She has never said " +
+      "it is her, and the water is at the fourth tread now, and it is " +
+      "still one hand.",
+  },
+  {
+    id: "vesper-crew",
+    subject: "vesper",
+    title: "Vesper Kade",
+    requires: [{ type: "companion", companionId: "vesper", status: "recruited" }],
+    text:
+      "Kade goes back to the water because that is where the work is, " +
+      "and tells the story of the Cordon to anyone who buys the second " +
+      "round. In her version you are taller. In her version she says " +
+      "the clever thing, and you say the line she actually said, and " +
+      "nobody who was there corrects her.",
+  },
+  {
+    id: "sill-sworn",
+    subject: "sill",
+    title: "Deacon Sill",
+    requires: [{ type: "flag-equals", key: "sill-bond", value: "sworn" }],
+    text:
+      "The filing has an author, and the author does not move house. " +
+      "Sill takes statements from a proper office with a proper door " +
+      "and his register number, struck, printed on the glass under his " +
+      "name. Three tribunals cite him in the first year. He keeps the " +
+      "card table in the corner, folded, in case the office ever needs " +
+      "reminding what it is for.",
+  },
+  {
+    id: "sill-filed",
+    subject: "sill",
+    title: "Deacon Sill",
+    requires: [{ type: "flag-equals", key: "vent-vault-call", value: "filed" }],
+    text:
+      "The coolant-vault schedule — names, serials, roster lines, the " +
+      "whole ugly matched pair of lists — becomes the document every " +
+      "later case is built on. Sill never puts his hands on any of what " +
+      "it recovered. He says the point of an exhibit is that nobody's " +
+      "hands are on it, and he says it in a tone that ends the evening.",
+  },
+  {
+    id: "sill-parted",
+    subject: "sill",
+    title: "Deacon Sill",
+    requires: [{ type: "flag-equals", key: "sill-bond", value: "parted" }],
+    text:
+      "The case goes out unsigned and lands like weather: everywhere, " +
+      "attributable to nobody, answerable by no one. Sill takes " +
+      "statements at a different card table in a different market, and " +
+      "he is still doing it at seventy, and the box at the bottom of " +
+      "every annexe he files is still left open.",
+  },
+  {
+    id: "sill-crew",
+    subject: "sill",
+    title: "Deacon Sill",
+    requires: [{ type: "companion", companionId: "sill", status: "recruited" }],
+    text:
+      "Sill goes back to the gallery pitch, and the sign goes back up, " +
+      "and the queue is not nobody any more. People come up six levels " +
+      "of scaffold to give a statement to the man who was in the " +
+      "Ventworks. He writes every one of them down in a hand like " +
+      "printing, and reads it back, and waits for the name.",
+  },
+  // ------------------------------------------------------------------
   // The Sprawl — closing line, keyed to the ending taken
   // ------------------------------------------------------------------
   {
