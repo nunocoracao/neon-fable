@@ -98,9 +98,10 @@ plus content from `src/data/`); rendering and DOM code stay thin.
 ## Systems overview
 
 - **GameState** (`src/state/`) — one serializable object holding the
-  player, flags, location, inventory, credits, pending encounter, and a
-  deterministic RNG state. Saves are JSON envelopes in `localStorage`
-  slots (`slot1`–`slot3` + `autosave`) versioned by
+  player, flags, location, inventory, credits, pending encounter, the
+  party of recruited companions, and a deterministic RNG state. Saves
+  are JSON envelopes in `localStorage` slots
+  (`slot1`–`slot3` + `autosave`) versioned by
   `GAME_STATE_VERSION`; bump it whenever `GameState` changes shape.
   Corrupt or version-mismatched saves surface friendly errors and never
   crash the page.
@@ -258,20 +259,52 @@ A `StoryArc` is a list of nodes; each node has `speaker`, `text`, and
 `choices`. Choices carry:
 
 - `requirements` — stat / item / enhancement / background / flag /
-  credits gates. `ifUnavailable: "disabled"` shows the choice greyed
-  out with the requirement label; the default hides it.
+  credits / companion gates. `ifUnavailable: "disabled"` shows the
+  choice greyed out with the requirement label; the default hides it.
+  A `companion` requirement asks whether somebody is `"active"` (with
+  you now, the default) or merely `"recruited"` (ever joined).
 - `effects` — `set-flag`, `increment-flag`, `add-item` / `remove-item`,
   `credits` (grants or spends, clamped at zero — gate purchases with a
   `credits` requirement), `start-combat` (launches the encounter, then
   resumes at the choice's `target` on victory), `travel` (moves to
-  another map and continues there), `goto`, and `end` (optionally with
-  an `endingId`).
+  another map and continues there), `recruit-companion` (somebody joins
+  the party — idempotent, so re-recruiting only un-benches),
+  `companion-loyalty` (moves their standing; a no-op for somebody not
+  in the party), `goto`, and `end` (optionally with an `endingId`).
+
+A node may also carry `comments`: companion asides, each tagged with a
+`companionId` and its own optional `requirements`. The dialogue box
+shows the first one whose companion is active and whose requirements
+pass, under the speaker's line. They are presentation only — an aside
+never gates a choice or touches state — so a scene reads exactly as it
+always did when nobody is along.
 
 Register new arcs in `src/data/story/index.ts` so `findArcByNode` can
 route to them. `validateArc` (run over every arc in `validate.test.ts`)
 checks that every choice target, item id, encounter id, travel map id,
-and flag reference resolves — a broken reference fails the suite, not
-the player.
+companion id, and flag reference resolves — a broken reference fails
+the suite, not the player.
+
+### Companions (`src/data/companions.ts`, `src/state/party.ts`)
+
+A companion is authored like a player character: base stats, gear by
+item id, and one or more *looks* (a `CharacterVisual` each), so they
+compose through the same layered appearance pipeline as everybody else
+— one set of data behind the map sprite, the arena body, and the
+portrait. Recruiting seeds a `PartyMember` from that record onto
+`GameState.party`; content is only ever the seed, so rebalancing a
+companion never rewrites a save. `recruited` is permanent, `active`
+is revocable, and both hp and loyalty persist between fights.
+
+In exploration the active companion trails the player's own footsteps
+a couple of tiles back (`src/iso/follow.ts` — breadcrumbs, no
+path-finding, so they can never be routed into a wall) and are scenery
+to input: nothing picks them and they neither block nor trigger an
+interactable. In combat they join as an `"ally"` combatant the player
+plays through the ordinary action bar; friend-or-foe is asked through
+`areOpposed`, never by comparing kinds. Being dropped benches them for
+that fight only — the fight is lost when the *player* goes down — and
+`resolveCombat` writes their hp back at a floor of 1.
 
 ### Endings & epilogues (`src/data/endings.ts`, `epilogues.ts`)
 
