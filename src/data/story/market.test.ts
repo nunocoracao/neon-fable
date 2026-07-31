@@ -28,6 +28,19 @@ const allChoices = marketArc.nodes.flatMap((node) =>
   node.choices.map((choice) => ({ nodeId: node.id, choice })),
 );
 
+/**
+ * The district's own nodes: everything on the boards, minus the side
+ * chain Marrow's stool opens. "The Last Mile" is authored in
+ * ./lastMile.ts and spread into this arc (a choice target only resolves
+ * inside one arc), and it is the one thing here that writes story
+ * state, starts a fight, and hands items out. Its own promises are
+ * pinned in ./lastMile.test.ts; the assertions below are about the
+ * colour the district keeps when the chain is not being played.
+ */
+const districtChoices = allChoices.filter(
+  ({ nodeId }) => !nodeId.startsWith("lm-"),
+);
+
 const travelChoices = allChoices.flatMap(({ nodeId, choice }) =>
   (choice.effects ?? []).flatMap((effect) =>
     effect.type === "travel" ? [{ nodeId, mapId: effect.mapId }] : [],
@@ -89,11 +102,11 @@ describe("vertical market arc", () => {
   });
 
   it("keeps its colour self-contained: no act flags, no combat, no items out", () => {
-    // The broker's board and the fixer's contracts are later work. This
-    // arc may only leave `market-known` behind, the locker's own record
-    // of how it was opened, and Deacon Sill's — how he was met, whether
-    // he came, and whether he was turned down. Nothing an act reads.
-    const flags = allChoices.flatMap(({ choice }) =>
+    // The broker's board is still later work. Off the chain, this arc
+    // may only leave `market-known` behind, the locker's own record of
+    // how it was opened, and Deacon Sill's — how he was met, whether he
+    // came, and whether he was turned down. Nothing an act reads.
+    const flags = districtChoices.flatMap(({ choice }) =>
       (choice.effects ?? []).flatMap((effect) =>
         effect.type === "set-flag" || effect.type === "increment-flag"
           ? [effect.key]
@@ -107,7 +120,7 @@ describe("vertical market arc", () => {
       "sill-joined",
       "sill-met",
     ]);
-    for (const { choice } of allChoices) {
+    for (const { choice } of districtChoices) {
       for (const effect of choice.effects ?? []) {
         expect(effect.type, `${choice.id}`).not.toBe("start-combat");
         expect(effect.type, `${choice.id}`).not.toBe("remove-item");
@@ -274,21 +287,24 @@ describe("Deacon Sill's recruitment", () => {
 });
 
 describe("the market's staged encounter", () => {
-  it("registers a fight on the district's own arena, unused by the story", () => {
+  it("fights on the district's own arena, from the chain and nowhere else", () => {
     const encounter = getEncounter("enc-market-scaffold");
     expect(encounter?.arenaMapId).toBe("market-scaffold-arena");
-    const started = storyArcs.flatMap((arc) =>
+    const starters = storyArcs.flatMap((arc) =>
       arc.nodes.flatMap((node) =>
         node.choices.flatMap((choice) =>
           (choice.effects ?? []).flatMap((effect) =>
-            effect.type === "start-combat" ? [effect.encounterId] : [],
+            effect.type === "start-combat" &&
+            effect.encounterId === "enc-market-scaffold"
+              ? [`${node.id}/${choice.id}`]
+              : [],
           ),
         ),
       ),
     );
-    // Authored ahead of the beat that will use it: no choice anywhere in
-    // the game starts it yet, and the map lint still holds it to every
-    // rule a live arena obeys.
-    expect(started).not.toContain("enc-market-scaffold");
+    // Staged ahead of its beat by the district task; "The Last Mile" is
+    // that beat. One choice in the game starts it — the Rung on the
+    // stair-head — and the district's own nodes still start nothing.
+    expect(starters).toEqual(["lm-scaffold/lm-fight"]);
   });
 });
