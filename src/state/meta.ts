@@ -4,6 +4,8 @@ import {
   type Appearance,
 } from "../character";
 import type { ChapterEnding } from "../data/endings";
+import type { LoreShard } from "../data/lore";
+import type { LoreState } from "./lore";
 import {
   sectionRank,
   threadVariantIds,
@@ -32,6 +34,12 @@ export interface MetaProgress {
   endingsSeen: string[];
   /** Epilogue vignette ids ever shown, in discovery order, deduplicated. */
   epiloguesSeen: string[];
+  /**
+   * Memory shard ids ever collected, on any run, in discovery order and
+   * deduplicated. The per-run collection lives in GameState (see
+   * ./lore.ts); this is the "ever" half the codex shows beside it.
+   */
+  shardsSeen: string[];
   /** Completed playthroughs. */
   completions: number;
   /** True once any playthrough has been completed. */
@@ -54,6 +62,7 @@ export function emptyMetaProgress(): MetaProgress {
   return {
     endingsSeen: [],
     epiloguesSeen: [],
+    shardsSeen: [],
     completions: 0,
     ngPlusUnlocked: false,
     legacyItemIds: [],
@@ -101,6 +110,7 @@ export function clampMetaProgress(value: unknown): MetaProgress {
   return {
     endingsSeen: stringList(record.endingsSeen),
     epiloguesSeen: stringList(record.epiloguesSeen),
+    shardsSeen: stringList(record.shardsSeen),
     completions,
     // A finished run always unlocks NG+, even if the flag was lost.
     ngPlusUnlocked: record.ngPlusUnlocked === true || completions > 0,
@@ -148,6 +158,7 @@ export function mergeMetaProgress(
   return clampMetaProgress({
     endingsSeen: [...base.endingsSeen, ...next.endingsSeen],
     epiloguesSeen: [...base.epiloguesSeen, ...next.epiloguesSeen],
+    shardsSeen: [...base.shardsSeen, ...next.shardsSeen],
     completions: Math.max(base.completions, next.completions),
     ngPlusUnlocked: base.ngPlusUnlocked || next.ngPlusUnlocked,
     legacyItemIds:
@@ -173,12 +184,27 @@ export function recordCompletion(
   completion: CompletionRecord,
 ): MetaProgress {
   return clampMetaProgress({
+    ...meta,
     endingsSeen: [...meta.endingsSeen, completion.endingId],
     epiloguesSeen: [...meta.epiloguesSeen, ...completion.epilogueIds],
     completions: meta.completions + 1,
     ngPlusUnlocked: true,
     legacyItemIds: completion.legacyItemIds,
     legacyAppearance: completion.legacyAppearance,
+  });
+}
+
+/**
+ * Mirrors a collected shard into the ever-seen record. Unlike a
+ * completion this happens mid-run, the moment a chip is picked up, so
+ * the codex remembers a shard even if the run it was found on is never
+ * finished (or is reloaded away from). Pure; storage is the caller's.
+ */
+export function recordShard(meta: MetaProgress, shardId: string): MetaProgress {
+  if (meta.shardsSeen.includes(shardId)) return meta;
+  return clampMetaProgress({
+    ...meta,
+    shardsSeen: [...meta.shardsSeen, shardId],
   });
 }
 
@@ -222,6 +248,21 @@ export function recordCompletionToStorage(
   storage: MetaStorage | null,
 ): MetaProgress {
   const meta = recordCompletion(loadMetaProgress(storage), completion);
+  saveMetaProgress(meta, storage);
+  return meta;
+}
+
+/**
+ * The one write path for picking a shard up: folds it into whatever is
+ * currently stored and persists it. Called from the pickup handler
+ * alongside the per-run write, so the two halves the codex shows are
+ * updated by the same beat.
+ */
+export function recordShardToStorage(
+  shardId: string,
+  storage: MetaStorage | null,
+): MetaProgress {
+  const meta = recordShard(loadMetaProgress(storage), shardId);
   saveMetaProgress(meta, storage);
   return meta;
 }
@@ -344,5 +385,84 @@ export function deriveEpilogueCodex(
     total: entries.reduce((sum, entry) => sum + entry.total, 0),
     threadsFound: entries.filter((entry) => entry.found > 0).length,
     threads: entries.length,
+  };
+}
+
+/** One memory shard's standing in the codex. */
+export interface LoreCodexEntry {
+  id: string;
+  /** Reading order, 1-based — the number a locked slot is called by. */
+  index: number;
+  /** Null while undiscovered — a shard's title is half its content. */
+  title: string | null;
+  /**
+   * The entry itself, or empty while undiscovered. A locked slot has
+   * nothing to read; the district is all it says.
+   */
+  paragraphs: readonly string[];
+  /** The district it lies in — the locked slot's only hint. */
+  district: string;
+  /** Picked up on the run being shown; false when reading meta alone. */
+  collected: boolean;
+  /** Ever picked up, on any run. Discovered entries are readable. */
+  discovered: boolean;
+}
+
+export interface LoreCodexView {
+  entries: LoreCodexEntry[];
+  /** Shards held on the run being shown, and how many exist. */
+  collected: number;
+  /** Shards ever found, across every run. */
+  discovered: number;
+  total: number;
+  /** True once every shard has been found at some point: the payoff. */
+  complete: boolean;
+}
+
+/**
+ * Derives the lore half of the codex: one entry per authored shard, in
+ * the authored reading order, showing both halves of the collection the
+ * way the endings codex does — what this run is carrying, and what the
+ * player has ever turned up.
+ *
+ * `run` is the live playthrough's collection, or null when the codex is
+ * opened from the main menu with no run in progress; the ever-seen
+ * record alone still fills the entries in. Readability follows
+ * discovery, not the current run: a shard found two characters ago
+ * stays readable, and picking it up again on this run only lights the
+ * "this run" side.
+ */
+export function deriveLoreCodex(
+  shards: readonly LoreShard[],
+  run: LoreState | null,
+  meta: MetaProgress,
+): LoreCodexView {
+  const held = new Set(run?.collected ?? []);
+  const ever = new Set(meta.shardsSeen);
+  const entries = [...shards]
+    .sort((a, b) => a.index - b.index)
+    .map((shard): LoreCodexEntry => {
+      const collected = held.has(shard.id);
+      // A shard in hand is a shard discovered, even if the mirror into
+      // meta-progress never landed (a storage write that failed, an old
+      // record): what the player is carrying is not a lie.
+      const discovered = collected || ever.has(shard.id);
+      return {
+        id: shard.id,
+        index: shard.index,
+        title: discovered ? shard.title : null,
+        paragraphs: discovered ? shard.paragraphs : [],
+        district: shard.district,
+        collected,
+        discovered,
+      };
+    });
+  const discovered = entries.filter((entry) => entry.discovered).length;
+  return {
+    entries,
+    collected: entries.filter((entry) => entry.collected).length,
+    discovered,
+    total: entries.length,
+    complete: entries.length > 0 && discovered === entries.length,
   };
 }

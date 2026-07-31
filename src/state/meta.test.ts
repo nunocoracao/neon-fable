@@ -26,6 +26,7 @@ function sampleMeta(overrides: Partial<MetaProgress> = {}): MetaProgress {
   return {
     endingsSeen: ["ending-freehold"],
     epiloguesSeen: ["city-freehold", "undercroft-severed"],
+    shardsSeen: [],
     completions: 1,
     ngPlusUnlocked: true,
     legacyItemIds: ["wpn-arc-lash", "cyb-warden-optics"],
@@ -68,6 +69,7 @@ describe("meta-progress serialization", () => {
     expect(migrated).toEqual({
       endingsSeen: ["ending-ghost"],
       epiloguesSeen: [],
+      shardsSeen: [],
       completions: 0,
       ngPlusUnlocked: false,
       legacyItemIds: ["wpn-arc-lash"],

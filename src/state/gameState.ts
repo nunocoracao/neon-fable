@@ -4,6 +4,7 @@ import { DEFAULT_BACKGROUND_ID, getBackground } from "../data/backgrounds";
 import { applyStartingGear, emptyInventory } from "../inventory";
 import type { InventoryState } from "../inventory";
 import type { FlagMap } from "./flags";
+import { clampLore, emptyLore, type LoreState } from "./lore";
 import { emptyParty, type PartyState } from "./party";
 import {
   deriveReputation,
@@ -13,7 +14,7 @@ import {
 import type { RngState } from "./rng";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 9;
+export const GAME_STATE_VERSION = 10;
 
 /**
  * Oldest save version migrateGameState can bring forward. Saves from
@@ -57,6 +58,11 @@ export interface GameState {
    * (everybody starts at nothing); see ./reputation.ts.
    */
   reputation: ReputationState;
+  /**
+   * Memory shards picked up this run. Always present (empty until the
+   * player finds one); see ./lore.ts.
+   */
+  lore: LoreState;
   /** Deterministic RNG state; advance via the rng module, never Math.random. */
   rng: RngState;
 }
@@ -74,6 +80,10 @@ export interface GameState {
  *   starting an old save at nothing, its standing is read back off the
  *   outcomes it already recorded (deriveReputation), so a run that
  *   stood with the Court in Act 1 loads as somebody the Court knows.
+ * - v9 -> v10: the city started leaving its history lying around. Old
+ *   saves get an empty shard collection and can go and find all twelve
+ *   from wherever they left off — the shards are still on the maps,
+ *   because a map only drops the ones this run has already picked up.
  */
 export function migrateGameState(
   state: GameState,
@@ -92,7 +102,13 @@ export function migrateGameState(
   if (fromVersion < 9) {
     migrated = { ...migrated, reputation: deriveReputation(migrated.flags) };
   }
-  return { ...migrated, version: GAME_STATE_VERSION };
+  if (fromVersion < 10) {
+    migrated = { ...migrated, lore: emptyLore() };
+  }
+  // A save at the current version can still carry a collection an older
+  // build wrote badly; clamping costs nothing and keeps the codex from
+  // counting a duplicate twice.
+  return { ...migrated, lore: clampLore(migrated.lore), version: GAME_STATE_VERSION };
 }
 
 export interface NewGameOptions {
@@ -123,6 +139,7 @@ export function createNewGame(options: NewGameOptions = {}): GameState {
     pendingEncounterId: null,
     party: emptyParty(),
     reputation: emptyReputation(),
+    lore: emptyLore(),
     rng: { seed: (options.seed ?? Date.now()) >>> 0 },
   };
 }

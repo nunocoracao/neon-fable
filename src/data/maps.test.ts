@@ -244,11 +244,16 @@ describe.each(explorableMaps.map((m) => [m.id, m] as const))(
             findArcByNode(interaction.nodeId),
             `story node ${interaction.nodeId} missing`,
           ).toBeDefined();
-        } else {
+        } else if (interaction.kind === "combat") {
           expect(
             getEncounter(interaction.encounterId),
             `encounter ${interaction.encounterId} missing`,
           ).toBeDefined();
+        } else {
+          // Map data never authors a shard — they are dropped onto a
+          // district from lore content (see src/world/shards.ts).
+          expect(interaction.kind, `${interaction.shardId} authored on a map`)
+            .toBe("dialogue");
         }
       }
     });

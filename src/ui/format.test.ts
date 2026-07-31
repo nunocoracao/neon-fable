@@ -21,6 +21,9 @@ import {
   requirementLabel,
   requirementLabels,
   saveErrorMessage,
+  shardLockedHint,
+  shardNumber,
+  shardPickupToast,
   standingNote,
   signedNumber,
   slotDisplayName,
@@ -300,6 +303,17 @@ describe("misc labels", () => {
     ).toBe("Enter — fight Vent-crew pen");
   });
 
+  it("offers to pick a memory shard up off the floor", () => {
+    expect(
+      interactPrompt({
+        label: "Memory shard",
+        spriteId: "shard",
+        kind: "lore",
+        inRange: true,
+      }),
+    ).toBe("Enter — pick up Memory shard");
+  });
+
   it("adds where a way out leads, and offers the key only in reach", () => {
     const gate = {
       label: "Tram Gate",
@@ -532,5 +546,28 @@ describe("standingNote", () => {
         },
       ]),
     ).toBe("The Cistern Court: Warm · The Auric Combine: Hostile");
+  });
+});
+
+describe("memory shard copy", () => {
+  it("numbers a codex slot with a leading zero under ten", () => {
+    expect(shardNumber(1)).toBe("01");
+    expect(shardNumber(12)).toBe("12");
+  });
+
+  it("hints at a locked slot with its district and nothing else", () => {
+    expect(shardLockedHint("Greywater Steps")).toBe(
+      "Recovered somewhere in Greywater Steps.",
+    );
+  });
+
+  it("names the find, counts the set, and marks the last one", () => {
+    expect(shardPickupToast("Roll Call, Ledge Nine", 3, 12)).toBe(
+      'Memory shard recovered — "Roll Call, Ledge Nine" (3/12). Filed in the codex.',
+    );
+    // The twelfth is the only one with anything extra to say.
+    expect(shardPickupToast("Three Parishes, One Voice", 12, 12)).toContain(
+      "The Grey Choir is whole",
+    );
   });
 });

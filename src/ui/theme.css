@@ -2207,6 +2207,32 @@ canvas.nf-action-glyph {
   font-style: italic;
 }
 
+/* A shard this run is actually carrying, as against one read on some
+   earlier character: the card burns in the collection's own amber. */
+.nf-codex-held.nf-codex-found {
+  border-color: var(--nf-glow-amber);
+}
+
+.nf-codex-held .nf-codex-title {
+  color: var(--nf-glow-amber);
+}
+
+/* Where a shard was dug up — a caption over the entry, not part of it. */
+.nf-codex-source {
+  font-family: var(--nf-font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--nf-ink-dim);
+}
+
+/* The complete set's payoff, set apart from the twelve cards it reads
+   over the top of. */
+.nf-codex-payoff {
+  margin-top: 1rem;
+  border-color: var(--nf-glow-magenta);
+}
+
 /* --- Motion --- */
 
 @keyframes nf-fade-in {

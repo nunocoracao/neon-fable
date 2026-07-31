@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { requireMap } from "../data/maps";
 import { NEWS_HEADLINES } from "../data/world";
 import { createNewGame, type GameState } from "../state";
+import { mapShards } from "../world";
 import { createGameScreen } from "./gameScreen";
 import { createMainMenuScreen } from "./mainMenu";
 import { resolveDistrict } from "./district";
@@ -62,10 +63,36 @@ afterEach(() => {
 });
 
 describe("resolveDistrict", () => {
-  it("hands back the authored map on a run that has changed nothing", () => {
+  it("hands back the authored map, plus the shards nobody has picked up", () => {
     const district = resolveDistrict(state(), "cinder-plaza");
-    expect(district.map).toBe(requireMap("cinder-plaza"));
+    const authored = requireMap("cinder-plaza");
+    // Nothing about the district itself has moved: same ground, same
+    // people, in the same order.
+    expect(district.map.tiles).toBe(authored.tiles);
+    expect(
+      district.map.interactables
+        .filter((thing) => thing.spriteId !== "shard")
+        .map((thing) => thing.id),
+    ).toEqual(authored.interactables.map((thing) => thing.id));
+    expect(
+      district.map.interactables
+        .filter((thing) => thing.spriteId === "shard")
+        .map((thing) => thing.id),
+    ).toEqual(mapShards("cinder-plaza").map((shard) => shard.id));
     expect(district.world.conditions).toEqual(["streets-calm", "warrant-clear"]);
+  });
+
+  it("is the authored map exactly once every shard on it is collected", () => {
+    // The identity case: a run with nothing to add gets the authored
+    // object straight back, so the scene keeps it between mounts.
+    const base = state();
+    const collected = {
+      ...base,
+      lore: { collected: mapShards("cinder-plaza").map((shard) => shard.id) },
+    };
+    expect(resolveDistrict(collected, "cinder-plaza").map).toBe(
+      requireMap("cinder-plaza"),
+    );
   });
 
   it("puts the world's people on the street the screen will draw", () => {

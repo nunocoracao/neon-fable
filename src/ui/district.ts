@@ -9,6 +9,9 @@
  *     re-pointed (src/data/mapDressing.ts),
  *  3. `populateMap` — the people a live world condition posts here, and
  *     the ones it has moved on (src/world/population.ts),
+ *  4. `placeShards` — the memory shards this run has not picked up yet
+ *     (src/world/shards.ts), added last so a chip can never displace
+ *     somebody the story or the world put here,
  *
  * plus the running order for whatever public screens the map carries.
  *
@@ -19,7 +22,13 @@
 import { dressMap, requireMap, type NewsChannelId } from "../data";
 import type { IsoMap } from "../iso";
 import type { GameState } from "../state";
-import { deriveWorldState, newsStrip, populateMap, type WorldState } from "../world";
+import {
+  deriveWorldState,
+  newsStrip,
+  placeShards,
+  populateMap,
+  type WorldState,
+} from "../world";
 
 export interface District {
   /** What the city has noticed about this run. */
@@ -32,7 +41,10 @@ export interface District {
 
 export function resolveDistrict(state: GameState, mapId: string): District {
   const world = deriveWorldState(state);
-  const map = populateMap(dressMap(requireMap(mapId), state.flags), world);
+  const map = placeShards(
+    populateMap(dressMap(requireMap(mapId), state.flags), world),
+    state.lore,
+  );
   const newsStrips: Record<string, string[]> = {};
   for (const screen of map.screens ?? []) {
     newsStrips[screen.id] = newsStrip(

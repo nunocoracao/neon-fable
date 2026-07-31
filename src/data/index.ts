@@ -204,6 +204,14 @@ export {
   type InteractableDressing,
 } from "./mapDressing";
 export { endings, getEnding, type ChapterEnding } from "./endings";
+export {
+  LORE_PAYOFF,
+  LORE_SHARDS,
+  getShard,
+  requireShard,
+  shardsOnMap,
+  type LoreShard,
+} from "./lore";
 export { getInterlude, interludes } from "./interludes";
 export {
   STATIC_EPILOGUE_FLAGS,

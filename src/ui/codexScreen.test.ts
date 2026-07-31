@@ -85,7 +85,8 @@ function cards(list: string): Element[] {
   return [...document.querySelectorAll(`${list} .nf-codex-entry`)];
 }
 
-const ENDINGS = ".nf-codex-list:not(.nf-codex-threads)";
+const ENDINGS =
+  ".nf-codex-list:not(.nf-codex-threads):not(.nf-codex-lore)";
 const THREADS = ".nf-codex-threads";
 
 describe("endings codex screen", () => {
@@ -193,7 +194,7 @@ describe("epilogue threads in the codex", () => {
 
   it("is reachable from the main menu and backs out again", () => {
     showScreen(createMainMenuScreen());
-    button("Endings Codex")!.click();
+    button("Codex")!.click();
     expect(document.querySelector(".nf-codex")).not.toBeNull();
     button("Back")!.click();
     expect(button("New Game")).toBeTruthy();
