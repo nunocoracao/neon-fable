@@ -5,7 +5,7 @@ import { weaponRange } from "./damage";
 import { bodyGap, bodyTiles, tileGap } from "./footprint";
 import { canStand, combatantAt, inBounds, isBlocked, manhattan } from "./grid";
 import { manhattanPath, reachableTiles } from "./legal";
-import { activeCombatant } from "./state";
+import { activeCombatant, isAlive } from "./state";
 import { outcomesFor, type OutcomePreview, type PreviewIntent } from "./preview";
 import type { Combatant, CombatState, GridPosition } from "./types";
 
@@ -186,6 +186,35 @@ function originTiles(actor: Combatant): TelegraphTile[] {
 }
 
 /**
+ * Ground an action reaches: every tile inside its range, plus every
+ * tile of every body it can actually strike.
+ *
+ * The second half only matters once a body is bigger than the tile it
+ * is anchored on. Reach is measured block to block, so a chassis can be
+ * in range while its far corner is not — and that corner is still a
+ * legal place to click, because clicking any of a body's tiles aims at
+ * the body. Tinting it keeps the field and the hover saying the same
+ * thing, which is the whole contract between them.
+ */
+function reachField(
+  state: CombatState,
+  actor: Combatant,
+  range: number,
+): TelegraphTile[] {
+  const tiles: TelegraphTile[] = tilesWithin(state, actor, range).map(
+    (tile) => ({ ...tile, role: "range" as const }),
+  );
+  for (const body of state.combatants) {
+    if (body.kind === actor.kind || !isAlive(body)) continue;
+    if (bodyGap(actor, body) > range) continue;
+    for (const tile of bodyTiles(body)) {
+      tiles.push({ ...tile, role: "range" });
+    }
+  }
+  return tiles;
+}
+
+/**
  * The standing tint under an open intent, before the cursor says
  * anything: the ground the steps cover, or the ground the action can
  * strike, always with the actor's own tile marked. Empty when there is
@@ -215,13 +244,7 @@ export function telegraphField(
   if (state.actionUsed) return [];
 
   if (intent.kind === "attack") {
-    const range = weaponRange(actor.weapon.rangeType);
-    return [
-      ...origin,
-      ...tilesWithin(state, actor, range).map(
-        (tile): TelegraphTile => ({ ...tile, role: "range" }),
-      ),
-    ];
+    return [...origin, ...reachField(state, actor, weaponRange(actor.weapon.rangeType))];
   }
 
   if (!actor.abilityIds.includes(intent.abilityId)) return [];
@@ -230,12 +253,7 @@ export function telegraphField(
   // A self-boost reaches nowhere; the caster's own tiles are the whole
   // telegraph, which is exactly the truth about it.
   if (ability.effect.type === "boost") return origin;
-  return [
-    ...origin,
-    ...tilesWithin(state, actor, ability.range).map(
-      (tile): TelegraphTile => ({ ...tile, role: "range" }),
-    ),
-  ];
+  return [...origin, ...reachField(state, actor, ability.range)];
 }
 
 /**

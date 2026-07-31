@@ -1620,9 +1620,11 @@ export function createCombatScene(
       if (!entity) return;
       syncFeel();
       if (!feel.focus) return;
+      // Framed on the middle of whatever it stands on, so a chassis is
+      // centred on its block rather than on one corner of it.
       const target = focusCamera(
         map,
-        entity.position,
+        blockCenter(entity.position, entity.footprint),
         viewportW,
         viewportH,
         zoom,
