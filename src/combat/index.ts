@@ -31,14 +31,17 @@ export {
   abilityDamage,
   abilityHit,
   attackDamage,
+  attackHitChance,
   attackStatKey,
   damageBonus,
+  effectiveArmor,
   fleeChance,
   hitChance,
   isCriticalBlow,
   isGlancingBlow,
   isHeavyBlow,
   weaponRange,
+  weaponReach,
   type AbilityHit,
 } from "./damage";
 export {

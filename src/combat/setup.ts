@@ -1,7 +1,12 @@
 import { requireEncounter, spawnLookIndex } from "../data/encounters";
 import { requireEnemy } from "../data/enemies";
 import { requireItem } from "../data/items";
-import { armorValue, effectiveStats, grantedAbilityIds } from "../inventory";
+import {
+  armorValue,
+  effectiveStats,
+  equippedWeaponProfile,
+  grantedAbilityIds,
+} from "../inventory";
 import type { ItemResolver } from "../inventory/items";
 import type { GameState } from "../state/gameState";
 import { activeMembers } from "../state/party";
@@ -27,15 +32,18 @@ import { UNARMED_WEAPON } from "./damage";
 
 export const PLAYER_COMBATANT_ID = "player";
 
+/**
+ * What the player swings, with whatever is bolted to it already folded
+ * in. The fold happens once, here, through the item layer's single
+ * derivation (equippedWeaponProfile) — so the fight, the odds a tooltip
+ * quotes, and the AI's read of your reach are all one number, and none
+ * of them has to know a mod exists.
+ */
 function playerWeapon(
   state: GameState,
   resolve: ItemResolver,
 ): CombatWeapon {
-  const weaponId = state.player.equipment.weapon;
-  if (weaponId == null) return UNARMED_WEAPON;
-  const item = resolve(weaponId);
-  if (item.kind !== "weapon") return UNARMED_WEAPON;
-  return { name: item.name, damage: item.damage, rangeType: item.rangeType };
+  return equippedWeaponProfile(state.player, resolve) ?? UNARMED_WEAPON;
 }
 
 function playerConsumables(
