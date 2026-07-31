@@ -1,4 +1,5 @@
 import { getCompanion, type Companion } from "../data/companions";
+import type { CarriedInjury } from "../character/injury";
 import type { Stats } from "../character/stats";
 
 /**
@@ -55,6 +56,13 @@ export interface PartyMember {
    * than a scatter of flags.
    */
   loyalty: number;
+  /**
+   * What the last bad fight left them with, or nothing. The same field,
+   * the same rules and the same one-at-a-time limit the player's wound
+   * follows (see src/character/injury.ts) — a companion is hurt in
+   * exactly the way anybody else is.
+   */
+  injury?: CarriedInjury | null;
 }
 
 export interface PartyState {
@@ -192,6 +200,31 @@ export function setCompanionHp(
     ...member,
     hp: Math.max(0, Math.min(member.maxHp, Math.round(hp))),
   }));
+}
+
+/** What a companion is carrying out of their last bad fight, or null. */
+export function companionInjury(
+  party: PartyState,
+  companionId: string,
+): CarriedInjury | null {
+  return getMember(party, companionId)?.injury ?? null;
+}
+
+/**
+ * Writes a companion's injury — the one they take, the one time passes
+ * on, or null when a clinic closes it. Unlike setCompanionHp this takes
+ * the finished value rather than a rule, because the rules (worst
+ * replaces, time counted off) are pure and shared with the player's
+ * (see src/character/injury.ts).
+ */
+export function setCompanionInjury(
+  party: PartyState,
+  companionId: string,
+  injury: CarriedInjury | null,
+): PartyState {
+  return updateMember(party, companionId, (member) =>
+    (member.injury ?? null) === injury ? member : { ...member, injury },
+  );
 }
 
 /** Where a companion stands; somebody never met stands at nothing. */

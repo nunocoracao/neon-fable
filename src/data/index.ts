@@ -190,6 +190,18 @@ export {
   type CredMilestone,
 } from "./advancement";
 export {
+  INJURY_CAUSES,
+  INJURY_CAUSE_ORDER,
+  drawInjury,
+  getInjury,
+  injuries,
+  injuryForCause,
+  injuryTreatCost,
+  requireInjury,
+  type InjuryCause,
+  type InjuryDef,
+} from "./injuries";
+export {
   PERK_DOMAINS,
   getPerk,
   perks,

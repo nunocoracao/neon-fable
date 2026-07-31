@@ -69,10 +69,19 @@ export {
   type LoreState,
 } from "./lore";
 export {
+  advanceInjuries,
+  canTreatInjury,
+  carriedInjury,
+  treatInjury,
+  treatmentFee,
+  type InjuryTarget,
+} from "./injuries";
+export {
   PartyError,
   activeMember,
   activeMembers,
   adjustLoyalty,
+  companionInjury,
   emptyParty,
   getMember,
   isRecruited,
@@ -83,6 +92,7 @@ export {
   setActive,
   setActiveCompanion,
   setCompanionHp,
+  setCompanionInjury,
   type CompanionEquipment,
   type PartyErrorCode,
   type PartyMember,
