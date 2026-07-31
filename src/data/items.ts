@@ -100,6 +100,24 @@ export const items: Item[] = [
     weaponLayer: { id: "lash", accent: "hazardAmber" },
     effects: [],
   },
+  {
+    // Vesper Kade's own, and the reason she still has both hands: a
+    // salvage grapnel thrown on a monofil line and walked back in.
+    // Never sold anywhere — she brings it with her (see ./companions).
+    id: "wpn-hookline",
+    kind: "weapon",
+    name: "Hookline",
+    description:
+      "Four folding flukes on sixty metres of monofil, thrown by a wrist " +
+      "spool that was built to lift drum motors off a canal floor. It " +
+      "does not care that you are not a drum motor.",
+    damage: 6,
+    rangeType: "ranged",
+    requirement: { stat: "reflexes", value: 5 },
+    // Cold cyan running lights down the spool housing.
+    weaponLayer: { id: "lash", accent: "neonCyan" },
+    effects: [],
+  },
   // --- Tier-2 gear (Act 2+ shops and rewards; steep prices, stiff
   // stat requirements — not meant to be reachable on Act 1 money) ---
   {

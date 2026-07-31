@@ -33,6 +33,7 @@ import {
   SPIRE_SECURITY_VISUAL,
   VESPER_VISUAL,
 } from "./cast";
+import { VESPER_KADE_LOOK } from "./companions";
 
 /**
  * Authored looks for named story NPCs, rendered through the layered
@@ -1147,6 +1148,17 @@ const floodedQuays: IsoMap = {
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "fq-diver" },
       visual: DREDGE_VISUAL,
+    },
+    {
+      id: "quays-kade",
+      // At the strand's west bollard, wrestling the seized winch —
+      // on the quay lip, clear of the walkway spans and of the barge.
+      x: 3,
+      y: 11,
+      label: "Vesper Kade",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "fq-kade" },
+      visual: VESPER_KADE_LOOK,
     },
     {
       id: "quays-cage",

@@ -59,6 +59,17 @@ export {
   resolveSpeakerPortrait,
   type SpeakerPortrait,
 } from "./cast";
+export {
+  CompanionError,
+  companionLook,
+  companionSpriteId,
+  companions,
+  getCompanion,
+  parseCompanionSpriteId,
+  requireCompanion,
+  type Companion,
+  type CompanionLook,
+} from "./companions";
 export { getItem, items, requireItem } from "./items";
 export {
   abilities,
