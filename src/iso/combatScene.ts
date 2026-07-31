@@ -87,6 +87,14 @@ import { resolveDayPhase } from "./dayPhase";
 import { compareDrawables, type Drawable } from "./depth";
 import { observeDevicePixelRatio } from "./dpr";
 import type { EntitySpriteId, SpriteProvider } from "./sprites";
+import {
+  DEFAULT_TELEGRAPH_PALETTE,
+  TELEGRAPH_PAINT_ORDER,
+  TELEGRAPH_PATH_LINE,
+  telegraphStyle,
+  type TelegraphPaletteId,
+  type TelegraphTintId,
+} from "./telegraphPalette";
 import { tileKey, resolveWeather, type WeatherView } from "./weather";
 import { paintRainStreaks, paintSplashes } from "./weatherPaint";
 import type { DayPhaseId, IsoMap, WeatherId } from "./tilemap";
@@ -151,21 +159,46 @@ export interface HitFxOptions {
   glancing?: boolean;
 }
 
+/** One tinted tile, already resolved to the tint it is painted with. */
+export interface TelegraphTileView {
+  x: number;
+  y: number;
+  tint: TelegraphTintId;
+}
+
 export interface CombatHighlights {
-  /** Tiles the active combatant may move to (soft fill). */
-  reachable: readonly TilePoint[];
-  /** Tiles under targetable combatants (hostile outline). */
-  targets: readonly TilePoint[];
-  /** Path preview for the hovered move (bright fill). */
-  path: readonly TilePoint[];
+  /**
+   * Every tinted tile: reach, range, the previewed path, the exact
+   * impact of an aimed action, a refused hover. Painted as diamond
+   * overlays under the fighters, batched one draw per tint (see
+   * ./telegraphPalette.ts). The scene decides nothing about which tile
+   * gets which tint — the combat screen hands it a finished set.
+   */
+  tiles: readonly TelegraphTileView[];
+  /**
+   * Tile centers the previewed walk runs through, in walking order, drawn
+   * as a dotted line from the walker's own feet. Empty when nothing is
+   * being previewed.
+   */
+  pathLine: readonly TilePoint[];
   hover: TilePoint | null;
 }
 
 export interface CombatSceneOptions {
   map: IsoMap;
   onTileClick(tile: TilePoint): void;
-  onTileHover(tile: TilePoint | null): void;
+  /**
+   * The tile under the pointer, and where the pointer is in viewport
+   * coordinates — so the screen can hang an outcome chip beside the
+   * cursor. Both are null when the pointer leaves the arena.
+   */
+  onTileHover(tile: TilePoint | null, at: { x: number; y: number } | null): void;
   sprites?: SpriteProvider;
+  /**
+   * Which telegraph palette the tile tints are painted from. The
+   * accessibility option selects it; defaults to the arena's own neon.
+   */
+  telegraphPalette?: TelegraphPaletteId;
   /**
    * Weather to fight under. An arena has no sky of its own, so the
    * combat screen passes the weather of the map the fight was entered
@@ -425,11 +458,12 @@ export function createCombatScene(
     });
   }
   let highlights: CombatHighlights = {
-    reachable: [],
-    targets: [],
-    path: [],
+    tiles: [],
+    pathLine: [],
     hover: null,
   };
+  const telegraphPalette =
+    options.telegraphPalette ?? DEFAULT_TELEGRAPH_PALETTE;
 
   let viewportW = 0;
   let viewportH = 0;
@@ -493,11 +527,14 @@ export function createCombatScene(
   }
 
   function onPointerMove(event: PointerEvent): void {
-    options.onTileHover(pickTile(event));
+    options.onTileHover(pickTile(event), {
+      x: event.clientX,
+      y: event.clientY,
+    });
   }
 
   function onPointerLeave(): void {
-    options.onTileHover(null);
+    options.onTileHover(null, null);
   }
 
   function stepEntities(dt: number): void {
@@ -526,18 +563,23 @@ export function createCombatScene(
     }
   }
 
-  function drawDiamond(
-    tile: TilePoint,
-    fill: string | null,
-    stroke: string | null,
-  ): void {
+  /** Trace one tile's diamond into the current path, without closing it. */
+  function traceDiamond(tile: TilePoint): void {
     const { sx, sy } = worldToScreen(tile.x, tile.y);
-    ctx!.beginPath();
     ctx!.moveTo(sx, sy - TILE_H / 2);
     ctx!.lineTo(sx + TILE_W / 2, sy);
     ctx!.lineTo(sx, sy + TILE_H / 2);
     ctx!.lineTo(sx - TILE_W / 2, sy);
     ctx!.closePath();
+  }
+
+  function drawDiamond(
+    tile: TilePoint,
+    fill: string | null,
+    stroke: string | null,
+  ): void {
+    ctx!.beginPath();
+    traceDiamond(tile);
     if (fill) {
       ctx!.fillStyle = fill;
       ctx!.fill();
@@ -547,6 +589,64 @@ export function createCombatScene(
       ctx!.lineWidth = 2;
       ctx!.stroke();
     }
+  }
+
+  /**
+   * The telegraph layer: every tinted tile as a diamond overlay on the
+   * ground, one batch per tint — all of a tint's diamonds go into a
+   * single path and take a single fill and a single stroke, so a whole
+   * reachable field costs two draws rather than two per tile. Paint
+   * order is the palette's (see TELEGRAPH_PAINT_ORDER), so context
+   * tints never bury the hot ones sitting inside them.
+   */
+  function drawTelegraph(): void {
+    if (highlights.tiles.length === 0) return;
+    const byTint = new Map<TelegraphTintId, TelegraphTileView[]>();
+    for (const tile of highlights.tiles) {
+      const batch = byTint.get(tile.tint);
+      if (batch) batch.push(tile);
+      else byTint.set(tile.tint, [tile]);
+    }
+    for (const tint of TELEGRAPH_PAINT_ORDER) {
+      const batch = byTint.get(tint);
+      if (!batch || batch.length === 0) continue;
+      const style = telegraphStyle(tint, telegraphPalette);
+      ctx!.beginPath();
+      for (const tile of batch) traceDiamond(tile);
+      if (style.fill) {
+        ctx!.fillStyle = style.fill;
+        ctx!.fill();
+      }
+      if (style.stroke) {
+        ctx!.strokeStyle = style.stroke;
+        ctx!.lineWidth = style.lineWidth;
+        ctx!.setLineDash([...style.dash]);
+        ctx!.stroke();
+        ctx!.setLineDash([]);
+      }
+    }
+  }
+
+  /**
+   * The previewed walk as a dotted line through the tiles it crosses —
+   * the pathfinder's own result, drawn as the route rather than left to
+   * be read off a scatter of tinted tiles.
+   */
+  function drawPathLine(): void {
+    const line = highlights.pathLine;
+    if (line.length < 2) return;
+    const style = TELEGRAPH_PATH_LINE[telegraphPalette];
+    ctx!.beginPath();
+    line.forEach((tile, index) => {
+      const { sx, sy } = worldToScreen(tile.x, tile.y);
+      if (index === 0) ctx!.moveTo(sx, sy);
+      else ctx!.lineTo(sx, sy);
+    });
+    ctx!.strokeStyle = style.color;
+    ctx!.lineWidth = style.lineWidth;
+    ctx!.setLineDash([...style.dash]);
+    ctx!.stroke();
+    ctx!.setLineDash([]);
   }
 
   /**
@@ -978,16 +1078,9 @@ export function createCombatScene(
     }
     if (weather) paintSplashes(ctx!, sprites, weather, tileTime, dpr * zoom);
 
-    // Highlights sit on the ground under everything.
-    for (const tile of highlights.reachable) {
-      drawDiamond(tile, "rgba(46, 230, 214, 0.14)", "rgba(46, 230, 214, 0.35)");
-    }
-    for (const tile of highlights.path) {
-      drawDiamond(tile, "rgba(46, 230, 214, 0.35)", null);
-    }
-    for (const tile of highlights.targets) {
-      drawDiamond(tile, "rgba(230, 62, 143, 0.18)", "rgba(230, 62, 143, 0.9)");
-    }
+    // Telegraphs sit on the ground under everything that stands on it.
+    drawTelegraph();
+    drawPathLine();
     if (highlights.hover) {
       drawDiamond(highlights.hover, null, "rgba(232, 230, 240, 0.6)");
     }
