@@ -3,9 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { baseStats } from "../character";
 import { fixtureCharacter } from "../character/testSupport";
 import { createCombat, takeAction } from "../combat";
+import { requireMap } from "../data";
 import { addItem, countItem, equip, installEnhancement } from "../inventory";
+import { clampCamera, mapPixelBounds, worldToScreen } from "../iso";
+import { worldToViewport } from "../iso/camera";
 import { createNewGame, type GameState } from "../state";
 import { createCombatScreen } from "./combatScreen";
+import { createGameScreen } from "./gameScreen";
 import {
   findFightSeed,
   replayStep,
@@ -568,5 +572,238 @@ describe("scripted policy sanity", () => {
     const fight = scriptFight(courierState(7), "enc-rustyard-ambush");
     expect(["victory", "defeat", "fled"]).toContain(fight.status);
     expect(fight.steps.length).toBeLessThan(400);
+  });
+});
+
+/**
+ * The viewport point that lands on a tile, derived with the scene's own
+ * camera math rather than guessed — so a hover test aims where the
+ * scene will actually pick.
+ */
+function pointerAtTile(mapId: string, tile: { x: number; y: number }): {
+  clientX: number;
+  clientY: number;
+} {
+  const bounds = mapPixelBounds(requireMap(mapId));
+  const camera = clampCamera(
+    {
+      sx: (bounds.minX + bounds.maxX) / 2,
+      sy: (bounds.minY + bounds.maxY) / 2,
+    },
+    bounds,
+    0,
+    0,
+  );
+  const { sx, sy } = worldToScreen(tile.x, tile.y);
+  const at = worldToViewport(camera, 0, 0, 1, sx, sy);
+  return { clientX: at.x, clientY: at.y };
+}
+
+/** Points the pointer at an arena tile, as the player would. */
+function hoverTile(mapId: string, tile: { x: number; y: number }): void {
+  const canvas = document.getElementById("iso-canvas")!;
+  canvas.dispatchEvent(
+    new MouseEvent("pointermove", {
+      bubbles: true,
+      ...pointerAtTile(mapId, tile),
+    }),
+  );
+}
+
+function telegraph(): HTMLElement | null {
+  const el = document.querySelector<HTMLElement>(".nf-telegraph-chip");
+  return el && !el.hidden ? el : null;
+}
+
+describe("grid telegraph", () => {
+  const ARENA = "rustyard-arena";
+
+  it("keeps the chip out of the way until an action is open", () => {
+    const session = createSession(courierState(1));
+    mountCombat(session, "enc-rustyard-ambush");
+    expect(document.querySelector(".nf-telegraph-chip")).not.toBeNull();
+    // Nothing selected: pointing at the arena is not an error, and the
+    // chip has nothing to say about it.
+    hoverTile(ARENA, { x: 3, y: 3 });
+    expect(telegraph()).toBeNull();
+  });
+
+  it("prices the walk under the cursor while Move is open", () => {
+    const session = createSession(courierState(1));
+    mountCombat(session, "enc-rustyard-ambush");
+    // The courier starts at (3, 6) with three steps.
+    click("Move");
+    hoverTile(ARENA, { x: 3, y: 4 });
+    const chip = telegraph();
+    expect(chip?.querySelector(".nf-telegraph-title")?.textContent).toBe("Move");
+    expect(chip?.querySelector(".nf-telegraph-cost")?.textContent).toBe(
+      "2 steps · 1 left after",
+    );
+    expect(chip?.dataset.tone).toBe("ok");
+  });
+
+  it("says why a tile out of the budget is refused", () => {
+    const session = createSession(courierState(1));
+    mountCombat(session, "enc-rustyard-ambush");
+    click("Move");
+    hoverTile(ARENA, { x: 3, y: 1 });
+    const chip = telegraph();
+    expect(chip?.dataset.tone).toBe("denied");
+    expect(chip?.querySelector(".nf-telegraph-denial")?.textContent).toBe(
+      "Out of range.",
+    );
+    expect(chip?.querySelector(".nf-telegraph-cost")).toBeNull();
+  });
+
+  it("refuses the tile the player is already standing on", () => {
+    const session = createSession(courierState(1));
+    mountCombat(session, "enc-rustyard-ambush");
+    click("Move");
+    hoverTile(ARENA, { x: 3, y: 6 });
+    expect(telegraph()?.querySelector(".nf-telegraph-denial")?.textContent).toBe(
+      "You are already standing here.",
+    );
+  });
+
+  it("takes the chip away when the pointer leaves the arena", () => {
+    const session = createSession(courierState(1));
+    mountCombat(session, "enc-rustyard-ambush");
+    click("Move");
+    hoverTile(ARENA, { x: 3, y: 4 });
+    expect(telegraph()).not.toBeNull();
+    document
+      .getElementById("iso-canvas")!
+      .dispatchEvent(new MouseEvent("pointerleave", { bubbles: true }));
+    expect(telegraph()).toBeNull();
+  });
+
+  it("leaves no chip behind when the screen goes", () => {
+    const session = createSession(courierState(1));
+    mountCombat(session, "enc-rustyard-ambush");
+    click("Move");
+    hoverTile(ARENA, { x: 3, y: 4 });
+    expect(telegraph()).not.toBeNull();
+    // Back to the map — which, with this fight still pending, walks
+    // straight back into it. Either way exactly one chip exists, and a
+    // freshly mounted screen never opens showing a stale hover.
+    showScreen(createGameScreen({ session }));
+    expect(document.querySelectorAll(".nf-telegraph-chip")).toHaveLength(1);
+    expect(telegraph()).toBeNull();
+  });
+});
+
+/** A courier who has spent advancement points on the burst volley. */
+function burstState(seed: number): GameState {
+  const base = armedState(seed);
+  return {
+    ...base,
+    player: {
+      ...base.player,
+      advancement: {
+        ...base.player.advancement,
+        abilityIds: ["ability-overclock-burst"],
+      },
+    },
+  };
+}
+
+/** Every outcome line the chip is currently showing. */
+function chipOutcomes(): Array<{ name: string; figures: string }> {
+  return [
+    ...(telegraph()?.querySelectorAll<HTMLElement>(".nf-telegraph-outcome") ??
+      []),
+  ].map((line) => ({
+    name: line.querySelector(".nf-telegraph-target")?.textContent ?? "",
+    figures: line.querySelector(".nf-telegraph-figures")?.textContent ?? "",
+  }));
+}
+
+describe("aiming through the grid telegraph", () => {
+  it("quotes the weapon's own odds on the body under the cursor", () => {
+    const session = createSession(armedState(1));
+    mountCombat(session, "enc-rustyard-ambush");
+    // Stand still; the bruisers close to (2, 6) and (3, 5) by round three.
+    click("End Turn");
+    click("End Turn");
+    expect(actionButton("attack").disabled).toBe(false);
+
+    click("Attack");
+    hoverTile("rustyard-arena", { x: 2, y: 6 });
+    const chip = telegraph();
+    expect(chip?.dataset.tone).toBe("ok");
+    expect(chip?.querySelector(".nf-telegraph-title")?.textContent).toBe(
+      "Stun Baton",
+    );
+    const [outcome] = chipOutcomes();
+    expect(outcome?.name).toMatch(/Rustyard Bruiser/);
+    expect(outcome?.figures).toMatch(/\d+% to hit/);
+    expect(outcome?.figures).toMatch(/0–\d+ dmg/);
+
+    // And the same figures the action bar is quoting for the same shot.
+    expect(actionButton("attack").title).toContain(
+      outcome!.figures.split(" · ")[0]!.replace("% to hit", "%"),
+    );
+  });
+
+  it("refuses a body the weapon cannot reach, and says why", () => {
+    const session = createSession(armedState(1));
+    mountCombat(session, "enc-rustyard-ambush");
+    click("End Turn");
+    click("End Turn");
+    click("Attack");
+    // Empty ground three tiles off: nothing standing there to hit.
+    hoverTile("rustyard-arena", { x: 0, y: 3 });
+    expect(telegraph()?.dataset.tone).toBe("denied");
+    expect(
+      telegraph()?.querySelector(".nf-telegraph-denial")?.textContent,
+    ).toBe("Nothing to hit here.");
+  });
+
+  it("prices every body an area ability's lane runs through", () => {
+    const session = createSession(burstState(1));
+    mountCombat(session, "enc-pumpworks-voss");
+    // One passed turn brings the sappers to (4, 2), (4, 3), and (3, 5),
+    // two of them standing in the same lane out from (1, 3).
+    click("End Turn");
+    click("Ability");
+    click("Overclock Burst");
+
+    hoverTile("pumpworks-arena", { x: 4, y: 2 });
+    const chip = telegraph();
+    expect(chip?.dataset.tone).toBe("ok");
+    expect(chip?.querySelector(".nf-telegraph-title")?.textContent).toBe(
+      "Overclock Burst",
+    );
+    const outcomes = chipOutcomes();
+    expect(outcomes).toHaveLength(2);
+    // A volley cannot miss, so no odds are quoted — only what it does.
+    for (const outcome of outcomes) {
+      expect(outcome.figures, outcome.name).not.toMatch(/to hit/);
+      expect(outcome.figures, outcome.name).toMatch(/^\d+ dmg$/);
+    }
+    // The second line is the body caught on the way, drawn back.
+    const lines = [
+      ...telegraph()!.querySelectorAll<HTMLElement>(".nf-telegraph-outcome"),
+    ];
+    expect(lines[0]?.classList.contains("nf-telegraph-splash")).toBe(false);
+    expect(lines[1]?.classList.contains("nf-telegraph-splash")).toBe(true);
+  });
+
+  it("puts down everything its lane was drawn through", () => {
+    const session = createSession(burstState(1));
+    mountCombat(session, "enc-pumpworks-voss");
+    click("End Turn");
+    click("Ability");
+    click("Overclock Burst");
+    hoverTile("pumpworks-arena", { x: 4, y: 2 });
+    const promised = chipOutcomes();
+    expect(promised).toHaveLength(2);
+
+    // Fire it: the log reports a blow on every body the chip named.
+    click(promised[0]!.name);
+    for (const outcome of promised) {
+      expect(logText()).toContain(outcome.name);
+    }
+    expect(logText()).toMatch(/Overclock Burst/);
   });
 });

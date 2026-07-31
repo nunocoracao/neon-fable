@@ -6,6 +6,7 @@ import {
   type ActionButton,
   type InitiativeChip,
   type TargetCard,
+  type TelegraphChip,
 } from "./combatHud";
 import { actionIconCanvas, statusIconCanvas } from "./combatIcons";
 import { percentLabel } from "./format";
@@ -240,6 +241,69 @@ export function createTargetCard(
       }
 
       el.replaceChildren(frame, body);
+    },
+  };
+}
+
+/* --- Telegraph chip -------------------------------------------------- */
+
+/** Where the chip hangs: the pointer, in viewport coordinates. */
+export interface TelegraphChipAnchor {
+  x: number;
+  y: number;
+}
+
+/**
+ * The outcome chip that follows the cursor across the arena: what the
+ * hovered tile costs, what aiming there would do to every body it
+ * reaches, or the one sentence saying why it would do nothing. Hidden —
+ * not emptied — when there is nothing to say, so the grid under it
+ * stays clear.
+ *
+ * Paints a finished model (see telegraphChip in ./combatHud.ts) and
+ * nothing else: no combat reads, no figures of its own.
+ */
+export function createTelegraphChip(): HudView<{
+  chip: TelegraphChip | null;
+  at: TelegraphChipAnchor | null;
+}> {
+  const el = div("nf-telegraph-chip");
+  el.hidden = true;
+
+  return {
+    el,
+    update({ chip, at }) {
+      if (!chip || !at) {
+        el.hidden = true;
+        el.replaceChildren();
+        return;
+      }
+      el.hidden = false;
+      el.dataset.tone = chip.denial === null ? "ok" : "denied";
+      // Anchored above and right of the cursor, and flipped to the other
+      // side near an edge so a chip at the rim of the arena still reads.
+      el.style.left = `${at.x}px`;
+      el.style.top = `${at.y}px`;
+      el.dataset.flipX = at.x > window.innerWidth * 0.6 ? "true" : "false";
+      el.dataset.flipY = at.y < window.innerHeight * 0.3 ? "true" : "false";
+
+      const parts: HTMLElement[] = [div("nf-telegraph-title", chip.title)];
+      if (chip.denial !== null) {
+        parts.push(div("nf-telegraph-denial", chip.denial));
+      }
+      if (chip.cost !== null) {
+        parts.push(div("nf-telegraph-cost", chip.cost));
+      }
+      for (const outcome of chip.outcomes) {
+        const line = div("nf-telegraph-outcome");
+        if (!outcome.primary) line.classList.add("nf-telegraph-splash");
+        line.append(
+          div("nf-telegraph-target", outcome.name),
+          div("nf-telegraph-figures", outcome.text),
+        );
+        parts.push(line);
+      }
+      el.replaceChildren(...parts);
     },
   };
 }

@@ -1619,6 +1619,114 @@ canvas.nf-action-glyph {
   }
 }
 
+/* --- Telegraph chip ---
+   Hangs off the cursor while an action is open: what the tile under it
+   costs, what aiming there would do to every body it reaches, or the one
+   sentence saying why it would do nothing. The border carries the
+   verdict as well as the colour does — a refusal is dashed. */
+
+.nf-telegraph-chip {
+  position: fixed;
+  z-index: 5;
+  /* Up and right of the cursor, so the hand never covers the answer. */
+  transform: translate(0.9rem, calc(-100% - 0.9rem));
+  max-width: min(16rem, 60vw);
+  padding: 0.35rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  background: rgba(10, 10, 18, 0.94);
+  border: 2px solid var(--nf-glow-cyan);
+  box-shadow: var(--nf-shadow-hard);
+  pointer-events: none;
+}
+
+.nf-telegraph-chip[hidden] {
+  display: none;
+}
+
+/* Near an edge the chip folds to the other side of the cursor rather
+   than running off the screen. */
+.nf-telegraph-chip[data-flip-x="true"] {
+  transform: translate(calc(-100% - 0.9rem), calc(-100% - 0.9rem));
+}
+
+.nf-telegraph-chip[data-flip-y="true"] {
+  transform: translate(0.9rem, 0.9rem);
+}
+
+.nf-telegraph-chip[data-flip-x="true"][data-flip-y="true"] {
+  transform: translate(calc(-100% - 0.9rem), 0.9rem);
+}
+
+.nf-telegraph-chip[data-tone="denied"] {
+  border-style: dashed;
+  border-color: var(--nf-danger);
+}
+
+.nf-telegraph-title {
+  font-family: var(--nf-font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--nf-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nf-telegraph-denial {
+  color: var(--nf-danger);
+}
+
+.nf-telegraph-cost {
+  font-family: var(--nf-font-display);
+  color: var(--nf-glow-cyan);
+}
+
+.nf-telegraph-outcome {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: space-between;
+}
+
+/* Bodies caught by an area, not aimed at: the same figures, stepped
+   back so the aimed one still reads first. */
+.nf-telegraph-splash {
+  color: var(--nf-ink-dim);
+  padding-left: 0.5rem;
+}
+
+.nf-telegraph-target {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--nf-glow-magenta);
+}
+
+.nf-telegraph-splash .nf-telegraph-target {
+  color: var(--nf-ink-dim);
+}
+
+.nf-telegraph-figures {
+  font-family: var(--nf-font-display);
+  white-space: nowrap;
+  color: var(--nf-glow-amber);
+}
+
+.nf-telegraph-splash .nf-telegraph-figures {
+  color: var(--nf-ink-dim);
+}
+
+/* A chip is a hover convenience; on a small screen the grid tints and
+   the action bar carry the same information without covering the arena. */
+@media (max-width: 720px), (max-height: 540px) {
+  .nf-telegraph-chip {
+    display: none;
+  }
+}
+
 .nf-combat-outcome {
   min-width: 20rem;
   text-align: center;
