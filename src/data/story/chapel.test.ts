@@ -25,8 +25,12 @@ describe("chrome chapel arc", () => {
     const stylistChoices = allChoices.filter(({ choice }) =>
       (choice.effects ?? []).some((e) => e.type === "open-stylist"),
     );
+    // The colour rack is the third door to the chair: dyes are bought
+    // and applied on the same screen, so asking about the tins has to
+    // be able to open it.
     expect(stylistChoices.map((c) => c.nodeId)).toEqual([
       "chapel-door",
+      "chapel-dyes",
       "chapel-blessing",
     ]);
     // Each chair choice resumes dialogue after the screen closes.

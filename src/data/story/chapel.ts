@@ -11,6 +11,12 @@ import type { StoryArc } from "../../narrative/types";
  *
  * The fee quoted in the choice labels must match RESTYLE_PRICE in
  * src/data/stylist.ts — a test keeps them in step.
+ *
+ * The chapel also sells colour. The rack has a node of its own so the
+ * shelf exists in the fiction, but no tin is bought in dialogue: the
+ * prices live in src/data/dyes.ts and the buying happens on the chair
+ * screen's colour counter, which is why asking about the tins can open
+ * the chair too.
  */
 export const chapelArc: StoryArc = {
   id: "chrome-chapel",
@@ -25,7 +31,9 @@ export const chapelArc: StoryArc = {
         "a barber's chair where the altar was, votive LEDs guttering cyan. " +
         "Vesper circles you once, shears clicking a slow blessing. \"Every " +
         "face walks in a confession and walks out a testimony. What are we " +
-        "absolving today — the hair, the ink, or the whole sermon?\"",
+        "absolving today — the hair, the ink, or the whole sermon?\" A " +
+        "shelf of dye tins stands behind her in a rack that used to hold " +
+        "votive candles, each one hand-labelled.",
       location: "cinder-row:chrome-chapel",
       choices: [
         {
@@ -38,6 +46,11 @@ export const chapelArc: StoryArc = {
           id: "ask-creed",
           label: "Ask what a chapel wants with a barber's chair.",
           target: "chapel-creed",
+        },
+        {
+          id: "ask-dyes",
+          label: "Ask about the tins on the candle rack.",
+          target: "chapel-dyes",
         },
         {
           id: "leave",
@@ -66,6 +79,39 @@ export const chapelArc: StoryArc = {
         {
           id: "creed-leave",
           label: "Leave them to the faith.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      // The colour shelf is sold and applied on the chair screen, not
+      // in dialogue: this node is the sign over the rack, and the
+      // "take the chair" choices are the door to the counter itself.
+      id: "chapel-dyes",
+      speaker: "Vesper",
+      text:
+        "\"Colour.\" Vesper turns a tin so the label faces you. \"Cloth " +
+        "and trim, and I mix both. You buy the tin, the hands are free — " +
+        "I'm not charging a runner for ten seconds and a pair of gloves.\" " +
+        "She sets it back on the rack, precisely. \"Bring the coat to the " +
+        "chair and we'll see what it wants to be. Changed your mind after? " +
+        "Strip's free too. The cloth forgives faster than people do.\"",
+      location: "cinder-row:chrome-chapel",
+      choices: [
+        {
+          id: "dyes-to-chair",
+          label: "\"Then let's see the rack.\" Take the chair. (40 cr)",
+          target: "chapel-blessing",
+          effects: [{ type: "open-stylist" }],
+        },
+        {
+          id: "dyes-back",
+          label: "Back to the sermon.",
+          target: "chapel-door",
+        },
+        {
+          id: "dyes-leave",
+          label: "Leave the rack to the candles it replaced.",
           effects: [{ type: "end" }],
         },
       ],

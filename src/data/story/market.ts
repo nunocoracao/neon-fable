@@ -650,6 +650,9 @@ export const marketArc: StoryArc = {
           ifUnavailable: "disabled",
           effects: [
             { type: "add-item", itemId: "con-trauma-patch" },
+            // A half-used tin of boards-crew colour, in with the rest
+            // of somebody's abandoned week. Not sold anywhere.
+            { type: "add-item", itemId: "dye-rust-vigil" },
             { type: "credits", amount: 25 },
             { type: "set-flag", key: "market-locker", value: "forced" },
           ],
@@ -667,6 +670,7 @@ export const marketArc: StoryArc = {
             // sight nobody came back for. Loot, not stock — the only
             // Smartlink on the boards that costs nothing.
             { type: "add-item", itemId: "mod-smartlink-sight" },
+            { type: "add-item", itemId: "dye-rust-vigil" },
             { type: "credits", amount: 25 },
             { type: "set-flag", key: "market-locker", value: "picked" },
           ],
@@ -684,10 +688,11 @@ export const marketArc: StoryArc = {
       text:
         "The hasp gives with a noise the aisle swallows whole. Inside: a " +
         "consignment nobody came back for — a trauma kit gone slightly " +
-        "yellow at the seals, a ranging head still foil-wrapped, a hand of " +
-        "loose credit chits, and a child's drawing of the market done in " +
-        "four colours, folded into eighths. You leave the drawing where it " +
-        "is and close the door on it.",
+        "yellow at the seals, a ranging head still foil-wrapped, a half-used " +
+        "tin of the amber the boards crews wore the year the scaffolds went " +
+        "up, a hand of loose credit chits, and a child's drawing of the " +
+        "market done in four colours, folded into eighths. You leave the " +
+        "drawing where it is and close the door on it.",
       location: "vertical-market:gallery",
       choices: [
         {
