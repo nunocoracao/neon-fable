@@ -42,6 +42,7 @@ import { createInventoryOverlay } from "./inventoryOverlay";
 import { focusFirst, installListNav } from "./focus";
 import { createMainMenuScreen } from "./mainMenu";
 import { createMinimap, type MinimapHandle } from "./minimap";
+import { createPartyOverlay } from "./partyOverlay";
 import type { OverlayHandle } from "./overlay";
 import { createSaveLoadPanel } from "./saveLoad";
 import { createStylistOverlay } from "./stylistOverlay";
@@ -69,6 +70,7 @@ export interface GameScreenOptions {
 type OverlayKind =
   | "dialogue"
   | "inventory"
+  | "party"
   | "advance"
   | "saves"
   | "menu"
@@ -386,6 +388,26 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     );
   }
 
+  /**
+   * The crew panel. Swapping who is out is a between-jobs decision, so
+   * it is reachable from the map and never from a fight — and the HUD
+   * refresh puts the new companion on the player's heels immediately.
+   */
+  function openParty(): void {
+    openOverlay(
+      "party",
+      createPartyOverlay({
+        session,
+        onStateChange: refreshHud,
+        onTalk(nodeId) {
+          closeOverlay();
+          openDialogue(nodeId);
+        },
+        onClose: closeOverlay,
+      }),
+    );
+  }
+
   function openAdvancement(): void {
     openOverlay(
       "advance",
@@ -466,6 +488,11 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       if (overlay?.kind === "inventory") closeOverlay();
       else openInventory();
     }
+    if (event.key === "c" || event.key === "C") {
+      if (overlay?.kind === "dialogue") return;
+      if (overlay?.kind === "party") closeOverlay();
+      else openParty();
+    }
     if (event.key === "p" || event.key === "P") {
       if (overlay?.kind === "dialogue") return;
       if (overlay?.kind === "advance") closeOverlay();
@@ -528,6 +555,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       actions.className = "nf-hud-actions";
       const hudButtons: Array<[string, () => void]> = [
         ["Inventory [I]", () => (overlay?.kind === "inventory" ? closeOverlay() : openInventory())],
+        ["Crew [C]", () => (overlay?.kind === "party" ? closeOverlay() : openParty())],
         ["Advance [P]", () => (overlay?.kind === "advance" ? closeOverlay() : openAdvancement())],
         ["Saves", openSaves],
         ["Menu [Esc]", () => (overlay ? closeOverlay() : openSystemMenu())],

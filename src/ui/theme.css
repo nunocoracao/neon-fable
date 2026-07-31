@@ -1006,6 +1006,72 @@ body::after {
   flex: none;
 }
 
+/* --- Crew --- */
+
+.nf-party {
+  width: min(52rem, calc(100vw - 3rem));
+}
+
+.nf-party-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.nf-party-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--nf-bg-raised);
+  border: 2px solid var(--nf-border);
+}
+
+/* The one who is actually walking with you, lit like their own chip
+   in the initiative rail. */
+.nf-party-active {
+  border-color: var(--nf-glow-cyan);
+  box-shadow: 3px 3px 0 rgba(20, 102, 95, 0.8);
+}
+
+.nf-party-card .nf-portrait {
+  width: 64px;
+  height: 64px;
+}
+
+.nf-party-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.nf-party-status {
+  font-family: var(--nf-font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--nf-ink-dim);
+}
+
+.nf-party-waiting {
+  font-size: 0.75rem;
+  color: var(--nf-glow-cyan);
+}
+
+.nf-party-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.nf-party-out {
+  font-family: var(--nf-font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--nf-glow-cyan);
+}
+
 /* --- Advancement --- */
 
 .nf-advancement {
@@ -1317,6 +1383,16 @@ body::after {
 .nf-dialogue-aside-name {
   color: var(--nf-glow-cyan);
   font-style: normal;
+}
+
+/* What the last choice cost you with the people who watched it: shown
+   on the beat after, in the crew's own colour, then gone. */
+.nf-dialogue-loyalty {
+  margin: 0.35rem 0 0;
+  font-family: var(--nf-font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--nf-glow-cyan);
 }
 
 .nf-init-player {
