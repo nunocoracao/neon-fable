@@ -1,17 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { fixtureCharacter } from "../character/testSupport";
-import { vendorChoices, type WorldConditionId } from "../data/world";
+import { type WorldConditionId } from "../data/world";
+import { listPrice, vendorShelf } from "../economy";
 import { requireNode } from "../narrative/engine";
-import { availableChoices } from "../narrative/engine";
 import { introArc } from "../data/story";
 import { createNewGame, type GameState } from "../state";
 import { adjustReputation } from "../state/reputation";
 import { deriveWorldState, worldOf } from "./state";
-import { vendorCatalog, vendorPrice, vendorStock } from "./vendor";
+import { vendorCatalog, vendorEntry, vendorStock } from "./vendor";
 
 /**
  * Stock variation, and the promise that the shelf the selector reports
- * and the shelf the player is offered are the same shelf.
+ * and the shelf the player is shown are the same shelf.
+ *
+ * The counter screen is now the only door to the stall, so the seam
+ * runs from `vendorStock` (what the city is letting them carry) to
+ * `vendorShelf` (what the screen puts in front of this player). Prices
+ * are not part of that seam at all — they are derived per player from
+ * the item's worth, which is what `listPrice` reads without one.
  */
 
 const VENDOR = "wet-market-back" as const;
@@ -28,6 +34,14 @@ function makeState(flags: GameState["flags"] = {}): GameState {
 const stockIds = (...conditions: readonly WorldConditionId[]): string[] =>
   vendorStock(VENDOR, worldOf(...conditions)).map((entry) => entry.id);
 
+const priceOf = (
+  itemId: string,
+  ...conditions: readonly WorldConditionId[]
+): number | undefined => {
+  const entry = vendorEntry(VENDOR, itemId, worldOf(...conditions));
+  return entry ? listPrice(VENDOR, entry) : undefined;
+};
+
 describe("vendorStock", () => {
   it("carries the shelf's ungated lines to everybody", () => {
     const base = stockIds();
@@ -39,19 +53,16 @@ describe("vendorStock", () => {
     const calm = stockIds("streets-calm", "warrant-clear");
     expect(calm).toContain("buy-rail-spitter");
     expect(calm).not.toContain("buy-rail-spitter-hot");
-    expect(vendorPrice(VENDOR, "wpn-rail-spitter", worldOf("streets-calm"))).toBe(
-      320,
-    );
+    expect(priceOf("wpn-rail-spitter", "streets-calm")).toBe(320);
   });
 
   it("charges for the risk once the spike never came back", () => {
     const hot = stockIds("package-loose", "warrant-clear");
     expect(hot).toContain("buy-rail-spitter-hot");
     expect(hot).not.toContain("buy-rail-spitter");
-    expect(vendorPrice(VENDOR, "wpn-rail-spitter", worldOf("package-loose"))).toBe(
-      420,
-    );
-    // Exactly one price for one item, whichever way the run went.
+    // The same weapon, the same worth, plus a flat premium for holding it.
+    expect(priceOf("wpn-rail-spitter", "package-loose")).toBe(420);
+    // Exactly one line for one item, whichever way the run went.
     for (const world of [worldOf("streets-calm"), worldOf("package-loose")]) {
       const rails = vendorStock(VENDOR, world).filter(
         (e) => e.itemId === "wpn-rail-spitter",
@@ -67,9 +78,7 @@ describe("vendorStock", () => {
     const wanted = stockIds("warrant-out");
     expect(wanted).not.toContain("buy-warden-optics");
     expect(wanted).not.toContain("buy-cascade-governor");
-    expect(vendorPrice(VENDOR, "cyb-warden-optics", worldOf("warrant-out"))).toBe(
-      undefined,
-    );
+    expect(priceOf("cyb-warden-optics", "warrant-out")).toBe(undefined);
   });
 
   it("puts Exchange hardware on the stall once the Cordon is down", () => {
@@ -92,13 +101,12 @@ describe("vendorStock", () => {
 });
 
 /**
- * The seam that matters: the generated choices carry each entry's own
- * condition requirements verbatim, so what the engine offers a player
- * standing at the counter is what the selector says is on the shelf.
+ * The seam that matters: the screen's rows are the selector's entries,
+ * in the selector's order, for every shape of run — so what a player
+ * standing at the counter is offered is what the world layer says is on
+ * the shelf, and neither can drift without the other.
  */
-describe("the shop offers exactly what the world stocks", () => {
-  const shelf = requireNode(introArc, "wet-market-back");
-
+describe("the counter shows exactly what the world stocks", () => {
   const cases: Array<[string, GameState]> = [
     ["a clean run", makeState()],
     ["a kept spike", makeState({ "kept-spike": true })],
@@ -121,10 +129,9 @@ describe("the shop offers exactly what the world stocks", () => {
   for (const [name, state] of cases) {
     it(`agrees with the shelf on ${name}`, () => {
       const world = deriveWorldState(state);
-      const offered = availableChoices(state, shelf)
-        .map((p) => p.choice.id)
-        .filter((id) => id.startsWith("buy-"));
-      expect(offered).toEqual(vendorStock(VENDOR, world).map((e) => e.id));
+      expect(vendorShelf(state, VENDOR).map((line) => line.entry.id)).toEqual(
+        vendorStock(VENDOR, world).map((e) => e.id),
+      );
     });
   }
 
@@ -134,29 +141,32 @@ describe("the shop offers exactly what the world stocks", () => {
       ...base,
       reputation: adjustReputation(base.reputation, "market", 40),
     };
-    const offered = availableChoices(state, shelf)
-      .map((p) => p.choice.id)
-      .filter((id) => id.startsWith("buy-"));
-    expect(offered).toContain("buy-spindle-projector");
-    expect(offered).toEqual(
+    const rows = vendorShelf(state, VENDOR).map((line) => line.entry.id);
+    expect(rows).toContain("buy-spindle-projector");
+    expect(rows).toEqual(
       vendorStock(VENDOR, deriveWorldState(state)).map((e) => e.id),
     );
   });
 
-  it("still greys an affordable-only gate rather than hiding it", () => {
-    // Broke, but the shelf itself is open: the price is shown, disabled.
+  it("still shows an unaffordable line rather than hiding it", () => {
+    // Broke, but the shelf itself is open: the price is shown, dead.
     const broke: GameState = { ...makeState(), credits: 0 };
-    const presented = availableChoices(broke, shelf).filter((p) =>
-      p.choice.id.startsWith("buy-"),
+    const mantle = vendorShelf(broke, VENDOR).find(
+      (line) => line.entry.id === "buy-ghostline-mantle",
     );
-    const mantle = presented.find((p) => p.choice.id === "buy-ghostline-mantle");
-    expect(mantle?.enabled).toBe(false);
+    expect(mantle).toBeDefined();
+    expect(mantle?.affordable).toBe(false);
   });
 
-  it("builds the node's choices from the catalog, plus the way out", () => {
-    expect(shelf.choices.map((c) => c.id)).toEqual([
-      ...vendorChoices(VENDOR, "wet-market-back").map((c) => c.id),
-      "done",
-    ]);
+  it("reaches the counter through one door, and only one", () => {
+    const shelf = requireNode(introArc, "wet-market-back");
+    expect(shelf.choices.map((c) => c.id)).toEqual(["trade", "done"]);
+    const opens = shelf.choices.filter((choice) =>
+      (choice.effects ?? []).some(
+        (effect) => effect.type === "open-vendor",
+      ),
+    );
+    expect(opens).toHaveLength(1);
+    expect(opens[0]?.target).toBe("wet-market-back");
   });
 });

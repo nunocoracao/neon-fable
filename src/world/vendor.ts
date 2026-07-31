@@ -1,14 +1,12 @@
 /**
  * What a vendor has on the shelf tonight.
  *
- * The selector and the shop's actual dialogue choices are two views of
- * one decision: `vendorChoices` (src/data/world.ts) builds each choice's
- * requirements out of the *same* condition requirement arrays this
- * function filters on, plus the price. So this answers "what is
- * stocked" and the choice list answers "what can be bought right now",
- * and the only difference between them is the player's balance — which
- * is exactly the difference a shop should have. vendor.test.ts pins the
- * two together against a spread of world states.
+ * Stock only. What a line *costs* is a different question with a
+ * different answer per player (see src/economy/), and keeping the two
+ * apart is what lets the counter screen price a shelf without the world
+ * layer ever learning that credits exist. This module answers "what is
+ * the city letting them carry"; everything else about the offer is
+ * derived from that answer.
  */
 import { VENDOR_STOCK, type VendorId, type VendorStockEntry } from "../data/world";
 import { conditionsAllow, type WorldState } from "./state";
@@ -28,12 +26,11 @@ export function vendorCatalog(vendorId: VendorId): VendorStockEntry[] {
   return VENDOR_STOCK.filter((entry) => entry.vendorId === vendorId);
 }
 
-/** What one item costs at this vendor now, or undefined when unstocked. */
-export function vendorPrice(
+/** The live line for one item at this vendor, or undefined when unstocked. */
+export function vendorEntry(
   vendorId: VendorId,
   itemId: string,
   world: WorldState,
-): number | undefined {
-  return vendorStock(vendorId, world).find((entry) => entry.itemId === itemId)
-    ?.price;
+): VendorStockEntry | undefined {
+  return vendorStock(vendorId, world).find((entry) => entry.itemId === itemId);
 }

@@ -11,9 +11,12 @@ import { checkRequirements } from "../narrative/requirements";
 import { arcEntryNodeIds } from "../narrative/types";
 import { createNewGame, type GameState } from "../state";
 import { fixtureCharacter } from "../character/testSupport";
+import { listPrice } from "../economy";
 import { populateMap } from "../world/population";
 import { worldOf } from "../world/state";
+import { vendorStock } from "../world/vendor";
 import { castVisual } from "./cast";
+import { PRICE_FLOOR, VENDOR_IDS, isVendorId, itemValue } from "./economy";
 import { getItem } from "./items";
 import { maps, requireMap } from "./maps";
 import { findArcByNode } from "./story";
@@ -25,7 +28,6 @@ import {
   WORLD_CONDITIONS,
   conditionRequirements,
   getCondition,
-  vendorChoices,
   type WorldConditionId,
 } from "./world";
 
@@ -382,39 +384,42 @@ describe("the news pool", () => {
 });
 
 describe("vendor stock", () => {
-  it("stocks real items at a real price, under ids it never reuses", () => {
+  it("stocks real items under ids it never reuses, gated on real conditions", () => {
     const ids = VENDOR_STOCK.map((entry) => entry.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const entry of VENDOR_STOCK) {
       expect(getItem(entry.itemId), entry.id).toBeDefined();
-      expect(entry.price, entry.id).toBeGreaterThan(0);
-      expect(entry.label, entry.id).toContain(String(entry.price));
+      expect(isVendorId(entry.vendorId), entry.id).toBe(true);
       for (const id of entry.requires ?? []) {
         expect(getCondition(id), `${entry.id} gates on "${id}"`).toBeDefined();
       }
     }
   });
 
-  it("builds each choice's gate out of its own conditions plus the price", () => {
-    const choices = vendorChoices("wet-market-back", "wet-market-back");
-    expect(choices.map((c) => c.id)).toEqual(
-      VENDOR_STOCK.filter((e) => e.vendorId === "wet-market-back").map((e) => e.id),
+  it("prices nothing itself — a line carries risk, never a figure", () => {
+    for (const entry of VENDOR_STOCK) {
+      // What a thing is worth lives in ./economy.ts and nowhere else;
+      // a premium is what the street charges for holding this one.
+      expect(itemValue(entry.itemId), entry.id).toBeGreaterThan(0);
+      if (entry.premium !== undefined) {
+        expect(entry.premium, entry.id).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("derives every live line at a price above nothing", () => {
+    const world = worldOf(
+      ...WORLD_CONDITIONS.map((condition) => condition.id),
     );
-    for (const choice of choices) {
-      const entry = VENDOR_STOCK.find((e) => e.id === choice.id);
-      expect(entry).toBeDefined();
-      if (!entry) continue;
-      expect(choice.requirements).toEqual([
-        ...conditionRequirements(...(entry.requires ?? [])),
-        { type: "credits", value: entry.price },
-      ]);
-      expect(choice.effects).toEqual([
-        { type: "credits", amount: -entry.price },
-        { type: "add-item", itemId: entry.itemId },
-      ]);
-      expect(choice.target).toBe("wet-market-back");
-      // Off the shelf means gone; merely unaffordable means greyed.
-      expect(choice.ifUnavailable).toBe(entry.requires ? "hidden" : "disabled");
+    for (const entry of VENDOR_STOCK) {
+      const price = listPrice(entry.vendorId, entry);
+      expect(price, entry.id).toBeGreaterThanOrEqual(PRICE_FLOOR);
+    }
+    // And the whole shelf resolves under a maximally-loud city.
+    for (const vendorId of VENDOR_IDS) {
+      for (const entry of vendorStock(vendorId, world)) {
+        expect(listPrice(vendorId, entry), entry.id).toBeGreaterThan(0);
+      }
     }
   });
 });
