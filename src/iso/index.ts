@@ -120,6 +120,7 @@ export {
   type InteractableSpriteId,
   type IsoMap,
   type LegendEntry,
+  type NewsScreen,
   type PropId,
   type PropPlacement,
   type AmbientSpec,
@@ -201,6 +202,25 @@ export {
   type SetPieceOptions,
   type TrainRun,
 } from "./setpiece";
+export {
+  TICKER_GAP_PX,
+  TICKER_SPEED_PX_PER_S,
+  collectTickers,
+  headlineDurationMs,
+  tickerFrameAt,
+  tickerStill,
+  tickerWindow,
+  type TickerDraw,
+  type TickerWindow,
+} from "./ticker";
+export {
+  NEWS_STRIP_H,
+  NEWS_TINTS,
+  NEWS_TINT_INK,
+  newsStripGrid,
+  newsTextWidth,
+  type NewsTintId,
+} from "./art/news";
 export {
   FOLLOW_CATCH_UP,
   FOLLOW_GAP,

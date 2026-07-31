@@ -51,6 +51,7 @@ import type { MinimapView } from "./minimap";
 import { findPath, findPathToAdjacent } from "./path";
 import { renderScene, type OpeningView, type RenderView } from "./render";
 import { collectSetPieces } from "./setpiece";
+import { collectTickers } from "./ticker";
 import { doorCycleMs, doorOpen01, doorTiming } from "./transition";
 import { resolveWeather, type WeatherView } from "./weather";
 import type { SpriteProvider } from "./sprites";
@@ -112,6 +113,15 @@ export interface IsoSceneOptions {
    * neither block nor trigger an interactable.
    */
   followerSpriteId?: string | null;
+  /**
+   * The running order for each of the map's public screens, by screen
+   * id. Which headlines a district is carrying is content the shell
+   * resolves from the world state (see src/world/news.ts); the scene
+   * only scrolls what it is handed, exactly as it only positions the
+   * speakers it reports rather than knowing what they say. Screens with
+   * no entry show nothing.
+   */
+  newsStrips?: Readonly<Record<string, readonly string[]>>;
 }
 
 export interface IsoScene {
@@ -213,6 +223,8 @@ export function createIsoScene(
    * moved the clock. Pushed into the sprite provider, which bakes
    * through the phase's tinted palette.
    */
+  /** What the district's screens are carrying; fixed for the visit. */
+  const newsStrips = options.newsStrips ?? {};
   let dayPhase = resolveDayPhase(map, options.dayPhase);
   sprites.setDayPhase?.(dayPhase);
 
@@ -608,6 +620,12 @@ export function createIsoScene(
       motion: !reducedMotion,
       rain: weather?.id === "rain",
     });
+    // Reduced motion parks each screen on its first headline rather
+    // than freezing the scroll at t = 0, which would leave every board
+    // showing a line that has not entered the window yet.
+    const tickers = collectTickers(map, newsStrips, time, {
+      motion: !reducedMotion,
+    });
     const view: RenderView = {
       map,
       camera,
@@ -615,6 +633,7 @@ export function createIsoScene(
       viewportH,
       hoverTile,
       path: walkQueue,
+      tickers,
       // The crowd rides in the same entity list as the player, so the
       // renderer's one depth-sorted object pass keeps pedestrians,
       // props, and the player correctly layered in a busy scene.

@@ -5,6 +5,7 @@
  * the animation clock. The pixel-art implementation lives in ./art.
  */
 import type { AbilityFxId } from "./abilityFx";
+import type { NewsTintId } from "./art/news";
 import type { Facing } from "./animation";
 import type { AttackClassId } from "./attack";
 import type { EffectSpriteId } from "./impact";
@@ -180,6 +181,14 @@ export interface SpriteProvider {
    * effects above.
    */
   popupText?(text: string, kind: PopupKind): Sprite;
+  /**
+   * A whole news headline, baked once at its full pixel width and
+   * anchored on its top-left corner. The renderer scrolls it by copying
+   * a moving window out of this one canvas (see ./ticker.ts), so a
+   * ticker costs one bake per line of copy — never one per frame.
+   * Optional, like the effects above.
+   */
+  newsText?(text: string, tint: NewsTintId): Sprite;
   /**
    * Pre-baked radial glow in a palette color for the additive neon
    * pass; radius is in 1x art pixels, anchored at the glow center.

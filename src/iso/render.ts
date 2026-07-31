@@ -19,6 +19,7 @@ import {
 } from "./tilemap";
 import type { EntitySpriteId, Sprite, SpriteProvider } from "./sprites";
 import { setPieceGlows, type SetPieceDraw } from "./setpiece";
+import { tickerWindow, type TickerDraw } from "./ticker";
 import { tileKey, type WeatherView } from "./weather";
 import { paintRainStreaks, paintSplashes } from "./weatherPaint";
 
@@ -96,10 +97,24 @@ export interface RenderView {
    * set-piece-specific code anywhere here.
    */
   setPieces?: readonly SetPieceDraw[];
+  /**
+   * The public screens and what each is showing this frame, from the
+   * pure pass in ./ticker.ts. A screen is a caption on the prop it is
+   * mounted on: it sorts at that prop's tile and paints after it, and
+   * the scroll is a moving window copied out of one baked strip rather
+   * than anything re-baked per frame.
+   */
+  tickers?: readonly TickerDraw[];
 }
 
 interface SceneDrawable extends Drawable {
   sprite: Sprite;
+  /**
+   * Copy only this slice of the sprite, in world-screen units from its
+   * own top-left corner — how a ticker shows a moving window into one
+   * baked headline without a second bake.
+   */
+  clip?: { sourceX: number; sourceW: number };
   /** Silhouette to trace an outline with, on the focused interactable. */
   outline?: Sprite;
   /**
@@ -265,6 +280,9 @@ export function renderScene(
       offsetX: piece.offsetX * ART_SCALE,
       offsetY: piece.offsetY * ART_SCALE,
     })),
+    // Appended last, so a screen ties with the prop it is mounted on
+    // and — the sort being stable — lands on top of it.
+    ...tickerDrawables(sprites, view.tickers ?? []),
   ];
   drawables.sort(compareDrawables);
   const outlineAlpha =
@@ -280,7 +298,16 @@ export function renderScene(
       }
       ctx.globalAlpha = 1;
     }
-    drawSprite(ctx, d.sprite, d.x, d.y, scale, d.offsetX ?? 0, d.offsetY ?? 0);
+    drawSprite(
+      ctx,
+      d.sprite,
+      d.x,
+      d.y,
+      scale,
+      d.offsetX ?? 0,
+      d.offsetY ?? 0,
+      d.clip,
+    );
   }
 
   // Glow pass: emissive light from neon, screens, and their water
@@ -338,6 +365,43 @@ export function renderScene(
   }
 }
 
+/**
+ * One drawable per screen showing something: the baked strip, clipped
+ * to the readable window and displaced to where the window sits over
+ * its prop. Everything is multiplied up from the 1x art pixels the
+ * ticker logic works in, so the copy lands on whole art pixels and the
+ * glyphs stay as crisp as the sprite beside them.
+ */
+function tickerDrawables(
+  sprites: SpriteProvider,
+  tickers: readonly TickerDraw[],
+): SceneDrawable[] {
+  const drawables: SceneDrawable[] = [];
+  for (const ticker of tickers) {
+    const bake = sprites.newsText?.(ticker.text, ticker.screen.tint);
+    if (!bake) continue;
+    const slice = tickerWindow(
+      ticker.offsetPx,
+      ticker.textPx,
+      ticker.screen.width,
+    );
+    if (!slice) continue;
+    drawables.push({
+      x: ticker.screen.x,
+      y: ticker.screen.y,
+      layer: "object",
+      sprite: bake,
+      clip: {
+        sourceX: slice.sourceX * ART_SCALE,
+        sourceW: slice.sourceW * ART_SCALE,
+      },
+      offsetX: (ticker.screen.offsetX + slice.destX) * ART_SCALE,
+      offsetY: ticker.screen.offsetY * ART_SCALE,
+    });
+  }
+  return drawables;
+}
+
 function drawSprite(
   ctx: CanvasRenderingContext2D,
   sprite: Sprite,
@@ -346,13 +410,36 @@ function drawSprite(
   scale: number,
   offsetX = 0,
   offsetY = 0,
+  clip?: { sourceX: number; sourceW: number },
 ): void {
   const { sx, sy } = worldToScreen(x, y);
-  ctx.drawImage(
-    sprite.image,
-    snapToPixelGrid(sx - sprite.anchorX, scale) + offsetX,
-    snapToPixelGrid(sy - sprite.anchorY, scale) + offsetY,
-  );
+  const left = snapToPixelGrid(sx - sprite.anchorX, scale) + offsetX;
+  const top = snapToPixelGrid(sy - sprite.anchorY, scale) + offsetY;
+  if (clip) {
+    // A clipped draw is copied 1:1 — same size in as out — so a
+    // windowed strip is exactly as crisp as an unwindowed sprite.
+    const height = spriteHeight(sprite);
+    if (height <= 0 || clip.sourceW <= 0) return;
+    ctx.drawImage(
+      sprite.image,
+      clip.sourceX,
+      0,
+      clip.sourceW,
+      height,
+      left,
+      top,
+      clip.sourceW,
+      height,
+    );
+    return;
+  }
+  ctx.drawImage(sprite.image, left, top);
+}
+
+/** Pixel height of a baked sprite, whatever kind of image source it is. */
+function spriteHeight(sprite: Sprite): number {
+  const image = sprite.image as { height?: number };
+  return typeof image.height === "number" ? image.height : 0;
 }
 
 /**
