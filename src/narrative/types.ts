@@ -26,7 +26,8 @@ export type Requirement =
   | CreditsRequirement
   | CompanionRequirement
   | LoyaltyRequirement
-  | ReputationRequirement;
+  | ReputationRequirement
+  | DominantFactionRequirement;
 
 /** Flag must exist and strictly equal the given value. */
 export interface FlagEqualsRequirement {
@@ -136,6 +137,24 @@ export interface ReputationRequirement {
   factionId: FactionId;
   value: ReputationThreshold;
   mode?: "at-least" | "at-most";
+}
+
+/**
+ * Which power the city reads as the player's — a gate on the standings
+ * *against each other* rather than on any one of them. `factionId`
+ * "none" is the fourth face of the same beat: the split city, nobody
+ * clearly owed and nobody clearly owing, which a scene that calls in
+ * favours has to answer for as much as it answers for the three names.
+ *
+ * `min` is the floor a leader must clear to count (band id or raw
+ * standing, defaulting to "warm"); see dominantFaction for the tie
+ * rules. Author the four variants of a beat as four choices — exactly
+ * one of them can ever pass.
+ */
+export interface DominantFactionRequirement {
+  type: "dominant-faction";
+  factionId: FactionId | "none";
+  min?: ReputationThreshold;
 }
 
 /** A state change a choice applies when taken. */

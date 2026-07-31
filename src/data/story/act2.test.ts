@@ -165,6 +165,57 @@ describe("act2 arc shape", () => {
     ]);
   });
 
+  it("lets the Market's standing walk you past the Exchange's gate fight", () => {
+    const approach = act2Arc.nodes.find((n) => n.id === "a2-lone-approach")!;
+    const stair = approach.choices.find((c) => c.id === "market-stair")!;
+    expect(stair.requirements).toEqual([
+      { type: "reputation", factionId: "market", value: "warm" },
+    ]);
+    // A backdoor is only a backdoor if it skips what the front door
+    // costs: the freight gate is a fight, this is a chained door.
+    expect((stair.effects ?? []).some((e) => e.type === "start-combat")).toBe(
+      false,
+    );
+    const gate = act2Arc.nodes.find((n) => n.id === "a2-lone-gate")!;
+    expect(
+      gate.choices.flatMap((c) =>
+        (c.effects ?? []).flatMap((e) =>
+          e.type === "start-combat" ? [e.encounterId] : [],
+        ),
+      ),
+    ).toEqual(["enc-exchange-gate"]);
+  });
+
+  it("opens the bonded lift on Combine standing, and on paying for it otherwise", () => {
+    const lift = act2Arc.nodes.find((n) => n.id === "a2-vent-bonded")!;
+    const onStanding = lift.choices.find((c) => c.id === "bonded-standing")!;
+    expect(onStanding.requirements).toEqual([
+      { type: "reputation", factionId: "auric", value: "warm" },
+    ]);
+    // The other road onto the same floor costs credits — a door the
+    // Combine will not open for you is a door you buy.
+    const paid = lift.choices.find((c) => c.id === "bonded-clerk")!;
+    expect(paid.requirements).toEqual([{ type: "credits", value: 150 }]);
+    expect(paid.effects).toContainEqual({ type: "credits", amount: -150 });
+    expect(onStanding.target).toBe(paid.target);
+    // And the lift is a one-visit door, so the floor cannot be farmed.
+    const arrival = act2Arc.nodes.find((n) => n.id === "a2-vent-arrival")!;
+    const way = arrival.choices.find((c) => c.target === "a2-vent-bonded")!;
+    expect(way.requirements).toEqual([
+      { type: "flag-unset", key: "bonded-floor" },
+    ]);
+  });
+
+  it("prices the manifest as the Market's own stock", () => {
+    const floor = act2Arc.nodes.find((n) => n.id === "a2-vent-bonded-floor")!;
+    const boards = floor.choices.find((c) => c.id === "bonded-boards")!;
+    expect(boards.standing).toEqual({ market: 12, auric: -6 });
+    // Telling six levels pays less on the night than filling your
+    // pockets does; what it buys is the boards.
+    const take = floor.choices.find((c) => c.id === "bonded-take")!;
+    expect(take.standing).toBeUndefined();
+  });
+
   it("reaches combat through at least five distinct encounters", () => {
     const encounterIds = allChoices.flatMap(({ choice }) =>
       (choice.effects ?? []).flatMap((e) =>

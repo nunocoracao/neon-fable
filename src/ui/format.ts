@@ -144,6 +144,13 @@ export function requirementLabel(
         ? `[${factionName(requirement.factionId)}: ${band.label} at best]`
         : `[${factionName(requirement.factionId)}: ${band.label}+]`;
     }
+    case "dominant-faction":
+      // A comparison, not a threshold: the label says whose city it
+      // reads as, because that is the sentence the player can check
+      // against the three rows on their own character screen.
+      return requirement.factionId === "none"
+        ? "[No power stands above the others]"
+        : `[${factionName(requirement.factionId)}: your strongest tie]`;
   }
 }
 

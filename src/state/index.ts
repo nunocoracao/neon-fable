@@ -66,6 +66,7 @@ export {
   canAccess,
   clampReputation,
   deriveReputation,
+  dominantFaction,
   emptyReputation,
   reputationOf,
   sumStanding,

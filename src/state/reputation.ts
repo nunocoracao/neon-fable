@@ -115,6 +115,42 @@ export function canAccess(
   return mode === "at-most" ? value <= target : value >= target;
 }
 
+/**
+ * Which power the city reads as *yours* — the one standing highest, and
+ * only if it stands high enough to be worth calling on. `floor` defaults
+ * to the warm band: a faction that merely dislikes you least is not
+ * backing you.
+ *
+ * Tie rules, which content depends on and a test pins:
+ *  - nobody clears the floor → null;
+ *  - one clear leader → that faction;
+ *  - two or more level at the top → null. A city split down the middle
+ *    has no side to send, and the scene that reads this must have
+ *    something to say about that rather than silently picking the first
+ *    id in the table.
+ */
+export function dominantFaction(
+  reputation: ReputationState,
+  floor: ReputationThreshold = "warm",
+): FactionId | null {
+  const min = thresholdValue(floor);
+  let leader: FactionId | null = null;
+  let best = min;
+  let tied = false;
+  for (const id of FACTION_IDS) {
+    const value = reputationOf(reputation, id);
+    if (value < min) continue;
+    if (leader === null || value > best) {
+      leader = id;
+      best = value;
+      tied = false;
+    } else if (value === best) {
+      tied = true;
+    }
+  }
+  return tied ? null : leader;
+}
+
 /** Moves one faction's standing by `delta`, clamped. */
 export function adjustReputation(
   reputation: ReputationState,

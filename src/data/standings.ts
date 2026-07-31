@@ -95,6 +95,14 @@ export const FACTION_STANDINGS: readonly StandingSource[] = [
   },
   // --- Act 2: what the Cordon broke open, and into whose hands
   {
+    // The bonded floor's manifest, read out on the Market's boards:
+    // the one favour a run can do six levels of traders that is worth
+    // as much to them as a chapter, because it is their own stock.
+    flag: "boards-cut-in",
+    value: true,
+    standing: { market: 12, auric: -6 },
+  },
+  {
     flag: "act2-outcome",
     value: "charter",
     standing: { auric: -10, court: 20, market: 12 },
@@ -108,6 +116,34 @@ export const FACTION_STANDINGS: readonly StandingSource[] = [
     flag: "act2-outcome",
     value: "severance",
     standing: { auric: -25, court: 25, market: -10 },
+  },
+  // --- Act 3: who came when the muster was called
+  //
+  // Standing decided which of these a run could even offer, and then
+  // the call itself is a public alignment: the city watches you pick
+  // whose crowd you belong to, and prices it.
+  {
+    flag: "a3-allies",
+    value: "court",
+    standing: { court: 12, auric: -6 },
+  },
+  {
+    flag: "a3-allies",
+    value: "auric",
+    standing: { auric: 12, court: -6 },
+  },
+  {
+    flag: "a3-allies",
+    value: "market",
+    standing: { market: 12, auric: -4 },
+  },
+  {
+    // Calling on a city that cannot agree about you moves nothing,
+    // and the table has to say so out loud: a value nothing is worth
+    // is still a value the flag can hold.
+    flag: "a3-allies",
+    value: "none",
+    standing: {},
   },
   // --- Act 3: who holds the city afterwards
   {
@@ -129,6 +165,23 @@ export const FACTION_STANDINGS: readonly StandingSource[] = [
     flag: "act3-outcome",
     value: "ghost",
     standing: { auric: -15, market: 20 },
+  },
+  // The dispositions standing itself opened: each one hands the city
+  // to the power that trusted you, and is read that way afterwards.
+  {
+    flag: "act3-outcome",
+    value: "concordat",
+    standing: { auric: -25, court: 30, market: 5 },
+  },
+  {
+    flag: "act3-outcome",
+    value: "receivership",
+    standing: { auric: 30, court: -20, market: 10 },
+  },
+  {
+    flag: "act3-outcome",
+    value: "consortium",
+    standing: { auric: -15, court: 5, market: 30 },
   },
   // --- The district chains, at their own authored weights
   ...chainStandings(LAST_MILE_OUTCOMES),
