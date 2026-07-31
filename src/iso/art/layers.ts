@@ -15,7 +15,7 @@
  * and stride transforms without per-layer frame authoring. Everything
  * here is pure over grids — canvas baking stays in ../provider.
  */
-import type { Facing, MotionState } from "../animation";
+import type { Facing, LoopState, MotionState } from "../animation";
 import {
   MATERIAL_RAMPS,
   PALETTE,
@@ -462,10 +462,13 @@ export function composedCharacterGrid(
       variant.awayX,
     );
   }
-  const parts = resolvedParts(character, facing, view, state, frame);
+  // A person authors no wind-up stance: whatever they are charging,
+  // they stand there breathing while they do it (see MotionState).
+  const loop: LoopState = state === "walk" ? "walk" : "idle";
+  const parts = resolvedParts(character, facing, view, loop, frame);
   requireParts(parts, character);
   const composed = composeGrids(parts);
-  const frames = bodyAnimFrames(composed, character.build)[state];
+  const frames = bodyAnimFrames(composed, character.build)[loop];
   const grid = frames[frame];
   if (!grid) {
     throw new Error(`no ${state} frame ${frame} (have ${frames.length})`);

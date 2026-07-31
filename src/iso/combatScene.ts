@@ -127,8 +127,19 @@ import type { DayPhaseId, IsoMap, WeatherId } from "./tilemap";
 export interface CombatSceneEntity {
   id: string;
   spriteId: EntitySpriteId;
-  /** Logical tile; the scene walks the sprite toward it when it changes. */
+  /**
+   * Logical tile — the block's minimum-x, minimum-y corner; the scene
+   * walks the sprite toward it when it changes.
+   */
   position: TilePoint;
+  /**
+   * Tiles this combatant stands on, anchored at `position`. Absent is
+   * the single tile almost everything occupies. The scene draws one
+   * sprite over the block's *centre* and depth-sorts it there, so a
+   * chassis reads as standing across its whole footprint and characters
+   * pass in front of and behind it correctly.
+   */
+  footprint?: { width: number; height: number };
   hp: number;
   maxHp: number;
   alive: boolean;
@@ -153,6 +164,13 @@ export interface CombatSceneEntity {
    * themselves; the scene only shows what it is handed.
    */
   statuses?: readonly StatusFamilyId[];
+  /**
+   * True while this combatant is standing in a declared wind-up it has
+   * not thrown yet (see src/combat/charge.ts). Selects the held charge
+   * stance for art that authors one — presentation only; the engine
+   * owns the charge itself.
+   */
+  charging?: boolean;
 }
 
 /** What the scene needs to know about a blow being thrown. */
@@ -164,6 +182,14 @@ export interface AttackFxOptions {
    * that reach the damage step never miss.
    */
   hit?: boolean;
+  /**
+   * Which of the attacker's attack sets throws it, for art that swings
+   * more than one way. 0 — its default swing — for everything else.
+   * The set decides the animation, its beat timing, and the effect
+   * style, so a chassis's piston smears and its battery fires tracers
+   * with nothing here knowing which is which.
+   */
+  attackVariant?: number;
 }
 
 /** What the scene needs to know about a blow that just landed. */
@@ -281,6 +307,7 @@ export interface CombatScene {
     casterId: string,
     targetIds: readonly string[],
     fx: AbilityFxId,
+    options?: AttackFxOptions,
   ): number;
   /**
    * Play a landed blow on its target: the white flash and shake over a
@@ -343,17 +370,35 @@ const DEATH_FADE_MS = 400;
 const IMPACT_HEIGHT_PX = 40;
 
 /**
+ * How tall a body-framed sprite stands, in screen pixels: the 32×48
+ * frame's anchor at ART_SCALE. The reference every height in the scene
+ * is expressed relative to, so a taller frame lifts its furniture with
+ * it rather than wearing a person's.
+ */
+const BODY_ANCHOR_PX = 88;
+
+/**
  * Screen pixels above a tile's center that a status marker hangs at:
  * clear of the HP bar, so a condition never covers the health it
  * applies to.
  */
 const STATUS_MARKER_HEIGHT_PX = 126;
 
+/** Screen pixels a health bar floats above the top of its sprite. */
+const HP_BAR_CLEARANCE_PX = 16;
+/** Screen pixels a condition mark floats above the health bar. */
+const STATUS_CLEARANCE_PX = 38;
+
 /** Death for anything the caller did not describe: a body crumples. */
 const DEFAULT_DEATH_STYLE: DeathReactionKind = "collapse";
 
 interface EntityView extends CombatSceneEntity {
-  /** Where the sprite is drawn right now (trails position while walking). */
+  /**
+   * Where the anchor tile is right now (trails position while walking).
+   * Everything that draws goes through `standPoint`, which offsets this
+   * to the middle of the block — the anchor is a corner, the sprite is
+   * over the centre.
+   */
   visual: WorldPoint;
   /** Tiles still to walk; [0] is the tile being entered. */
   queue: TilePoint[];
@@ -364,6 +409,8 @@ interface EntityView extends CombatSceneEntity {
   /** The swing being played, and when it started; null when at rest. */
   attack: AttackSequence | null;
   attackStart: number;
+  /** Which attack set the swing in flight belongs to. */
+  attackVariant: number;
   flashStart: number;
   /**
    * Screen-x direction away from whatever last hit this entity; the
@@ -427,6 +474,42 @@ interface AbilityFx {
   readonly from: ScreenPoint;
   /** Where each target's effect is drawn, in the plan's own order. */
   readonly points: readonly ScreenPoint[];
+}
+
+/**
+ * The middle of a combatant's block, in fractional tile coordinates.
+ * The one place the corner-anchored footprint becomes the point the
+ * scene draws, sorts, and aims at — so a 2×2 chassis is drawn across
+ * its block, sorts against the row it is really standing on, and takes
+ * a shot in the chest rather than in one corner.
+ */
+function blockCenter(
+  at: WorldPoint,
+  footprint: { width: number; height: number } | undefined,
+): WorldPoint {
+  if (!footprint) return at;
+  return {
+    x: at.x + (Math.max(1, footprint.width) - 1) / 2,
+    y: at.y + (Math.max(1, footprint.height) - 1) / 2,
+  };
+}
+
+/** Where an entity is standing, as a point: the middle of its block. */
+function standPoint(entity: EntityView): WorldPoint {
+  return blockCenter(entity.visual, entity.footprint);
+}
+
+/** Every tile of an entity's block, from its anchor corner. */
+function footprintTiles(entity: EntityView): TilePoint[] {
+  const width = Math.max(1, entity.footprint?.width ?? 1);
+  const height = Math.max(1, entity.footprint?.height ?? 1);
+  const tiles: TilePoint[] = [];
+  for (let dy = 0; dy < height; dy++) {
+    for (let dx = 0; dx < width; dx++) {
+      tiles.push({ x: entity.position.x + dx, y: entity.position.y + dy });
+    }
+  }
+  return tiles;
 }
 
 /** Axis-by-axis steps from one tile to the next (dominant axis first). */
@@ -767,9 +850,13 @@ export function createCombatScene(
     return reactions.some((r) => r.entityId === entity.id);
   }
 
-  /** The class a combatant swings with; bare hands for anything unknown. */
-  function classOf(entity: EntityView): AttackClassId {
-    return sprites.attackClass?.(entity.spriteId) ?? "unarmed";
+  /**
+   * The class a combatant swings with; bare hands for anything unknown.
+   * Per attack set, so a chassis's piston and its shoulder battery bring
+   * their own timings and their own effect styles.
+   */
+  function classOf(entity: EntityView, variant = entity.attackVariant): AttackClassId {
+    return sprites.attackClass?.(entity.spriteId, variant) ?? "unarmed";
   }
 
   /** Screen-space line from one combatant to another, for the shake. */
@@ -778,8 +865,8 @@ export function createCombatScene(
     to: EntityView,
   ): { x: number; y: number } {
     if (!from) return shakeDirection(0, 0);
-    const a = worldToScreen(from.visual.x, from.visual.y);
-    const b = worldToScreen(to.visual.x, to.visual.y);
+    const a = worldToScreen(standPoint(from).x, standPoint(from).y);
+    const b = worldToScreen(standPoint(to).x, standPoint(to).y);
     return shakeDirection(b.sx - a.sx, b.sy - a.sy);
   }
 
@@ -816,8 +903,8 @@ export function createCombatScene(
   function awayFrom(entity: EntityView, attackerId?: string): -1 | 1 {
     const attacker = attackerId ? entities.get(attackerId) : undefined;
     if (!attacker) return entity.awayX;
-    const from = worldToScreen(attacker.visual.x, attacker.visual.y);
-    const to = worldToScreen(entity.visual.x, entity.visual.y);
+    const from = worldToScreen(standPoint(attacker).x, standPoint(attacker).y);
+    const to = worldToScreen(standPoint(entity).x, standPoint(entity).y);
     const dx = to.sx - from.sx;
     // Straight up or down the screen: shove it off the attacker's side.
     if (dx === 0) return to.sy >= from.sy ? 1 : -1;
@@ -874,19 +961,40 @@ export function createCombatScene(
     return active ? reactionPoseAt(active, now) : undefined;
   }
 
-  /** The chest of whoever stands here: the height effects happen at. */
-  function chestPoint(at: WorldPoint): ScreenPoint {
+  /**
+   * How tall this entity's sprite frame is, in screen pixels from the
+   * ground it stands on — its anchor's height inside its own frame.
+   * Everything the scene hangs *over* a combatant (its health bar, its
+   * condition marks, the height a blow lands at) scales off this, so a
+   * chassis wears them at its own shoulders and a person at theirs,
+   * with no case anywhere for how big anything is.
+   */
+  function spriteHeightPx(entity: EntityView): number {
+    return sprites.entityAnchor?.(entity.spriteId).y ?? BODY_ANCHOR_PX;
+  }
+
+  /** Chest height over an arbitrary point, for a frame that tall. */
+  function chestPointAt(at: WorldPoint, anchorPx: number): ScreenPoint {
     const ground = worldToScreen(at.x, at.y);
-    return { sx: ground.sx, sy: ground.sy - IMPACT_HEIGHT_PX };
+    return {
+      sx: ground.sx,
+      sy: ground.sy - IMPACT_HEIGHT_PX * (anchorPx / BODY_ANCHOR_PX),
+    };
+  }
+
+  /** The chest of a combatant: the height effects happen at. */
+  function chestPoint(entity: EntityView): ScreenPoint {
+    return chestPointAt(standPoint(entity), spriteHeightPx(entity));
   }
 
   /** Where a blow leaves a combatant: its weapon's muzzle, or its chest. */
   function muzzlePoint(entity: EntityView): ScreenPoint {
-    const stance = worldToScreen(entity.visual.x, entity.visual.y);
-    const offset = sprites.muzzleOffset?.(entity.spriteId, entity.facing) ?? {
-      x: 0,
-      y: -IMPACT_HEIGHT_PX,
-    };
+    const stance = worldToScreen(standPoint(entity).x, standPoint(entity).y);
+    const offset = sprites.muzzleOffset?.(
+      entity.spriteId,
+      entity.facing,
+      entity.attackVariant,
+    ) ?? { x: 0, y: -IMPACT_HEIGHT_PX };
     return { sx: stance.sx + offset.x, sy: stance.sy + offset.y };
   }
 
@@ -902,8 +1010,8 @@ export function createCombatScene(
     attackClass: AttackClassId,
     now: number,
   ): void {
-    const from = worldToScreen(attacker.visual.x, attacker.visual.y);
-    const to = worldToScreen(target.visual.x, target.visual.y);
+    const from = worldToScreen(standPoint(attacker).x, standPoint(attacker).y);
+    const to = worldToScreen(standPoint(target).x, standPoint(target).y);
     const dx = to.sx - from.sx;
     const dy = to.sy - from.sy;
     const length = Math.hypot(dx, dy) || 1;
@@ -937,10 +1045,12 @@ export function createCombatScene(
   ): ImpactSequence {
     // A miss carries a tile past whatever it was aimed at, along the
     // attacker's own line, and hits the arena instead.
-    const landing = hit
-      ? target.visual
-      : overshootPoint(attacker.visual, target.visual);
-    const to = chestPoint(landing);
+    const to = hit
+      ? chestPoint(target)
+      : chestPointAt(
+          overshootPoint(standPoint(attacker), standPoint(target)),
+          spriteHeightPx(target),
+        );
     const from = muzzlePoint(attacker);
     const dx = to.sx - from.sx;
     const dy = to.sy - from.sy;
@@ -1063,7 +1173,13 @@ export function createCombatScene(
     const families = entity.statuses ?? [];
     if (families.length === 0) return;
     const reduced = settings.get().reducedMotion;
-    const { sx, sy } = worldToScreen(entity.visual.x, entity.visual.y);
+    const { sx, sy } = worldToScreen(standPoint(entity).x, standPoint(entity).y);
+    // Clear of the health bar, which is itself clear of the sprite —
+    // so a chassis wears its marks over its own shoulders.
+    const height = Math.max(
+      STATUS_MARKER_HEIGHT_PX,
+      spriteHeightPx(entity) + STATUS_CLEARANCE_PX,
+    );
     const offsets = statusMarkerOffsets(families.length);
     families.forEach((family, index) => {
       const sprite = sprites.statusMarker?.(
@@ -1074,7 +1190,7 @@ export function createCombatScene(
       ctx!.drawImage(
         sprite.image,
         snap(sx + (offsets[index] ?? 0) - sprite.anchorX),
-        snap(sy - STATUS_MARKER_HEIGHT_PX - sprite.anchorY),
+        snap(sy - height - sprite.anchorY),
       );
     });
   }
@@ -1117,7 +1233,7 @@ export function createCombatScene(
   }
 
   function drawEntitySprite(entity: EntityView, now: number): void {
-    const { sx, sy } = worldToScreen(entity.visual.x, entity.visual.y);
+    const { sx, sy } = worldToScreen(standPoint(entity).x, standPoint(entity).y);
     const reacting = reactionPose(entity, now);
     const pose = {
       facing: entity.facing,
@@ -1125,6 +1241,10 @@ export function createCombatScene(
       timeMs: settings.get().reducedMotion ? 0 : now,
       attackElapsedMs: attackElapsed(entity, now),
       reaction: reacting,
+      // A declared wind-up is a stance held for the whole turn: it
+      // outranks the loops and loses to everything one-shot.
+      charging: entity.charging === true,
+      attackVariant: entity.attackVariant,
     };
     const sprite = sprites.entity(entity.spriteId, pose);
     // A body on the floor neither lunges nor shakes; it has stopped.
@@ -1158,11 +1278,15 @@ export function createCombatScene(
   }
 
   function drawHpBar(entity: EntityView): void {
-    const { sx, sy } = worldToScreen(entity.visual.x, entity.visual.y);
+    const { sx, sy } = worldToScreen(standPoint(entity).x, standPoint(entity).y);
     const width = 64;
     const height = 8;
     const x = Math.round(sx - width / 2);
-    const y = Math.round(sy - 104);
+    // Above the top of whatever it belongs to, never at a fixed height:
+    // a bar drawn at a person's shoulder would be inside a chassis.
+    const y = Math.round(
+      sy - Math.max(104, spriteHeightPx(entity) + HP_BAR_CLEARANCE_PX),
+    );
     const ratio = Math.max(0, Math.min(1, entity.hp / entity.maxHp));
     ctx!.fillStyle = "#05060c";
     ctx!.fillRect(x - 1, y - 1, width + 2, height + 2);
@@ -1223,7 +1347,9 @@ export function createCombatScene(
     }
     for (const entity of entities.values()) {
       if (entity.alive && entity.active) {
-        drawDiamond(entity.position, null, "rgba(46, 230, 214, 0.9)");
+        for (const tile of footprintTiles(entity)) {
+          drawDiamond(tile, null, "rgba(46, 230, 214, 0.9)");
+        }
       }
     }
 
@@ -1233,9 +1359,10 @@ export function createCombatScene(
     const drawables: Array<Drawable & { entity: EntityView }> = [];
     for (const entity of entities.values()) {
       if (!entity.alive && !drawsDead(entity, now)) continue;
+      const at = standPoint(entity);
       drawables.push({
-        x: entity.visual.x,
-        y: entity.visual.y,
+        x: at.x,
+        y: at.y,
         layer: entity.alive ? "object" : "ground",
         entity,
       });
@@ -1314,6 +1441,7 @@ export function createCombatScene(
             lungeDir: null,
             attack: null,
             attackStart: 0,
+            attackVariant: 0,
             flashStart: 0,
             awayX: 1,
             fadeStart: 0,
@@ -1405,9 +1533,14 @@ export function createCombatScene(
       // its weapon's swing; an aura is the caster lighting up where it
       // stands, so neither happens. Reduced motion keeps the turn and
       // drops the swing, exactly as a plain attack does.
+      //
+      // A cast aimed at the caster itself still swings when it is the
+      // thrown kind: that is a wind-up loosed into empty ground (see
+      // charge-released in ../ui/combatScreen.ts). Facing a body that is
+      // yourself is a zero delta, which changes nothing.
       const thrown = castsWithWeapon(fx);
       const first = targets[0];
-      if (thrown && first && first !== caster) {
+      if (thrown && first) {
         faceToward(caster, first);
         if (!reducedMotion) throwAt(caster, first, attackClass, at);
       }
@@ -1432,7 +1565,7 @@ export function createCombatScene(
         from: muzzlePoint(caster),
         points: plan.plays.map((play) => {
           const entity = byId.get(play.entityId) ?? caster;
-          return chestPoint(entity.visual);
+          return chestPoint(entity);
         }),
       });
       // A blast going off pushes the view outward from the caster's own
@@ -1487,9 +1620,11 @@ export function createCombatScene(
       if (!entity) return;
       syncFeel();
       if (!feel.focus) return;
+      // Framed on the middle of whatever it stands on, so a chassis is
+      // centred on its block rather than on one corner of it.
       const target = focusCamera(
         map,
-        entity.position,
+        blockCenter(entity.position, entity.footprint),
         viewportW,
         viewportH,
         zoom,

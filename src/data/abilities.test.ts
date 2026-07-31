@@ -130,6 +130,7 @@ describe("what an ability looks like", () => {
     expect(byRef.get("kinetic-slam")).toEqual([
       "ability-crush",
       "ability-shatter-hand",
+      "ability-piston-smash",
     ]);
     // And both of those go through plating, which is what they share.
     for (const id of byRef.get("kinetic-slam") ?? []) {

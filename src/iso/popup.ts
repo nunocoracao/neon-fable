@@ -199,6 +199,7 @@ export const STATUS_POPUP_LABELS: Readonly<
   Record<StatusFamilyId, Readonly<Record<StatusPopupPhase, string>>>
 > = {
   stunned: { gain: "STUNNED", loss: "READY" },
+  charging: { gain: "CHARGING", loss: "FIRED" },
   guarded: { gain: "GUARD UP", loss: "GUARD DOWN" },
   empowered: { gain: "POWER UP", loss: "POWER DOWN" },
 };

@@ -330,6 +330,23 @@ export function castVisual(name: string): CharacterVisual | undefined {
 }
 
 /**
+ * Speakers that were never people. A line can be spoken by a machine —
+ * a security chassis reading out a standing order is still a line with
+ * a face beside it — and a machine's face is the authored portrait
+ * plate its archetype carries (see spriteKind in ./enemies), never a
+ * composed appearance. Keyed by speaker name to that archetype, so the
+ * thing talking in the dialogue is the thing standing in the arena.
+ */
+export const MACHINE_SPEAKERS: Readonly<Record<string, string>> = {
+  "Warden Chassis": "nme-warden-chassis",
+};
+
+/** The archetype a machine speaker wears the face of; undefined for people. */
+export function machineSpeakerEnemyId(name: string): string | undefined {
+  return MACHINE_SPEAKERS[name];
+}
+
+/**
  * Who a dialogue line shows beside the text, resolved purely from node
  * data. "unlisted" is the safe degradation for a named speaker without
  * an authored look: the name renders, no portrait does.
@@ -338,6 +355,8 @@ export type SpeakerPortrait =
   | { kind: "narration" }
   | { kind: "player"; expression: ExpressionId }
   | { kind: "npc"; name: string; visual: CharacterVisual; expression: ExpressionId }
+  /** A machine: an authored portrait plate, and no expression to wear. */
+  | { kind: "machine"; name: string; enemyId: string }
   | { kind: "unlisted"; name: string };
 
 /** Resolve a story node's speaker and expression to its portrait. */
@@ -347,6 +366,8 @@ export function resolveSpeakerPortrait(
   const expression = node.expression ?? "neutral";
   if (node.speaker === undefined) return { kind: "narration" };
   if (node.speaker === PLAYER_SPEAKER) return { kind: "player", expression };
+  const enemyId = machineSpeakerEnemyId(node.speaker);
+  if (enemyId) return { kind: "machine", name: node.speaker, enemyId };
   const visual = castVisual(node.speaker);
   if (!visual) return { kind: "unlisted", name: node.speaker };
   return { kind: "npc", name: node.speaker, visual, expression };

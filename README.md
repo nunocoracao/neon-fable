@@ -165,6 +165,33 @@ open floor and exactly the size of the combat grid, and their
 `maps.test.ts` enforces this. Encounters with equal grids can share one
 arena map.
 
+An archetype's `spriteKind` says which art system draws it: `humanoid`
+(a look family composed through the appearance pipeline), `drone`, or
+`mech` (an authored chassis in its own, larger frame). Anything bigger
+than a tile also declares a `footprint` — the block it stands on,
+anchored at the spawn's minimum-x, minimum-y tile. Occupancy,
+movement, reach, and every telegraph read the block rather than the
+anchor (`src/combat/footprint.ts`), and `maps.test.ts` checks that
+every spawn's block fits its arena with nobody inside anyone.
+
+### Abilities (`src/data/abilities.ts`)
+
+An `Ability` carries a `range` (measured block to block), a `cooldown`,
+an `effect`, an optional `area` shape, and an `effectRef` naming the
+look it plays as. Two optional fields change *when* it happens rather
+than what it does:
+
+- `windUp` makes it a **charged** attack. It is declared instead of
+  thrown: the shape is resolved against the board and marked as
+  threatened ground at once, and it lands at the start of the caster's
+  turn that many turns later, on whoever is standing in it by then. The
+  lane never re-aims, so walking off the marked tiles beats it
+  (`src/combat/charge.ts`).
+- `attackVariant` picks which of the caster's attack animations throws
+  it, for art that swings more than one way (a chassis's piston arm
+  versus its shoulder battery). Everything with a single authored set
+  ignores it.
+
 ### Maps (`src/data/maps.ts`)
 
 Maps are authored as compact character rows plus a legend

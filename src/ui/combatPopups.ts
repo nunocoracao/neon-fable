@@ -121,6 +121,13 @@ export function eventPopups(
           text: `+${event.amount}`,
         },
       ];
+    case "charge-released":
+      // A wind-up that caught nobody is the whole reward for reading
+      // the marked ground, so it says so over the thing that threw it.
+      // One that connected reports itself through the blows it landed.
+      return event.bodies === 0
+        ? [{ combatantId: event.combatantId, kind: "miss", text: "NO HIT" }]
+        : [];
     case "flee-attempted":
       // Getting away is its own outcome on the screen; failing to is a
       // wasted action, and reads like one.

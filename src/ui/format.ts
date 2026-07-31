@@ -329,6 +329,23 @@ export function combatEventText(
         `${ability} for ${event.damage} damage${stun}.`
       );
     }
+    case "charge-started": {
+      const ability = lookupAbility(event.abilityId)?.name ?? event.abilityId;
+      // Names the ground, not the target: what the player has to act on
+      // is the marked lane, and it does not follow anybody.
+      return (
+        `${nameOf(event.combatantId)} winds up ${ability} — the marked ` +
+        `ground is hit on its next turn.`
+      );
+    }
+    case "charge-released": {
+      const ability = lookupAbility(event.abilityId)?.name ?? event.abilityId;
+      // A charge that catches nobody is the whole reward for reading it,
+      // so the log says so out loud rather than falling silent.
+      return event.bodies === 0
+        ? `${nameOf(event.combatantId)} looses ${ability} into empty ground.`
+        : `${nameOf(event.combatantId)} looses ${ability}.`;
+    }
     case "item-used": {
       const item = lookupItem(event.itemId)?.name ?? event.itemId;
       return `${nameOf(event.combatantId)} uses a ${item}.`;

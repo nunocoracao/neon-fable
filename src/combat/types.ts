@@ -39,6 +39,24 @@ export interface CombatConsumable {
 }
 
 /**
+ * An attack a combatant has declared but not yet thrown: the wind-up
+ * that makes a big hit answerable. The shape is resolved and frozen the
+ * moment it is declared, so the ground the telegraph shows is the exact
+ * ground the blow lands on a turn later — walking out of it is what
+ * beats it, and the caster turning to follow you is not a thing that
+ * happens (see ./charge.ts).
+ */
+export interface ChargedAction {
+  abilityId: string;
+  /** The body it was aimed at; kept for the log and the AI's read. */
+  targetId: string;
+  /** Exactly the tiles it will land on, frozen at declaration. */
+  tiles: GridPosition[];
+  /** Caster turns still to burn; 1 means it fires on its next turn. */
+  turnsLeft: number;
+}
+
+/**
  * A participant. Player stats/gear are snapshotted from GameState at setup
  * (via effectiveStats and equipment selectors) so combat math never reaches
  * back into inventory; enemies come from src/data/enemies.ts.
@@ -63,10 +81,20 @@ export interface Combatant {
   weapon: CombatWeapon;
   armor: number;
   abilityIds: string[];
+  /** The block's minimum-x, minimum-y tile (see ./footprint.ts). */
   position: GridPosition;
+  /**
+   * Tiles this combatant stands on, anchored at `position`. Absent is
+   * the single tile everything on the board used to be; a security
+   * chassis is 2×2. Movement, occupancy, reach, and every telegraph
+   * read the block rather than the anchor.
+   */
+  footprint?: GridSize;
   boosts: ActiveBoost[];
   /** Turns this combatant skips before acting again. */
   stunTurns: number;
+  /** The attack this combatant is winding up, when it is winding one up. */
+  charge?: ChargedAction | null;
   /** Ability id -> turns until usable again. */
   cooldowns: Record<string, number>;
   /** Consumables usable in combat (player only; empty for enemies). */
@@ -109,6 +137,28 @@ export type CombatEvent =
       targetId: string;
       damage: number;
       stunTurns: number;
+    }
+  | {
+      /** A wind-up declared: the ground is marked, the blow is a turn away. */
+      type: "charge-started";
+      combatantId: string;
+      abilityId: string;
+      targetId: string;
+      /** Caster turns until it fires. */
+      turns: number;
+    }
+  | {
+      /**
+       * The wind-up going off. Whatever it caught follows as ordinary
+       * `ability-used` entries, so a released charge reads — in the log,
+       * in the effects, and in the floating figures — exactly like the
+       * ability it always was.
+       */
+      type: "charge-released";
+      combatantId: string;
+      abilityId: string;
+      /** Bodies the frozen shape actually caught; 0 is a clean dodge. */
+      bodies: number;
     }
   | { type: "item-used"; combatantId: string; itemId: string }
   | { type: "healed"; combatantId: string; amount: number }

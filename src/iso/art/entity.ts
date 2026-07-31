@@ -9,20 +9,35 @@
  * one function per question the renderer asks — which frame, which cache
  * key, which attack animation, where the shot leaves from.
  *
- * That is the whole point of the `kind` tag. Adding a second
- * non-humanoid (a turret, a multi-tile boss) means a new variant and new
- * cases *here*; no scene, screen, or provider code changes, because none
- * of them ever asks what kind of thing they are drawing.
+ * That is the whole point of the `kind` tag. The multi-tile boss the
+ * comment used to name as a hypothetical is now the third variant: a
+ * new case *here*, and no scene, screen, or provider code changed for
+ * it, because none of them ever asks what kind of thing they are
+ * drawing.
  *
- * Both kinds share the 32×48 frame and the (16, 44) anchor, so a
- * silhouette, a status marker, and a camera focus land identically on a
- * drone and on a person. Everything here is pure over grids — canvas
+ * ## Frames are per kind, and that is the only thing that varies
+ *
+ * A person and a drone share the 32×48 frame at anchor (16, 44); a
+ * security chassis is 96×112 at (48, 104), drawn over the middle of the
+ * 2×2 block it stands on. Everything downstream reads `entityFrame`
+ * rather than assuming the body frame, so silhouettes, status markers,
+ * muzzle offsets, and camera focus land correctly on all three with no
+ * cases anywhere else. Everything here is pure over grids — canvas
  * baking stays in ./provider.
  */
 import type { Facing, MotionState } from "../animation";
 import type { AttackClassId } from "../attack";
 import type { ReactionVariant } from "../reaction";
 import { DRONE_ART, type DroneArtId, type DroneSetId } from "./drone";
+import {
+  MECH_ART,
+  MECH_FRAME,
+  mechAttackClass,
+  mechAttackVariant,
+  mechGrid,
+  mechMuzzlePoint,
+  type MechArtId,
+} from "./mech";
 import {
   attackClassFor,
   composedCharacterGrid,
@@ -35,7 +50,7 @@ import { reactionFrameGrid } from "./layers/hit";
 import { mirrored, type PixelGrid } from "./pixel";
 
 /** The sprite kinds the renderer knows how to draw. */
-export const ENTITY_ART_KINDS = ["character", "drone"] as const;
+export const ENTITY_ART_KINDS = ["character", "drone", "mech"] as const;
 
 export type EntityArtKind = (typeof ENTITY_ART_KINDS)[number];
 
@@ -51,7 +66,13 @@ export interface DroneEntityArt {
   readonly drone: DroneArtId;
 }
 
-export type EntityArt = CharacterEntityArt | DroneEntityArt;
+/** A machine too big for one tile: one of the chassis sets in ./mech. */
+export interface MechEntityArt {
+  readonly kind: "mech";
+  readonly mech: MechArtId;
+}
+
+export type EntityArt = CharacterEntityArt | DroneEntityArt | MechEntityArt;
 
 /** Wrap a composed character as entity art. */
 export function characterArt(character: ComposedCharacter): CharacterEntityArt {
@@ -63,20 +84,52 @@ export function droneArt(drone: DroneArtId): DroneEntityArt {
   return { kind: "drone", drone };
 }
 
+/** Name an authored multi-tile chassis as entity art. */
+export function mechArt(mech: MechArtId): MechEntityArt {
+  return { kind: "mech", mech };
+}
+
+/**
+ * The grid frame this art is drawn in: how big its grids are, and which
+ * pixel of them lands on the point the scene positions it by. A person
+ * and a drone share the body frame; a chassis has its own, and the
+ * anchor is what puts it over the middle of its block rather than over
+ * one corner of it.
+ */
+export interface EntityFrame {
+  readonly width: number;
+  readonly height: number;
+  readonly anchorX: number;
+  readonly anchorY: number;
+}
+
+export function entityFrame(art: EntityArt): EntityFrame {
+  return art.kind === "mech" ? MECH_FRAME : BODY_FRAME;
+}
+
 /**
  * Which attack animation this art swings — the class of the weapon a
  * character holds, the class an authored chassis is built to. Drives
  * both the frame selection and the combat scene's beat timing.
+ *
+ * `variant` picks between the sets of art that swings more than one way
+ * (a chassis smashes with a piston and fires with a shoulder battery);
+ * everything with a single set ignores it, which is everything else.
  */
-export function entityAttackClass(art: EntityArt): AttackClassId {
-  return art.kind === "character"
-    ? attackClassFor(art.character)
-    : DRONE_ART[art.drone].attackClass;
+export function entityAttackClass(art: EntityArt, variant = 0): AttackClassId {
+  if (art.kind === "character") return attackClassFor(art.character);
+  if (art.kind === "drone") return DRONE_ART[art.drone].attackClass;
+  return mechAttackClass(art.mech, variant);
+}
+
+/** How many attack sets this art has; 1 for everything with one swing. */
+export function entityAttackVariants(art: EntityArt): number {
+  return art.kind === "mech" ? MECH_ART[art.mech].attackClasses.length : 1;
 }
 
 /**
- * Bake-cache key for one frame. Kinds are namespaced, so a drone and a
- * character can never collide on a key however the ids are spelled.
+ * Bake-cache key for one frame. Kinds are namespaced, so two kinds can
+ * never collide on a key however the ids are spelled.
  */
 export function entityFrameKey(
   art: EntityArt,
@@ -84,16 +137,29 @@ export function entityFrameKey(
   state: MotionState,
   frame: number,
   variant?: ReactionVariant,
+  attackVariant = 0,
 ): string {
   if (art.kind === "character") {
     return `character|${composedFrameKey(art.character, facing, state, frame, variant)}`;
   }
   const suffix = variant ? `:${variant.kind}:${variant.awayX}` : "";
-  return `drone|${art.drone}:${facing}:${state}:${frame}${suffix}`;
+  if (art.kind === "drone") {
+    return `drone|${art.drone}:${facing}:${state}:${frame}${suffix}`;
+  }
+  // The swing is part of the key: a piston frame and a battery frame
+  // are different pictures at the same index.
+  const swing =
+    state === "attack" ? `:v${mechAttackVariant(art.mech, attackVariant)}` : "";
+  return `mech|${art.mech}:${facing}:${state}:${frame}${swing}${suffix}`;
 }
 
-/** The loop sets an authored chassis has; anything else is derived. */
+/**
+ * The loop sets an authored chassis has; anything else is derived. A
+ * drone authors no wind-up stance, so a charging drone simply idles —
+ * the "charge" state is a hint, never a requirement.
+ */
 function droneSetFor(state: MotionState): DroneSetId | null {
+  if (state === "charge") return "idle";
   return state === "idle" || state === "walk" || state === "attack"
     ? state
     : null;
@@ -136,8 +202,9 @@ function droneGrid(
 }
 
 /**
- * The 32×48 grid this art draws for a pose. Pure and deterministic; the
- * provider only calls it on a bake-cache miss.
+ * The grid this art draws for a pose, in its own frame (see
+ * `entityFrame`). Pure and deterministic; the provider only calls it on
+ * a bake-cache miss.
  */
 export function entityGrid(
   art: EntityArt,
@@ -145,21 +212,30 @@ export function entityGrid(
   state: MotionState,
   frame: number,
   variant?: ReactionVariant,
+  attackVariant = 0,
 ): PixelGrid {
-  return art.kind === "character"
-    ? composedCharacterGrid(art.character, facing, state, frame, variant)
-    : droneGrid(art.drone, facing, state, frame, variant);
+  if (art.kind === "character") {
+    return composedCharacterGrid(art.character, facing, state, frame, variant);
+  }
+  if (art.kind === "drone") {
+    return droneGrid(art.drone, facing, state, frame, variant);
+  }
+  return mechGrid(art.mech, facing, state, frame, {
+    attackVariant,
+    ...(variant ? { reaction: variant } : {}),
+  });
 }
 
 /**
- * Where a blow leaves this art, in 1x art pixels of the composed frame.
- * A character's is its weapon class's muzzle on the firing frame; a
- * drone's is its authored stinger emitter. South and west mirror the
- * whole figure, so the point mirrors with it.
+ * Where a blow leaves this art, in 1x art pixels of its own frame. A
+ * character's is its weapon class's muzzle on the firing frame; a
+ * drone's is its authored stinger emitter; a chassis has one per swing.
+ * South and west mirror the whole figure, so the point mirrors with it.
  */
 export function entityMuzzlePoint(
   art: EntityArt,
   facing: Facing,
+  attackVariant = 0,
 ): { x: number; y: number } {
   if (art.kind === "character") {
     return muzzlePoint(
@@ -167,6 +243,9 @@ export function entityMuzzlePoint(
       art.character.build,
       facing,
     );
+  }
+  if (art.kind === "mech") {
+    return mechMuzzlePoint(art.mech, facing, attackVariant);
   }
   const { x, y } = DRONE_ART[art.drone].muzzle;
   const { flip } = bodyViewForFacing(facing);

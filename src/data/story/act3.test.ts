@@ -198,6 +198,44 @@ describe("act3 arc shape", () => {
     expect(battles).toEqual(["enc-exec-security"]);
   });
 
+  it("seals the strongroom behind the floor detail, and the Warden behind that", () => {
+    const floor = act3Arc.nodes.find((n) => n.id === "a3-exec-floor")!;
+    const way = floor.choices.find((c) => c.target === "a3-exec-strongroom")!;
+    // The floor reads as one graph in one order: nothing at the far end
+    // is offered until the aisle is yours.
+    expect(way.requirements).toContainEqual({
+      type: "flag-equals",
+      key: "exec-cleared",
+      value: true,
+    });
+    const room = act3Arc.nodes.find((n) => n.id === "a3-exec-strongroom")!;
+    // Two ways at it and one way past it, in the checkpoint's own shape:
+    // a Tech gate that buys an advantage, the plain approach, and out.
+    expect(room.choices.map((c) => c.id)).toEqual(["bleed", "wake", "back"]);
+    const primed = room.choices.find((c) => c.id === "bleed")!;
+    expect(primed.requirements).toContainEqual({
+      type: "stat",
+      stat: "tech",
+      value: 7,
+    });
+    // Both approaches reach the same fight — the gate softens it, it
+    // does not skip it.
+    for (const id of ["bleed", "wake"]) {
+      expect(room.choices.find((c) => c.id === id)?.target).toBe(
+        "a3-exec-warden",
+      );
+    }
+    const fight = act3Arc.nodes.find((n) => n.id === "a3-exec-warden")!;
+    expect(
+      fight.choices.flatMap((c) =>
+        (c.effects ?? []).flatMap((e) =>
+          e.type === "start-combat" ? [e.encounterId] : [],
+        ),
+      ),
+    ).toEqual(["enc-exec-warden"]);
+    expect(fight.choices[0]?.target).toBe("a3-exec-strongroom-open");
+  });
+
   it("keeps the directors' own paperwork behind getting past them", () => {
     const desk = act3Arc.nodes.find((n) => n.id === "a3-exec-desk")!;
     const sheet = desk.choices.find((c) => c.target === "a3-exec-sheet")!;
@@ -227,6 +265,9 @@ describe("act3 arc shape", () => {
       "a3-exec-sheet",
       "a3-exec-minutes",
       "a3-exec-cache",
+      "a3-exec-strongroom",
+      "a3-exec-warden",
+      "a3-exec-strongroom-open",
       "a3-exec-descend",
       "a3-security",
       "a3-security-risers",

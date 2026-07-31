@@ -2,6 +2,7 @@ import type { CharacterVisual } from "../character/appearance";
 import type { Stats } from "../character/stats";
 import type { RangeType } from "../inventory/items";
 import type { DroneArtId } from "../iso/art/drone";
+import type { MechArtId } from "../iso/art/mech";
 import {
   AURIC_AGENT_LOOKS,
   AURIC_COLLECTOR_LOOKS,
@@ -36,6 +37,19 @@ import {
  *   No appearance, no gear, no face; the renderer resolves the tag
  *   through the sprite-kind union in ../iso/art/entity and never asks
  *   what it is drawing.
+ * - `"mech"` — an authored chassis too big to stand on one tile
+ *   (../iso/art/mech): a 64×96 frame drawn over the block its
+ *   `footprint` claims. Same union, same indifference downstream.
+ *
+ * ## How much floor an archetype stands on
+ *
+ * `footprint` is the other field that is not about numbers: absent means
+ * the single tile everything on the board used to be, and a value claims
+ * a block anchored at the spawn's minimum-x, minimum-y tile. Movement,
+ * occupancy, reach, and every telegraph read it (see
+ * ../combat/footprint.ts). It is a plain field on every archetype rather
+ * than a property of being a boss — a two-tile barricade drone would
+ * carry it just as well.
  *
  * Hostility reads through appearance data, not engine tinting: every
  * humanoid look carries a crimson or magenta optic (eyeColor) as the
@@ -58,9 +72,15 @@ export interface EnemyWeapon {
 export type EnemyChassis = "flesh" | "machine";
 
 /** Which art system draws an archetype. */
-export const ENEMY_SPRITE_KINDS = ["humanoid", "drone"] as const;
+export const ENEMY_SPRITE_KINDS = ["humanoid", "drone", "mech"] as const;
 
 export type EnemySpriteKind = (typeof ENEMY_SPRITE_KINDS)[number];
+
+/** Tiles an archetype stands on, anchored at its spawn position. */
+export interface EnemyFootprint {
+  width: number;
+  height: number;
+}
 
 /** Everything an archetype is, apart from how it is drawn. */
 interface EnemyBase {
@@ -76,6 +96,11 @@ interface EnemyBase {
   chassis: EnemyChassis;
   /** Abilities from src/data/abilities.ts the enemy AI may use. */
   abilityIds: string[];
+  /**
+   * Tiles this archetype occupies, anchored at the spawn's position.
+   * Absent is the single tile almost everything stands on.
+   */
+  footprint?: EnemyFootprint;
 }
 
 /** An archetype drawn by the layered appearance system. */
@@ -92,7 +117,14 @@ export interface DroneEnemy extends EnemyBase {
   droneArt: DroneArtId;
 }
 
-export type Enemy = HumanoidEnemy | DroneEnemy;
+/** An archetype drawn from an authored multi-tile chassis set. */
+export interface MechEnemy extends EnemyBase {
+  spriteKind: "mech";
+  /** Authored chassis in ../iso/art/mech. */
+  mechArt: MechArtId;
+}
+
+export type Enemy = HumanoidEnemy | DroneEnemy | MechEnemy;
 
 export const enemies: Enemy[] = [
   {
@@ -261,6 +293,28 @@ export const enemies: Enemy[] = [
     abilityIds: ["ability-mandate-pulse"],
     spriteKind: "humanoid",
     looks: HALEX_PROXY_LOOKS,
+  },
+  {
+    id: "nme-warden-chassis",
+    name: "Warden Chassis",
+    description:
+      "Auric's interior-security answer to a floor nobody is supposed to " +
+      "reach: two and a half metres of interdiction plate on a walking " +
+      "cradle, a hydraulic arm rated for structural demolition, and a " +
+      "shoulder battery it announces before it uses. It does not chase. " +
+      "It arrives, it plants, and it tells you where the salvo is going.",
+    stats: { body: 10, reflexes: 4, tech: 6, cool: 8, intelligence: 3 },
+    maxHp: 44,
+    weapon: { name: "Interdiction Piston", damage: 7, rangeType: "melee" },
+    armor: 4,
+    chassis: "machine",
+    // The smash is what it does up close; the volley is the turn it
+    // spends telling you it is coming (see ability-shoulder-volley).
+    abilityIds: ["ability-shoulder-volley", "ability-piston-smash"],
+    spriteKind: "mech",
+    mechArt: "warden-chassis",
+    // The first thing in the Sprawl that does not fit on one tile.
+    footprint: { width: 2, height: 2 },
   },
   {
     id: "nme-locus-aspect",

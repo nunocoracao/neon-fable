@@ -70,6 +70,18 @@ export interface EntityPose {
    * the loops — see ./reaction.ts.
    */
   reaction?: ReactionPose | undefined;
+  /**
+   * True while this entity is standing in a declared wind-up (see
+   * src/combat/charge.ts). Selects the held "charge" stance over the
+   * loops for art that authors one; art that does not simply idles.
+   */
+  charging?: boolean | undefined;
+  /**
+   * Which of this entity's attack sets is swinging, for art with more
+   * than one (a chassis's piston arm versus its shoulder battery). 0 is
+   * the default swing, which is the only swing almost everything has.
+   */
+  attackVariant?: number | undefined;
 }
 
 export interface SpriteProvider {
@@ -109,20 +121,37 @@ export interface SpriteProvider {
   entitySilhouette(id: EntitySpriteId, pose: EntityPose): Sprite;
   /**
    * Which attack animation this entity's current look swings — the
-   * class of the weapon it holds, or "unarmed". The combat scene asks
-   * so it can time the sequence's beats; providers that resolve no
-   * descriptors may omit it and callers fall back to bare hands.
+   * class of the weapon it holds, or "unarmed". `attackVariant` picks
+   * between the sets of art that swings more than one way; everything
+   * with a single set ignores it. The combat scene asks so it can time
+   * the sequence's beats; providers that resolve no descriptors may
+   * omit it and callers fall back to bare hands.
    */
-  attackClass?(id: EntitySpriteId): AttackClassId;
+  attackClass?(id: EntitySpriteId, attackVariant?: number): AttackClassId;
+  /**
+   * Where this entity's sprite anchor sits inside its own frame, in
+   * screen pixels — how tall the thing is, in effect. The scene hangs
+   * health bars, condition marks, and the height a blow lands at off
+   * it, so a 96×112 chassis wears them over its own shoulders rather
+   * than at a person's height. Providers that resolve no descriptors
+   * may omit it; callers then assume a body-sized frame.
+   */
+  entityAnchor?(id: EntitySpriteId): { x: number; y: number };
   /**
    * Screen-pixel offset from this entity's sprite anchor to the point
    * its blow leaves from — the weapon muzzle on the class's firing
    * frame, or the fist for everything that throws no round (see
    * muzzlePoint in ./art/layers/attack). Per facing, because the away
-   * facings mirror the whole figure. Providers that resolve no
-   * descriptors may omit it; callers then fire from the chest.
+   * facings mirror the whole figure, and per attack variant, because a
+   * chassis's piston and its shoulder battery are not the same port.
+   * Providers that resolve no descriptors may omit it; callers then
+   * fire from the chest.
    */
-  muzzleOffset?(id: EntitySpriteId, facing: Facing): { x: number; y: number };
+  muzzleOffset?(
+    id: EntitySpriteId,
+    facing: Facing,
+    attackVariant?: number,
+  ): { x: number; y: number };
   /**
    * A combat effect's baked frame — muzzle flash, tracer, arc smear,
    * spark burst, wall chip (see ./impact.ts). Frames are authored art

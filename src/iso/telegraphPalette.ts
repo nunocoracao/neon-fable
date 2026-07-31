@@ -18,6 +18,7 @@ export const TELEGRAPH_TINT_IDS = [
   "range",
   "path",
   "impact",
+  "threat",
   "denied",
 ] as const;
 
@@ -82,6 +83,15 @@ const NEON: Record<TelegraphTintId, TelegraphStyle> = {
     lineWidth: 3,
     dash: [],
   },
+  // Somebody else's promise: hazard amber, hatched with the long dash
+  // nothing else uses, so ground that is about to be shelled reads as a
+  // warning rather than as anything the player has aimed.
+  threat: {
+    fill: "rgba(224, 133, 28, 0.24)",
+    stroke: "rgba(255, 217, 119, 0.85)",
+    lineWidth: 3,
+    dash: [10, 5],
+  },
   denied: {
     fill: "rgba(255, 77, 94, 0.20)",
     stroke: "rgba(255, 77, 94, 0.9)",
@@ -128,6 +138,12 @@ const HIGH_CONTRAST: Record<TelegraphTintId, TelegraphStyle> = {
     lineWidth: 3,
     dash: [],
   },
+  threat: {
+    fill: "rgba(255, 138, 24, 0.34)",
+    stroke: "rgba(255, 226, 168, 0.95)",
+    lineWidth: 3,
+    dash: [12, 6],
+  },
   denied: {
     fill: "rgba(20, 20, 28, 0.55)",
     stroke: "rgba(255, 255, 255, 0.95)",
@@ -164,6 +180,10 @@ export const TELEGRAPH_PAINT_ORDER: readonly TelegraphTintId[] = [
   "range",
   "reach",
   "origin",
+  // Above the context tints and below the aimed ones: a threat has to
+  // survive being stood inside a reachable field, and has already been
+  // read by the time the player is aiming something at that tile.
+  "threat",
   "path",
   "impact",
   "denied",

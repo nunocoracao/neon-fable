@@ -12,6 +12,10 @@
  * fact: that body is running fast right now. The families are:
  *
  * - `stunned` — a turn this combatant is going to lose (stunTurns).
+ * - `charging` — an attack declared and not yet thrown (see
+ *   src/combat/charge.ts). The tinted ground says *where* it lands; the
+ *   mark says *who* is holding it, which is the half of the fact the
+ *   floor cannot carry.
  * - `guarded` — a boost to what a body can take (Body).
  * - `empowered` — a boost to what it can do (everything else).
  *
@@ -32,7 +36,12 @@ import { frameAt } from "./animation";
 import type { StatKey } from "../character/stats";
 
 /** Every condition family a combatant can be marked with. */
-export const STATUS_FAMILY_IDS = ["stunned", "guarded", "empowered"] as const;
+export const STATUS_FAMILY_IDS = [
+  "stunned",
+  "charging",
+  "guarded",
+  "empowered",
+] as const;
 
 export type StatusFamilyId = (typeof STATUS_FAMILY_IDS)[number];
 
@@ -49,6 +58,9 @@ export const STATUS_MARKERS: Readonly<
 > = {
   // Static crawling round a head that is not going to move this turn.
   stunned: { frameMs: 130, frameCount: 3, label: "Stunned" },
+  // Capacitors filling: three rungs lighting bottom to top, faster than
+  // anything else on the row, because it is counting down to something.
+  charging: { frameMs: 150, frameCount: 3, label: "Charging" },
   // Plating holding: a slow two-beat breath, nothing hurried about it.
   guarded: { frameMs: 220, frameCount: 2, label: "Guarded" },
   // Wound up: the same breath, quicker.
@@ -79,6 +91,8 @@ export interface StatusView {
   readonly stunTurns?: number;
   /** Stats currently boosted, however many boosts each has. */
   readonly boostStats?: readonly StatKey[];
+  /** True while it is holding a declared attack it has not thrown. */
+  readonly charging?: boolean;
 }
 
 /**
@@ -89,6 +103,7 @@ export interface StatusView {
 export function statusFamilies(view: StatusView): StatusFamilyId[] {
   const found = new Set<StatusFamilyId>();
   if ((view.stunTurns ?? 0) > 0) found.add("stunned");
+  if (view.charging === true) found.add("charging");
   for (const stat of view.boostStats ?? []) found.add(boostStatusFamily(stat));
   return STATUS_FAMILY_IDS.filter((id) => found.has(id));
 }

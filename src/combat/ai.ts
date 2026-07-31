@@ -3,7 +3,8 @@ import { requireItem } from "../data/items";
 import type { ItemResolver } from "../inventory/items";
 import { takeAction } from "./actions";
 import { weaponRange } from "./damage";
-import { inBounds, isOccupied, manhattan } from "./grid";
+import { bodyGap } from "./footprint";
+import { canStand } from "./grid";
 import { activeCombatant, isAlive, playerCombatant } from "./state";
 import {
   CombatError,
@@ -42,10 +43,9 @@ function stepToward(
   }
   if (Math.abs(dy) > Math.abs(dx)) steps.reverse();
   for (const step of steps) {
-    if (
-      inBounds(state.grid, step) &&
-      !isOccupied(state.combatants, step, actor.id)
-    ) {
+    // The whole block has to fit where the step puts it; a chassis that
+    // cannot turn a corner simply takes the other axis, or stands still.
+    if (canStand(state.grid, state.combatants, step, actor.footprint, actor.id)) {
       return step;
     }
   }
@@ -68,7 +68,9 @@ export function chooseEnemyAction(state: CombatState): CombatAction {
   const player = playerCombatant(state);
   if (!isAlive(player)) return { type: "end-turn" };
 
-  const distance = manhattan(actor.position, player.position);
+  // Block to block, so a chassis reads its own reach from whichever of
+  // its tiles is nearest — not from the corner it is anchored on.
+  const distance = bodyGap(actor, player);
   const range = weaponRange(actor.weapon.rangeType);
 
   if (!state.actionUsed) {

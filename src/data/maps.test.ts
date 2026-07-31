@@ -5,6 +5,9 @@ import {
   seededAppearance,
   validateAppearance,
 } from "../character";
+import { bodiesOverlap, footprintFits } from "../combat/footprint";
+import type { GridPosition, GridSize } from "../combat/types";
+import { getEnemy } from "./enemies";
 import { ENHANCEMENT_SLOTS } from "../inventory/items";
 import {
   MAX_AMBIENT_PER_MAP,
@@ -281,6 +284,44 @@ describe.each(encounters.map((e) => [e.id, e] as const))(
       expect(requireSpawn(arena, "player-start")).toMatchObject(
         encounter.playerStart,
       );
+    });
+
+    /**
+     * A spawn is a *block*, not a point (see src/combat/footprint.ts).
+     * Anything bigger than a tile has to fit the arena whole and has to
+     * start clear of everyone else — an encounter that spawns two
+     * bodies on one tile is unwinnable content, and the position is the
+     * only place it can be caught.
+     */
+    it("gives every spawn a block that fits, with nobody inside anyone", () => {
+      interface FootprintBody {
+        label: string;
+        position: GridPosition;
+        footprint?: GridSize | undefined;
+      }
+      const grid = { width: arena.width, height: arena.height };
+      const bodies: FootprintBody[] = [
+        { label: "player-start", position: encounter.playerStart },
+        ...encounter.enemies.map((spawn, i) => ({
+          label: `${spawn.enemyId} #${i + 1}`,
+          position: spawn.position,
+          footprint: getEnemy(spawn.enemyId)?.footprint,
+        })),
+      ];
+      for (const body of bodies) {
+        expect(
+          footprintFits(grid, body.position, body.footprint),
+          `${body.label} fits the arena`,
+        ).toBe(true);
+      }
+      for (let i = 0; i < bodies.length; i++) {
+        for (let j = i + 1; j < bodies.length; j++) {
+          expect(
+            bodiesOverlap(bodies[i]!, bodies[j]!),
+            `${bodies[i]!.label} overlaps ${bodies[j]!.label}`,
+          ).toBe(false);
+        }
+      }
     });
   },
 );

@@ -175,14 +175,31 @@ export interface MotionQuery {
    * it interrupts, and a heap on the floor never gets back up.
    */
   readonly reaction?: ReactionPose | undefined;
+  /**
+   * True while this entity is standing in a wind-up it has declared and
+   * not yet thrown (see src/combat/charge.ts). A held stance, so it
+   * outranks the loops and loses to everything one-shot: a charging
+   * chassis still flinches when it is hit and still swings when it
+   * swings, and goes back to burning its capacitors afterwards.
+   */
+  readonly charging?: boolean | undefined;
+  /**
+   * Which of this entity's attack sets is swinging, for art with more
+   * than one. 0 — the default swing — for everything else.
+   */
+  readonly attackVariant?: number | undefined;
 }
 
 /**
  * The motion state and frame a pose resolves to: a reaction wins over
- * everything, then an in-flight attack, then walking, then the idle
- * breath. This is the one selection rule — the sprite provider calls it
- * for both the sprite and its hit-flash silhouette, so the outline
- * always traces the frame that is actually on screen.
+ * everything, then an in-flight attack, then a declared wind-up being
+ * stood in, then walking, then the idle breath. This is the one
+ * selection rule — the sprite provider calls it for both the sprite and
+ * its hit-flash silhouette, so the outline always traces the frame that
+ * is actually on screen.
+ *
+ * The wind-up rides the idle cadence: it is a stance held for a turn,
+ * not a sequence, so it breathes at the speed a standing thing breathes.
  */
 export function selectMotionFrame(
   attackClass: AttackClassId,
@@ -195,6 +212,9 @@ export function selectMotionFrame(
   if (pose.attackElapsedMs !== undefined) {
     const frame = attackFrameAt(attackClass, pose.attackElapsedMs);
     if (frame !== null) return { state: "attack", frame };
+  }
+  if (pose.charging === true) {
+    return { state: "charge", frame: bodyFrameAt("idle", pose.timeMs) };
   }
   const state: LoopState = pose.moving ? "walk" : "idle";
   return { state, frame: bodyFrameAt(state, pose.timeMs) };

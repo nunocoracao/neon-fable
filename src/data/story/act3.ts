@@ -1157,6 +1157,16 @@ export const act3Arc: StoryArc = {
           target: "a3-exec-cache",
         },
         {
+          // Only once the aisle is yours — the strongroom is behind the
+          // detail, and the floor reads as one graph in one order.
+          id: "strongroom",
+          label: "The far end of the floor is sealed. Go and look at what is sealing it.",
+          target: "a3-exec-strongroom",
+          requirements: [
+            { type: "flag-equals", key: "exec-cleared", value: true },
+          ],
+        },
+        {
           id: "down",
           label: "Take the riser back down to the concourse.",
           target: "a3-exec-descend",
@@ -1356,6 +1366,96 @@ export const act3Arc: StoryArc = {
           id: "back",
           label: "Leave it locked.",
           target: "a3-exec-floor",
+        },
+      ],
+    },
+    {
+      // The floor's optional heavy fight. Gated behind exec-cleared, and
+      // nothing on the finale's spine reads a flag it sets — a side trip
+      // that stays a side trip (act3.test pins that).
+      id: "a3-exec-strongroom",
+      text:
+        "The aisle runs out at a strongroom door with no handle and a " +
+        "cradle bolted into the floor beside it. The thing in the " +
+        "cradle is two and a half metres of interdiction plate on a " +
+        "walking frame, one hydraulic arm folded across its chest like " +
+        "a man waiting for a lift, and a shoulder battery under a dust " +
+        "sheet somebody put there years ago and nobody has moved since. " +
+        "A brass plate on the cradle reads WARDEN CHASSIS — INTERIOR " +
+        "USE. Its optic is dark. The plate under it is not: STANDING " +
+        "ORDER ACTIVE.",
+      location: "spire:executive",
+      choices: [
+        {
+          id: "bleed",
+          label:
+            "Bleed the coolant line before you wake it. (Tech 7 — buys you the first move)",
+          target: "a3-exec-warden",
+          requirements: [{ type: "stat", stat: "tech", value: 7 }],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "set-flag", key: "warden-primed", value: true },
+            { type: "add-item", itemId: "con-surge-stim" },
+          ],
+        },
+        {
+          id: "wake",
+          label: "Pull the sheet off and let the standing order have its say.",
+          target: "a3-exec-warden",
+        },
+        {
+          id: "back",
+          label: "Leave the door sealed and the machine asleep.",
+          target: "a3-exec-floor",
+        },
+      ],
+    },
+    {
+      id: "a3-exec-warden",
+      speaker: "Warden Chassis",
+      text:
+        "The optic comes up crimson one band at a time, the way a " +
+        "furnace lights. The arm unfolds. The dust sheet goes off the " +
+        "shoulder battery and stays in the air a moment before it " +
+        "lands. \"INTERIOR SECURITY,\" the chassis says, in the flat " +
+        "civic type the whole tower thinks in, and plants both feet " +
+        "wide enough to take up half the aisle. \"THIS FLOOR IS " +
+        "CLOSED.\" Then, because a standing order is all it has left of " +
+        "anybody: \"PLEASE STAND CLEAR OF THE MARKED AREA.\"",
+      location: "spire:executive",
+      choices: [
+        {
+          id: "fight",
+          label: "\"Nobody's coming back to countermand you.\" Take it apart.",
+          target: "a3-exec-strongroom-open",
+          effects: [
+            { type: "set-flag", key: "warden-woken", value: true },
+            { type: "start-combat", encounterId: "enc-exec-warden" },
+          ],
+        },
+      ],
+    },
+    {
+      id: "a3-exec-strongroom-open",
+      text:
+        "The chassis goes down in stages — servos, then a knee, then " +
+        "all of it at once — and lies across the aisle throwing charge " +
+        "into the black stone until the capacitors have nothing left to " +
+        "say. The strongroom door opens the moment its optic dies: the " +
+        "lock was never in the door. Inside is the directorate's own " +
+        "float, the kind of money a building keeps so it never has to " +
+        "ask anybody for any.",
+      location: "spire:executive",
+      choices: [
+        {
+          id: "take",
+          label: "Take it. They were not coming back for it.",
+          target: "a3-exec-floor",
+          effects: [
+            { type: "set-flag", key: "warden-down", value: true },
+            { type: "credits", amount: 240 },
+            { type: "add-item", itemId: "con-field-kit", quantity: 2 },
+          ],
         },
       ],
     },

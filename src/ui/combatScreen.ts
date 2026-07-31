@@ -5,7 +5,9 @@ import {
   activeCombatant,
   attackOptions,
   chooseEnemyAction,
+  combatantAt,
   createCombat,
+  footprintCenter,
   getCombatant,
   isAlive,
   isGlancingBlow,
@@ -521,6 +523,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         statusFamilies({
           stunTurns: c.stunTurns,
           boostStats: c.boosts.map((b) => b.stat),
+          charging: c.charge != null,
         }),
       ]),
     );
@@ -534,10 +537,15 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
             ? "player"
             : enemySpriteId(c.enemyId ?? "enemy", c.lookIndex ?? 0),
         position: { ...c.position },
+        // How much floor it is standing on; absent for everything that
+        // fits on one tile, which is everything but a chassis.
+        ...(c.footprint ? { footprint: { ...c.footprint } } : {}),
         hp: Math.max(0, c.hp),
         maxHp: c.maxHp,
         alive: isAlive(c),
         active: c.id === activeId,
+        // Standing in a wind-up it has declared and not yet thrown.
+        charging: c.charge != null,
         // Reactions landing on one beat queue in initiative order.
         order: combat!.initiativeOrder.indexOf(c.id),
         deathStyle: deathStyleFor(c),
@@ -566,8 +574,11 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
   function showPopups(popups: readonly CombatPopup[], delayMs = 0): void {
     if (!scene || !combat || popups.length === 0) return;
     for (const popup of popups) {
-      const tile = getCombatant(combat, popup.combatantId)?.position;
-      if (!tile) continue;
+      const body = getCombatant(combat, popup.combatantId);
+      if (!body) continue;
+      // Over the middle of whatever it is about, so a chassis's figures
+      // hang over the chassis rather than off one corner of it.
+      const tile = footprintCenter(body.position, body.footprint);
       scene.popup({ tile, kind: popup.kind, text: popup.text, delayMs });
     }
   }
@@ -643,6 +654,32 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       /** Ms until the blow this event describes actually lands. */
       let beatMs = 0;
       switch (event.type) {
+        // A wind-up needs no effect thrown at anybody: nothing has left
+        // the caster yet. It is told four other ways at once — the
+        // caster stands in its held charge stance (`charging` on the
+        // entity view), the ground it promised is tinted as a threat,
+        // a condition marker sits over it for the whole turn, and the
+        // log says which ability is coming. Adding a fifth would be
+        // noise, and aiming an effect at the caster itself would be a
+        // lie about where the shot is.
+        case "charge-started":
+          break;
+        // The wind-up going off. Whatever it caught follows as ordinary
+        // ability-used entries, which play the cast at each body; a
+        // release that caught nobody still has to *fire*, so the salvo
+        // leaves the caster and lands on empty ground.
+        case "charge-released": {
+          if (event.bodies > 0) break;
+          const ability = getAbility(event.abilityId);
+          if (!ability) break;
+          scene.abilityFx(
+            event.combatantId,
+            [event.combatantId],
+            ability.effectRef,
+            { attackVariant: ability.attackVariant ?? 0 },
+          );
+          break;
+        }
         // The scene reports how long its attack animation takes to
         // connect; the reactions ride that beat so the flash and the
         // number land with the blow instead of ahead of it.
@@ -679,6 +716,10 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
             event.combatantId,
             [event.targetId],
             ability.effectRef,
+            // Which of the caster's swings throws it. Content's call,
+            // not the scene's: a chassis's shoulder battery is a
+            // different animation and a different muzzle from its arm.
+            { attackVariant: ability.attackVariant ?? 0 },
           );
           if (event.damage <= 0) break;
           // An ability that goes through plating is never a glancing
@@ -799,10 +840,9 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       return;
     }
     if (mode.kind === "attack" || (mode.kind === "ability" && mode.abilityId)) {
-      const target = combat.combatants.find(
-        (c) =>
-          isAlive(c) && c.position.x === tile.x && c.position.y === tile.y,
-      );
+      // Any tile of a body is that body: clicking a chassis's near
+      // corner aims at the chassis.
+      const target = combatantAt(combat.combatants, tile);
       if (!target) return;
       if (mode.kind === "attack") {
         if (attackOptions(combat).some((o) => o.targetId === target.id)) {
