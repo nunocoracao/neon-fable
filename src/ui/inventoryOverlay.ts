@@ -193,7 +193,7 @@ export function createInventoryOverlay(
    */
   function renderStanding(container: HTMLElement): void {
     const section = document.createElement("div");
-    section.className = "nf-inventory-section nf-factions";
+    section.className = "nf-inventory-section";
     const heading = document.createElement("h3");
     heading.textContent = "Standing";
     section.append(heading);

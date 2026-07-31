@@ -1166,6 +1166,10 @@ body::after {
   color: var(--nf-danger);
 }
 
+.nf-band-neutral {
+  color: var(--nf-ink-dim);
+}
+
 .nf-band-cold {
   color: var(--nf-glow-magenta);
 }
@@ -1197,11 +1201,18 @@ body::after {
   background: var(--nf-border);
 }
 
-/* Segmented fill, same chunky LED blocks as the neural meter. */
+/* Geometry only; which way it leans decides the colour. */
 .nf-standing-fill {
   position: absolute;
   top: 0;
   bottom: 0;
+  transition:
+    width 150ms steps(4, end),
+    left 150ms steps(4, end);
+}
+
+/* Segmented fill, same chunky LED blocks as the neural meter. */
+.nf-standing-positive {
   background: repeating-linear-gradient(
     to right,
     var(--nf-glow-cyan) 0,
@@ -1209,7 +1220,6 @@ body::after {
     var(--nf-outline) 6px,
     var(--nf-outline) 8px
   );
-  transition: width 150ms steps(4, end);
 }
 
 .nf-standing-negative {
