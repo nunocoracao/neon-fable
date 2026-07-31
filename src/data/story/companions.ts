@@ -6,23 +6,39 @@ import type { StoryArc } from "../../narrative/types";
  * map — the beat is "a gap between missions", not a place — so the hub
  * node is the entry and every scene hangs off it.
  *
- * A scene opens on three conditions, and the same three are declared
- * twice on purpose: in content, as the hub's gates, and in code, as
- * personalSceneReady (src/narrative/loyalty.ts), which is what the
- * party screen offers the conversation from. They are the companion
- * being out with the player, their loyalty having reached the
- * threshold their record declares, and the scene not having been had
- * yet — that last one is why each fork writes a bond flag, and why the
- * gate is `flag-unset` rather than a number that would keep moving.
+ * Each companion has two of them. The first opens on three conditions,
+ * and the same three are declared twice on purpose: in content, as the
+ * hub's gates, and in code, as personalSceneReady
+ * (src/narrative/loyalty.ts), which is what the party screen offers the
+ * conversation from. They are the companion being out with the player,
+ * their loyalty having reached the threshold their record declares, and
+ * the scene not having been had yet — that last one is why each fork
+ * writes a bond flag, and why the gate is `flag-unset` rather than a
+ * number that would keep moving.
  *
- * What the forks leave behind is the pair the endings read:
+ * The second opens much later, on those three plus two: the first
+ * conversation must already have happened, whichever way it went, and
+ * the chapter that makes an "after" worth asking about must be behind
+ * you (act2-complete). Same double declaration, against bondSceneReady.
+ * Nothing in these is a mission — a roof, a parcel of fried dough, a
+ * cloth-spined ledger pushed across a table.
  *
- *   vesper-bond: "sworn" | "parted"
- *   sill-bond:   "sworn" | "parted"
+ * What the forks leave behind is the four flags the endings read:
  *
- * Both roads keep the companion in the party. Parting is not a sacking
+ *   vesper-bond:  "sworn" | "parted"
+ *   sill-bond:    "sworn" | "parted"
+ *   vesper-close: "warm" | "distant" | "betrayed"
+ *   sill-close:   "warm" | "distant" | "betrayed"
+ *
+ * "betrayed" is gated on the coolant-vault call having already gone
+ * against that person (vent-vault-call), so it is never a fresh
+ * cruelty — it is the moment an old one is finally itemised.
+ *
+ * Every road keeps the companion in the party. Parting is not a sacking
  * — it is the moment somebody stops expecting anything of you, which
- * costs them their standing and keeps them at your shoulder anyway.
+ * costs them their standing and keeps them at your shoulder anyway —
+ * and neither is being spent: the ones who stay after that stay because
+ * they said they would, which is worse.
  */
 export const companionsArc: StoryArc = {
   id: "companions",
@@ -55,6 +71,30 @@ export const companionsArc: StoryArc = {
             { type: "companion", companionId: "sill" },
             { type: "loyalty", companionId: "sill", value: 4 },
             { type: "flag-unset", key: "sill-bond" },
+          ],
+        },
+        {
+          id: "hear-vesper-late",
+          label: "\"You've been carrying that parcel since the tram, Kade.\"",
+          target: "cmp-vesper-late",
+          requirements: [
+            { type: "companion", companionId: "vesper" },
+            { type: "loyalty", companionId: "vesper", value: 7 },
+            { type: "flag-set", key: "vesper-bond" },
+            { type: "flag-set", key: "act2-complete" },
+            { type: "flag-unset", key: "vesper-close" },
+          ],
+        },
+        {
+          id: "hear-sill-late",
+          label: "\"That's not the slate, Sill. What is it?\"",
+          target: "cmp-sill-late",
+          requirements: [
+            { type: "companion", companionId: "sill" },
+            { type: "loyalty", companionId: "sill", value: 7 },
+            { type: "flag-set", key: "sill-bond" },
+            { type: "flag-set", key: "act2-complete" },
+            { type: "flag-unset", key: "sill-close" },
           ],
         },
         {
@@ -162,6 +202,143 @@ export const companionsArc: StoryArc = {
       ],
     },
     // ------------------------------------------------------------------
+    // Vesper Kade, later — fried dough on a roof, and the word "after"
+    //
+    // She has never asked anybody for anything twice. This is the
+    // second time, and it is smaller than the first, and it costs her
+    // more. Writes vesper-close.
+    // ------------------------------------------------------------------
+    {
+      id: "cmp-vesper-late",
+      speaker: "Vesper Kade",
+      text:
+        "She will not say what is in the parcel until you are up the " +
+        "ladder and sitting down with your back to the vent housing. It " +
+        "is fried dough and two bottles of something orange, and it is " +
+        "still warm, which means she paid the counter price and stood in " +
+        "the queue like a person. \"Sit. Eat that. Don't make a thing of " +
+        "it.\" Below the parapet the district does what it does at this " +
+        "hour, which is mostly steam and other people's arguments.",
+      choices: [
+        {
+          id: "vesper-late-sit",
+          label: "Sit down and eat it.",
+          target: "cmp-vesper-late-ask",
+        },
+      ],
+    },
+    {
+      id: "cmp-vesper-late-ask",
+      speaker: "Vesper Kade",
+      text:
+        "Half of it goes before she says anything, and when she does it " +
+        "is at the skyline rather than at you. \"My mother did this. Not " +
+        "the roof — the feeding people. Every crew she ever ran. She " +
+        "said you can't ask anybody to go down a hole for you on an " +
+        "empty stomach and still call yourself decent about it.\" The " +
+        "bottle turns over in her hands, once. \"So this is me asking. " +
+        "After. When the towers have finished eating each other and " +
+        "there's no job on.\" A shrug that costs her something. \"Is " +
+        "there an after where I still know where you are? Or do you go " +
+        "off the board like everybody else does eventually.\"",
+      choices: [
+        {
+          id: "vesper-late-warm",
+          label: "\"You'll know where I am. I'll be the one queueing next time.\"",
+          target: "cmp-vesper-warm",
+          effects: [
+            { type: "set-flag", key: "vesper-close", value: "warm" },
+            { type: "companion-loyalty", companionId: "vesper", amount: 2 },
+          ],
+        },
+        {
+          id: "vesper-late-distant",
+          label: "\"Don't build anything on me, Kade. I go off the board.\"",
+          target: "cmp-vesper-distant",
+          effects: [
+            { type: "set-flag", key: "vesper-close", value: "distant" },
+            { type: "companion-loyalty", companionId: "vesper", amount: -1 },
+          ],
+        },
+        {
+          id: "vesper-late-spend",
+          label:
+            "\"The lockers weren't a one-off. When it's you or the job, " +
+            "it's the job.\"",
+          target: "cmp-vesper-betrayed",
+          // Only sayable when it is already true: the vault call went
+          // against her, and this is the night it gets itemised.
+          requirements: [
+            { type: "flag-equals", key: "vent-vault-call", value: "filed" },
+          ],
+          effects: [
+            { type: "set-flag", key: "vesper-close", value: "betrayed" },
+            { type: "companion-loyalty", companionId: "vesper", amount: -6 },
+          ],
+        },
+      ],
+    },
+    {
+      id: "cmp-vesper-warm",
+      speaker: "Vesper Kade",
+      expression: "smile",
+      text:
+        "\"Right,\" she says, and eats. That is the entire reaction, and " +
+        "you are meant to take it as one. Twenty minutes later, packing " +
+        "the paper away so the roof is left cleaner than she found it, " +
+        "she adds — to the parapet, not to you — \"There's a place on " +
+        "the fourth level does this better. Costs double. We'll go when " +
+        "there's an after.\" She does not look round to see whether you " +
+        "agreed. She has already decided you did.",
+      choices: [
+        {
+          id: "vesper-warm-done",
+          label: "Let the hour finish itself.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "cmp-vesper-distant",
+      speaker: "Vesper Kade",
+      text:
+        "\"Mm,\" she says, and nods twice, and that is that. She finishes " +
+        "her half anyway, unhurried, because it cost money. \"Fair " +
+        "enough. Better than the ones who say yes and then go off the " +
+        "board anyway.\" The paper folds up small; the bottles go in her " +
+        "bag to take back for the deposit. At the ladder she looks back " +
+        "with the parcel string still round her fingers. \"Still eat, " +
+        "though. Before jobs. That part wasn't about you.\"",
+      choices: [
+        {
+          id: "vesper-distant-done",
+          label: "Go down the ladder first.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "cmp-vesper-betrayed",
+      speaker: "Vesper Kade",
+      expression: "grim",
+      text:
+        "She does not argue and she does not leave. She puts the lid " +
+        "back on her half, deliberately, and sits with it in her lap " +
+        "until the steam stops coming off it. \"Okay,\" she says at last. " +
+        "\"Thanks. Genuinely. People don't usually tell you which one " +
+        "you are.\" The rest of the roof passes without a word in it. " +
+        "She is on the next job, and the one after, and every count is " +
+        "right and every line is tied off — and she never once, after " +
+        "tonight, tells you what she is thinking while she does it.",
+      choices: [
+        {
+          id: "vesper-betrayed-done",
+          label: "Say nothing. There is nothing that improves it.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    // ------------------------------------------------------------------
     // Deacon Sill — whose name goes on the case
     // ------------------------------------------------------------------
     {
@@ -252,6 +429,145 @@ export const companionsArc: StoryArc = {
         {
           id: "sill-parted-done",
           label: "Leave him with the slate shut.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    // ------------------------------------------------------------------
+    // Deacon Sill, later — the ledger that is not the case
+    //
+    // The man who wants everything written down has one document he has
+    // never shown anybody. Writes sill-close.
+    // ------------------------------------------------------------------
+    {
+      id: "cmp-sill-late",
+      speaker: "Deacon Sill",
+      text:
+        "The slate is shut and face-down, which he does not do, and " +
+        "there is a paper ledger on the table instead. It is old enough " +
+        "to have a cloth spine and a punched cord through the fold. " +
+        "\"Year six,\" he says, without preamble, and turns it round so " +
+        "it faces you. \"Variance log. Mine.\" He does not look at it " +
+        "while it is open. \"I would like you to read the entry for the " +
+        "ninth, and I would like to not have to say it out loud first.\"",
+      choices: [
+        {
+          id: "sill-late-read",
+          label: "Read it.",
+          target: "cmp-sill-late-ask",
+        },
+      ],
+    },
+    {
+      id: "cmp-sill-late-ask",
+      speaker: "Deacon Sill",
+      expression: "grim",
+      text:
+        "It is four lines and a signature and it is entirely correct. A " +
+        "cycler variance in the Undercroft, certified within tolerance, " +
+        "by the book, by him. \"Fourteen,\" he says, to the wall. \"Not " +
+        "that night. It took eleven months, which is precisely why " +
+        "nobody ever joined the two documents up. I did. In year eight, " +
+        "on my own time.\" He closes the ledger with two fingers. \"Then " +
+        "I filed a variance report on somebody else's cyclers, and let " +
+        "them strike me off for it, and I have spent two years letting " +
+        "people call that courage. I am not asking to be forgiven — I " +
+        "have no mechanism for that. You are simply the only person who " +
+        "has ever been owed an accurate version.\"",
+      choices: [
+        {
+          id: "sill-late-warm",
+          label: "\"Then I'll carry the accurate version. Put it back on the shelf.\"",
+          target: "cmp-sill-warm",
+          effects: [
+            { type: "set-flag", key: "sill-close", value: "warm" },
+            { type: "companion-loyalty", companionId: "sill", amount: 2 },
+          ],
+        },
+        {
+          id: "sill-late-distant",
+          label: "\"You needed somewhere to put that. It's put. We're square.\"",
+          target: "cmp-sill-distant",
+          effects: [
+            { type: "set-flag", key: "sill-close", value: "distant" },
+            { type: "companion-loyalty", companionId: "sill", amount: -1 },
+          ],
+        },
+        {
+          id: "sill-late-keep",
+          label:
+            "\"Fourteen names and a signature. That's worth keeping " +
+            "somewhere I can reach it.\"",
+          target: "cmp-sill-betrayed",
+          // Only sayable when the vault already taught him what you do
+          // with a document somebody else is standing next to.
+          requirements: [
+            { type: "flag-equals", key: "vent-vault-call", value: "salvage" },
+          ],
+          effects: [
+            { type: "set-flag", key: "sill-close", value: "betrayed" },
+            { type: "companion-loyalty", companionId: "sill", amount: -6 },
+          ],
+        },
+      ],
+    },
+    {
+      id: "cmp-sill-warm",
+      speaker: "Deacon Sill",
+      expression: "smile",
+      text:
+        "He puts it back in the case, and the case back under the bench, " +
+        "and takes rather longer over the buckles than the buckles need. " +
+        "\"Thank you,\" he says, and then, because he cannot help it: " +
+        "\"That was not an absolution and I did not want one. It was a " +
+        "disclosure.\" The visor stays up for the rest of the evening, " +
+        "which you have learned is the whole tell. When he says your " +
+        "name after that he says it the way he says a witness's — as " +
+        "somebody whose account of a thing he would stand behind.",
+      choices: [
+        {
+          id: "sill-warm-done",
+          label: "Let him do up the buckles in peace.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "cmp-sill-distant",
+      speaker: "Deacon Sill",
+      text:
+        "\"Square,\" he repeats, testing it, and finds it holds. \"Yes. " +
+        "That is a clean way to put it.\" The ledger goes away without " +
+        "ceremony, and he is entirely himself within a minute — serial " +
+        "numbers, a roster line, a question about tomorrow's route — and " +
+        "the only difference is that the cloth spine never comes out on " +
+        "the table again while you are in the room. He is not hurt. He " +
+        "simply files you, correctly, under the people who were told.",
+      choices: [
+        {
+          id: "sill-distant-done",
+          label: "Take the question about tomorrow's route.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "cmp-sill-betrayed",
+      expression: "grim",
+      speaker: "Deacon Sill",
+      text:
+        "He nods slowly, and something in him goes back nine years and " +
+        "puts a visor down. \"Of course,\" he says. \"That is what a " +
+        "document is for. I have been on the other side of that sentence " +
+        "and I recognise it.\" He does up the case. He does not ask for " +
+        "the ledger back, because asking would concede that you might " +
+        "not give it. From that night his statements to you are exact, " +
+        "complete, and volunteered about nothing, and he has stopped " +
+        "leaving the box at the bottom of the annexe open.",
+      choices: [
+        {
+          id: "sill-betrayed-done",
+          label: "Let him close the case.",
           effects: [{ type: "end" }],
         },
       ],
