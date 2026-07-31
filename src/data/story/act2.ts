@@ -678,6 +678,25 @@ export const act2Arc: StoryArc = {
           ],
         },
         {
+          // The Market's own way in, and the only one that is bought
+          // with nothing but standing: six levels of traders keep a
+          // stair into a bonded floor because six levels of traders
+          // have always had stock in it. Warm gets you the stair —
+          // the boards do not lend their doors to faces.
+          id: "market-stair",
+          label: "Ask the boards for the freight stair nobody bills for.",
+          target: "a2-lone-backstair",
+          requirements: [
+            { type: "reputation", factionId: "market", value: "warm" },
+          ],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "set-flag", key: "gate2-route", value: "market" },
+            { type: "set-flag", key: "a2-approach", value: "lone" },
+            { type: "travel", mapId: "exchange-ventworks" },
+          ],
+        },
+        {
           id: "roof",
           label: "Ride the dead crane line over the wire.",
           target: "a2-lone-ghostgate",
@@ -767,6 +786,22 @@ export const act2Arc: StoryArc = {
       ],
     },
     {
+      id: "a2-lone-backstair",
+      text:
+        "A runner in market colours meets you at the tram loop's south " +
+        "rail, says your name like a consignment number, and walks you " +
+        "four blocks to a freight stair that is not on any of the " +
+        "Exchange's plans because it predates them. \"Bonded floor's " +
+        "been ours since the embargo,\" she says, chaining the door " +
+        "open behind you. \"Boards say you're good for it. Don't make " +
+        "them wrong, and don't come back out this way.\" The scanners " +
+        "up on the arch never get a look at you at all.",
+      location: "exchange:freight-stair",
+      choices: [
+        { id: "in", label: "Up the stair, into the Ventworks.", target: "a2-vent-arrival" },
+      ],
+    },
+    {
       id: "a2-lone-gate",
       text:
         "The freight gate stands half-lit between shift bells, chain " +
@@ -820,6 +855,14 @@ export const act2Arc: StoryArc = {
       choices: [
         { id: "crew", label: "Look in on the penned vent crews.", target: "a2-vent-crew" },
         { id: "gallery", label: "Study the cycler gallery terminal.", target: "a2-vent-gallery" },
+        {
+          id: "bonded",
+          label: "Try the bonded lift on the mezzanine.",
+          target: "a2-vent-bonded",
+          // One visit: past the door, the floor's stock is spoken for
+          // one way or the other.
+          requirements: [{ type: "flag-unset", key: "bonded-floor" }],
+        },
         { id: "vault", label: "Follow the coolant mains to the vault.", target: "a2-vent-cache" },
         { id: "core", label: "Walk the ramp to the Cordon core.", target: "a2-core-door" },
         { id: "tram", label: "Head back toward the tram gate.", target: "a2-tram" },
@@ -990,6 +1033,97 @@ export const act2Arc: StoryArc = {
       location: "exchange:gallery",
       choices: [
         { id: "back", label: "Step away from the terminal.", target: "a2-vent-arrival" },
+      ],
+    },
+    // ------------------------------------------------------------------
+    // The bonded lift — a Combine door, read two ways
+    //
+    // The plainest thing standing can buy: a maintained corporate door
+    // that opens for a file it likes and, for everybody else, for two
+    // hundred credits pressed into a floor clerk's hand. Same floor
+    // either way — the difference is whether the Combine let you in or
+    // whether you bought your way past it, and whether you can still
+    // afford what happens next.
+    // ------------------------------------------------------------------
+    {
+      id: "a2-vent-bonded",
+      text:
+        "The bonded lift is the only thing on the mezzanine still " +
+        "lit the way its builders meant: brass call plate, live " +
+        "reader, EMBARGOED STOCK — AURIC COMBINE RECLAMATION stencilled " +
+        "at head height. Behind the grille, four levels of shelving " +
+        "hold whatever the Cordon impounded and never got round to " +
+        "moving. A floor clerk sits at the foot of it with a slate, a " +
+        "flask, and the particular boredom of a man paid to be the " +
+        "last honest step in a process.",
+      location: "exchange:mezzanine",
+      choices: [
+        {
+          id: "bonded-standing",
+          label: "Put your hand on the reader and let it look you up.",
+          target: "a2-vent-bonded-floor",
+          requirements: [
+            { type: "reputation", factionId: "auric", value: "warm" },
+          ],
+          ifUnavailable: "disabled",
+          effects: [{ type: "set-flag", key: "bonded-floor", value: "standing" }],
+        },
+        {
+          id: "bonded-clerk",
+          label: "Buy the clerk's cycle key instead. (200 cr)",
+          target: "a2-vent-bonded-floor",
+          requirements: [{ type: "credits", value: 200 }],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "credits", amount: -200 },
+            { type: "set-flag", key: "bonded-floor", value: "paid" },
+          ],
+          reactions: ["deception"],
+        },
+        {
+          id: "bonded-back",
+          label: "Leave the Combine's shelves to the Combine.",
+          target: "a2-vent-arrival",
+        },
+      ],
+    },
+    {
+      id: "a2-vent-bonded-floor",
+      text:
+        "The grille rolls back on four levels of impounded stock, " +
+        "each crate stencilled with the district it was lifted from " +
+        "and the date the Cordon took it. Cycler parts. Clinic " +
+        "consumables. A pallet of filter cartridges addressed to " +
+        "Ledge Nine, three weeks late and going nowhere. The manifest " +
+        "hangs by the grille on a clip, one page per district, and it " +
+        "is the single most saleable piece of paper in the Exchange.",
+      location: "exchange:mezzanine",
+      choices: [
+        {
+          id: "bonded-take",
+          label: "Fill your pockets and go. Somebody was always going to.",
+          target: "a2-vent-arrival",
+          effects: [
+            { type: "credits", amount: 120 },
+            { type: "add-item", itemId: "con-field-kit", quantity: 2 },
+            { type: "add-item", itemId: "con-surge-stim" },
+          ],
+          reactions: ["salvage"],
+        },
+        {
+          id: "bonded-boards",
+          label: "Photograph the manifest. Six levels can read it by morning.",
+          target: "a2-vent-arrival",
+          effects: [
+            { type: "credits", amount: 40 },
+            { type: "add-item", itemId: "con-field-kit" },
+            { type: "set-flag", key: "boards-cut-in", value: true },
+          ],
+          // What the Market pays for being told first, and what the
+          // Combine charges for having its shelves read out loud.
+          standing: { market: 12, auric: -6 },
+          reactions: ["record", "defiance"],
+        },
       ],
     },
     {

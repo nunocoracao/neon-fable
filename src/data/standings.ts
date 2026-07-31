@@ -95,6 +95,14 @@ export const FACTION_STANDINGS: readonly StandingSource[] = [
   },
   // --- Act 2: what the Cordon broke open, and into whose hands
   {
+    // The bonded floor's manifest, read out on the Market's boards:
+    // the one favour a run can do six levels of traders that is worth
+    // as much to them as a chapter, because it is their own stock.
+    flag: "boards-cut-in",
+    value: true,
+    standing: { market: 12, auric: -6 },
+  },
+  {
     flag: "act2-outcome",
     value: "charter",
     standing: { auric: -10, court: 20, market: 12 },
