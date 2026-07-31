@@ -17,6 +17,7 @@ export type {
   EnhancementRequirement,
   FlagAtLeastRequirement,
   FlagEqualsRequirement,
+  FlagNotEqualsRequirement,
   FlagUnsetRequirement,
   GotoEffect,
   IncrementFlagEffect,

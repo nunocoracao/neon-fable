@@ -16,6 +16,7 @@ import type { ReputationThreshold } from "../state/reputation";
 /** A condition a choice checks against GameState before it can be taken. */
 export type Requirement =
   | FlagEqualsRequirement
+  | FlagNotEqualsRequirement
   | FlagAtLeastRequirement
   | FlagSetRequirement
   | FlagUnsetRequirement
@@ -32,6 +33,20 @@ export type Requirement =
 /** Flag must exist and strictly equal the given value. */
 export interface FlagEqualsRequirement {
   type: "flag-equals";
+  key: string;
+  value: FlagValue;
+}
+
+/**
+ * Flag must say anything other than this — including nothing at all.
+ * The mirror of flag-equals, and the only gate that can be closed by a
+ * value *and* opened by a blank: a flag one beat writes `true` and a
+ * later one rewrites `false` (the suspended warrant) reads as three
+ * states, and "not wanted" is two of them. flag-unset only covers the
+ * blank, so it cannot express that door on its own.
+ */
+export interface FlagNotEqualsRequirement {
+  type: "flag-not-equals";
   key: string;
   value: FlagValue;
 }
