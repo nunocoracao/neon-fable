@@ -43,9 +43,10 @@ export interface PerkEffects {
   /** Grid steps added to every combat turn's budget. */
   extraSteps?: number;
   /**
-   * Turns of warning on hostile reach. 0 is the ordinary blind read —
-   * you learn where a body can hit you when it hits you. 1 marks the
-   * ground a foe threatens from where it stands, a turn before it acts.
+   * Turns of warning on what the hostiles mean to do. 0 is the ordinary
+   * blind read — you learn who a body was going for when it reaches
+   * them. 1 marks whoever each one is about to strike, a turn early
+   * (see intentTiles in src/combat/telegraph.ts).
    */
   enemyIntent?: number;
   /** Share of max HP (percent) a blow has to drop you below to answer. */
@@ -120,7 +121,8 @@ export const perks: Perk[] = [
       "You stopped watching the weapon and started watching the shoulder. " +
       "Everyone tells you where they are going a beat before they go.",
     effect:
-      "Hostile reach is marked on the grid before they swing, not after.",
+      "Whoever a hostile is about to strike is marked a turn before the " +
+      "blow, reach and approach counted in.",
     effects: { enemyIntent: 1 },
   },
   {

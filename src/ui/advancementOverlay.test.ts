@@ -121,7 +121,7 @@ describe("advancement overlay", () => {
     const handle = mount(session);
     const card = handle.el.querySelector('[data-perk="perk-cold-read"]');
     expect(card?.textContent).toContain("Cold Read");
-    expect(card?.textContent).toContain("Hostile reach is marked");
+    expect(card?.textContent).toContain("marked a turn before the blow");
     const open = [...handle.el.querySelectorAll("button")].find((b) =>
       (b.textContent ?? "").includes("Perk"),
     );

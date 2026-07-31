@@ -8,9 +8,18 @@ import {
   credMilestones,
 } from "../data/advancement";
 import { perks } from "../data/perks";
-import { createNewGame, type GameState } from "../state";
+import {
+  NG_PLUS_BONUS_POINTS,
+  applyNewGamePlus,
+  createNewGame,
+  type GameState,
+} from "../state";
+import { GAME_STATE_VERSION, migrateGameState } from "../state/gameState";
 import { createMemoryStorage, loadGame, saveGame } from "../state/save";
+import { getBackground } from "../data/backgrounds";
+import { createCharacter, defaultAllocation, type AdvancementState } from "./create";
 import { AdvancementError } from "./advancement";
+import { POINT_POOL } from "./stats";
 import {
   choosePerk,
   credLines,
@@ -251,5 +260,64 @@ describe("persistence", () => {
     expect(streetCred(loaded.flags)).toBe(streetCred(state.flags));
     expect(perkPicksAvailable(loaded)).toBe(perkPicksAvailable(state));
     expect(availablePerks(loaded.player).length).toBe(perks.length - 2);
+  });
+});
+
+describe("New Game+ carries no perks", () => {
+  it("starts a fresh runner with an empty list, however decorated the last one was", () => {
+    // A finished run with two perks to its name.
+    let finished = withPicks(2);
+    finished = { ...finished, player: choosePerk(finished, "perk-cold-read") };
+    finished = { ...finished, player: choosePerk(finished, "perk-known-face") };
+    expect(perkIdsOf(finished.player)).toHaveLength(2);
+
+    // The next run, built the way New Game+ builds one: the bonus pool,
+    // the last look, and one legacy item.
+    const allocation = defaultAllocation();
+    const character = createCharacter({
+      name: "Next",
+      background: getBackground(finished.player.backgroundId)!,
+      // The bonus pool, spent — exactly what the NG+ wizard produces.
+      allocation: {
+        ...allocation,
+        body: allocation.body + NG_PLUS_BONUS_POINTS,
+      },
+      pointPool: POINT_POOL + NG_PLUS_BONUS_POINTS,
+      appearance: { ...finished.player.appearance },
+    });
+    const fresh = applyNewGamePlus(
+      { ...createNewGame({ seed: 2 }), player: character },
+      finished.player.equipment.weapon,
+    );
+
+    expect(perkIdsOf(fresh.player)).toEqual([]);
+    expect(availablePerks(fresh.player).length).toBe(perks.length);
+    // And no cred either: the new run's flags are its own.
+    expect(streetCred(fresh.flags)).toBe(0);
+    expect(perkPicksAvailable(fresh)).toBe(0);
+  });
+});
+
+describe("save migration", () => {
+  it("gives a save from before the street kept score an empty list", () => {
+    const old = withPicks(1);
+    const advancement = old.player.advancement as Partial<AdvancementState>;
+    delete advancement.perkIds;
+    const migrated = migrateGameState({ ...old, version: 13 }, 13);
+    expect(migrated.player.advancement.perkIds).toEqual([]);
+    expect(migrated.version).toBe(GAME_STATE_VERSION);
+    // The cred itself needs no migration — the deeds were already there.
+    expect(streetCred(migrated.flags)).toBe(streetCred(old.flags));
+    expect(perkPicksAvailable(migrated)).toBe(1);
+  });
+
+  it("drops a perk this build no longer has, and never duplicates one", () => {
+    const state = withPicks(2, [
+      "perk-cold-read",
+      "perk-retired-in-a-later-build",
+      "perk-cold-read",
+    ]);
+    const migrated = migrateGameState(state, GAME_STATE_VERSION);
+    expect(migrated.player.advancement.perkIds).toEqual(["perk-cold-read"]);
   });
 });

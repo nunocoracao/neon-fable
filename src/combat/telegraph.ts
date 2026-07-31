@@ -1,9 +1,17 @@
 import { requireAbility } from "../data/abilities";
+import { nearestQuarry } from "./ai";
 import { abilityAreaTiles } from "./area";
 import { threatenedTiles } from "./charge";
 import { weaponReach } from "./damage";
 import { bodyGap, bodyTiles, tileGap } from "./footprint";
-import { canStand, combatantAt, inBounds, isBlocked, manhattan } from "./grid";
+import {
+  canStand,
+  combatantAt,
+  inBounds,
+  isBlocked,
+  manhattan,
+  stepBudget,
+} from "./grid";
 import { manhattanPath, reachableTiles } from "./legal";
 import {
   activeCombatant,
@@ -262,16 +270,20 @@ export function telegraphField(
 }
 
 /**
- * Ground a hostile could reach *from where it is standing*, marked
- * before it acts rather than after — the whole of what a Cold Read buys
- * (see PerkModifiers.enemyIntent).
+ * Who the hostiles are about to hit, marked a turn before they hit them
+ * — the whole of what a Cold Read buys (see PerkModifiers.enemyIntent).
+ *
+ * Not a tint of everywhere a foe *could* shoot: a ranged body covers
+ * most of an arena, and a telegraph that glows everywhere says nothing.
+ * What is marked is the body each hostile is actually working on —
+ * asked of the AI's own targeting rule, so the read cannot drift from
+ * the behaviour — and only while it can close the gap and strike this
+ * turn, reach plus steps. That is the decision the player has to make:
+ * this one gets to you unless you move, and that one does not.
  *
  * Read off the player's own snapshot, so a run without the perk gets
  * exactly the board it always got: an empty list, and no way to tell
- * the feature exists. Measured from current positions and current
- * weapons only — this is a read of what they can do, not a prophecy of
- * where they will walk, and promising the latter would be a telegraph
- * the engine could not honour.
+ * the feature exists.
  */
 export function intentTiles(state: CombatState): TelegraphTile[] {
   if (state.status !== "active") return [];
@@ -280,7 +292,11 @@ export function intentTiles(state: CombatState): TelegraphTile[] {
   const tiles: TelegraphTile[] = [];
   for (const body of state.combatants) {
     if (!isAlive(body) || !areOpposed(body, player)) continue;
-    for (const tile of tilesWithin(state, body, weaponReach(body.weapon))) {
+    const quarry = nearestQuarry(state, body);
+    if (!quarry) continue;
+    const swing = weaponReach(body.weapon) + stepBudget(body);
+    if (bodyGap(body, quarry) > swing) continue;
+    for (const tile of bodyTiles(quarry)) {
       tiles.push({ ...tile, role: "threat" });
     }
   }

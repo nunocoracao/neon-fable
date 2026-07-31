@@ -335,7 +335,7 @@ describe("Ghost Step — the step budget", () => {
 });
 
 describe("Cold Read — the threat telegraph", () => {
-  it("marks hostile reach that a plain run never sees", () => {
+  it("marks who the hostiles are about to hit, a turn before they hit them", () => {
     const base = makeState();
     const plain = createCombat(base, "enc-auric-scout");
     const perked = createCombat(
@@ -347,17 +347,32 @@ describe("Cold Read — the threat telegraph", () => {
     const marked = threatTiles(perked);
     expect(marked.length).toBeGreaterThan(0);
     expect(marked.every((tile) => tile.role === "threat")).toBe(true);
-    // Every marked tile is ground some living hostile could actually
-    // strike from where it stands.
-    const foes = perked.combatants.filter((c) => c.kind === "enemy");
+    // Everything marked is ground somebody on the player's side is
+    // standing on — the telegraph names bodies, not open floor.
+    const crew = perked.combatants.filter((c) => c.kind !== "enemy");
     for (const tile of marked) {
-      const reachable = foes.some(
-        (foe) =>
-          Math.abs(foe.position.x - tile.x) + Math.abs(foe.position.y - tile.y) <=
-          5,
-      );
-      expect(reachable).toBe(true);
+      expect(
+        crew.some(
+          (body) => body.position.x === tile.x && body.position.y === tile.y,
+        ),
+      ).toBe(true);
     }
+  });
+
+  it("says nothing about a hostile that cannot close the gap", () => {
+    const base = withPerks(makeState(), "perk-cold-read");
+    const combat = createCombat(base, "enc-auric-scout");
+    // Walk the whole enemy side into the far corner: out of reach even
+    // with a full turn of steps, and the mark goes with them.
+    const distant: CombatState = {
+      ...combat,
+      combatants: combat.combatants.map((c) =>
+        c.kind === "enemy"
+          ? { ...c, position: { x: combat.grid.width - 1, y: combat.grid.height - 1 } }
+          : { ...c, position: { x: 0, y: 0 } },
+      ),
+    };
+    expect(threatTiles(distant)).toEqual([]);
   });
 
   it("shows nothing once the fight is over", () => {
