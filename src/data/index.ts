@@ -58,6 +58,15 @@ export {
   type BarkTrigger,
 } from "./barks";
 export {
+  STATIC_BANDS,
+  STATIC_BANDS_TABLE,
+  staticBand,
+  staticBandRank,
+  type StaticBand,
+  type StaticBandDef,
+  type StaticBandEffects,
+} from "./static";
+export {
   DEFAULT_BACKGROUND_ID,
   backgrounds,
   getBackground,

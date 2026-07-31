@@ -262,6 +262,7 @@ export const items: Item[] = [
       "can tell they're being solved.",
     slot: "eyes",
     neuralCost: 3,
+    staticLoad: 4,
     // The reticle that never blinks off: amber-flaring optics.
     cyberLayer: { id: "optics", accent: "hazardAmber" },
     effects: [
@@ -279,6 +280,7 @@ export const items: Item[] = [
       "You stop borrowing strength from your body and start billing it.",
     slot: "arms",
     neuralCost: 4,
+    staticLoad: 4,
     // Precision truss chrome with cyan servo lights.
     cyberLayer: { id: "chrome-arm", accent: "neonCyan" },
     effects: [
@@ -298,6 +300,7 @@ export const items: Item[] = [
       "under overhead.",
     slot: "neural",
     neuralCost: 4,
+    staticLoad: 5,
     // Freight-scheduler lattice: the temple port runs amber.
     cyberLayer: { id: "neural-jack", accent: "hazardAmber" },
     effects: [
@@ -560,6 +563,17 @@ export const items: Item[] = [
     tags: ["key", "quays"],
   },
   // --- Cyber enhancements ---
+  //
+  // Two costs, and they are not the same cost. `neuralCost` is what the
+  // body can carry and is hard-capped by the character (see
+  // derived.neuralCapacity); `staticLoad` is how much noise the implant
+  // makes and is capped by nothing at all — a runner can always install
+  // one more and simply live louder (see src/data/static.ts).
+  //
+  // Loads track how much of a person the implant replaces rather than
+  // how good it is: eyes and a cortical lattice argue with the original
+  // wiring more than a rib graft does, and the corp-grade lines argue
+  // loudest because they were tuned for somebody else's nervous system.
   {
     id: "cyb-optic-suite",
     kind: "enhancement",
@@ -569,6 +583,7 @@ export const items: Item[] = [
       "shutter-click focus, and it makes them nervous.",
     slot: "eyes",
     neuralCost: 2,
+    staticLoad: 2,
     // Shutter-click focus: cyan-pulsing replacement eyes.
     cyberLayer: { id: "optics", accent: "neonCyan" },
     effects: [
@@ -586,6 +601,7 @@ export const items: Item[] = [
       "but the fine motor calibration never feels quite right.",
     slot: "arms",
     neuralCost: 3,
+    staticLoad: 3,
     // Cargo-rated muscle chrome with hazard-amber servo lights.
     cyberLayer: { id: "chrome-arm", accent: "hazardAmber" },
     effects: [
@@ -603,6 +619,7 @@ export const items: Item[] = [
       "think faster and blink less, and small talk starts to feel like lag.",
     slot: "neural",
     neuralCost: 3,
+    staticLoad: 3,
     // Cold-logic lattice: the temple port runs cyan.
     cyberLayer: { id: "neural-jack", accent: "neonCyan" },
     effects: [
@@ -621,6 +638,7 @@ export const items: Item[] = [
       "them.",
     slot: "dermal",
     neuralCost: 2,
+    staticLoad: 2,
     // Chrome-rimmed filtration slits down the ribs.
     cyberLayer: { id: "gill-slits" },
     effects: [
@@ -639,6 +657,7 @@ export const items: Item[] = [
       "does your own reflection.",
     slot: "dermal",
     neuralCost: 2,
+    staticLoad: 3,
     // Projection film smearing hologram-blue static down the face.
     cyberLayer: { id: "veil-film", accent: "hologramBlue" },
     effects: [
@@ -656,10 +675,60 @@ export const items: Item[] = [
       "at the price of skin that no longer moves like skin.",
     slot: "dermal",
     neuralCost: 2,
+    staticLoad: 2,
     // Ballistic mesh seams tracing the torso plating.
     cyberLayer: { id: "dermal-plate" },
     effects: [
       { type: "stat-mod", stat: "body", amount: 1 },
+      { type: "stat-mod", stat: "reflexes", amount: -1 },
+    ],
+  },
+  // --- Dampeners ---
+  //
+  // Implants whose whole function is to shut the other implants up.
+  // They are ordinary enhancements — a slot, a share of neural
+  // capacity, a stat trade — and that is the point: the quiet is bought
+  // with a socket, so wearing one always means not wearing something
+  // else. A player who wants both the Cascade Governor's intelligence
+  // and a clear head has to give up a different implant to get it.
+  {
+    id: "cyb-null-collar",
+    kind: "enhancement",
+    name: "Null Collar",
+    description:
+      "A cervical shunt that arbitrates between implants instead of " +
+      "letting them shout: everything installed gets its turn to speak " +
+      "and nothing gets to interrupt. The quiet is real. So is the " +
+      "half-second your own thoughts now spend queued behind it.",
+    slot: "neural",
+    neuralCost: 2,
+    staticLoad: -3,
+    // Arbitration hardware, worn at the nape: a dim chrome port.
+    cyberLayer: { id: "neural-jack", accent: "brushedChrome" },
+    effects: [
+      { type: "stat-mod", stat: "cool", amount: 1 },
+      { type: "stat-mod", stat: "intelligence", amount: -1 },
+      { type: "unlock-dialogue", tag: "damped" },
+    ],
+  },
+  {
+    id: "cyb-baffle-weave",
+    kind: "enhancement",
+    name: "Baffle Weave",
+    description:
+      "Grounding mesh laid under the skin in a lattice tuned to swallow " +
+      "implant chatter before it reaches the surface. Cheap, common, and " +
+      "worn by every clinic tech who ever had to stand next to somebody " +
+      "screaming — it also swallows a little of what the skin was for.",
+    slot: "dermal",
+    neuralCost: 2,
+    staticLoad: -2,
+    // A subdermal film like the Static Veil's, worn the other way
+    // round: dull chrome where the Veil runs blue, because this one is
+    // swallowing signal rather than throwing it.
+    cyberLayer: { id: "veil-film", accent: "brushedChrome" },
+    effects: [
+      { type: "stat-mod", stat: "cool", amount: 1 },
       { type: "stat-mod", stat: "reflexes", amount: -1 },
     ],
   },

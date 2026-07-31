@@ -111,6 +111,21 @@ export {
   type Workbench,
 } from "./workbench";
 export {
+  dialogueStats,
+  isDampener,
+  meetsStaticBand,
+  previewInstall,
+  previewUninstall,
+  readStatic,
+  staticEffects,
+  staticLevel,
+  staticLoadOf,
+  staticReading,
+  totalStatic,
+  type StaticReading,
+  type StaticShift,
+} from "./staticLoad";
+export {
   armorValue,
   dialogueUnlockTags,
   effectiveStats,
