@@ -14,6 +14,7 @@
  * the slot index and nothing else. No RNG state is consumed, so look
  * variety can never shift a damage roll.
  */
+import type { FlagMap } from "../state/flags";
 import { createRng, nextInt } from "../state/rng";
 import { enemyLookCount, getEnemy } from "./enemies";
 
@@ -30,6 +31,19 @@ export interface EncounterSpawn {
    * out-of-range values clamp. Omit to take the seeded pick.
    */
   look?: number;
+  /**
+   * A flag that keeps this body out of the fight while it holds true —
+   * how work done before a fight shows up inside one. The only thing
+   * that writes one today is a Breach run at a terminal that takes a
+   * drone off a muster roster (see src/data/breach.ts), and the rule is
+   * deliberately narrow: a spawn can be *absent*, never added, moved,
+   * or re-statted, so an encounter with the flag unset is byte-for-byte
+   * the fight it always was.
+   *
+   * Never put one on the last body in an encounter — a fight with
+   * nobody in it cannot be won. `encounters.test.ts` fails on that.
+   */
+  absentWhenFlag?: string;
 }
 
 export interface EncounterRewardItem {
@@ -353,7 +367,14 @@ export const encounters: Encounter[] = [
     enemies: [
       { enemyId: "nme-auric-warden", position: { x: 7, y: 2 } },
       { enemyId: "nme-cordon-enforcer", position: { x: 7, y: 4 } },
-      { enemyId: "nme-static-drone", position: { x: 6, y: 5 } },
+      // The floor's eye in the air, and the one body on this level that
+      // can be dealt with before the shooting: it rides the muster
+      // relay's roster, and a Breach run at that relay takes it off.
+      {
+        enemyId: "nme-static-drone",
+        position: { x: 6, y: 5 },
+        absentWhenFlag: "exec-muster-dark",
+      },
     ],
     rewards: {
       credits: 90,
@@ -437,6 +458,28 @@ export function requireEncounter(id: string): Encounter {
     throw new Error(`No encounter with id "${id}"`);
   }
   return encounter;
+}
+
+/** One body that is actually turning up, and the slot it was authored in. */
+export interface LiveSpawn {
+  spawn: EncounterSpawn;
+  /** Index in the encounter's own list — never the filtered one. */
+  slot: number;
+}
+
+/**
+ * The bodies a fight actually starts with, given what the run has done
+ * to the world. Absent spawns drop out; everybody else keeps their
+ * authored slot, so the faces a fight staffs itself with and the ids
+ * the log names are identical whether or not somebody stood a drone
+ * down first (see spawnLookIndex, and EncounterSpawn.absentWhenFlag).
+ */
+export function liveSpawns(encounter: Encounter, flags: FlagMap): LiveSpawn[] {
+  return encounter.enemies.flatMap((spawn, slot) =>
+    spawn.absentWhenFlag !== undefined && flags[spawn.absentWhenFlag] === true
+      ? []
+      : [{ spawn, slot }],
+  );
 }
 
 /**

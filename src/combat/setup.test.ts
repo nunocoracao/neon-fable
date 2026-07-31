@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { encounters, liveSpawns } from "../data/encounters";
 import { addItem } from "../inventory";
 import { createNewGame } from "../state";
 import { moveSpeed } from "./grid";
@@ -133,5 +134,76 @@ describe("createCombat", () => {
   it("survives a JSON round-trip unchanged", () => {
     const combat = createCombat(makeGame(), "enc-vault-guardian");
     expect(JSON.parse(JSON.stringify(combat))).toEqual(combat);
+  });
+});
+
+/**
+ * A body stood down before the fight. The only thing that writes one of
+ * these flags today is a Breach run at a muster relay (see
+ * src/data/breach.ts); what matters to the engine is that an absent
+ * spawn changes nothing but its own presence.
+ */
+describe("spawns a run has stood down", () => {
+  const ENCOUNTER = "enc-exec-security";
+  const DARK = "exec-muster-dark";
+
+  function withFlag(value: boolean) {
+    const state = makeGame(11);
+    return createCombat(
+      { ...state, flags: { ...state.flags, [DARK]: value } },
+      ENCOUNTER,
+    );
+  }
+
+  it("leaves the fight exactly as authored while the flag is unset", () => {
+    const lit = createCombat(makeGame(11), ENCOUNTER);
+    const off = withFlag(false);
+    expect(off.combatants.map((c) => c.id)).toEqual(
+      lit.combatants.map((c) => c.id),
+    );
+    expect(lit.combatants.some((c) => c.enemyId === "nme-static-drone")).toBe(
+      true,
+    );
+  });
+
+  it("takes the body off the board when the flag holds", () => {
+    const dark = withFlag(true);
+    expect(dark.combatants.some((c) => c.enemyId === "nme-static-drone")).toBe(
+      false,
+    );
+    // Everybody else keeps their authored id and look, so the log and
+    // the faces read identically with the drone gone.
+    const lit = createCombat(makeGame(11), ENCOUNTER);
+    const kept = lit.combatants.filter(
+      (c) => c.enemyId !== "nme-static-drone",
+    );
+    expect(dark.combatants.map((c) => c.id)).toEqual(kept.map((c) => c.id));
+    expect(dark.combatants.map((c) => c.lookIndex ?? null)).toEqual(
+      kept.map((c) => c.lookIndex ?? null),
+    );
+    // And the fight still starts properly: somebody has the turn.
+    expect(dark.status).toBe("active");
+    expect(dark.initiativeOrder).toHaveLength(dark.combatants.length);
+  });
+});
+
+/**
+ * Content lint for the rule above: an advantage may empty a slot, never
+ * the board. A fight with nobody in it cannot be won.
+ */
+describe("absent spawns never empty an encounter", () => {
+  it("leaves at least one body in every fight, whatever a run has done", () => {
+    for (const encounter of encounters) {
+      const flags = Object.fromEntries(
+        encounter.enemies.flatMap((spawn) =>
+          spawn.absentWhenFlag === undefined
+            ? []
+            : [[spawn.absentWhenFlag, true] as const],
+        ),
+      );
+      expect(liveSpawns(encounter, flags).length, encounter.id).toBeGreaterThan(
+        0,
+      );
+    }
   });
 });

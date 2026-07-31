@@ -1,5 +1,5 @@
 import { characterPerks, perkIdsOf } from "../character/perks";
-import { requireEncounter, spawnLookIndex } from "../data/encounters";
+import { liveSpawns, requireEncounter, spawnLookIndex } from "../data/encounters";
 import { requireEnemy } from "../data/enemies";
 import { requireItem } from "../data/items";
 import {
@@ -101,36 +101,41 @@ export function createCombat(
     consumables: playerConsumables(state, resolve),
   };
 
-  const foes: Combatant[] = encounter.enemies.map((spawn, index) => {
-    const enemy = requireEnemy(spawn.enemyId);
-    return {
-      id: `${enemy.id}-${index + 1}`,
-      kind: "enemy" as const,
-      name: enemy.name,
-      enemyId: enemy.id,
-      // Which face this slot wears. Pinned by the encounter or picked
-      // from the archetype's look family by a seed made of the
-      // encounter id and this slot — never from the combat RNG, so
-      // varying the faces cannot move a single die.
-      lookIndex: spawnLookIndex(encounterId, index, spawn),
-      stats: { ...enemy.stats },
-      maxHp: enemy.maxHp,
-      hp: enemy.maxHp,
-      weapon: { ...enemy.weapon },
-      armor: enemy.armor,
-      abilityIds: [...enemy.abilityIds],
-      position: { ...spawn.position },
-      // How much floor the archetype stands on. Absent on almost
-      // everything (one tile, as it always was); a security chassis
-      // carries a block, and every grid rule reads it (see ./footprint).
-      ...(enemy.footprint ? { footprint: { ...enemy.footprint } } : {}),
-      boosts: [],
-      stunTurns: 0,
-      charge: null,
-      cooldowns: {},
-      consumables: [],
-    };
-  });
+  // Who actually turns up. A body a run stood down before the fight
+  // simply is not here; everyone else keeps their authored slot, so the
+  // faces and the ids are the same either way (see liveSpawns).
+  const foes: Combatant[] = liveSpawns(encounter, state.flags).map(
+    ({ spawn, slot }) => {
+      const enemy = requireEnemy(spawn.enemyId);
+      return {
+        id: `${enemy.id}-${slot + 1}`,
+        kind: "enemy" as const,
+        name: enemy.name,
+        enemyId: enemy.id,
+        // Which face this slot wears. Pinned by the encounter or picked
+        // from the archetype's look family by a seed made of the
+        // encounter id and this slot — never from the combat RNG, so
+        // varying the faces cannot move a single die.
+        lookIndex: spawnLookIndex(encounterId, slot, spawn),
+        stats: { ...enemy.stats },
+        maxHp: enemy.maxHp,
+        hp: enemy.maxHp,
+        weapon: { ...enemy.weapon },
+        armor: enemy.armor,
+        abilityIds: [...enemy.abilityIds],
+        position: { ...spawn.position },
+        // How much floor the archetype stands on. Absent on almost
+        // everything (one tile, as it always was); a security chassis
+        // carries a block, and every grid rule reads it (see ./footprint).
+        ...(enemy.footprint ? { footprint: { ...enemy.footprint } } : {}),
+        boosts: [],
+        stunTurns: 0,
+        charge: null,
+        cooldowns: {},
+        consumables: [],
+      };
+    },
+  );
 
   // The crew falls in beside the player before the enemies are placed
   // is not an option — the spawns are content and cannot move — so the
