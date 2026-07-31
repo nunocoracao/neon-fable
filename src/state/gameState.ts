@@ -1,7 +1,7 @@
 import { createCharacter, defaultAllocation, defaultAppearance } from "../character";
 import type { CharacterState } from "../character";
 import { DEFAULT_BACKGROUND_ID, getBackground } from "../data/backgrounds";
-import { applyStartingGear, emptyInventory } from "../inventory";
+import { applyStartingGear, emptyInventory, sanitizeMods } from "../inventory";
 import type { InventoryState } from "../inventory";
 import type { FlagMap } from "./flags";
 import { clampLore, emptyLore, type LoreState } from "./lore";
@@ -14,7 +14,7 @@ import {
 import type { RngState } from "./rng";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 10;
+export const GAME_STATE_VERSION = 11;
 
 /**
  * Oldest save version migrateGameState can bring forward. Saves from
@@ -84,6 +84,11 @@ export interface GameState {
  *   saves get an empty shard collection and can go and find all twelve
  *   from wherever they left off — the shards are still on the maps,
  *   because a map only drops the ones this run has already picked up.
+ * - v10 -> v11: weapons grew mod sockets. There is nothing to fill in:
+ *   a weapon with no fitted parts is exactly what every older save
+ *   already describes, and the sanitize pass below (which runs at every
+ *   version, like the lore clamp) is what makes that true rather than
+ *   assumed.
  */
 export function migrateGameState(
   state: GameState,
@@ -108,7 +113,19 @@ export function migrateGameState(
   // A save at the current version can still carry a collection an older
   // build wrote badly; clamping costs nothing and keeps the codex from
   // counting a duplicate twice.
-  return { ...migrated, lore: clampLore(migrated.lore), version: GAME_STATE_VERSION };
+  //
+  // The same goes for fitted weapon parts: content moves, and a part in
+  // a socket its weapon no longer offers has to stop being fitted
+  // rather than quietly keep paying out. An unmodded loadout — which is
+  // every pre-v11 save — comes back unchanged.
+  const cleaned = sanitizeMods(migrated.player, migrated.inventory);
+  return {
+    ...migrated,
+    player: cleaned.player,
+    inventory: cleaned.inventory,
+    lore: clampLore(migrated.lore),
+    version: GAME_STATE_VERSION,
+  };
 }
 
 export interface NewGameOptions {

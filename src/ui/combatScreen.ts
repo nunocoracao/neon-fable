@@ -10,6 +10,7 @@ import {
   footprintCenter,
   getCombatant,
   isAlive,
+  effectiveArmor,
   isGlancingBlow,
   isPlayerControlled,
   itemOptions,
@@ -644,7 +645,20 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     const target = getCombatant(combat, event.targetId);
     if (!target) return {};
     if (event.type === "attacked") {
-      return { target: { armor: target.armor, maxHp: target.maxHp } };
+      // Plating the shot actually met (a piercing round meets less of
+      // it) and the attacker's own critical line, which is the whole
+      // of what a crit-behavior part changes.
+      const attacker = getCombatant(combat, event.attackerId);
+      const weapon = attacker?.weapon;
+      const armor = weapon
+        ? effectiveArmor(weapon, target.armor)
+        : target.armor;
+      return {
+        target: { armor, maxHp: target.maxHp },
+        ...(weapon?.critShare !== undefined
+          ? { critShare: weapon.critShare }
+          : {}),
+      };
     }
     const effect = getAbility(event.abilityId)?.effect;
     const ignoresArmor = effect?.type === "damage" && effect.ignoresArmor === true;
@@ -744,13 +758,21 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
             hit: event.hit,
           });
           if (event.hit) {
+            const attacker = getCombatant(combat, event.attackerId);
+            const armor = attacker
+              ? effectiveArmor(attacker.weapon, target.armor)
+              : target.armor;
             scene.hitFx(event.targetId, {
               attackerId: event.attackerId,
               delayMs: beatMs,
-              glancing: isGlancingBlow(event.damage, target.armor),
+              glancing: isGlancingBlow(event.damage, armor),
               // How much the camera owes the blow: the same reading the
               // figure over the body is styled from (see ./combatFeel.ts).
-              weight: impactWeight(event.damage, target),
+              weight: impactWeight(
+                event.damage,
+                { armor, maxHp: target.maxHp },
+                attacker?.weapon.critShare,
+              ),
             });
           }
           break;

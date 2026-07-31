@@ -1006,6 +1006,18 @@ const verticalMarket: IsoMap = {
       visual: MARROW_VISUAL,
     },
     {
+      // Sabbat's bench, wedged against the east scaffold on the far
+      // side of the south stall row — one column clear of the wall so
+      // the tenement face does not paint over it, and outside every
+      // ambient zone so the crowd routes around it rather than through.
+      id: "market-bench",
+      x: 14,
+      y: 6,
+      label: "Rig-up bench — Sabbat",
+      spriteId: "terminal",
+      interaction: { kind: "dialogue", nodeId: "vm-bench" },
+    },
+    {
       id: "market-stair",
       x: 8,
       y: 11,

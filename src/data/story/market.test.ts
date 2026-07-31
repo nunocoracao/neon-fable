@@ -84,6 +84,7 @@ describe("vertical market arc", () => {
     );
     expect(opened.sort()).toEqual([
       "vm-auditor",
+      "vm-bench",
       "vm-broker",
       "vm-fixer",
       "vm-stair",
@@ -94,6 +95,7 @@ describe("vertical market arc", () => {
     );
     expect(arrivalTargets.sort()).toEqual([
       "vm-auditor",
+      "vm-bench",
       "vm-broker",
       "vm-fixer",
       "vm-stair",
@@ -113,7 +115,10 @@ describe("vertical market arc", () => {
           : [],
       ),
     );
+    const districtFlags = new Set(flags);
     expect([...new Set(flags)].sort()).toEqual([
+      "bench-known",
+      "bench-scrap",
       "market-known",
       "market-locker",
       "sill-declined",
@@ -126,10 +131,18 @@ describe("vertical market arc", () => {
         expect(effect.type, `${choice.id}`).not.toBe("remove-item");
       }
       for (const requirement of choice.requirements ?? []) {
-        // Gating is on the character — a stat or where they came from —
-        // never on story state, so the district plays the same in every
-        // act and on a fresh run.
-        expect(["stat", "background"], `${choice.id}`).toContain(
+        // Gating is on the character — a stat, where they came from, or
+        // what is in their pocket — or on a flag the district itself
+        // wrote. Never on story state from outside, so the district
+        // plays the same in every act and on a fresh run.
+        if (
+          requirement.type === "flag-equals" ||
+          requirement.type === "flag-not-equals"
+        ) {
+          expect(districtFlags, `${choice.id}`).toContain(requirement.key);
+          continue;
+        }
+        expect(["stat", "background", "credits"], `${choice.id}`).toContain(
           requirement.type,
         );
       }

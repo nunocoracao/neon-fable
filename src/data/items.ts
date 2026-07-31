@@ -18,6 +18,7 @@ export const items: Item[] = [
     damage: 4,
     rangeType: "melee",
     weaponLayer: { id: "blade" },
+    sockets: ["grip"],
     effects: [{ type: "stat-mod", stat: "reflexes", amount: 1 }],
   },
   {
@@ -31,6 +32,7 @@ export const items: Item[] = [
     rangeType: "ranged",
     requirement: { stat: "reflexes", value: 5 },
     weaponLayer: { id: "pistol" },
+    sockets: ["barrel"],
     effects: [],
   },
   {
@@ -44,6 +46,7 @@ export const items: Item[] = [
     rangeType: "melee",
     // Stun coils crackle hologram-blue at the rod tip.
     weaponLayer: { id: "baton", accent: "hologramBlue" },
+    sockets: ["core"],
     effects: [{ type: "grant-ability", abilityId: "ability-stun-strike" }],
   },
   // --- Outfits ---
@@ -98,6 +101,7 @@ export const items: Item[] = [
     requirement: { stat: "tech", value: 5 },
     // Live cable burns hazard-amber down the whip's arc.
     weaponLayer: { id: "lash", accent: "hazardAmber" },
+    sockets: ["core", "grip"],
     effects: [],
   },
   {
@@ -116,6 +120,7 @@ export const items: Item[] = [
     requirement: { stat: "reflexes", value: 5 },
     // Cold cyan running lights down the spool housing.
     weaponLayer: { id: "lash", accent: "neonCyan" },
+    sockets: ["core", "grip"],
     effects: [],
   },
   {
@@ -136,6 +141,7 @@ export const items: Item[] = [
     // Held like the sidearm it is not: chrome housing, no glow — an
     // office tool with a trigger, which is the whole joke of it.
     weaponLayer: { id: "pistol" },
+    sockets: ["barrel", "core"],
     effects: [],
   },
   // --- Tier-2 gear (Act 2+ shops and rewards; steep prices, stiff
@@ -151,6 +157,7 @@ export const items: Item[] = [
     rangeType: "ranged",
     requirement: { stat: "reflexes", value: 6 },
     weaponLayer: { id: "pistol" },
+    sockets: ["barrel", "core"],
     effects: [],
   },
   {
@@ -164,6 +171,7 @@ export const items: Item[] = [
     rangeType: "melee",
     requirement: { stat: "body", value: 6 },
     weaponLayer: { id: "blade" },
+    sockets: ["core", "grip"],
     effects: [],
   },
   {
@@ -177,6 +185,7 @@ export const items: Item[] = [
     rangeType: "ranged",
     requirement: { stat: "tech", value: 6 },
     weaponLayer: { id: "rifle" },
+    sockets: ["barrel", "core"],
     effects: [{ type: "stat-mod", stat: "tech", amount: 1 }],
   },
   {
@@ -295,6 +304,133 @@ export const items: Item[] = [
       { type: "stat-mod", stat: "tech", amount: 1 },
       { type: "stat-mod", stat: "cool", amount: -1 },
       { type: "unlock-dialogue", tag: "machine-cant" },
+    ],
+  },
+  // --- Weapon mods (fitted at a bench; see src/inventory/mods.ts) ---
+  //
+  // Every part is a trade: a mod that only gives is a stat stick with
+  // a screw thread. The two exceptions earn it another way — the Burst
+  // Governor's ability costs the shot it replaces, and the Lattice
+  // Rifling's pierce is worth nothing against an unarmored target.
+  //
+  // Accents are how a modded weapon reads from across the street: the
+  // first fitted part with one repaints the weapon layer's energy
+  // channel (see modAccent).
+  {
+    id: "mod-splitbore-choke",
+    kind: "mod",
+    name: "Splitbore Choke",
+    description:
+      "A machined muzzle sleeve that lets the gas out sideways instead " +
+      "of forward. Everything downrange gets more of the round and less " +
+      "of the aim it was fired with.",
+    socket: "barrel",
+    accent: "hazardAmber",
+    effects: [
+      { type: "weapon-damage", amount: 2 },
+      { type: "accuracy", amount: -1 },
+    ],
+  },
+  {
+    id: "mod-lattice-rifling",
+    kind: "mod",
+    name: "Lattice Rifling",
+    description:
+      "A liner grown rather than cut, in a crystal lattice that puts a " +
+      "spin on the round tight enough to walk it through plate. Against " +
+      "a coat it does nothing at all.",
+    socket: "barrel",
+    accent: "brushedChrome",
+    effects: [{ type: "armor-pierce", amount: 2 }],
+  },
+  {
+    id: "mod-smartlink-sight",
+    kind: "mod",
+    name: "Smartlink Sight",
+    description:
+      "A ranging head that talks to the hand holding it. It will not " +
+      "make the round heavier — it spends a little of the charge doing " +
+      "the arithmetic — but it will put it where you looked.",
+    socket: "barrel",
+    accent: "hologramBlue",
+    effects: [
+      { type: "accuracy", amount: 3 },
+      { type: "weapon-damage", amount: -1 },
+    ],
+  },
+  {
+    id: "mod-longspar-extension",
+    kind: "mod",
+    name: "Longspar Extension",
+    description:
+      "A bolt-on fore-end that adds a hand's length of guide to the " +
+      "throw. Reach costs you the snap: whatever leaves it arrives a " +
+      "little tired.",
+    socket: "barrel",
+    accent: "neonCyan",
+    effects: [
+      { type: "weapon-range", amount: 2 },
+      { type: "weapon-damage", amount: -1 },
+    ],
+  },
+  {
+    id: "mod-burst-governor",
+    kind: "mod",
+    name: "Burst Governor",
+    description:
+      "A cycle limiter installed backwards. It does not stop the second " +
+      "and third rounds; it schedules them. The frame gets a say in this " +
+      "and its say is a tremor you learn to shoot through.",
+    socket: "core",
+    accent: "hazardAmber",
+    effects: [
+      { type: "grant-ability", abilityId: "ability-burst-fire" },
+      { type: "accuracy", amount: -1 },
+    ],
+  },
+  {
+    id: "mod-hairline-sear",
+    kind: "mod",
+    name: "Hairline Sear",
+    description:
+      "A discharge element wound down to a filament, so what lands lands " +
+      "in one place instead of across a hand's width. When it tells, it " +
+      "tells early — and it takes a little off everything else.",
+    socket: "core",
+    accent: "neonCyan",
+    effects: [
+      { type: "crit-share", amount: -0.09 },
+      { type: "weapon-damage", amount: -1 },
+    ],
+  },
+  {
+    id: "mod-gyro-sleeve",
+    kind: "mod",
+    name: "Gyro Sleeve",
+    description:
+      "A counter-spinning collar around the grip that eats the recoil " +
+      "before your wrist hears about it. You move quicker with it on and " +
+      "you feel every gram of it by the third street.",
+    socket: "grip",
+    accent: "hologramBlue",
+    effects: [
+      { type: "stat-mod", stat: "reflexes", amount: 1 },
+      { type: "stat-mod", stat: "body", amount: -1 },
+    ],
+  },
+  {
+    id: "mod-ballast-shim",
+    kind: "mod",
+    name: "Ballast Shim",
+    description:
+      "Four hundred grams of depleted stock wedged into the heel of the " +
+      "grip. The weapon stops arguing with the swing; the swing stops " +
+      "arriving anywhere quickly.",
+    socket: "grip",
+    accent: "brushedChrome",
+    effects: [
+      { type: "stat-mod", stat: "body", amount: 1 },
+      { type: "accuracy", amount: -1 },
     ],
   },
   // --- Consumables ---
