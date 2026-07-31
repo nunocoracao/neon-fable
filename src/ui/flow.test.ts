@@ -7,6 +7,7 @@ import {
 } from "../character";
 import { fixtureAppearance, fixtureCharacter } from "../character/testSupport";
 import { backgroundPresets, getAppearanceOption } from "../data";
+import { perks } from "../data/perks";
 import { createRng } from "../state/rng";
 import { DEFAULT_SETTINGS, SETTINGS_KEY, settings } from "../settings";
 import {
@@ -1009,6 +1010,81 @@ describe("act 1 chapter flow", () => {
     click("Continue");
     showScreen(createGameScreen({ session }));
     expect(document.querySelector(".nf-interlude")).toBeNull();
+  });
+});
+
+describe("street cred and the perk pick", () => {
+  /** A run the city has noticed: four fights won is past the first milestone. */
+  function knownRun(): ReturnType<typeof createSession> {
+    return createSession({
+      ...testCharacterState(4),
+      location: "greywater-steps",
+      flags: {
+        "combat:enc-a": "victory",
+        "combat:enc-b": "victory",
+        "combat:enc-c": "victory",
+        "combat:enc-d": "victory",
+      },
+    });
+  }
+
+  it("nudges the player, then takes them from the HUD to a permanent pick", () => {
+    const session = knownRun();
+    showScreen(createGameScreen({ session }));
+
+    // Arriving on the map says the street wants a word.
+    expect(textOf(".nf-toast")).toMatch(/perk pick waiting/);
+
+    // The Advance panel reports the cred and lists no perks yet.
+    click("Advance");
+    expect(textOf(".nf-advancement")).toMatch(/Street cred 8/);
+    expect(textOf(".nf-perk-section")).toMatch(/None yet/);
+
+    // Which hands off to the pick screen, offering the whole pool.
+    click("Choose a Perk");
+    expect(textOf(".nf-perks")).toMatch(/Cold Read/);
+    expect(document.querySelectorAll(".nf-perk-card").length).toBe(perks.length);
+
+    // Taking one is two clicks, and it sticks.
+    const card = document.querySelector<HTMLElement>(
+      '[data-perk="perk-ghost-step"]',
+    )!;
+    card.querySelector("button")!.click();
+    expect(textOf(".nf-perks")).toMatch(/permanent/);
+    document
+      .querySelector<HTMLElement>('[data-perk="perk-ghost-step"] button')!
+      .click();
+    expect(session.state.player.advancement.perkIds).toEqual([
+      "perk-ghost-step",
+    ]);
+    expect(
+      textOf('[data-perk="perk-ghost-step"]'),
+    ).toMatch(/Yours/);
+    expect(textOf(".nf-perks")).toMatch(/No pick waiting/);
+
+    // And the character panel now carries it, with what it does.
+    pressKey("Escape");
+    click("Advance");
+    expect(textOf(".nf-perk-section")).toMatch(/Ghost Step/);
+    expect(textOf(".nf-perk-section")).toMatch(/extra step of movement/);
+  });
+
+  it("says nothing at all to a run the street has not noticed", () => {
+    showScreen(
+      createGameScreen({
+        session: createSession({
+          ...testCharacterState(4),
+          location: "greywater-steps",
+        }),
+      }),
+    );
+    expect(textOf(".nf-toast")).not.toMatch(/perk pick/);
+    click("Advance");
+    expect(textOf(".nf-advancement")).toMatch(/Street cred 0/);
+    click("View Perks");
+    expect(textOf(".nf-perks")).toMatch(/No pick waiting/);
+    // Every card is on show and none of them can be taken.
+    expect(document.querySelectorAll(".nf-perk-card button").length).toBe(0);
   });
 });
 
