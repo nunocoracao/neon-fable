@@ -84,12 +84,15 @@ export function createExploreScreen(options: ExploreScreenOptions): Screen {
           entity: sceneSpriteSource(),
         }),
         onInteract(event): void {
+          const interaction = event.interaction;
           const detail =
-            event.interaction.kind === "dialogue"
-              ? `dialogue → ${event.interaction.nodeId}`
-              : event.interaction.kind === "lore"
-                ? `lore → ${event.interaction.shardId}`
-                : `combat → ${event.interaction.encounterId}`;
+            interaction.kind === "dialogue"
+              ? `dialogue → ${interaction.nodeId}`
+              : interaction.kind === "lore"
+                ? `lore → ${interaction.shardId}`
+                : interaction.kind === "breach"
+                  ? `breach → ${interaction.contextId}`
+                  : `combat → ${interaction.encounterId}`;
           readout.textContent = `${event.interactableId}: ${detail}`;
         },
       });

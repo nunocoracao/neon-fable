@@ -336,6 +336,19 @@ describe("misc labels", () => {
     ).toBe("Enter — fight Vent-crew pen");
   });
 
+  it("offers a run at a terminal that is holding a lattice", () => {
+    // A terminal you can breach is not something you "use": what it
+    // does wins over what it looks like, exactly as a fight does.
+    expect(
+      interactPrompt({
+        label: "Cordon Archive Stack",
+        spriteId: "terminal",
+        kind: "breach",
+        inRange: true,
+      }),
+    ).toBe("Enter — breach Cordon Archive Stack");
+  });
+
   it("offers to pick a memory shard up off the floor", () => {
     expect(
       interactPrompt({

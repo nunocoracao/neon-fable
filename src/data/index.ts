@@ -58,6 +58,19 @@ export {
   type BarkTrigger,
 } from "./barks";
 export {
+  BREACH_CONTEXTS,
+  BREACH_DIFFICULTIES,
+  breachContextsOnMap,
+  breachDifficulty,
+  breachFlag,
+  getBreachContext,
+  requireBreachContext,
+  type BreachContext,
+  type BreachDifficulty,
+  type BreachDifficultyId,
+  type BreachRewards,
+} from "./breach";
+export {
   STATIC_BANDS,
   STATIC_BANDS_TABLE,
   staticBand,
