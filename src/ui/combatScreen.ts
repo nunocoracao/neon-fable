@@ -95,6 +95,8 @@ import { focusFirst, installListNav } from "./focus";
 import {
   combatEventText,
   combatantDisplayNames,
+  companionName,
+  injuryLine,
   percentLabel,
   saveErrorMessage,
 } from "./format";
@@ -1032,7 +1034,27 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
   function showOutcome(): void {
     if (!combat || combat.status === "active" || outcomeShown) return;
     outcomeShown = true;
+    // Read before the fold-back, so what the panel reports is what this
+    // fight changed rather than what the run was already carrying.
+    const injuredBefore = new Map(
+      [session.state.player, ...session.state.party.members].map((who) => [
+        "companionId" in who ? who.companionId : "player",
+        who.injury?.id ?? null,
+      ]),
+    );
     session.state = withoutResumeFlag(resolveCombat(session.state, combat));
+    const woundLines = [
+      ...[session.state.player, ...session.state.party.members].flatMap(
+        (who) => {
+          const key = "companionId" in who ? who.companionId : "player";
+          if (!who.injury || injuredBefore.get(key) === who.injury.id) return [];
+          const name =
+            "companionId" in who ? companionName(who.companionId) : "You";
+          const line = injuryLine(who.injury);
+          return line === null ? [] : [`${name}: ${line}`];
+        },
+      ),
+    ];
 
     if (combat.status === "victory") {
       audio.setMusicContext(null);
@@ -1056,6 +1078,25 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         list.append(line);
       }
       panel.append(list);
+      // What the win cost, said on the panel it was won on — a wound
+      // discovered later on the character screen reads as a bug.
+      if (woundLines.length > 0) {
+        const wounds = document.createElement("div");
+        wounds.className = "nf-injury-list";
+        wounds.append(
+          Object.assign(document.createElement("div"), {
+            className: "nf-injury-heading",
+            textContent: "You did not walk away clean.",
+          }),
+        );
+        for (const text of woundLines) {
+          const line = document.createElement("div");
+          line.className = "nf-injury-line";
+          line.textContent = text;
+          wounds.append(line);
+        }
+        panel.append(wounds);
+      }
       panel.append(panelButton("Continue", () => backToGame(resumeNodeId)));
       focusFirst(panel);
       return;

@@ -39,6 +39,12 @@ export interface ScriptedFight {
   steps: UiStep[];
   kinds: Set<UiStep["kind"]>;
   status: CombatStatus;
+  /**
+   * The finished battle. Carried so a seed scan can accept on anything
+   * the fight ended up being — how much of the player's frame was left,
+   * what the log says happened — rather than on the outcome alone.
+   */
+  combat: CombatState;
 }
 
 const ARROWS = [
@@ -138,7 +144,7 @@ export function scriptFight(
     kinds.add(step.kind);
     combat = takeAction(combat, action);
   }
-  return { steps, kinds, status: combat.status };
+  return { steps, kinds, status: combat.status, combat };
 }
 
 /**

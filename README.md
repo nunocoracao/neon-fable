@@ -525,7 +525,7 @@ A `StoryArc` is a list of nodes; each node has `speaker`, `text`, and
 `choices`. Choices carry:
 
 - `requirements` — stat / item / enhancement / background / flag /
-  credits / companion / loyalty / reputation gates.
+  credits / companion / loyalty / injury / reputation gates.
   `ifUnavailable: "disabled"` shows
   the choice greyed out with the requirement label; the default hides
   it. A `companion` requirement asks whether somebody is `"active"`
@@ -548,7 +548,12 @@ A `StoryArc` is a list of nodes; each node has `speaker`, `text`, and
   three standings rather than testing one (`dominantFaction`, floor
   `"warm"` by default, ties and an empty field both naming nobody).
   Author that beat as four choices — one per power plus
-  `factionId: "none"` — and exactly one of them can ever pass.
+  `factionId: "none"` — and exactly one of them can ever pass. An
+  `injury` requirement asks whether somebody is carrying a wound out
+  of a fight they won (`src/data/injuries.ts`): name an `injuryId` so
+  a clinic line can acknowledge the specific thing that is wrong, or
+  omit it to ask only whether they are hurt at all, and give a
+  `companionId` to ask about a crew member instead of the player.
 - `effects` — `set-flag`, `increment-flag`, `add-item` / `remove-item`,
   `credits` (grants or spends, clamped at zero — gate purchases with a
   `credits` requirement), `start-combat` (launches the encounter, then
@@ -556,7 +561,11 @@ A `StoryArc` is a list of nodes; each node has `speaker`, `text`, and
   another map and continues there), `recruit-companion` (somebody joins
   the party — idempotent, so re-recruiting only un-benches),
   `companion-loyalty` (moves their standing; a no-op for somebody not
-  in the party), `open-stylist`, `open-workbench` and `open-vendor`
+  in the party), `treat-injury` (a clinic closes somebody's wound and
+  charges the *injury's own* fee — never a figure authored on the
+  choice — and does nothing at all when there is nothing to treat or
+  the credits are short), `open-stylist`, `open-workbench` and
+  `open-vendor`
   (the screen replaces the dialogue and closing it resumes at the
   choice's `target`; the vendor door names a counter in
   `src/data/economy.ts` and prices nothing itself), `goto`, and `end`
@@ -621,8 +630,8 @@ always did when nobody is along.
 Register new arcs in `src/data/story/index.ts` so `findArcByNode` can
 route to them. `validateArc` (run over every arc in `validate.test.ts`)
 checks that every choice target, item id, encounter id, travel map id,
-companion id, reaction tag, faction id, reputation band, and flag
-reference resolves — a broken reference fails the suite, not the
+companion id, reaction tag, faction id, reputation band, injury id,
+and flag reference resolves — a broken reference fails the suite, not the
 player.
 
 Side quests are flags, not a subsystem. There is no quest log: a chain
@@ -772,6 +781,41 @@ plays through the ordinary action bar; friend-or-foe is asked through
 `areOpposed`, never by comparing kinds. Being dropped benches them for
 that fight only — the fight is lost when the *player* goes down — and
 `resolveCombat` writes their hp back at a floor of 1.
+
+### Injuries (`src/data/injuries.ts`, `src/character/injury.ts`)
+
+Winning a fight that nearly finished you leaves a mark. Being *dropped*
+in one you win — literally, for a companion the fight carries on
+without; or ending on a fifth of your frame, which is the same night
+from the inside — draws one injury out of a small authored pool matched
+to the fight's own record: a knock on the head reads as `concussion`, a
+runner carrying implants that could seize reads as `chrome`, and
+everything else reads as `shot`. Losing a fight draws nothing at all:
+the defeat panel is the whole answer to a defeat, and there is no
+permadeath and no save punishment anywhere near this.
+
+One injury per character, worst replaces. Each declares what it costs
+as a *named figure* that exactly one derivation point reads —
+`effects` in the ordinary `ItemEffect` vocabulary (folded by
+`effectiveStats`, so a wound's −1 Reflexes lands where a coat's +1
+does), `dialogueCool` (subtracted in `dialogueStats`, a conversation
+and nothing a fight asks), `chromeOffline` (read in
+`grantedAbilityIds`, which drops what the *installed cyberware* was
+granting and leaves the weapon and every learned ability alone).
+Nothing anywhere branches on an injury id, so adding one is a content
+change; companions ride the same fold through `allyStats`.
+
+Both ways out are content. `scenes` is how many moves across the city
+it takes to walk one off — counted by the `travel` effect, the one
+event that is unambiguously the story moving on and cannot be repeated
+by reloading — and `treatCost` is what a clinic charges to end it
+tonight, through the `treat-injury` effect. Patch's Den on Greywater
+Steps is the worked example: one door per wound, each opening a beat
+where Patch names the specific thing that is wrong, plus two more for
+whoever is travelling with you. A wound is readable in three places
+and says the same three things in each: what it is, what it costs, and
+when it stops — the character screen (`I`), the crew screen (`C`), and
+its own chip on the initiative rail.
 
 ### Endings & epilogues (`src/data/endings.ts`, `epilogues.ts`)
 

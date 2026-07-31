@@ -1372,6 +1372,92 @@ body::after {
   color: var(--nf-danger);
 }
 
+/* Injuries: what a won fight left behind. Framed in danger red rather
+   than tinted text, because unlike the Static band this is not a
+   setting the player chose — it happened to them, and it goes away. */
+.nf-injury {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.75rem;
+  padding: 0.4rem 0.55rem;
+  border-left: 3px solid var(--nf-danger);
+  background: var(--nf-bg-deep);
+}
+
+.nf-injury-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.nf-injury-name {
+  font-family: var(--nf-font-display);
+  font-size: 0.85rem;
+  color: var(--nf-danger);
+}
+
+.nf-injury-effect {
+  font-size: 0.75rem;
+  text-align: right;
+  color: var(--nf-ink-dim);
+}
+
+/* On the crew screen the card is already inset, so the wound only needs
+   its rule and its spacing. */
+.nf-party-injury {
+  margin-top: 0.5rem;
+}
+
+/* The victory panel's "and here is what it cost" block. */
+.nf-injury-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0.75rem 0 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--nf-border);
+}
+
+.nf-injury-heading {
+  font-family: var(--nf-font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nf-danger);
+}
+
+.nf-injury-line {
+  font-size: 0.8rem;
+  color: var(--nf-ink-dim);
+}
+
+/* On an initiative chip a wound is named, not glyphed: it is not going
+   to resolve itself in a turn, and which one it is matters. */
+.nf-init-injury {
+  position: absolute;
+  left: -3px;
+  bottom: -3px;
+  max-width: calc(100% + 6px);
+  overflow: hidden;
+  padding: 0 2px;
+  font-size: 0.5rem;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--nf-bg-deep);
+  background: var(--nf-danger);
+}
+
+/* A chip carrying both a condition glyph and a wound stacks them rather
+   than overlapping: the glyphs sit above the name band. The badge is
+   appended after the glyphs, so the sibling combinator reads forwards. */
+.nf-init-statuses:has(~ .nf-init-injury) {
+  bottom: 10px;
+}
+
 .nf-inventory-columns {
   display: grid;
   grid-template-columns: minmax(16rem, 1fr) 2fr;

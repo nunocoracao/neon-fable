@@ -108,6 +108,15 @@ export function createInitiativeRail(
     if (chip.statuses.length > 0) {
       frame.append(statusBadges(chip.statuses, "nf-init-statuses"));
     }
+    // A wound carried into the fight, named on the chip rather than
+    // badged with a glyph: unlike a stun it is not going to resolve
+    // itself in a turn, and the player needs to be able to read *which*
+    // one it is off the rail without hovering anything.
+    if (chip.injury) {
+      const badge = div("nf-init-injury", chip.injury.name);
+      badge.title = `${chip.injury.name} — ${chip.injury.effect}`;
+      frame.append(badge);
+    }
     root.append(frame);
 
     root.append(div("nf-init-name", chip.name));

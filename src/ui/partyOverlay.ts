@@ -2,7 +2,13 @@ import { audio } from "../audio";
 import { companionsArc, getCompanion, getItem } from "../data";
 import { readyCompanionScenes } from "../narrative";
 import { setActiveCompanion, type PartyMember } from "../state";
-import { companionName, loyaltyLabel } from "./format";
+import {
+  companionName,
+  injuryEffectText,
+  injuryName,
+  injuryRecoveryNote,
+  loyaltyLabel,
+} from "./format";
 import type { OverlayHandle } from "./overlay";
 import { companionPortraitCanvas } from "./portraits";
 import type { Session } from "./session";
@@ -107,6 +113,30 @@ export function createPartyOverlay(
       .filter((part) => part.length > 0)
       .join(" · ");
     body.append(status);
+
+    // What their last bad fight left them with. The crew screen is the
+    // character screen for everybody who is not the player, so a
+    // companion's wound is read here in exactly the same three parts.
+    const hurt = injuryName(member.injury);
+    if (hurt !== null) {
+      const injury = document.createElement("div");
+      injury.className = "nf-injury nf-party-injury";
+      injury.dataset.injury = member.injury?.id ?? "";
+      const head = document.createElement("div");
+      head.className = "nf-injury-head";
+      const label = document.createElement("span");
+      label.className = "nf-injury-name";
+      label.textContent = hurt;
+      const cost = document.createElement("span");
+      cost.className = "nf-injury-effect";
+      cost.textContent = injuryEffectText(member.injury) ?? "";
+      head.append(label, cost);
+      const note = document.createElement("div");
+      note.className = "nf-item-summary";
+      note.textContent = injuryRecoveryNote(member.injury) ?? "";
+      injury.append(head, note);
+      body.append(injury);
+    }
 
     if (ready.has(member.companionId)) {
       const waiting = document.createElement("div");

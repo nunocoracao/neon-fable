@@ -4,11 +4,13 @@ import {
   type PointBuyError,
   type StatKey,
 } from "../character/stats";
+import { injuryDef, type CarriedInjury } from "../character/injury";
 import { NAME_MAX_LENGTH } from "../character/wizard";
 import { STAT_KEYS } from "../character/stats";
 import { getAbility, type Ability } from "../data/abilities";
 import { getCompanion } from "../data/companions";
 import { getFaction } from "../data/factions";
+import { getInjury } from "../data/injuries";
 import { getItem } from "../data/items";
 import { staticBand, type StaticBand } from "../data/static";
 import { UNINSTALL_TRAUMA_PER_LOAD } from "../inventory/equipment";
@@ -153,6 +155,20 @@ export function requirementLabel(
       return requirement.mode === "at-most"
         ? `[${companionName(requirement.companionId)} has had enough]`
         : `[${companionName(requirement.companionId)} trusts you]`;
+    case "injury": {
+      // Named, when the gate names one, in the same word the character
+      // screen uses — a greyed clinic line has to say which wound it is
+      // about, or it reads as the counter refusing to look at you.
+      const who =
+        requirement.companionId == null
+          ? ""
+          : `${companionName(requirement.companionId)} `;
+      const what =
+        requirement.injuryId == null
+          ? "hurt"
+          : (getInjury(requirement.injuryId)?.name ?? requirement.injuryId);
+      return `[${who}${what}]`;
+    }
     case "reputation": {
       // Named in the same word the character screen shows, so a player
       // can read a locked door against their own standing.
@@ -368,6 +384,58 @@ export function staticProjection(shift: StaticShift): string {
       ? "No change to Static"
       : `${signedNumber(shift.delta)} Static → ${shift.to.level}`;
   return shift.bandChanges ? `${move} · ${shift.to.def.label}` : move;
+}
+
+/* --- Injuries ---------------------------------------------------------
+ *
+ * A debuff nobody can read is a bug the player experiences as bad luck,
+ * so every place a wound shows — the character screen, the initiative
+ * rail, the panel it was earned on — says the same three things in the
+ * same words: what it is, what it costs, and when it stops.
+ */
+
+/** What a carried injury is called; null when there is nothing wrong. */
+export function injuryName(carried: CarriedInjury | null | undefined): string | null {
+  return injuryDef(carried)?.name ?? null;
+}
+
+/** What it is costing, in the player's own terms; null when unhurt. */
+export function injuryEffectText(
+  carried: CarriedInjury | null | undefined,
+): string | null {
+  return injuryDef(carried)?.effect ?? null;
+}
+
+/**
+ * When it stops. Counted in moves across the city because that is
+ * exactly what the recovery clock counts (see src/state/injuries.ts) —
+ * quoting anything else would be quoting a number the game does not
+ * actually keep.
+ */
+export function injuryRecoveryNote(
+  carried: CarriedInjury | null | undefined,
+): string | null {
+  if (!injuryDef(carried) || !carried) return null;
+  return carried.scenesLeft === 1
+    ? "Closes after your next move across the city."
+    : `Closes after ${carried.scenesLeft} more moves across the city.`;
+}
+
+/** The whole wound on one line, for a chip title or a log. */
+export function injuryLine(
+  carried: CarriedInjury | null | undefined,
+): string | null {
+  const name = injuryName(carried);
+  if (name === null) return null;
+  return `${name} — ${injuryEffectText(carried)}`;
+}
+
+/** What a clinic charges to close it now; null when there is nothing to pay for. */
+export function injuryFeeLabel(
+  carried: CarriedInjury | null | undefined,
+): string | null {
+  const def = injuryDef(carried);
+  return def ? `${def.treatCost} cr` : null;
 }
 
 /** Trade-off warning shown before confirming a cyberware extraction. */
