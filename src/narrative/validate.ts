@@ -75,6 +75,10 @@ function referencedFactionIds(choice: Choice): string[] {
   const ids: string[] = [];
   for (const req of choice.requirements ?? []) {
     if (req.type === "reputation") ids.push(req.factionId);
+    // "none" is the split-city variant, not a faction anybody authored.
+    if (req.type === "dominant-faction" && req.factionId !== "none") {
+      ids.push(req.factionId);
+    }
   }
   ids.push(...Object.keys(choice.standing ?? {}));
   return ids;
@@ -214,10 +218,15 @@ export function validateArc(arc: StoryArc): ArcIssue[] {
       // A band id nobody defines reads as unreachable at runtime, which
       // is a door that silently never opens — always a typo.
       for (const req of choice.requirements ?? []) {
+        const band =
+          req.type === "reputation"
+            ? req.value
+            : req.type === "dominant-faction"
+              ? req.min
+              : undefined;
         if (
-          req.type === "reputation" &&
-          typeof req.value === "string" &&
-          !(REPUTATION_BAND_IDS as readonly string[]).includes(req.value)
+          typeof band === "string" &&
+          !(REPUTATION_BAND_IDS as readonly string[]).includes(band)
         ) {
           issues.push({
             code: "unknown-band",
@@ -225,7 +234,7 @@ export function validateArc(arc: StoryArc): ArcIssue[] {
             choiceId: choice.id,
             detail:
               `Choice "${choice.id}" on node "${node.id}" gates on ` +
-              `unknown reputation band "${req.value}"`,
+              `unknown reputation band "${band}"`,
           });
         }
       }

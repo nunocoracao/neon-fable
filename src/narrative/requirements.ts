@@ -4,7 +4,7 @@ import type { ItemResolver } from "../inventory/items";
 import { effectiveStats } from "../inventory/selectors";
 import type { GameState } from "../state/gameState";
 import { getMember, loyaltyOf } from "../state/party";
-import { canAccess } from "../state/reputation";
+import { canAccess, dominantFaction } from "../state/reputation";
 import type { Requirement } from "./types";
 
 /**
@@ -65,6 +65,12 @@ export function checkRequirement(
         requirement.value,
         requirement.mode,
       );
+    case "dominant-faction": {
+      const leader = dominantFaction(state.reputation, requirement.min);
+      return requirement.factionId === "none"
+        ? leader === null
+        : leader === requirement.factionId;
+    }
   }
 }
 

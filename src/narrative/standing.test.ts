@@ -158,6 +158,50 @@ describe("the reputation requirement", () => {
   });
 });
 
+describe("the dominant-faction requirement", () => {
+  it("opens the one variant the city's own arithmetic picks", () => {
+    const state = makeState({ court: 62, market: 30, auric: -70 });
+    const variants = (["court", "market", "auric", "none"] as const).filter(
+      (factionId) =>
+        checkRequirement(state, { type: "dominant-faction", factionId }),
+    );
+    expect(variants).toEqual(["court"]);
+  });
+
+  it("opens the split-city variant when nobody stands above the rest", () => {
+    for (const standing of [{}, { court: 40, market: 40 }, { court: 12 }]) {
+      const state = makeState(standing);
+      expect(
+        checkRequirement(state, { type: "dominant-faction", factionId: "none" }),
+      ).toBe(true);
+      expect(
+        checkRequirement(state, {
+          type: "dominant-faction",
+          factionId: "court",
+        }),
+      ).toBe(false);
+    }
+  });
+
+  it("reads the floor the content authored", () => {
+    const state = makeState({ market: 30, court: 10 });
+    expect(
+      checkRequirement(state, {
+        type: "dominant-faction",
+        factionId: "market",
+        min: "trusted",
+      }),
+    ).toBe(false);
+    expect(
+      checkRequirement(state, {
+        type: "dominant-faction",
+        factionId: "market",
+        min: "neutral",
+      }),
+    ).toBe(true);
+  });
+});
+
 describe("validateArc", () => {
   it("catches a swing addressed to nobody", () => {
     const issues = validateArc({
@@ -209,5 +253,45 @@ describe("validateArc", () => {
       ],
     });
     expect(issues.map((i) => i.code)).toEqual(["unknown-band"]);
+  });
+
+  it("holds a dominance gate to the same names and bands", () => {
+    const issues = validateArc({
+      id: "test",
+      title: "Test",
+      entryNodeId: "n1",
+      nodes: [
+        {
+          id: "n1",
+          text: "…",
+          choices: [
+            {
+              id: "c",
+              label: "…",
+              requirements: [
+                {
+                  type: "dominant-faction",
+                  factionId: "longshore" as never,
+                  min: "beloved" as never,
+                },
+              ],
+              effects: [{ type: "end" }],
+            },
+            {
+              // The split-city variant names no faction, and must not
+              // be read as one.
+              id: "split",
+              label: "…",
+              requirements: [{ type: "dominant-faction", factionId: "none" }],
+              effects: [{ type: "end" }],
+            },
+          ],
+        },
+      ],
+    });
+    expect(issues.map((i) => i.code).sort()).toEqual([
+      "unknown-band",
+      "unknown-faction",
+    ]);
   });
 });
