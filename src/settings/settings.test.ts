@@ -3,8 +3,10 @@ import {
   DEFAULT_SETTINGS,
   SETTINGS_KEY,
   SETTINGS_VERSION,
+  SHAKE_SCALES,
   ZOOM_LEVELS,
   clampSettings,
+  clampShakeScale,
   clampZoom,
   loadSettings,
   migrateSettings,
@@ -48,6 +50,8 @@ describe("clampSettings", () => {
       glow: true,
       weather: true,
       minimap: true,
+      combatFeel: true,
+      shakeScale: 1,
     });
     expect(
       clampSettings({ textSpeed: "warp", reducedMotion: true }),
@@ -58,6 +62,8 @@ describe("clampSettings", () => {
       glow: true,
       weather: true,
       minimap: true,
+      combatFeel: true,
+      shakeScale: 1,
     });
   });
 
@@ -69,6 +75,8 @@ describe("clampSettings", () => {
       glow: true,
       weather: true,
       minimap: true,
+      combatFeel: true,
+      shakeScale: 1,
     });
   });
 
@@ -91,6 +99,24 @@ describe("clampSettings", () => {
     expect(clampSettings({ minimap: false }).minimap).toBe(false);
     expect(clampSettings({ minimap: "off" }).minimap).toBe(true);
     expect(clampSettings({ minimap: 0 }).minimap).toBe(true);
+  });
+
+  it("combat feel defaults on; only an explicit false stills the camera", () => {
+    expect(clampSettings({}).combatFeel).toBe(true);
+    expect(clampSettings({ combatFeel: false }).combatFeel).toBe(false);
+    expect(clampSettings({ combatFeel: "off" }).combatFeel).toBe(true);
+    expect(clampSettings({ combatFeel: 0 }).combatFeel).toBe(true);
+  });
+
+  it("rejects shake scales off the ladder", () => {
+    for (const bad of [-1, 0.25, 2, "1", true, null, undefined]) {
+      expect(clampSettings({ shakeScale: bad }).shakeScale).toBe(1);
+      expect(clampShakeScale(bad)).toBe(1);
+    }
+    for (const scale of SHAKE_SCALES) {
+      expect(clampShakeScale(scale)).toBe(scale);
+      expect(clampSettings({ shakeScale: scale }).shakeScale).toBe(scale);
+    }
   });
 
   it("rejects zoom values off the level ladder", () => {
@@ -127,6 +153,8 @@ describe("parse / serialize / migrate", () => {
       glow: false,
       weather: false,
       minimap: false,
+      combatFeel: false,
+      shakeScale: 0.5,
     } as const;
     expect(parseSettings(serializeSettings(settings))).toEqual(settings);
   });
@@ -155,6 +183,8 @@ describe("parse / serialize / migrate", () => {
       glow: true,
       weather: true,
       minimap: true,
+      combatFeel: true,
+      shakeScale: 1,
     });
     expect(migrateSettings({ version: "zero" })).toEqual(DEFAULT_SETTINGS);
   });
@@ -172,6 +202,8 @@ describe("parse / serialize / migrate", () => {
       glow: true,
       weather: true,
       minimap: true,
+      combatFeel: true,
+      shakeScale: 1,
     });
   });
 
@@ -189,6 +221,8 @@ describe("parse / serialize / migrate", () => {
       glow: true,
       weather: true,
       minimap: true,
+      combatFeel: true,
+      shakeScale: 1,
     });
   });
 
@@ -208,6 +242,30 @@ describe("parse / serialize / migrate", () => {
       glow: false,
       weather: false,
       minimap: true,
+      combatFeel: true,
+      shakeScale: 1,
+    });
+  });
+
+  it("migrates v5 payloads (no combat camera yet) with it enabled", () => {
+    const v5 = JSON.stringify({
+      version: 5,
+      textSpeed: "fast",
+      reducedMotion: false,
+      zoom: 2,
+      glow: true,
+      weather: false,
+      minimap: false,
+    });
+    expect(parseSettings(v5)).toEqual({
+      textSpeed: "fast",
+      reducedMotion: false,
+      zoom: 2,
+      glow: true,
+      weather: false,
+      minimap: false,
+      combatFeel: true,
+      shakeScale: 1,
     });
   });
 });
@@ -228,6 +286,8 @@ describe("load / save", () => {
         glow: false,
         weather: false,
         minimap: false,
+        combatFeel: false,
+        shakeScale: 1.5,
       },
       storage,
     );
@@ -239,6 +299,8 @@ describe("load / save", () => {
       glow: false,
       weather: false,
       minimap: false,
+      combatFeel: false,
+      shakeScale: 1.5,
     });
   });
 
@@ -284,6 +346,8 @@ describe("settings store", () => {
         glow: true,
         weather: true,
         minimap: true,
+        combatFeel: true,
+        shakeScale: 1,
       },
       storage,
     );
@@ -295,6 +359,8 @@ describe("settings store", () => {
       glow: true,
       weather: true,
       minimap: true,
+      combatFeel: true,
+      shakeScale: 1,
     });
   });
 
@@ -312,6 +378,8 @@ describe("settings store", () => {
       glow: true,
       weather: true,
       minimap: true,
+      combatFeel: true,
+      shakeScale: 1,
     });
     expect(loadSettings(storage).textSpeed).toBe("instant");
     expect(seen).toEqual(["instant"]);

@@ -1,9 +1,12 @@
 import { audio, type VolumeChannel } from "../audio";
 import {
+  clampShakeScale,
   clampZoom,
   settings,
+  SHAKE_SCALES,
   TEXT_SPEEDS,
   ZOOM_LEVELS,
+  type ShakeScale,
   type TextSpeed,
 } from "../settings";
 import { focusFirst, installListNav } from "./focus";
@@ -22,6 +25,14 @@ const TEXT_SPEED_LABELS: Record<TextSpeed, string> = {
   instant: "Instant",
   fast: "Fast",
   normal: "Normal",
+};
+
+/** Combat shake amplitudes, said in words rather than multipliers. */
+const SHAKE_SCALE_LABELS: Record<ShakeScale, string> = {
+  0: "Off",
+  0.5: "Light",
+  1: "Standard",
+  1.5: "Strong",
 };
 
 /** Keyboard reference shown in the Controls section. */
@@ -227,6 +238,44 @@ function buildSettingsPanel(onClose: () => void): HTMLElement {
     "Reduced motion turns off screen shake, hit flashes, and ambient " +
     "flicker. Damage numbers and the combat log still tell you everything.";
   panel.append(motionNote);
+
+  panel.append(
+    segmentedRow(
+      "Combat camera",
+      [
+        ["on", "On"],
+        ["off", "Fixed"],
+      ] as const,
+      (value) => (value === "on") === settings.get().combatFeel,
+      (value) => settings.update({ combatFeel: value === "on" }),
+    ),
+  );
+  const feelNote = document.createElement("p");
+  feelNote.className = "nf-dim";
+  feelNote.textContent =
+    "The combat camera glides to whoever is acting, holds for a few " +
+    "frames when a blow connects, and takes a small knock off the " +
+    "heavy ones. Fixed keeps the arena still. Reduced motion switches " +
+    "all three off on its own.";
+  panel.append(feelNote);
+
+  panel.append(
+    segmentedRow(
+      "Screen shake",
+      SHAKE_SCALES.map(
+        (scale) => [String(scale), SHAKE_SCALE_LABELS[scale]] as const,
+      ),
+      (value) => String(settings.get().shakeScale) === value,
+      (value) =>
+        settings.update({ shakeScale: clampShakeScale(Number(value)) }),
+    ),
+  );
+  const shakeNote = document.createElement("p");
+  shakeNote.className = "nf-dim";
+  shakeNote.textContent =
+    "How hard heavy hits and blasts knock the view. Off stills the " +
+    "shake and leaves the glide and the hit-pause as they are.";
+  panel.append(shakeNote);
 
   const controlsHeading = document.createElement("h3");
   controlsHeading.textContent = "Controls";
