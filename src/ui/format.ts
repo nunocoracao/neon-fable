@@ -54,7 +54,9 @@ export function companionName(companionId: string): string {
  * Where a companion stands, as a word. The player never sees the
  * number — a relationship is not a bar — but the bands are the ones
  * content gates on, so "Loyal" is exactly the point at which somebody
- * has something of their own to say (see personalScene thresholds).
+ * has something of their own to say, and "Sworn to you" the point at
+ * which they raise the quieter hour after it (see the personalScene and
+ * bondScene thresholds in src/data/companions.ts).
  */
 export function loyaltyLabel(loyalty: number): string {
   if (loyalty >= 7) return "Sworn to you";

@@ -60,6 +60,7 @@ export {
   type SpeakerPortrait,
 } from "./cast";
 export {
+  BOND_OUTCOMES,
   CompanionError,
   REACTION_TAGS,
   companionLook,
@@ -69,7 +70,9 @@ export {
   parseCompanionSpriteId,
   reactionValue,
   requireCompanion,
+  type BondOutcome,
   type Companion,
+  type CompanionBondScene,
   type CompanionLook,
   type CompanionPersonalScene,
   type CompanionValues,
