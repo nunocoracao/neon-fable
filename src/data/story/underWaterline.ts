@@ -760,8 +760,13 @@ export const underWaterlineNodes: StoryNode[] = [
     choices: [
       {
         id: "uw-abandoned-done",
-        label: "Walk back down the strand. Do not look out at the platform.",
+        label: "Walk back down the strand. Look out at the platform.",
         target: "uw-settled-abandoned",
+      },
+      {
+        id: "uw-abandoned-go",
+        label: "Take the Lockgate Stair. Do not look at the water at all.",
+        effects: [{ type: "end" }],
       },
     ],
   },
