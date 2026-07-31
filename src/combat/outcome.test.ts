@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { addItem, countItem } from "../inventory";
+import { readiedEffects } from "../character/readied";
+import { addItem, countItem, useConsumable } from "../inventory";
 import { createNewGame, type GameState } from "../state";
 import { combatResultFlag, resolveCombat } from "./outcome";
 import { createCombat } from "./setup";
@@ -60,6 +61,22 @@ describe("resolveCombat", () => {
     expect(next.credits).toBe(state.credits);
     expect(countItem(next.inventory, "con-trauma-patch")).toBe(1);
     expect(next.flags[combatResultFlag("enc-auric-scout")]).toBe("defeat");
+  });
+
+  it("eats the meal: what was held over is spent however the fight went", () => {
+    const base = makeGame();
+    const fed = useConsumable(
+      base.player,
+      addItem(base.inventory, "con-scrap-skewer"),
+      "con-scrap-skewer",
+    );
+    const state = { ...base, player: fed.character, inventory: fed.inventory };
+    expect(readiedEffects(state.player)).toHaveLength(1);
+    for (const status of ["victory", "defeat", "fled"] as const) {
+      const combat = finish(createCombat(state, "enc-auric-scout"), status);
+      // A meal buys the *next* fight, and this was it.
+      expect(readiedEffects(resolveCombat(state, combat).player)).toEqual([]);
+    }
   });
 
   it("fleeing pays nothing but still spends consumables and syncs hp", () => {
