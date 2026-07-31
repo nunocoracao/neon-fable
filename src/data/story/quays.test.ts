@@ -13,13 +13,28 @@ import { quaysArc } from "./quays";
  * itself by the lint in ../maps.test.ts; what is pinned here is the
  * district's wiring — both ways through the door, every fixture down
  * there reachable in dialogue as well as on foot, the cage's two
- * different keys, and the promise this arc makes to later work: it
- * stages an arena and touches nothing the acts read.
+ * different keys, and the colour the district keeps when the side chain
+ * is not being played.
  */
 
 const nodesById = new Map(quaysArc.nodes.map((node) => [node.id, node]));
 const allChoices = quaysArc.nodes.flatMap((node) =>
   node.choices.map((choice) => ({ nodeId: node.id, choice })),
+);
+
+/**
+ * The district's own nodes: everything on the water, minus the side
+ * chain Dredge's platform opens. "Under the Waterline" is authored in
+ * ./underWaterline.ts and spread into this arc (a choice target only
+ * resolves inside one arc), and it is the one thing down here that
+ * writes story state, starts a fight, and hands items out. Its own
+ * promises are pinned in ./underWaterline.test.ts.
+ */
+const districtNodes = quaysArc.nodes.filter(
+  (node) => !node.id.startsWith("uw-"),
+);
+const districtChoices = allChoices.filter(
+  ({ nodeId }) => !nodeId.startsWith("uw-"),
 );
 
 const travelChoices = allChoices.flatMap(({ nodeId, choice }) =>
@@ -88,11 +103,11 @@ describe("flooded quays arc", () => {
   });
 
   it("keeps its colour self-contained: no act flags, no combat, no items out", () => {
-    // What Dredge keeps finding down there is later work. This arc may
-    // only leave `quays-known` behind, the cage's own record of how it
-    // came open, and Vesper Kade's — how she was met, whether she came,
-    // and whether she was turned down. Nothing an act reads.
-    const flags = allChoices.flatMap(({ choice }) =>
+    // With the side chain set aside, the district may only leave
+    // `quays-known` behind, the cage's own record of how it came open,
+    // and Vesper Kade's — how she was met, whether she came, and
+    // whether she was turned down. Nothing an act reads.
+    const flags = districtChoices.flatMap(({ choice }) =>
       (choice.effects ?? []).flatMap((effect) =>
         effect.type === "set-flag" || effect.type === "increment-flag"
           ? [effect.key]
@@ -106,7 +121,7 @@ describe("flooded quays arc", () => {
       "vesper-joined",
       "vesper-met",
     ]);
-    for (const { choice } of allChoices) {
+    for (const { choice } of districtChoices) {
       for (const effect of choice.effects ?? []) {
         expect(effect.type, `${choice.id}`).not.toBe("start-combat");
         expect(effect.type, `${choice.id}`).not.toBe("remove-item");
@@ -245,7 +260,7 @@ describe("Vesper Kade's recruitment", () => {
   });
 
   it("puts her comments where the district has something to say", () => {
-    const commented = quaysArc.nodes.filter(
+    const commented = districtNodes.filter(
       (node) => (node.comments ?? []).length > 0,
     );
     expect(commented.map((node) => node.id).sort()).toEqual([
@@ -273,21 +288,30 @@ describe("Vesper Kade's recruitment", () => {
 });
 
 describe("the quays' staged encounter", () => {
-  it("registers a fight on the district's own arena, unused by the story", () => {
+  it("is started by the side chain's hard way in, and by nothing else", () => {
     const encounter = getEncounter("enc-quays-salvage");
     expect(encounter?.arenaMapId).toBe("quays-walkway-arena");
-    const started = storyArcs.flatMap((arc) =>
+    const starters = storyArcs.flatMap((arc) =>
       arc.nodes.flatMap((node) =>
         node.choices.flatMap((choice) =>
           (choice.effects ?? []).flatMap((effect) =>
-            effect.type === "start-combat" ? [effect.encounterId] : [],
+            effect.type === "start-combat" &&
+            effect.encounterId === "enc-quays-salvage"
+              ? [`${node.id}/${choice.id}`]
+              : [],
           ),
         ),
       ),
     );
-    // Authored ahead of the beat that will use it: no choice anywhere in
-    // the game starts it yet, and the map lint still holds it to every
-    // rule a live arena obeys.
-    expect(started).not.toContain("enc-quays-salvage");
+    // Staged ahead of its beat by the district task; "Under the
+    // Waterline" is that beat. One choice in the game starts it — the
+    // door of the bonded store — and the district's own nodes still
+    // start nothing at all.
+    expect(starters).toEqual(["uw-ring/uw-force"]);
+    for (const { choice } of districtChoices) {
+      for (const effect of choice.effects ?? []) {
+        expect(effect.type, choice.id).not.toBe("start-combat");
+      }
+    }
   });
 });

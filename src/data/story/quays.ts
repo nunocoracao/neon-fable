@@ -1,4 +1,5 @@
 import type { StoryArc } from "../../narrative/types";
+import { underWaterlineNodes } from "./underWaterline";
 
 /**
  * The Flooded Quays: a district arc, like the market's, rather than a
@@ -7,13 +8,19 @@ import type { StoryArc } from "../../narrative/types";
  * diver working the basin, and the salvage cage chained under the
  * wrecked barge's stern.
  *
- * Self-contained on purpose. Dredge has deeper business waiting on
- * later work — what she keeps finding down there, and who keeps paying
- * her not to mention it — so nothing here sets a story flag any act
- * reads, gates on one, or moves the player anywhere but between the two
- * maps. What it leaves behind is `quays-known`, for a later arc that
- * wants to tell a first visit from a return, and the cage's own record
- * of how it came open.
+ * The district's own colour is self-contained: nothing outside the side
+ * chain sets a story flag any act reads, gates on one, or moves the
+ * player anywhere but between the two maps. What it leaves behind is
+ * `quays-known`, for a later arc that wants to tell a first visit from
+ * a return, and the cage's own record of how it came open.
+ *
+ * Dredge's deeper business is now authored: "Under the Waterline"
+ * (./underWaterline.ts) hangs off her platform and is spread into this
+ * arc, because a choice target only ever resolves inside one arc. It is
+ * the one thing down here that writes story state, starts a fight, or
+ * pays — and the one thing that changes the district for good, since
+ * how it settles decides who is standing on the working platform
+ * afterwards (see ../mapDressing.ts).
  *
  * The district also hands over the game's first companion. Vesper Kade
  * works the west bollard's winch, and the fork in her chain — take the
@@ -164,6 +171,15 @@ export const quaysArc: StoryArc = {
           target: "fq-diver-gills",
           requirements: [{ type: "enhancement", itemId: "cyb-silt-gills" }],
           ifUnavailable: "disabled",
+        },
+        {
+          // The one door into "Under the Waterline" (./underWaterline.ts).
+          // Ungated: `uw-ask` reads the chain's stage flag and routes a
+          // first-time player, a returning one, and a finished one each
+          // to the right beat.
+          id: "the-store",
+          label: "\"You keep looking east. What's out there?\"",
+          target: "uw-ask",
         },
         {
           id: "leave-diver",
@@ -575,5 +591,8 @@ export const quaysArc: StoryArc = {
         },
       ],
     },
+    // Dredge's side-quest chain, authored in ./underWaterline.ts and
+    // part of this arc so `fq-diver` can open it.
+    ...underWaterlineNodes,
   ],
 };

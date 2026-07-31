@@ -142,6 +142,26 @@ export const DREDGE_VISUAL: CharacterVisual = {
   enhancements: { dermal: "cyb-silt-gills" },
 };
 
+// The Longshore's tender: the man who runs contraband up the quays on
+// other people's salvage licences, and who takes the platform himself
+// on the one road where the diver stops being on it. Dry where
+// everybody down there is wet, which is the whole tell.
+export const KEEL_VISUAL: CharacterVisual = {
+  appearance: {
+    skinTone: "porcelain",
+    build: "lean",
+    hairStyle: "slicked",
+    hairColor: "raven",
+    eyes: "narrow",
+    eyeColor: "amber",
+    brows: "straight",
+    mouth: "neutral",
+    faceDetail: "brow-split",
+    headwear: "hood",
+  },
+  outfit: "out-tender-coat",
+};
+
 // The Auric Spire's house security, standing on both interior floors.
 // Auric's uniform is the same interdiction plate the Cordon's enforcers
 // wear, worn here by people paid to be immovable rather than to fight —
@@ -184,6 +204,7 @@ export const cast: Readonly<Record<string, CharacterVisual>> = {
   Quill: QUILL_VISUAL,
   Marrow: MARROW_VISUAL,
   Dredge: DREDGE_VISUAL,
+  Keel: KEEL_VISUAL,
   "Spire Security": SPIRE_SECURITY_VISUAL,
   // The fixer at the Filament's corner table: groomed, amused, and
   // never quite warm — the smile stops below the eyes.

@@ -223,6 +223,26 @@ export const items: Item[] = [
     ],
   },
   {
+    // Under the Waterline's silent-partner reward: the oilskin the
+    // Longshore's tenders wear on the water, handed over the moment
+    // you become one. Bought protection, and it reads as bought — the
+    // quays know the coat before they know the face in it.
+    id: "out-tender-coat",
+    kind: "outfit",
+    name: "Tender's Oilskin",
+    description:
+      "A waxed longshore coat, hem still heavy with basin silt. Nothing " +
+      "on it says whose it is, which is the point: down here everybody " +
+      "already knows, and up top nobody is meant to.",
+    armor: 2,
+    // Amber tally-marks stitched along the storm flap, one a run.
+    outfitLayer: { id: "longcoat", accent: "hazardAmber" },
+    effects: [
+      { type: "stat-mod", stat: "cool", amount: 2 },
+      { type: "stat-mod", stat: "tech", amount: -1 },
+    ],
+  },
+  {
     id: "cyb-warden-optics",
     kind: "enhancement",
     name: "Warden Optics",
@@ -374,6 +394,33 @@ export const items: Item[] = [
       "little trouble emptying it would be. The north row is near the " +
       "top, and somebody has already initialled it.",
     tags: ["evidence", "auric"],
+  },
+  {
+    // Under the Waterline's evidence: the Longshore's own book, taken
+    // off the drowned bonded store when the ring came apart. Every run
+    // in it went up the basin under somebody else's salvage number.
+    id: "msc-longshore-ledger",
+    kind: "misc",
+    name: "Longshore Tally Book",
+    description:
+      "A swollen grease-paper tally book off a smuggler's warehouse " +
+      "shelf, dried out one page at a time. Consignments down the left, " +
+      "dates down the middle, and down the right the licence number each " +
+      "run was walked up the quays on. One number is on almost every line.",
+    tags: ["evidence", "quays"],
+  },
+  {
+    // And the other side of that book: the licence itself, signed over
+    // by a diver who was not in the room when it happened.
+    id: "msc-basin-licence",
+    kind: "misc",
+    name: "Basin Salvage Licence",
+    description:
+      "A laminated dredging licence for the Flooded Quays, endorsed for " +
+      "open water and unlimited tonnage. The holder's name has been " +
+      "struck through once and countersigned, and the countersignature " +
+      "is not hers.",
+    tags: ["key", "quays"],
   },
   // --- Cyber enhancements ---
   {
