@@ -1,5 +1,6 @@
 import { REACTION_TAGS, getCompanion } from "../data/companions";
 import { getEncounter } from "../data/encounters";
+import { REPUTATION_BAND_IDS, getFaction } from "../data/factions";
 import { getItem } from "../data/items";
 import { getMap } from "../data/maps";
 import type { Choice, StoryArc, StoryNode } from "./types";
@@ -21,7 +22,9 @@ export type ArcIssueCode =
   | "unknown-encounter"
   | "unknown-map"
   | "unknown-companion"
-  | "unknown-reaction";
+  | "unknown-reaction"
+  | "unknown-faction"
+  | "unknown-band";
 
 export interface ArcIssue {
   code: ArcIssueCode;
@@ -61,6 +64,19 @@ function referencedCompanionIds(choice: Choice): string[] {
       ids.push(effect.companionId);
     }
   }
+  return ids;
+}
+
+/**
+ * Faction ids a choice names: the gates it reads and the standing it
+ * writes. A swing addressed to nobody is content that moves nothing.
+ */
+function referencedFactionIds(choice: Choice): string[] {
+  const ids: string[] = [];
+  for (const req of choice.requirements ?? []) {
+    if (req.type === "reputation") ids.push(req.factionId);
+  }
+  ids.push(...Object.keys(choice.standing ?? {}));
   return ids;
 }
 
@@ -180,6 +196,36 @@ export function validateArc(arc: StoryArc): ArcIssue[] {
             detail:
               `Choice "${choice.id}" on node "${node.id}" references ` +
               `unknown companion "${companionId}"`,
+          });
+        }
+      }
+      for (const factionId of referencedFactionIds(choice)) {
+        if (!getFaction(factionId)) {
+          issues.push({
+            code: "unknown-faction",
+            nodeId: node.id,
+            choiceId: choice.id,
+            detail:
+              `Choice "${choice.id}" on node "${node.id}" references ` +
+              `unknown faction "${factionId}"`,
+          });
+        }
+      }
+      // A band id nobody defines reads as unreachable at runtime, which
+      // is a door that silently never opens — always a typo.
+      for (const req of choice.requirements ?? []) {
+        if (
+          req.type === "reputation" &&
+          typeof req.value === "string" &&
+          !(REPUTATION_BAND_IDS as readonly string[]).includes(req.value)
+        ) {
+          issues.push({
+            code: "unknown-band",
+            nodeId: node.id,
+            choiceId: choice.id,
+            detail:
+              `Choice "${choice.id}" on node "${node.id}" gates on ` +
+              `unknown reputation band "${req.value}"`,
           });
         }
       }
