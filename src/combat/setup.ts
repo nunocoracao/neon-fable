@@ -4,7 +4,9 @@ import { requireItem } from "../data/items";
 import { armorValue, effectiveStats, grantedAbilityIds } from "../inventory";
 import type { ItemResolver } from "../inventory/items";
 import type { GameState } from "../state/gameState";
+import { activeMembers } from "../state/party";
 import { nextFloat, type RngState } from "../state/rng";
+import { allyCombatant, allyStartTile } from "./ally";
 import { moveSpeed } from "./grid";
 import { combatStat } from "./state";
 import {
@@ -104,7 +106,21 @@ export function createCombat(
     };
   });
 
-  const combatants = [player, ...foes];
+  // The crew falls in beside the player before the enemies are placed
+  // is not an option — the spawns are content and cannot move — so the
+  // companions take whatever room is left around the player's start.
+  const allies: Combatant[] = [];
+  for (const member of activeMembers(state.party)) {
+    const tile = allyStartTile(encounter.grid, player.position, [
+      player,
+      ...foes,
+      ...allies,
+    ]);
+    if (!tile) continue;
+    allies.push(allyCombatant(member, tile, resolve));
+  }
+
+  const combatants = [player, ...allies, ...foes];
 
   let rng: RngState = state.rng;
   const tiebreaks = new Map<string, number>();

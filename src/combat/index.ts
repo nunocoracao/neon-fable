@@ -4,6 +4,16 @@
  * produce identical CombatState and event logs.
  */
 export { takeAction } from "./actions";
+export {
+  allyAbilityIds,
+  allyArmor,
+  allyCombatant,
+  allyCombatantId,
+  allyStartTile,
+  allyStats,
+  allyWeapon,
+  companionIdOf,
+} from "./ally";
 export { chooseEnemyAction, runEnemyTurns } from "./ai";
 export {
   abilityAreaTiles,
@@ -115,9 +125,14 @@ export {
 export { PLAYER_COMBATANT_ID, createCombat } from "./setup";
 export {
   activeCombatant,
+  allyCombatants,
+  areOpposed,
   combatStat,
   getCombatant,
   isAlive,
+  isHostile,
+  isPlayerControlled,
+  livingCrew,
   livingEnemies,
   playerCombatant,
   requireCombatant,
@@ -134,6 +149,7 @@ export {
   type CombatStatus,
   type CombatWeapon,
   type Combatant,
+  type CombatantKind,
   type GridPosition,
   type GridSize,
 } from "./types";

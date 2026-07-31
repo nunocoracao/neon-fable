@@ -10,7 +10,12 @@ import {
   reachableTiles,
   type AttackOption,
 } from "./legal";
-import { activeCombatant, getCombatant, livingEnemies } from "./state";
+import {
+  activeCombatant,
+  getCombatant,
+  isPlayerControlled,
+  livingEnemies,
+} from "./state";
 import type { CombatState } from "./types";
 
 /**
@@ -64,7 +69,9 @@ export type ActionBlockReason =
   /** Steps remain but every tile in reach is taken. */
   | "no-room"
   /** This encounter cannot be walked away from. */
-  | "cannot-flee";
+  | "cannot-flee"
+  /** The action is the player's own, and a companion is acting. */
+  | "player-only";
 
 export interface ActionAvailability {
   kind: CombatActionKind;
@@ -322,7 +329,7 @@ export function actionAvailability(
 
   if (state.status !== "active") return blocked("combat-over");
   const actor = activeCombatant(state);
-  if (actor.kind !== "player") return blocked("not-your-turn");
+  if (!isPlayerControlled(actor)) return blocked("not-your-turn");
 
   switch (kind) {
     case "end-turn":
@@ -363,6 +370,9 @@ export function actionAvailability(
     }
 
     case "flee": {
+      // Calling the retreat ends the fight for the whole crew, so it
+      // stays the player's own call rather than a companion's.
+      if (actor.kind !== "player") return blocked("player-only");
       if (!state.fleeable) return blocked("cannot-flee");
       if (state.actionUsed) return blocked("action-used");
       return fleeChanceFor(state) === null ? blocked("cannot-flee") : open;

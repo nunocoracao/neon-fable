@@ -1,6 +1,6 @@
 import type { Ability } from "../data/abilities";
 import { bodyCovers } from "./footprint";
-import { isAlive } from "./state";
+import { areOpposed, isAlive } from "./state";
 import type {
   ChargedAction,
   Combatant,
@@ -82,7 +82,7 @@ export function threatenedTiles(state: CombatState): GridPosition[] {
 export function isUnderThreat(state: CombatState, combatant: Combatant): boolean {
   return pendingCharges(state).some(
     ({ combatant: caster, charge }) =>
-      caster.kind !== combatant.kind &&
+      areOpposed(caster, combatant) &&
       charge.tiles.some((tile) => bodyCovers(combatant, tile)),
   );
 }
@@ -101,7 +101,7 @@ export function chargeImpact(
 ): Combatant[] {
   const caught = state.combatants.filter(
     (c) =>
-      c.kind !== caster.kind &&
+      areOpposed(c, caster) &&
       isAlive(c) &&
       charge.tiles.some((tile) => bodyCovers(c, tile)),
   );

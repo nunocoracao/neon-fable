@@ -2,7 +2,7 @@ import type { Ability, AbilityArea } from "../data/abilities";
 import { bodyCovers } from "./footprint";
 import { inBounds, manhattan } from "./grid";
 import { manhattanPath } from "./legal";
-import { isAlive } from "./state";
+import { areOpposed, isAlive } from "./state";
 import type { Combatant, CombatState, GridPosition, GridSize } from "./types";
 
 /**
@@ -88,7 +88,7 @@ export function abilityImpact(
     ...state.combatants.filter(
       (c) =>
         c.id !== target.id &&
-        c.kind !== actor.kind &&
+        areOpposed(c, actor) &&
         isAlive(c) &&
         touches(c),
     ),

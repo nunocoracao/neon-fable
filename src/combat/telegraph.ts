@@ -5,7 +5,12 @@ import { weaponRange } from "./damage";
 import { bodyGap, bodyTiles, tileGap } from "./footprint";
 import { canStand, combatantAt, inBounds, isBlocked, manhattan } from "./grid";
 import { manhattanPath, reachableTiles } from "./legal";
-import { activeCombatant, isAlive } from "./state";
+import {
+  activeCombatant,
+  areOpposed,
+  isAlive,
+  isPlayerControlled,
+} from "./state";
 import { outcomesFor, type OutcomePreview, type PreviewIntent } from "./preview";
 import type { Combatant, CombatState, GridPosition } from "./types";
 
@@ -146,7 +151,7 @@ function telegraphActor(
 ): { actor: Combatant } | { reason: TelegraphReason } {
   if (state.status !== "active") return { reason: "combat-over" };
   const actor = activeCombatant(state);
-  if (actor.kind !== "player") return { reason: "not-your-turn" };
+  if (!isPlayerControlled(actor)) return { reason: "not-your-turn" };
   return { actor };
 }
 
@@ -205,7 +210,7 @@ function reachField(
     (tile) => ({ ...tile, role: "range" as const }),
   );
   for (const body of state.combatants) {
-    if (body.kind === actor.kind || !isAlive(body)) continue;
+    if (!areOpposed(body, actor) || !isAlive(body)) continue;
     if (bodyGap(actor, body) > range) continue;
     for (const tile of bodyTiles(body)) {
       tiles.push({ ...tile, role: "range" });
@@ -346,7 +351,7 @@ function aimHover(
   }
 
   const body = bodyAt(state, tile);
-  if (!body || body.kind === actor.kind) return emptyHover(tile, "no-target");
+  if (!body || !areOpposed(body, actor)) return emptyHover(tile, "no-target");
   const reach = ability
     ? ability.range
     : weaponRange(actor.weapon.rangeType);
