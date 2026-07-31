@@ -19,6 +19,12 @@ import type { Stats } from "../character/stats";
  * permanent fact ("this one joined you"); active is the revocable one
  * ("this one is with you right now") — a benched companion keeps its
  * hp, its gear, and its loyalty for when it comes back.
+ *
+ * One companion is out at a time. The rule lives in
+ * setActiveCompanion (and in recruitCompanion, which routes through
+ * it), never in the readers: activeMembers still returns a list, so a
+ * later build that takes two along changes this one function and
+ * nothing that consumes it.
  */
 
 /** What a party member wears and swings; mirrors EquipmentState's gear slots. */
@@ -43,10 +49,10 @@ export interface PartyMember {
   equipment: CompanionEquipment;
   abilityIds: string[];
   /**
-   * How this one is getting on with the player. Story choices move it;
-   * nothing reads it as a gate yet — the recruitment beat's flags are
-   * what later loyalty content keys on — but it is here so a companion
-   * arc has one number to grow rather than a scatter of flags.
+   * How this one is getting on with the player. Choices tagged with
+   * reactions move it (see src/narrative/loyalty.ts), and a `loyalty`
+   * requirement gates on it — one number a companion arc grows, rather
+   * than a scatter of flags.
    */
   loyalty: number;
 }
@@ -121,7 +127,8 @@ export function memberFrom(companion: Companion): PartyMember {
  * Recruits a companion, seeding a member from content. Idempotent: a
  * second recruitment of somebody already in the party only makes them
  * active again (a story that re-recruits a benched companion must not
- * reset their hp or their loyalty).
+ * reset their hp or their loyalty). Whoever just joined is the one who
+ * walks out with the player — anybody already out steps back.
  */
 export function recruitCompanion(
   party: PartyState,
@@ -134,10 +141,10 @@ export function recruitCompanion(
       `No companion with id "${companionId}"`,
     );
   }
-  if (getMember(party, companionId)) {
-    return setActive(party, companionId, true);
-  }
-  return { ...party, members: [...party.members, memberFrom(companion)] };
+  const joined = getMember(party, companionId)
+    ? party
+    : { ...party, members: [...party.members, memberFrom(companion)] };
+  return setActiveCompanion(joined, companionId);
 }
 
 /** Benches or un-benches a recruited companion; unknown ids throw. */
@@ -147,6 +154,32 @@ export function setActive(
   active: boolean,
 ): PartyState {
   return updateMember(party, companionId, (member) => ({ ...member, active }));
+}
+
+/**
+ * Takes one companion out and benches the rest — the party screen's
+ * whole job, and the invariant everything downstream (the follower on
+ * the map, the ally in the arena, whose aside lands) reads through
+ * activeMember. `null` benches everybody, which is how a player goes
+ * back to working alone; unknown or un-recruited ids throw.
+ */
+export function setActiveCompanion(
+  party: PartyState,
+  companionId: string | null,
+): PartyState {
+  if (companionId !== null && !getMember(party, companionId)) {
+    throw new PartyError(
+      "not-recruited",
+      `Companion "${companionId}" is not in the party`,
+    );
+  }
+  return {
+    ...party,
+    members: party.members.map((member) => {
+      const active = member.recruited && member.companionId === companionId;
+      return member.active === active ? member : { ...member, active };
+    }),
+  };
 }
 
 /** Writes a companion's hp back, clamped to [0, maxHp]. */
@@ -159,6 +192,11 @@ export function setCompanionHp(
     ...member,
     hp: Math.max(0, Math.min(member.maxHp, Math.round(hp))),
   }));
+}
+
+/** Where a companion stands; somebody never met stands at nothing. */
+export function loyaltyOf(party: PartyState, companionId: string): number {
+  return getMember(party, companionId)?.loyalty ?? 0;
 }
 
 /** Moves a companion's loyalty by `delta`; the total is unbounded. */

@@ -14,9 +14,11 @@ import {
   emptyParty,
   getMember,
   isRecruited,
+  loyaltyOf,
   recruitCompanion,
   restyleCompanion,
   setActive,
+  setActiveCompanion,
   setCompanionHp,
 } from "./party";
 
@@ -106,6 +108,65 @@ describe("party selectors", () => {
   });
 });
 
+describe("one companion out at a time", () => {
+  it("benches whoever was out when somebody new joins", () => {
+    let party = recruitCompanion(emptyParty(), "vesper");
+    party = recruitCompanion(party, "sill");
+    expect(party.members).toHaveLength(2);
+    expect(activeMember(party)?.companionId).toBe("sill");
+    expect(getMember(party, "vesper")!.active).toBe(false);
+    // Benched, not forgotten — the permanent fact is untouched.
+    expect(isRecruited(party, "vesper")).toBe(true);
+  });
+
+  it("switches the active companion between missions", () => {
+    let party = recruitCompanion(recruitCompanion(emptyParty(), "vesper"), "sill");
+    party = setCompanionHp(party, "sill", 3);
+    party = adjustLoyalty(party, "sill", 4);
+
+    party = setActiveCompanion(party, "vesper");
+    expect(activeMembers(party).map((m) => m.companionId)).toEqual(["vesper"]);
+    // The one who stepped back keeps everything the run did to them.
+    const benched = getMember(party, "sill")!;
+    expect(benched.hp).toBe(3);
+    expect(benched.loyalty).toBe(4);
+
+    party = setActiveCompanion(party, "sill");
+    expect(activeMembers(party).map((m) => m.companionId)).toEqual(["sill"]);
+  });
+
+  it("takes nobody out at all, which is working alone again", () => {
+    let party = recruitCompanion(emptyParty(), "vesper");
+    party = setActiveCompanion(party, null);
+    expect(activeMember(party)).toBeNull();
+    expect(isRecruited(party, "vesper")).toBe(true);
+  });
+
+  it("never re-activates somebody by re-benching the other", () => {
+    // Idempotent both ways: the invariant is "exactly the named one".
+    let party = recruitCompanion(recruitCompanion(emptyParty(), "vesper"), "sill");
+    party = setActiveCompanion(setActiveCompanion(party, "sill"), "sill");
+    expect(activeMembers(party).map((m) => m.companionId)).toEqual(["sill"]);
+  });
+
+  it("refuses to send out somebody who never joined", () => {
+    try {
+      setActiveCompanion(recruitCompanion(emptyParty(), "vesper"), "sill");
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(PartyError);
+      expect((error as PartyError).code).toBe("not-recruited");
+    }
+  });
+
+  it("re-recruiting a benched companion takes them back out", () => {
+    let party = recruitCompanion(recruitCompanion(emptyParty(), "vesper"), "sill");
+    party = recruitCompanion(party, "vesper");
+    expect(activeMembers(party).map((m) => m.companionId)).toEqual(["vesper"]);
+    expect(party.members).toHaveLength(2);
+  });
+});
+
 describe("member updates", () => {
   it("clamps written hp into [0, maxHp]", () => {
     const party = recruitCompanion(emptyParty(), "vesper");
@@ -120,6 +181,9 @@ describe("member updates", () => {
     party = adjustLoyalty(party, "vesper", 2);
     party = adjustLoyalty(party, "vesper", -3);
     expect(getMember(party, "vesper")!.loyalty).toBe(-1);
+    expect(loyaltyOf(party, "vesper")).toBe(-1);
+    // Somebody never met stands at nothing rather than throwing.
+    expect(loyaltyOf(party, "sill")).toBe(0);
   });
 
   it("re-dresses a companion: their look, and their gear", () => {
