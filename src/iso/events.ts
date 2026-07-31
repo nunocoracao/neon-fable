@@ -19,7 +19,14 @@ export type MapInteraction =
    * nothing else — whether the shard opens, what it says, and where it
    * is filed are all the shell's business (see src/data/lore.ts).
    */
-  | { kind: "lore"; shardId: string };
+  | { kind: "lore"; shardId: string }
+  /**
+   * A terminal offering a run at Breach. Same deal as a shard: the id
+   * of the context and nothing else — what lattice it generates, what
+   * the core holds, and whether this run has already had its go are the
+   * shell's business (see src/data/breach.ts).
+   */
+  | { kind: "breach"; contextId: string };
 
 /** Emitted with the id of the interactable that triggered it. */
 export interface IsoInteractionEvent {

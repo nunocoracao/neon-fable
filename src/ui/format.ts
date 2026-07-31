@@ -436,12 +436,17 @@ const INTERACT_VERBS: Readonly<Record<InteractableSpriteId, string>> = {
   exit: "take",
 };
 
-/** The verb for an interactable; anything that starts a fight is a fight. */
+/**
+ * The verb for an interactable. What it *does* wins over what it is:
+ * anything that starts a fight is a fight, and a terminal holding a
+ * lattice is not something you "use".
+ */
 export function interactVerb(
   spriteId: InteractableSpriteId,
   kind: MapInteraction["kind"],
 ): string {
   if (kind === "combat") return "fight";
+  if (kind === "breach") return "breach";
   return INTERACT_VERBS[spriteId];
 }
 

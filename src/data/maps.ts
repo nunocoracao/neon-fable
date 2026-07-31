@@ -599,6 +599,18 @@ const exchangeVentworks: IsoMap = {
       interaction: { kind: "dialogue", nodeId: "a2-vent-crew" },
     },
     {
+      // Racked against the coolant barrier on the dead-end lip past the
+      // canal, where a retired stack could sit for a decade unnoticed.
+      // Breach terminals are ordinary map furniture — what is inside
+      // one is content (see src/data/breach.ts).
+      id: "vent-archive",
+      x: 10,
+      y: 3,
+      label: "Cordon Archive Stack",
+      spriteId: "terminal",
+      interaction: { kind: "breach", contextId: "vent-archive" },
+    },
+    {
       id: "coolant-vault",
       x: 1,
       y: 8,
@@ -872,6 +884,16 @@ const auricExecutive: IsoMap = {
       visual: SPIRE_SECURITY_VISUAL,
     },
     {
+      // The service column's own head, one bay north of the analysts'
+      // floor and directly under the server stack it keeps awake.
+      id: "exec-muster",
+      x: 2,
+      y: 5,
+      label: "Floor Muster Relay",
+      spriteId: "terminal",
+      interaction: { kind: "breach", contextId: "exec-muster" },
+    },
+    {
       id: "exec-safe",
       x: 2,
       y: 8,
@@ -1016,6 +1038,17 @@ const verticalMarket: IsoMap = {
       label: "Rig-up bench — Sabbat",
       spriteId: "terminal",
       interaction: { kind: "dialogue", nodeId: "vm-bench" },
+    },
+    {
+      // Bolted to the scaffold at the east end of the stall rows, out
+      // of every aisle the crowd works — the boards keep their register
+      // where nobody has to queue past it.
+      id: "market-register",
+      x: 16,
+      y: 4,
+      label: "Consignment Register",
+      spriteId: "terminal",
+      interaction: { kind: "breach", contextId: "market-register" },
     },
     {
       id: "market-stair",
@@ -1235,6 +1268,17 @@ const floodedQuays: IsoMap = {
       label: "Salvage cage",
       spriteId: "stash",
       interaction: { kind: "dialogue", nodeId: "fq-cage" },
+    },
+    {
+      // On the strand wall beside the salvage cage, under the wrecked
+      // barge's stern: the cabinet is wired back to the lock hoists,
+      // and the cage is hanging off one of them.
+      id: "quays-lockgate",
+      x: 14,
+      y: 12,
+      label: "Lockgate Control Cabinet",
+      spriteId: "terminal",
+      interaction: { kind: "breach", contextId: "quays-lockgate" },
     },
     {
       id: "quays-lock",

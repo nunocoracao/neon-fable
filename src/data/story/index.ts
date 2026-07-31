@@ -2,6 +2,7 @@ import type { StoryArc } from "../../narrative/types";
 import { act1Arc } from "./act1";
 import { act2Arc } from "./act2";
 import { act3Arc } from "./act3";
+import { breachArc } from "./breach";
 import { chapelArc } from "./chapel";
 import { companionsArc } from "./companions";
 import { introArc } from "./intro";
@@ -15,6 +16,7 @@ export const storyArcs: StoryArc[] = [
   act1Arc,
   act2Arc,
   act3Arc,
+  breachArc,
   chapelArc,
   companionsArc,
   marketArc,
@@ -36,6 +38,7 @@ export {
   act1Arc,
   act2Arc,
   act3Arc,
+  breachArc,
   chapelArc,
   companionsArc,
   marketArc,

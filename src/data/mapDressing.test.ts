@@ -46,21 +46,29 @@ describe("map dressing", () => {
   });
 
   it("opens a real story node, and wears a face the cast knows", () => {
-    for (const { dressing } of variants) {
+    for (const { dressing, map } of variants) {
       if (dressing.nodeId !== undefined) {
         expect(
           findArcByNode(dressing.nodeId),
           `story node ${dressing.nodeId} missing`,
         ).toBeDefined();
       }
-      if (dressing.label !== undefined) {
-        // Every dressing so far re-labels a person, and a person the
-        // player can be sent to needs a face in dialogue as well as on
-        // the street.
-        expect(castVisual(dressing.label), dressing.label).toBeDefined();
+      // A dressing that re-labels a *person* is re-labelling somebody
+      // the player can be sent to, and they need a face in dialogue as
+      // well as on the street. A dressing that re-labels an object — a
+      // locker whose hasp has been released, a cage up on the hoist —
+      // has nobody to look like, and must not claim to.
+      const dressed = map.interactables.find(
+        (thing) => thing.id === dressing.interactableId,
+      );
+      if (dressed?.spriteId === "npc") {
+        expect(dressing.label, dressing.interactableId).toBeDefined();
+        expect(castVisual(dressing.label ?? ""), dressing.label).toBeDefined();
         expect(dressing.visual, dressing.label).toEqual(
-          castVisual(dressing.label),
+          castVisual(dressing.label ?? ""),
         );
+      } else {
+        expect(dressing.visual, dressing.interactableId).toBeUndefined();
       }
     }
   });

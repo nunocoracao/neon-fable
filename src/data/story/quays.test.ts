@@ -80,8 +80,11 @@ describe("flooded quays arc", () => {
 
   it("opens every fixture on the water from the arrival beat too", () => {
     const quays = requireMap("flooded-quays");
-    const opened = quays.interactables.map((i) =>
-      i.interaction.kind === "dialogue" ? i.interaction.nodeId : "",
+    // Every fixture that opens a *conversation*. The lockgate cabinet
+    // opens a lattice instead (see ../breach.ts), which is nobody's
+    // dialogue and belongs to no arc.
+    const opened = quays.interactables.flatMap((i) =>
+      i.interaction.kind === "dialogue" ? [i.interaction.nodeId] : [],
     );
     expect(opened.sort()).toEqual([
       "fq-board",

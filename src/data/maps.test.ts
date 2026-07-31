@@ -58,6 +58,7 @@ import {
   tileHoldsWater,
   type WeatherView,
 } from "../iso/weather";
+import { getBreachContext } from "./breach";
 import { encounters, getEncounter } from "./encounters";
 import { getItem } from "./items";
 import { SPIRE_SECURITY_VISUAL } from "./cast";
@@ -237,7 +238,7 @@ describe.each(explorableMaps.map((m) => [m.id, m] as const))(
       }
     });
 
-    it("references only real story nodes and encounters", () => {
+    it("references only real story nodes, encounters, and breach terminals", () => {
       for (const { interaction } of map.interactables) {
         if (interaction.kind === "dialogue") {
           expect(
@@ -249,6 +250,13 @@ describe.each(explorableMaps.map((m) => [m.id, m] as const))(
             getEncounter(interaction.encounterId),
             `encounter ${interaction.encounterId} missing`,
           ).toBeDefined();
+        } else if (interaction.kind === "breach") {
+          const context = getBreachContext(interaction.contextId);
+          expect(context, `breach context ${interaction.contextId} missing`)
+            .toBeDefined();
+          // A terminal offers the run its own content says it does; the
+          // context names the map it stands on and the two must agree.
+          expect(context?.mapId, interaction.contextId).toBe(map.id);
         } else {
           // Map data never authors a shard — they are dropped onto a
           // district from lore content (see src/world/shards.ts).
