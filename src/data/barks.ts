@@ -597,6 +597,47 @@ const COMPANION_BARKS: readonly Bark[] = [
     requirements: [{ type: "loyalty", companionId: "sill", value: 6 }],
     weight: 2,
   },
+  // --- The noise, once somebody can hear it -----------------------------
+  //
+  // Static's flavour band. From humming the crew can hear the hardware
+  // over the conversation, and from loud they stop being polite about
+  // it. Decoration exactly like every other line here: the band is
+  // already said in words on the character screen, and missing these
+  // costs nothing but the joke.
+  {
+    id: "bark-vesper-static-hum",
+    speaker: "companion",
+    trigger: "idle",
+    speakerId: "vesper",
+    text: "You're humming. Not a tune. Fix that.",
+    requirements: [{ type: "static", band: "humming" }],
+  },
+  {
+    id: "bark-vesper-static-loud",
+    speaker: "companion",
+    trigger: "idle",
+    speakerId: "vesper",
+    text: "I can hear your eyes focus. It's not endearing.",
+    requirements: [{ type: "static", band: "loud" }],
+    weight: 2,
+  },
+  {
+    id: "bark-sill-static-hum",
+    speaker: "companion",
+    trigger: "idle",
+    speakerId: "sill",
+    text: "Your chrome disagrees with itself. Audibly.",
+    requirements: [{ type: "static", band: "humming" }],
+  },
+  {
+    id: "bark-sill-static-loud",
+    speaker: "companion",
+    trigger: "wounded",
+    speakerId: "sill",
+    text: "Sit down before the hardware votes on it.",
+    requirements: [{ type: "static", band: "loud" }],
+    weight: 2,
+  },
 ];
 
 export const barks: readonly Bark[] = [

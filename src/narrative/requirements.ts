@@ -1,7 +1,11 @@
 import { requireItem } from "../data/items";
 import { hasItem, countItem } from "../inventory/inventory";
 import type { ItemResolver } from "../inventory/items";
-import { effectiveStats } from "../inventory/selectors";
+import {
+  dialogueStats,
+  meetsStaticBand,
+  staticReading,
+} from "../inventory/staticLoad";
 import type { GameState } from "../state/gameState";
 import { getMember, loyaltyOf } from "../state/party";
 import { canAccess, dominantFaction } from "../state/reputation";
@@ -11,6 +15,13 @@ import type { Requirement } from "./types";
  * Requirement evaluation: pure predicates over GameState. Stat checks use
  * effective stats (equipment and enhancement mods included), so gear can
  * open dialogue options.
+ *
+ * With one deliberate asymmetry: they use `dialogueStats`, not
+ * `effectiveStats`. A loud enough stack of chrome costs Cool *in
+ * conversation* and nowhere else (see src/data/static.ts), so a
+ * screaming runner's Cool gates close while every figure the fight
+ * reads stays exactly where it was. The penalty lands here, once, on
+ * the only path that gates a sentence.
  */
 
 export function checkRequirement(
@@ -33,7 +44,7 @@ export function checkRequirement(
       return !(requirement.key in state.flags);
     case "stat":
       return (
-        effectiveStats(state.player, resolve)[requirement.stat] >=
+        dialogueStats(state.player, resolve)[requirement.stat] >=
         requirement.value
       );
     case "item":
@@ -44,6 +55,12 @@ export function checkRequirement(
     case "enhancement":
       return Object.values(state.player.equipment.enhancements).includes(
         requirement.itemId,
+      );
+    case "static":
+      return meetsStaticBand(
+        staticReading(state.player, resolve).band,
+        requirement.band,
+        requirement.mode,
       );
     case "background":
       return state.player.tags.includes(requirement.tag);
