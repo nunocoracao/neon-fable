@@ -20,7 +20,7 @@ import {
 import type { PixelGrid } from "../iso/art/pixel";
 import type { ExpressionId } from "../data/appearance";
 import { enemyLook, getEnemy, parseEnemySpriteId } from "../data/enemies";
-import { DRONE_ART } from "../iso";
+import { DRONE_ART, MECH_ART } from "../iso";
 import type { EquipmentState } from "../inventory/equipment";
 import { ART_SCALE, bakeSprite, spriteBytes } from "../iso/art/pixel";
 import { PORTRAIT_FRAME } from "../iso/art/layers/portrait";
@@ -129,6 +129,13 @@ export function enemyPortraitCanvas(
     return gridPortraitCanvas(
       `drone:${enemy.droneArt}`,
       () => DRONE_ART[enemy.droneArt].portrait,
+    );
+  }
+  if (enemy?.spriteKind === "mech") {
+    // Likewise: a chassis has no face, only a cowl and an optic.
+    return gridPortraitCanvas(
+      `mech:${enemy.mechArt}`,
+      () => MECH_ART[enemy.mechArt].portrait,
     );
   }
   const visual = enemy ? enemyLook(enemy, lookIndex) : undefined;

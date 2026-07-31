@@ -270,6 +270,19 @@ describe("every ability, cast in a real fight", () => {
       mountFight();
       castAbility(ability.name);
       expect(logText()).toContain(ability.name);
+      // A charged ability is declared, not thrown: nothing leaves the
+      // caster until the turn it fires on (see src/combat/charge.ts),
+      // so the archetype cannot have played yet.
+      if ((ability.windUp ?? 0) > 0) {
+        play(400);
+        expect(
+          drawnIds(),
+          `${ability.name} threw nothing while winding up`,
+        ).not.toContain(ability.effectRef);
+        // The mark over the caster is what says it is coming.
+        expect(drawnIds()).toContain("status:charging");
+        click("End Turn");
+      }
       // The whole cast: wind-up, effect, and the tail of it.
       play(spec.frameMs * spec.frameCount * spec.loops + 400);
       expect(drawnIds(), `${ability.name} drew its archetype`).toContain(

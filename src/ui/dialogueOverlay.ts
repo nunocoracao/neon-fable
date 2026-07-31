@@ -12,7 +12,7 @@ import { revealDelayMs, settings } from "../settings";
 import { focusFirst } from "./focus";
 import { requirementLabels } from "./format";
 import type { OverlayHandle } from "./overlay";
-import { portraitCanvas } from "./portraits";
+import { enemyPortraitCanvas, portraitCanvas } from "./portraits";
 import type { Session } from "./session";
 
 /**
@@ -119,6 +119,17 @@ export function createDialogueOverlay(
           ),
           true,
           portrait.expression,
+        ),
+      );
+    } else if (portrait.kind === "machine") {
+      // Nothing to compose and nothing to emote: the archetype's own
+      // authored plate, the same one its initiative chip wears.
+      row.append(
+        portraitSide(
+          "npc",
+          enemyPortraitCanvas(portrait.enemyId, 0, "grim"),
+          true,
+          "grim",
         ),
       );
     }

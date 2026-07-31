@@ -21,6 +21,7 @@ import {
   ambientLookSeed,
   characterArt,
   droneArt,
+  mechArt,
   type ComposedCharacter,
   type DeathReactionKind,
   type EntityArt,
@@ -144,6 +145,7 @@ function resolveEnemyArt(spriteId: string): EntityArt | undefined {
   const enemy = getEnemy(enemyId);
   if (!enemy) return undefined;
   if (enemy.spriteKind === "drone") return droneArt(enemy.droneArt);
+  if (enemy.spriteKind === "mech") return mechArt(enemy.mechArt);
   const visual = enemyLook(enemy, lookIndex);
   return visual
     ? characterArt(safeCompose(visual, `enemy "${spriteId}"`))
