@@ -191,10 +191,10 @@ export const LORE_SHARDS: readonly LoreShard[] = [
     x: 12,
     y: 7,
     district: "Meridian Exchange — Ventworks",
-    requirements: [{ type: "stat", stat: "tech", value: 6 }],
+    requirements: [{ type: "stat", stat: "tech", value: 8 }],
     sealed:
       "A corp index, sealed the way corp indices are sealed. Cracking " +
-      "it is Tech work — six of it.",
+      "it is Tech work — eight of it.",
     paragraphs: [
       "Every instrument the Combine has ever used to close a district " +
         "descends from one flood-night order: TRIAGE 4, which sealed the " +
