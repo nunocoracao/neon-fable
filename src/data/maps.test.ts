@@ -898,10 +898,12 @@ describe("NPC visuals", () => {
       "market-vendor",
       "matron-ferrow",
       "quays-diver",
+      "quays-food-cart",
       "quays-kade",
       "rust-runner",
       "spire-security",
       "stall-broker",
+      "steps-food-cart",
       "tram-messenger",
     ]);
   });

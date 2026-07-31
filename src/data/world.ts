@@ -874,6 +874,19 @@ export const VENDOR_STOCK: readonly VendorStockEntry[] = [
     itemId: "mod-longspar-extension",
   },
   {
+    // A dock amp with its governor cut out. Nobody bonded would put
+    // their number on one, which is exactly why it is on this shelf.
+    id: "buy-redline-amp",
+    vendorId: "wet-market-back",
+    itemId: "con-redline-amp",
+    note: "Governor's been out of it a while.",
+  },
+  {
+    id: "buy-hammerhead",
+    vendorId: "wet-market-back",
+    itemId: "con-hammerhead",
+  },
+  {
     // Consignment out of the Vertical Market: only offered to somebody
     // the boards are willing to vouch for.
     id: "buy-spindle-projector",
@@ -906,6 +919,14 @@ export const VENDOR_STOCK: readonly VendorStockEntry[] = [
     itemId: "mod-ballast-shim",
   },
   {
+    // Bonded clinic stock, which is the only kind of counter a sealed
+    // roll ever comes across.
+    id: "quill-roll",
+    vendorId: "vm-broker-counter",
+    itemId: "con-medic-roll",
+    note: "Sealed, dated, and booked against a clinic number.",
+  },
+  {
     // Consignment off a scaffold crew that stopped needing it. Quill
     // books second-hand where the stall would only shrug at it.
     id: "quill-rig",
@@ -931,5 +952,97 @@ export const VENDOR_STOCK: readonly VendorStockEntry[] = [
     vendorId: "vm-broker-counter",
     itemId: "cyb-optic-suite",
     requires: ["market-favoured"],
+  },
+
+  /* --- The hot bar, under the market's cage lamps -------------------- *
+   *
+   * The counter Marrow keeps a stool at, selling what a counter sells.
+   * Food and the cheap end of the stims: nobody buys a splint kit off a
+   * hood with a pot on it. */
+  {
+    id: "bar-noodles",
+    vendorId: "vm-noodle-counter",
+    itemId: "con-cage-noodles",
+    note: "Chalked on the hood. Unchanged for years.",
+  },
+  {
+    id: "bar-skewer",
+    vendorId: "vm-noodle-counter",
+    itemId: "con-scrap-skewer",
+  },
+  {
+    id: "bar-kick",
+    vendorId: "vm-noodle-counter",
+    itemId: "con-kick-stim",
+    note: "Out of the machine on the wall, same as anywhere.",
+  },
+  {
+    // The market keeps a case of patches behind the counter for the
+    // scaffold crews, and sells them at the counter's own rate.
+    id: "bar-patch",
+    vendorId: "vm-noodle-counter",
+    itemId: "con-trauma-patch",
+  },
+
+  /* --- Bell's cart, on the Greywater walk ---------------------------- *
+   *
+   * Cheap food and the courtesy bowl. Bell also keeps the district's
+   * splint kits, because the Steps' clinic is one man and a den, and
+   * because she is the person everybody walks past on the way out. */
+  {
+    id: "bell-skewer",
+    vendorId: "steps-food-cart",
+    itemId: "con-scrap-skewer",
+    note: "Ten credits. She watches you eat it.",
+  },
+  {
+    id: "bell-noodles",
+    vendorId: "steps-food-cart",
+    itemId: "con-cage-noodles",
+  },
+  {
+    id: "bell-sugar",
+    vendorId: "steps-food-cart",
+    itemId: "con-wake-sugar",
+    note: "The wake bowl by the till. Leave what you think.",
+  },
+  {
+    id: "bell-splint",
+    vendorId: "steps-food-cart",
+    itemId: "con-splint-kit",
+    note: "Under the griddle, for when Patch is asleep.",
+  },
+  {
+    id: "bell-kit",
+    vendorId: "steps-food-cart",
+    itemId: "con-field-kit",
+  },
+
+  /* --- Onder's cart, down on the strand ------------------------------ *
+   *
+   * The night shift's counter: salt tea, a hot roll, and the two things
+   * somebody who has been in the water actually needs. */
+  {
+    id: "onder-tea",
+    vendorId: "quays-food-cart",
+    itemId: "con-basin-tea",
+    note: "Cup goes back on the tray.",
+  },
+  {
+    id: "onder-skewer",
+    vendorId: "quays-food-cart",
+    itemId: "con-scrap-skewer",
+  },
+  {
+    id: "onder-roll",
+    vendorId: "quays-food-cart",
+    itemId: "con-medic-roll",
+    note: "Off a rig, and off the books.",
+  },
+  {
+    id: "onder-hammer",
+    vendorId: "quays-food-cart",
+    itemId: "con-hammerhead",
+    note: "What the dredge crews take before a lift.",
   },
 ];

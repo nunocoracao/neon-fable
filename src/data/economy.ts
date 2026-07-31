@@ -34,7 +34,16 @@ import type { FactionId, ReputationBandId } from "./factions";
  * key a run's ledger (haggle state, what has been bought this act) is
  * kept under, so it is stable and saves depend on it.
  */
-export const VENDOR_IDS = ["wet-market-back", "vm-broker-counter"] as const;
+export const VENDOR_IDS = [
+  "wet-market-back",
+  "vm-broker-counter",
+  // The three counters that sell hot food. A cart is a counter like any
+  // other — same spread, same ledger, same argument — it simply keeps a
+  // shorter shelf and moves when the weather does.
+  "vm-noodle-counter",
+  "steps-food-cart",
+  "quays-food-cart",
+] as const;
 
 export type VendorId = (typeof VENDOR_IDS)[number];
 
@@ -110,6 +119,40 @@ export const vendors: readonly Vendor[] = [
       "Bonded, booked and taxed on the boards' own register. Costs more " +
       "across the counter and pays more into your hand, and every line " +
       "of it goes in the slate.",
+  },
+  {
+    id: "vm-noodle-counter",
+    name: "The hot bar",
+    keeper: "The counterman",
+    kind: "stall",
+    faction: "market",
+    blurb:
+      "Six stools, one pot, and a queue that never quite forms. Prices " +
+      "chalked on the hood and unchanged since anybody can remember.",
+  },
+  {
+    id: "steps-food-cart",
+    name: "Bell's cart",
+    keeper: "Bell",
+    kind: "stall",
+    faction: "court",
+    blurb:
+      "A griddle on wheels under a court awning, working the walk " +
+      "between the cistern and the shrine. She feeds the Steps and the " +
+      "Steps keep an eye on the cart.",
+  },
+  {
+    id: "quays-food-cart",
+    name: "Onder's cart",
+    keeper: "Onder",
+    kind: "stall",
+    // The strand is Court ground after dark, whatever the wharf above
+    // it thinks; the cart keeps the Court's books like the Steps' does.
+    faction: "court",
+    blurb:
+      "Hot plate, kettle, and a tarp guyed off the wharf rail against " +
+      "the rain. Salt tea for anybody who has been in the water, " +
+      "whoever they came down here for.",
   },
 ];
 
@@ -294,6 +337,16 @@ export const VENDOR_RESTOCK: readonly RestockRow[] = [
     entryId: "buy-torsion-frame",
     quantity: 2,
   },
+  // Food is the one thing a counter has plenty of: a cart puts out a
+  // day's worth of the cheap lines and one of everything else, which is
+  // what keeps a player from solving a chapter with skewers.
+  { vendorId: "vm-noodle-counter", act: 1, entryId: "bar-noodles", quantity: 4 },
+  { vendorId: "vm-noodle-counter", act: 1, entryId: "bar-skewer", quantity: 5 },
+  { vendorId: "vm-noodle-counter", act: 1, entryId: "bar-patch", quantity: 2 },
+  { vendorId: "steps-food-cart", act: 1, entryId: "bell-skewer", quantity: 5 },
+  { vendorId: "steps-food-cart", act: 1, entryId: "bell-noodles", quantity: 3 },
+  { vendorId: "quays-food-cart", act: 1, entryId: "onder-tea", quantity: 4 },
+  { vendorId: "quays-food-cart", act: 1, entryId: "onder-skewer", quantity: 3 },
 ];
 
 /**

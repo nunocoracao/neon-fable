@@ -1322,6 +1322,126 @@ const noodleFrame = (phase: number): string[] =>
     0,
   );
 
+/* --- Food cart: a wheeled griddle cart. A hazard-striped parasol on a
+ * chrome spar, a hot plate set into the lid with the coals showing
+ * under it, a paper lamp swinging off the rib, and steam coming off the
+ * grill.
+ *
+ * Deliberately not the market's noodle counter, which is a fixture
+ * bolted to the boards and stays where it is: this is the thing that
+ * gets pushed somewhere else when the weather turns, so it stands on
+ * wheels and carries its own light. 48×64, ground contact at (24, 52).
+ * --- */
+
+const CART_W = 48;
+
+/** Parasol canvas: hazard bands, lit on the upper-left facet. */
+const cartCanopyPaint = (x: number, lit: boolean): string => {
+  const band =
+    Math.floor(x / 6) % 2 === 0
+      ? (["Y", "Z", "n"] as const)
+      : (["V", "W", "X"] as const);
+  const step = (lit ? 1 : 0) + (x < CART_W / 2 ? 1 : 0);
+  return band[step] ?? band[1];
+};
+
+const cartParasol: string[] = Array.from({ length: 15 }, (_, y) => {
+  // Rows 0-10 are the sloping canvas, 11 its hem line, 12-13 the
+  // skirt, 14 the scalloped fringe hanging off it.
+  const width = y < 11 ? 4 * y + 8 : CART_W;
+  const pad = (CART_W - width) / 2;
+  let row = "";
+  for (let x = 0; x < CART_W; x++) {
+    if (x < pad || x >= pad + width) row += ".";
+    else if (y === 14 && Math.floor(x / 4) % 2 === 1) row += ".";
+    else if (x === pad || x === pad + width - 1) row += "1";
+    else if (y === 11) row += "1";
+    else row += cartCanopyPaint(x, y < 11);
+  }
+  return row;
+});
+
+/** The paper lamp hung off the parasol rib, pulsing by frame phase. */
+const cartLamp = (phase: number): string[] => [
+  "..00..",
+  ".0mn0.",
+  phase === 1 ? "0nnnn0" : "0mnnm0",
+  "0omoo0",
+  ".0oo0.",
+  "..00..",
+];
+
+/** Steam off the grill, drifting up under the parasol. */
+const cartSteam = (phase: number): string[] =>
+  Array.from({ length: 18 }, (_, y) => {
+    const drift = Math.round(Math.sin((y + phase * 2) / 3) * 3);
+    const x = 20 + drift + Math.floor((18 - y) / 5);
+    if ((y + phase) % 3 === 2) return gap(CART_W);
+    const ch = y < 6 ? "8" : y < 12 ? "7" : "8";
+    return gap(x) + ch + ch + gap(CART_W - x - 2);
+  });
+
+/** The cart's own box: rust-brown boards on a steel frame. */
+const cartBody: string[] = isoBox(32, 10, {
+  top: "b",
+  rim: "c",
+  left: "b",
+  right: "a",
+  ink: "1",
+  grain: "a",
+});
+
+/** The hot plate set into the lid. */
+const cartGriddle: string[] = isoBox(16, 3, {
+  top: "4",
+  rim: "6",
+  left: "4",
+  right: "3",
+  ink: "1",
+});
+
+/** A cart wheel: chrome spokes in a dark tyre. */
+const cartWheel: string[] = [
+  "..0660..",
+  ".067760.",
+  "06799760",
+  "0679T760",
+  "0679T760",
+  "06799760",
+  ".067760.",
+  "..0660..",
+];
+
+/** The service strip along the cart's front, chasing by frame phase. */
+const cartStrip = (phase: number): string[] => [
+  "1".repeat(26),
+  Array.from({ length: 26 }, (_, i) => (i % 5 === phase ? "m" : "o")).join(""),
+  "1".repeat(26),
+];
+
+const cartFrame = (phase: number): string[] => {
+  let grid = blank(CART_W, 64);
+  // Ground shadow first, so everything else stands on it.
+  grid = stamped(
+    grid,
+    [gap(10) + "z".repeat(28) + gap(10), gap(15) + "z".repeat(18) + gap(15)],
+    0,
+    56,
+  );
+  // Wheels, then the spar, then the box in front of both.
+  grid = stamped(grid, cartWheel, 10, 46);
+  grid = stamped(grid, cartWheel, 30, 48);
+  grid = stamped(grid, rep(18, "0T60"), 22, 13);
+  grid = stamped(grid, cartBody, 8, 24);
+  grid = stamped(grid, cartGriddle, 16, 26);
+  // Coals showing under the plate's near edge.
+  grid = stamped(grid, [gap(2) + "o" + "m".repeat(8) + "o" + gap(2)], 17, 36);
+  grid = stamped(grid, cartStrip(phase), 11, 42);
+  grid = stamped(grid, cartLamp(phase), 34, 16);
+  grid = stamped(grid, cartSteam(phase), 0, 15);
+  return stamped(grid, cartParasol, 0, 0);
+};
+
 /* --- Quayside dressing. The Flooded Quays are furnished out of three
  * pieces: the mooring posts every walkway span is tied off to, tarped
  * salvage waiting on the boards for a buyer, and the half-sunk barge
@@ -1894,6 +2014,16 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
     flicker: false,
     // Burner and service strip, amber through the steam.
     glow: [{ color: "m", radius: 18, intensity: 0.32, offsetX: 0, offsetY: -14 }],
+  },
+  "food-cart": {
+    frames: [cartFrame(0), cartFrame(1), cartFrame(2)],
+    anchorX: 24,
+    anchorY: 52,
+    frameMs: 500,
+    flicker: false,
+    // Coals under the plate and the paper lamp over it, amber through
+    // the steam — the light a cart carries with it.
+    glow: [{ color: "m", radius: 16, intensity: 0.34, offsetX: 0, offsetY: -14 }],
   },
   "mooring-post": {
     frames: [mooringPost],

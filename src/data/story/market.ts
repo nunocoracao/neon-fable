@@ -304,8 +304,78 @@ export const marketArc: StoryArc = {
           target: "lm-offer",
         },
         {
+          // The fixer's stool and the hot bar are the same six feet of
+          // board, so the counter is reached through him rather than
+          // through a second interactable standing beside him.
+          id: "order-bowl",
+          label: "Order something. The broth had better be the best thing on six levels.",
+          target: "vm-hotbar",
+        },
+        {
           id: "leave-fixer",
           label: "Leave him to his second-best opinion of himself.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      // The hot bar itself, which is the district's food counter and
+      // the cheap end of its chemistry (see VENDOR_STOCK). Marrow keeps
+      // a stool at it; the counterman keeps the pot.
+      id: "vm-hotbar",
+      speaker: "The counterman",
+      text:
+        "The hot bar runs six stools deep under the cage lamps, and the " +
+        "pot on it has clearly not been off the burner this season. The " +
+        "counterman works without looking at his hands: bowl, ladle, oil, " +
+        "bowl. Prices are chalked on the hood in a hand written over so " +
+        "many times it reads as one long smudge with numbers in it. " +
+        "\"Sit or don't,\" he says. \"Standing eats cold.\"",
+      location: "vertical-market:noodle-counter",
+      choices: [
+        {
+          id: "hotbar-order",
+          label: "Read the hood.",
+          target: "vm-hotbar",
+          effects: [{ type: "open-vendor", vendorId: "vm-noodle-counter" }],
+        },
+        {
+          id: "hotbar-what",
+          label: "\"What's actually in it?\"",
+          target: "vm-hotbar-what",
+        },
+        {
+          id: "hotbar-back",
+          label: "Turn back to the man on the end stool.",
+          target: "vm-fixer",
+        },
+        {
+          id: "hotbar-leave",
+          label: "Leave him to the pot.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "vm-hotbar-what",
+      speaker: "The counterman",
+      expression: "smile",
+      text:
+        "\"Protein, salt, chili, and a stock I have been topping up since " +
+        "before the Cordon.\" He says it the way other people say a " +
+        "family name. \"Same pot. Thirty years. You are not eating soup, " +
+        "you are eating an argument the pot has been having with itself " +
+        "since the lamps went up.\"",
+      location: "vertical-market:noodle-counter",
+      choices: [
+        {
+          id: "hotbar-what-back",
+          label: "\"Right. A bowl, then.\"",
+          target: "vm-hotbar",
+        },
+        {
+          id: "hotbar-what-leave",
+          label: "Decide against it, on the whole.",
           effects: [{ type: "end" }],
         },
       ],

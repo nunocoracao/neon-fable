@@ -182,6 +182,47 @@ export const KEEL_VISUAL: CharacterVisual = {
   outfit: "out-tender-coat",
 };
 
+// The two griddle carts. Nobody's story turns on either of them: they
+// are people who sell hot food to a district that had nowhere to get
+// any, and they are drawn friendly-side like every other fixture — no
+// crimson optic, no hostile cue.
+//
+// Bell works the Steps under a court awning, ladle in one hand and an
+// opinion about everything in the other.
+export const BELL_VISUAL: CharacterVisual = {
+  appearance: {
+    skinTone: "warm-brown",
+    build: "heavy",
+    hairStyle: "locs",
+    hairColor: "raven",
+    eyes: "wide",
+    eyeColor: "amber",
+    brows: "arched",
+    mouth: "smirk",
+    faceDetail: "none",
+    headwear: "cap",
+  },
+  outfit: "out-courier-slicker",
+};
+
+// Onder works the wharf on the night shift, hood up against the rain,
+// selling salt tea to people who have been in the water.
+export const ONDER_VISUAL: CharacterVisual = {
+  appearance: {
+    skinTone: "porcelain",
+    build: "lean",
+    hairStyle: "buzz",
+    hairColor: "silver",
+    eyes: "narrow",
+    eyeColor: "amber",
+    brows: "straight",
+    mouth: "neutral",
+    faceDetail: "brow-split",
+    headwear: "hood",
+  },
+  outfit: "out-diver-harness",
+};
+
 // The Auric Spire's house security, standing on both interior floors.
 // Auric's uniform is the same interdiction plate the Cordon's enforcers
 // wear, worn here by people paid to be immovable rather than to fight —
@@ -226,6 +267,26 @@ export const cast: Readonly<Record<string, CharacterVisual>> = {
   Sabbat: SABBAT_VISUAL,
   Dredge: DREDGE_VISUAL,
   Keel: KEEL_VISUAL,
+  Bell: BELL_VISUAL,
+  Onder: ONDER_VISUAL,
+  // The market's hot bar. Thirty years over the same pot, and the
+  // steam has had all of them: squint, apron, hands that do not need
+  // watching.
+  "The counterman": {
+    appearance: {
+      skinTone: "golden-tan",
+      build: "heavy",
+      hairStyle: "none",
+      hairColor: "silver",
+      eyes: "narrow",
+      eyeColor: "amber",
+      brows: "heavy",
+      mouth: "neutral",
+      faceDetail: "none",
+      headwear: "cap",
+    },
+    outfit: "out-diver-harness",
+  },
   "Spire Security": SPIRE_SECURITY_VISUAL,
   // The fixer at the Filament's corner table: groomed, amused, and
   // never quite warm — the smile stops below the eyes.

@@ -152,6 +152,9 @@ export type PropId =
   | "cage-lamp"
   | "crate-stack"
   | "noodle-counter"
+  // The one piece of food furniture that travels: a wheeled griddle
+  // cart, for the districts with nowhere to eat.
+  | "food-cart"
   // Quayside dressing: dockland furniture for the Flooded Quays. The
   // barge is the game's first prop whose bulk needs a footprint.
   | "mooring-post"
