@@ -3,7 +3,12 @@ import {
   validateAppearance,
   type Appearance,
 } from "../character/appearance";
-import { IDENTITY_CATEGORIES, RESTYLE_PRICE } from "../data/stylist";
+import {
+  IDENTITY_CATEGORIES,
+  RESTYLE_COUNT_FLAG,
+  RESTYLE_FLAG,
+  RESTYLE_PRICE,
+} from "../data/stylist";
 import type { GameState } from "./gameState";
 
 /**
@@ -56,6 +61,11 @@ export function restyleChanged(
  * validate it, gate on the fee, and return the new state with the look
  * applied and the payment deducted. Pure — refusals leave the caller's
  * state untouched, and an unchanged look is never charged for.
+ *
+ * A confirmed session also records itself (RESTYLE_FLAG and a session
+ * count). Nothing gates on those: they exist so the epilogue can say
+ * something about a runner who kept changing their face. A refusal
+ * writes nothing, so the count only ever counts sessions that happened.
  */
 export function applyRestyle(
   state: GameState,
@@ -73,12 +83,18 @@ export function applyRestyle(
   if (state.credits < price) {
     return { ok: false, reason: "insufficient-credits" };
   }
+  const sessions = state.flags[RESTYLE_COUNT_FLAG];
   return {
     ok: true,
     state: {
       ...state,
       credits: state.credits - price,
       player: { ...state.player, appearance: look },
+      flags: {
+        ...state.flags,
+        [RESTYLE_FLAG]: true,
+        [RESTYLE_COUNT_FLAG]: (typeof sessions === "number" ? sessions : 0) + 1,
+      },
     },
   };
 }

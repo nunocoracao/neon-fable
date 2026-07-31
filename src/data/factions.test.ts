@@ -6,6 +6,7 @@ import {
   REPUTATION_MAX,
   REPUTATION_MIN,
   FactionError,
+  bandCeiling,
   factions,
   getBand,
   getFaction,
@@ -13,6 +14,7 @@ import {
   requireFaction,
   scaleStanding,
 } from "./factions";
+import { bandFor } from "../state/reputation";
 
 describe("faction catalog", () => {
   it("registers one record per declared id, with copy on both", () => {
@@ -61,6 +63,19 @@ describe("reputation bands", () => {
   it("looks a band up by id", () => {
     expect(getBand("warm")?.label).toBe("Warm");
     expect(getBand("beloved")).toBeUndefined();
+  });
+
+  it("names each band's ceiling, one below the next band's floor", () => {
+    for (const [index, band] of REPUTATION_BANDS.entries()) {
+      const next = REPUTATION_BANDS[index + 1];
+      expect(bandCeiling(band.id), band.id).toBe(
+        next ? next.min - 1 : REPUTATION_MAX,
+      );
+      // Ceiling and floor bracket the band and nothing else: the value
+      // one above a ceiling must read as a different band.
+      expect(bandFor(bandCeiling(band.id)).id, band.id).toBe(band.id);
+      if (next) expect(bandFor(bandCeiling(band.id) + 1).id).toBe(next.id);
+    }
   });
 });
 

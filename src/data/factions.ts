@@ -147,6 +147,23 @@ export function getBand(id: string): ReputationBand | undefined {
   return bandsById.get(id);
 }
 
+/**
+ * The highest standing that still reads as this band — one below the
+ * next band's floor, and REPUTATION_MAX for the top band.
+ *
+ * What it is for is the other half of a band gate. `{ value: "warm" }`
+ * says "warm or better" and reads well; the mirror — "neutral or worse"
+ * — cannot be said with a band id at all, because an at-most gate on
+ * `"neutral"` asks for the band's *floor*. Content that wants the whole
+ * of a band and everything under it asks for its ceiling instead, and
+ * keeps the numbers out of the prose files.
+ */
+export function bandCeiling(id: ReputationBandId): number {
+  const index = REPUTATION_BANDS.findIndex((band) => band.id === id);
+  const next = index < 0 ? undefined : REPUTATION_BANDS[index + 1];
+  return next ? next.min - 1 : REPUTATION_MAX;
+}
+
 /** What a choice, or an outcome, is worth to each faction. */
 export type StandingDelta = Partial<Record<FactionId, number>>;
 

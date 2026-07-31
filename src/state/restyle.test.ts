@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Appearance } from "../character/appearance";
-import { RESTYLE_PRICE } from "../data/stylist";
+import {
+  RESTYLE_COUNT_FLAG,
+  RESTYLE_FLAG,
+  RESTYLE_PRICE,
+} from "../data/stylist";
 import { createNewGame } from "./gameState";
 import { applyRestyle, restyleChanged, restyledLook } from "./restyle";
 
@@ -64,7 +68,28 @@ describe("applyRestyle", () => {
     expect(result.state.player.appearance.hairStyle).toBe("mohawk");
     // Everything unrelated is untouched.
     expect(result.state.inventory).toBe(state.inventory);
-    expect(result.state.flags).toBe(state.flags);
+    // The session is recorded — for the epilogue, which reads a run's
+    // habits; nothing in the game gates on it.
+    expect(result.state.flags[RESTYLE_FLAG]).toBe(true);
+    expect(result.state.flags[RESTYLE_COUNT_FLAG]).toBe(1);
+    expect(state.flags[RESTYLE_FLAG]).toBeUndefined();
+  });
+
+  it("counts every confirmed session, and only confirmed ones", () => {
+    let state = makeState(RESTYLE_PRICE * 4);
+    const first = applyRestyle(state, newHair(state.player.appearance));
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    state = first.state;
+    // A refusal writes nothing, so the count only counts what happened.
+    expect(applyRestyle(state, { ...state.player.appearance }).ok).toBe(false);
+    const second = applyRestyle(state, {
+      ...state.player.appearance,
+      hairStyle: "buzz",
+    });
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    expect(second.state.flags[RESTYLE_COUNT_FLAG]).toBe(2);
   });
 
   it("refuses politely when the player cannot cover the fee, changing nothing", () => {

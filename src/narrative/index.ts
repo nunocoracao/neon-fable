@@ -106,4 +106,14 @@ export {
   type PresentedChoice,
 } from "./engine";
 export { validateArc, type ArcIssue, type ArcIssueCode } from "./validate";
-export { selectVignettes, type EpilogueVignette } from "./epilogue";
+export {
+  EPILOGUE_SECTIONS,
+  composeEpilogue,
+  sectionRank,
+  selectVignettes,
+  threadIndex,
+  threadVariantIds,
+  type EpilogueSection,
+  type EpilogueThread,
+  type EpilogueVignette,
+} from "./epilogue";
