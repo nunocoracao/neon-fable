@@ -17,6 +17,7 @@
 import type { FlagMap } from "../state/flags";
 import { createRng, nextInt } from "../state/rng";
 import { enemyLookCount, getEnemy } from "./enemies";
+import { takedownFlag } from "./stealth";
 
 export interface EncounterPosition {
   x: number;
@@ -33,9 +34,10 @@ export interface EncounterSpawn {
   look?: number;
   /**
    * A flag that keeps this body out of the fight while it holds true —
-   * how work done before a fight shows up inside one. The only thing
-   * that writes one today is a Breach run at a terminal that takes a
-   * drone off a muster roster (see src/data/breach.ts), and the rule is
+   * how work done before a fight shows up inside one. Two things write
+   * one: a Breach run at a terminal that takes a drone off a muster
+   * roster (see src/data/breach.ts), and a silent takedown on a
+   * patrolling guard (see src/data/stealth.ts). The rule is
    * deliberately narrow: a spawn can be *absent*, never added, moved,
    * or re-statted, so an encounter with the flag unset is byte-for-byte
    * the fight it always was.
@@ -348,7 +350,22 @@ export const encounters: Encounter[] = [
     arenaMapId: "quays-walkway-arena",
     playerStart: { x: 1, y: 3 },
     enemies: [
-      { enemyId: "nme-rustyard-bruiser", position: { x: 7, y: 3 } },
+      // The two hands who work the spans, and whatever the crew keeps
+      // in the water under the catwalk. Either hand can be taken off
+      // the roster before the shooting by somebody who crossed quietly
+      // (see the store-crossing zone in ./stealth.ts); the thing under
+      // the boards cannot, which is why it is the body that guarantees
+      // this fight always has somebody in it.
+      {
+        enemyId: "nme-rustyard-bruiser",
+        position: { x: 7, y: 3 },
+        absentWhenFlag: takedownFlag("store-crossing", "west-hand"),
+      },
+      {
+        enemyId: "nme-rustyard-bruiser",
+        position: { x: 7, y: 5 },
+        absentWhenFlag: takedownFlag("store-crossing", "east-hand"),
+      },
       { enemyId: "nme-vent-crawler", position: { x: 6, y: 5 } },
     ],
     rewards: {
@@ -365,7 +382,17 @@ export const encounters: Encounter[] = [
     arenaMapId: "exec-floor-arena",
     playerStart: { x: 1, y: 3 },
     enemies: [
-      { enemyId: "nme-auric-warden", position: { x: 7, y: 2 } },
+      // The detail itself. The lead can be stood down before the
+      // shooting by somebody who crossed the floor quietly and got a
+      // hand over a mouth (see the exec-detail zone in ./stealth.ts);
+      // the second wears Cordon interdiction plate, which is the whole
+      // reason there is nothing to get a hand around — and the reason
+      // this fight can never be walked into empty.
+      {
+        enemyId: "nme-auric-warden",
+        position: { x: 7, y: 2 },
+        absentWhenFlag: takedownFlag("exec-detail", "lead"),
+      },
       { enemyId: "nme-cordon-enforcer", position: { x: 7, y: 4 } },
       // The floor's eye in the air, and the one body on this level that
       // can be dealt with before the shooting: it rides the muster

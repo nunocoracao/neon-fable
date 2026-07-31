@@ -542,6 +542,101 @@ export const underWaterlineNodes: StoryNode[] = [
     ],
   },
 
+  // --- The eighth way in, and the way it goes wrong
+  //
+  // Neither of these is a choice on the ring: they are opened by the
+  // *map*. Once the chain is at "taken", Keel's crew is on the two
+  // plate walkways with their own beat and their own eyes, and crossing
+  // the basin becomes something played on the tiles rather than picked
+  // off a list (see the store-crossing zone in src/data/stealth.ts).
+  // Getting to the trestle unseen lands here; being seen on the boards
+  // lands on the one below, which is the ring's own fight entered from
+  // the wrong side of it.
+  //
+  // Both are declared as doorways on the quays arc, because a beat the
+  // map opens is reached from no choice anywhere.
+  {
+    id: "uw-quiet",
+    text:
+      "You come off the east span onto the wharf between one pass of the " +
+      "lamp and the next, and the trestle takes you round out of the " +
+      "light. Behind you the crossing goes on being crossed by nobody: " +
+      "two hands walking two lines of plate, and something under the " +
+      "boards keeping its own hours. The store's face is a course of " +
+      "brick and a run of lit glass, and its door is standing open " +
+      "because nobody out here has any reason to think it should not be.",
+    location: "flooded-quays:bonded-store",
+    comments: [
+      {
+        companionId: "vesper",
+        text:
+          "\"You didn't touch anybody,\" Kade says, almost put out about " +
+          "it. \"A whole crew, and you just — went round.\"",
+      },
+    ],
+    choices: [
+      {
+        id: "quiet-in",
+        label: "Walk in through the open door.",
+        target: "uw-inside",
+        effects: [
+          { type: "set-flag", key: "under-waterline-entry", value: "slipped" },
+          {
+            type: "set-flag",
+            key: UNDER_WATERLINE_STAGE_FLAG,
+            value: "inside",
+          },
+        ],
+      },
+      {
+        // Being past the crossing is not the same as being committed to
+        // what is on the other side of it. The chain is still at
+        // "taken", so the diver's own conversation opens the ring again
+        // and every other road in is still on it.
+        id: "quiet-hold",
+        label: "Stand out of the light a while and look at it first.",
+        effects: [{ type: "end" }],
+      },
+    ],
+  },
+  {
+    id: "uw-spotted",
+    text:
+      "The plate carries sound the way a drum carries it, and the hand " +
+      "on the span has been listening to this crossing every night for a " +
+      "season. The lamp comes round and stops. \"On the boards!\" — and " +
+      "the shout goes out over the water and comes back off the far bank " +
+      "twice, so that by the time it has finished arriving there is " +
+      "somebody at both ends of the span and nowhere on it to be.",
+    location: "flooded-quays:walkway",
+    choices: [
+      {
+        id: "spotted-through",
+        label: "The boards are a bad place to be caught. Go forward.",
+        target: "uw-inside",
+        effects: [
+          { type: "start-combat", encounterId: "enc-quays-salvage" },
+          { type: "set-flag", key: "under-waterline-entry", value: "caught" },
+          {
+            type: "set-flag",
+            key: UNDER_WATERLINE_STAGE_FLAG,
+            value: "inside",
+          },
+        ],
+        reactions: ["defiance"],
+      },
+      {
+        // Back off the boards. The crew keeps the crossing and keeps
+        // being up — the alert the watch wrote is still written, so the
+        // fight this becomes later starts the same way this one would
+        // have (see alertFlag in ../stealth.ts).
+        id: "spotted-back",
+        label: "Go back the way you came and let them have the water.",
+        effects: [{ type: "end" }],
+      },
+    ],
+  },
+
   // --- Scene three, the diver's road: the settlement
   //
   // The fork, and the only place on this road that pays. Both roads

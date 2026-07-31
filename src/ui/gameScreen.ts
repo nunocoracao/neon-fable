@@ -45,7 +45,40 @@ import {
   type Interactable,
   type IsoFocusHint,
   type IsoScene,
+  type SceneWatchFrame,
+  type SceneWatchView,
+  type TilePoint,
 } from "../iso";
+import { effectiveStats } from "../inventory";
+import {
+  activeStealthZone,
+  applyLunge,
+  hasQuietHands,
+  lungeOffer,
+  recordPassed,
+  recordSpotted,
+  recordTakedown,
+  startStealth,
+  stepStealth,
+  takedownOffer,
+  tickFloat,
+  toggleCrouch,
+  type Detection,
+  type GuardView,
+  type StealthRun,
+} from "../stealth";
+import type { StealthZone } from "../data/stealth";
+import {
+  CROUCH_KEY,
+  STEALTH_ACTION_KEY,
+  crouchLabel,
+  guardEntities,
+  spottedLine,
+  stealthPrompt,
+  stealthRefusal,
+  takedownLine,
+  watchTints,
+} from "./stealthModel";
 import { settings } from "../settings";
 import { interactPrompt, shardPickupToast } from "./format";
 import { createCodexScreen } from "./codexScreen";
@@ -109,6 +142,9 @@ type OverlayKind =
 
 /** Flag marking that this playthrough's ending is already in meta-progress. */
 const META_RECORDED_FLAG = "meta-recorded";
+
+/** How long the being-seen wash is held before it is taken away. */
+const ALERT_FLASH_MS = 320;
 
 /**
  * Writes a finished run into meta-progress (endings codex, NG+ unlock,
@@ -184,6 +220,25 @@ export function createGameScreen(options: GameScreenOptions): Screen {
    * remounts the screen, which hands the clock back to the map.
    */
   let storyPhase: DayPhaseId | null = null;
+  /**
+   * The watch on this map, if there is one, and this visit's crossing.
+   * Both are resolved once at mount and dropped the moment the crossing
+   * settles — a zone that has been got past or been seen is over, and
+   * the story node the settlement opens is what carries it from there.
+   */
+  let stealthZone: StealthZone | null = null;
+  let stealthRun: StealthRun | null = null;
+  /** Frame clock the crossing started on, and the last frame seen. */
+  let stealthOrigin: number | null = null;
+  let stealthLastMs = 0;
+  let stealthViews: readonly GuardView[] = [];
+  /** Where the scene last reported the player standing. */
+  let stealthPlayerTile: TilePoint | null = null;
+  /** The two lines that compete for the bottom of the screen. */
+  let stealthPromptText: string | null = null;
+  let focusPromptText: string | null = null;
+  let alertFlash: HTMLElement | null = null;
+  let alertFlashTimer: ReturnType<typeof setTimeout> | null = null;
 
   // "main-menu" is the fresh-game sentinel, not a content error.
   if (session.state.location !== "main-menu" && !getMap(session.state.location)) {
@@ -206,6 +261,9 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       map.name,
       `HP ${player.hp}/${player.derived.maxHp}`,
       `${credits} cr`,
+      // Only while somebody is watching: on an ordinary street there is
+      // nothing for a crouch to be quieter than.
+      ...(stealthRun ? [crouchLabel(stealthRun.crouched)] : []),
     ]) {
       const span = document.createElement("span");
       span.textContent = text;
@@ -241,8 +299,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
    * wording.
    */
   function showFocusHint(hint: IsoFocusHint | null): void {
-    if (!promptEl) return;
-    const text = hint
+    focusPromptText = hint
       ? interactPrompt({
           label: hint.label,
           spriteId: hint.spriteId,
@@ -253,6 +310,17 @@ export function createGameScreen(options: GameScreenOptions): Screen {
             : undefined,
         })
       : null;
+    renderPrompt();
+  }
+
+  /**
+   * One line at the bottom of the screen, and the quiet option wins it:
+   * a neck within reach or a gap under your feet is a more urgent offer
+   * than the door you happen to be stood beside.
+   */
+  function renderPrompt(): void {
+    if (!promptEl) return;
+    const text = stealthPromptText ?? focusPromptText;
     if (text === null) {
       promptEl.classList.remove("nf-interact-prompt-visible");
       return;
@@ -566,6 +634,192 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     );
   }
 
+  // --- The watch -----------------------------------------------------
+  //
+  // Everything a crossing needs happens inside one callback the scene
+  // makes once a frame: step the patrols, ask whether anybody has the
+  // player, and hand back the figures and the tinted ground to draw.
+  // The rules are all in src/stealth/; what is here is the join to a
+  // canvas, a keyboard, and the run.
+
+  /** Stats the crossing reads — the body's own, never the dialogue's. */
+  function playerReflexes(): number {
+    return effectiveStats(session.state.player).reflexes;
+  }
+
+  function watchFrame(frame: SceneWatchFrame): SceneWatchView | null {
+    const zone = stealthZone;
+    const run = stealthRun;
+    if (!zone || !run) return null;
+    if (stealthOrigin === null) {
+      stealthOrigin = frame.timeMs;
+      stealthLastMs = frame.timeMs;
+    }
+    const delta = frame.timeMs - stealthLastMs;
+    stealthLastMs = frame.timeMs;
+    // Nobody walks a beat while a panel is up: the origin slides
+    // forward by the paused time, so a conversation (or an inventory,
+    // or being caught) never advances a patrol behind the player's back.
+    if (overlay) stealthOrigin += delta;
+
+    stealthPlayerTile = frame.playerTile;
+    const result = stepStealth(map, zone, run, {
+      tick: tickFloat(frame.timeMs - stealthOrigin),
+      playerTile: frame.playerTile,
+      flags: session.state.flags,
+    });
+    stealthRun = result.run;
+    stealthViews = result.views;
+    refreshStealthPrompt();
+
+    if (result.event?.kind === "passed") {
+      settleCrossing(zone, "passed");
+      return null;
+    }
+    if (result.event?.kind === "spotted") {
+      settleCrossing(zone, "spotted", result.event.detection);
+      return null;
+    }
+    return {
+      entities: guardEntities(result.views),
+      tints: watchTints(result.views, { crouched: result.run.crouched }),
+    };
+  }
+
+  /**
+   * How a crossing ends, both ways: the run records its own outcome,
+   * the watch comes off the map, and the story node takes over. What
+   * the *story* takes from either — the aisle being yours, the crew
+   * coming up the walkway — is written by that node's own effects,
+   * which is what keeps flag-writing in content.
+   */
+  function settleCrossing(
+    zone: StealthZone,
+    outcome: "passed" | "spotted",
+    detection?: Detection,
+  ): void {
+    stealthZone = null;
+    stealthRun = null;
+    stealthViews = [];
+    stealthPromptText = null;
+    renderPrompt();
+    // Back on your feet: there is nothing left on this map to be quiet
+    // for, and walking at half pace round it would be a punishment for
+    // having crossed it.
+    scene?.setCrouched(false);
+    refreshHud();
+    if (outcome === "passed") {
+      session.state = {
+        ...session.state,
+        flags: recordPassed(session.state.flags, zone),
+      };
+      autosave(session);
+      audio.play("ui-confirm");
+      openDialogue(zone.goal.nodeId);
+      return;
+    }
+    session.state = {
+      ...session.state,
+      flags: recordSpotted(session.state.flags, zone),
+    };
+    audio.play("spotted");
+    flashAlert();
+    if (detection) showToast(spottedLine(detection));
+    openDialogue(zone.spottedNodeId);
+  }
+
+  /**
+   * The red wash on being seen: a flat tint held for a third of a
+   * second and then taken away.
+   *
+   * Deliberately not an animation. A fade would be zeroed by the
+   * reduced-motion kill switch in theme.css and the whole cue would
+   * vanish for exactly the players who most need a fight starting to be
+   * unmissable; a tint that is simply there and then not is the same
+   * cue at every motion setting.
+   */
+  function flashAlert(): void {
+    if (!root) return;
+    alertFlash?.remove();
+    const flash = document.createElement("div");
+    flash.className = "nf-alert-flash";
+    flash.setAttribute("aria-hidden", "true");
+    root.append(flash);
+    alertFlash = flash;
+    if (alertFlashTimer) clearTimeout(alertFlashTimer);
+    alertFlashTimer = setTimeout(() => {
+      flash.remove();
+      if (alertFlash === flash) alertFlash = null;
+    }, ALERT_FLASH_MS);
+  }
+
+  /** The quiet option under the player's feet, if there is one. */
+  function stealthOffers() {
+    const zone = stealthZone;
+    const run = stealthRun;
+    const tile = stealthPlayerTile;
+    if (!zone || !run || !tile) return null;
+    return {
+      zone,
+      run,
+      tile,
+      takedown: takedownOffer(zone, run, stealthViews, tile, {
+        flags: session.state.flags,
+        quiet: hasQuietHands(session.state),
+      }),
+      lunge: lungeOffer(zone, run, tile, playerReflexes()),
+    };
+  }
+
+  function refreshStealthPrompt(): void {
+    const offers = stealthOffers();
+    const next = offers ? stealthPrompt(offers.takedown, offers.lunge) : null;
+    if (next === stealthPromptText) return;
+    stealthPromptText = next;
+    renderPrompt();
+  }
+
+  /**
+   * One key for whichever quiet option is on offer: a hand over a mouth
+   * if there is a neck in reach, a dash if there is a gap under your
+   * feet, and a word about why not if there is neither.
+   */
+  function takeStealthAction(): void {
+    const offers = stealthOffers();
+    if (!offers) return;
+    if (offers.takedown.ok) {
+      const guard = offers.takedown.guard;
+      session.state = {
+        ...session.state,
+        flags: recordTakedown(session.state.flags, offers.zone, guard.guardId),
+      };
+      audio.play("takedown");
+      showToast(takedownLine(guard));
+      refreshStealthPrompt();
+      return;
+    }
+    if (offers.lunge.ok) {
+      stealthRun = applyLunge(offers.run);
+      scene?.placePlayer(offers.lunge.pinch.to);
+      audio.play("interact");
+      refreshStealthPrompt();
+      return;
+    }
+    const refusal = stealthRefusal(offers.takedown, offers.lunge);
+    if (refusal) {
+      audio.play("ui-cancel");
+      showToast(refusal);
+    }
+  }
+
+  function toggleStealthCrouch(): void {
+    if (!stealthRun) return;
+    stealthRun = toggleCrouch(stealthRun);
+    scene?.setCrouched(stealthRun.crouched);
+    audio.play("ui-click");
+    refreshHud();
+  }
+
   function openInventory(): void {
     openOverlay(
       "inventory",
@@ -732,6 +986,16 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       if (overlay?.kind === "advance") closeOverlay();
       else openAdvancement();
     }
+    // The two crossing keys. Both are dead on a map nobody is watching,
+    // and both stand back while a panel owns the keyboard.
+    if (event.key.toLowerCase() === CROUCH_KEY) {
+      if (ownsKeyboard() || overlay) return;
+      toggleStealthCrouch();
+    }
+    if (event.key.toLowerCase() === STEALTH_ACTION_KEY) {
+      if (ownsKeyboard() || overlay) return;
+      takeStealthAction();
+    }
     if (event.key === "m" || event.key === "M") {
       // The minimap sits under whatever overlay is open, so collapsing
       // it mid-dialogue would be a change you cannot see; leave it be.
@@ -840,6 +1104,17 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       promptEl.className = "nf-interact-prompt";
       root.append(promptEl);
 
+      // Whether anybody is standing between the player and the far side
+      // of this map. Resolved once, here, off the run: a zone whose
+      // fight has been had, or whose scene has already been settled, is
+      // simply not posted (see src/stealth/zone.ts).
+      stealthZone = activeStealthZone(session.state, map.id);
+      stealthRun = stealthZone ? startStealth(stealthZone) : null;
+      stealthOrigin = null;
+      stealthViews = [];
+      stealthPlayerTile = null;
+      stealthPromptText = null;
+
       refreshHud();
 
       const arrival =
@@ -866,6 +1141,9 @@ export function createGameScreen(options: GameScreenOptions): Screen {
           entity: sceneSpriteSource(),
         }),
         onFocus: showFocusHint,
+        // Whoever is watching this map tonight; null on every map that
+        // has nobody on it, which is most of them.
+        watch: watchFrame,
         onView: (view) => minimap?.update(view),
         onSpeakers: (frame) => barkLayer?.update(frame),
         onInteract(event): void {
@@ -924,6 +1202,17 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       window.removeEventListener("keydown", onKeyDown);
       closeOverlay();
       if (toastTimer) clearTimeout(toastTimer);
+      if (alertFlashTimer) clearTimeout(alertFlashTimer);
+      alertFlash?.remove();
+      alertFlash = null;
+      // A crossing is a visit, not a save: leaving the map ends it, and
+      // walking back on starts a fresh one at whatever tick the clock
+      // has reached. What persists — who was stood down, how it
+      // settled — is in the run's flags.
+      stealthZone = null;
+      stealthRun = null;
+      stealthViews = [];
+      stealthPlayerTile = null;
       // A transition that has already swapped is now covering the new
       // screen and must be left to finish; one that has not (a load, a
       // quit) never happens at all.

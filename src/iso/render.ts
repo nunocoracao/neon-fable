@@ -20,6 +20,13 @@ import {
 import type { EntitySpriteId, Sprite, SpriteProvider } from "./sprites";
 import { setPieceGlows, type SetPieceDraw } from "./setpiece";
 import { tickerWindow, type TickerDraw } from "./ticker";
+import {
+  DEFAULT_TELEGRAPH_PALETTE,
+  TELEGRAPH_PAINT_ORDER,
+  telegraphStyle,
+  type TelegraphPaletteId,
+  type TelegraphTintId,
+} from "./telegraphPalette";
 import { tileKey, type WeatherView } from "./weather";
 import { paintRainStreaks, paintSplashes } from "./weatherPaint";
 
@@ -30,6 +37,47 @@ export interface SceneEntity {
   facing: Facing;
   moving: boolean;
 }
+
+/**
+ * One tile the scene tints, in a telegraph role. The palette is the
+ * combat grid's (see ./telegraphPalette.ts) and so is the meaning of
+ * each role, which is the point: ground a patrol is holding reads on a
+ * street exactly the way ground an ability will land on reads in an
+ * arena, in the same colours, with the same fill and dash separating
+ * them for anybody who cannot use the colours.
+ */
+export interface SceneTint {
+  x: number;
+  y: number;
+  tint: TelegraphTintId;
+}
+
+/**
+ * What the scene reports to whoever is watching the map this frame:
+ * where the player is stood, and the clock the report is made against.
+ * Shaped exactly like the speaker frame — the scene knows positions,
+ * and what any of them *mean* is the shell's business.
+ */
+export interface SceneWatchFrame {
+  /** The scene's real clock in milliseconds, reduced motion or not. */
+  timeMs: number;
+  playerTile: TilePoint;
+  /** Whether the player is mid-walk. */
+  moving: boolean;
+}
+
+/**
+ * What the shell hands back for the scene to draw: figures that are not
+ * on the map's own furniture (a patrol), and the ground they are
+ * holding. Null means there is nothing watching this map, which is
+ * every map most of the time.
+ */
+export interface SceneWatchView {
+  entities: readonly SceneEntity[];
+  tints: readonly SceneTint[];
+}
+
+export type SceneWatchSource = (frame: SceneWatchFrame) => SceneWatchView | null;
 
 /** An interactable part-way through its way-opening art this frame. */
 export interface OpeningView {
@@ -105,6 +153,14 @@ export interface RenderView {
    * than anything re-baked per frame.
    */
   tickers?: readonly TickerDraw[];
+  /**
+   * Tinted ground: the tiles a patrol is holding, drawn under every
+   * object on the map. Batched one fill and one stroke per role, in the
+   * palette's own paint order, exactly as the arena does it.
+   */
+  tints?: readonly SceneTint[];
+  /** Which telegraph palette the tints are painted from. */
+  telegraphPalette?: TelegraphPaletteId;
 }
 
 interface SceneDrawable extends Drawable {
@@ -190,6 +246,9 @@ export function renderScene(
 
   // Splashes land on the ground, under the highlights and every object.
   if (weather) paintSplashes(ctx, sprites, weather, timeMs, scale);
+
+  // Ground somebody else is holding, under everything that stands on it.
+  paintTints(ctx, view.tints ?? [], view.telegraphPalette ?? DEFAULT_TELEGRAPH_PALETTE);
 
   // Exit affordance: every interactable that leads off the map gets the
   // same lit ring laid in its tile, so a way out reads identically
@@ -469,19 +528,63 @@ function drawLabelChip(
   ctx.fillText(text, left + width / 2, top + CHIP_HEIGHT - CHIP_BASELINE);
 }
 
+/**
+ * The tint layer: every tinted tile as a diamond on the ground, one
+ * batch per role — all of a role's diamonds in a single path taking a
+ * single fill and a single stroke, so a whole vision cone costs two
+ * draws rather than two per tile. Paint order is the palette's, so the
+ * context roles never bury the hot ones sitting inside them.
+ */
+function paintTints(
+  ctx: CanvasRenderingContext2D,
+  tints: readonly SceneTint[],
+  palette: TelegraphPaletteId,
+): void {
+  if (tints.length === 0) return;
+  const byTint = new Map<TelegraphTintId, SceneTint[]>();
+  for (const tile of tints) {
+    const batch = byTint.get(tile.tint);
+    if (batch) batch.push(tile);
+    else byTint.set(tile.tint, [tile]);
+  }
+  for (const tint of TELEGRAPH_PAINT_ORDER) {
+    const batch = byTint.get(tint);
+    if (!batch || batch.length === 0) continue;
+    const style = telegraphStyle(tint, palette);
+    ctx.beginPath();
+    for (const tile of batch) traceDiamond(ctx, tile);
+    if (style.fill) {
+      ctx.fillStyle = style.fill;
+      ctx.fill();
+    }
+    if (style.stroke) {
+      ctx.strokeStyle = style.stroke;
+      ctx.lineWidth = style.lineWidth;
+      ctx.setLineDash([...style.dash]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+}
+
+/** Adds one tile's diamond to the current path. */
+function traceDiamond(ctx: CanvasRenderingContext2D, tile: TilePoint): void {
+  const { sx, sy } = worldToScreen(tile.x, tile.y);
+  ctx.moveTo(sx, sy - TILE_H / 2);
+  ctx.lineTo(sx + TILE_W / 2, sy);
+  ctx.lineTo(sx, sy + TILE_H / 2);
+  ctx.lineTo(sx - TILE_W / 2, sy);
+  ctx.closePath();
+}
+
 function drawDiamond(
   ctx: CanvasRenderingContext2D,
   tile: TilePoint,
   fill: string | null,
   stroke: string | null,
 ): void {
-  const { sx, sy } = worldToScreen(tile.x, tile.y);
   ctx.beginPath();
-  ctx.moveTo(sx, sy - TILE_H / 2);
-  ctx.lineTo(sx + TILE_W / 2, sy);
-  ctx.lineTo(sx, sy + TILE_H / 2);
-  ctx.lineTo(sx - TILE_W / 2, sy);
-  ctx.closePath();
+  traceDiamond(ctx, tile);
   if (fill) {
     ctx.fillStyle = fill;
     ctx.fill();

@@ -1,5 +1,6 @@
 import { characterPerks, perkIdsOf } from "../character/perks";
 import { liveSpawns, requireEncounter, spawnLookIndex } from "../data/encounters";
+import { ALERTED_INITIATIVE_PENALTY, alertFlag } from "../data/stealth";
 import { requireEnemy } from "../data/enemies";
 import { requireItem } from "../data/items";
 import {
@@ -73,6 +74,15 @@ export function createCombat(
   // Static exists, it simply orders a body that is a step slow.
   const staticBand = staticEffects(state.player, resolve);
 
+  // And what being seen coming costs. A fight a patrol started is the
+  // same fight with the player a place further down the queue: the
+  // penalty folds into the one initiative shift the combatant already
+  // carries, so the engine learns nothing about stealth either — it
+  // orders a body that is a step slow, for one more reason.
+  const alerted = state.flags[alertFlag(encounterId)] === true;
+  const initiativePenalty =
+    staticBand.initiativePenalty + (alerted ? ALERTED_INITIATIVE_PENALTY : 0);
+
   // And what the habits are worth, folded once here for the same
   // reason: the engine reads figures off the combatant, never a perk
   // id. A runner who has taken none carries no record at all.
@@ -89,9 +99,7 @@ export function createCombat(
     weapon: playerWeapon(state, resolve),
     armor: armorValue(state.player, resolve),
     abilityIds: grantedAbilityIds(state.player, resolve),
-    ...(staticBand.initiativePenalty > 0
-      ? { initiativeMod: -staticBand.initiativePenalty }
-      : {}),
+    ...(initiativePenalty > 0 ? { initiativeMod: -initiativePenalty } : {}),
     ...(hasPerks ? { perks } : {}),
     position: { ...encounter.playerStart },
     boosts: [],

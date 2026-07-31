@@ -40,6 +40,15 @@ entry that drops you on the hub map without a character).
   click one to walk over and trigger its dialogue or fight. Ways out of
   the map carry a lit ring and a label naming where they lead; taking
   one plays the door open and fades through the destination's name.
+- **Going quietly** — some floors are being walked by somebody. Where
+  they are looking is tinted on the ground, and standing on it when the
+  watch turns starts the fight with them already moving. `X` drops you
+  into a crouch: slower, but footsteps stop carrying to the tiles beside
+  a guard. `F` takes whichever quiet option is under your feet — a hand
+  over the mouth of somebody who has not seen you (once, or twice if
+  you are wearing the right chrome), or a dash across a gap if you are
+  quick enough. Getting to the far side unseen skips the fight
+  entirely; walking up and starting it is still a route.
 - **Dialogue** — click a choice, press its number key (1–9), or press
   Enter to take the focused choice. Greyed-out choices show the
   requirement you're missing in brackets, e.g. `[Tech 6]`. Choices have
@@ -135,6 +144,7 @@ src/
   inventory/   # items, equipment slots, cyber enhancements
   iso/         # isometric renderer, tilemap, sprites, input picking
   minigames/   # self-contained puzzles: Breach (the node lattice)
+  stealth/     # patrols, vision cones, and the quiet way past a fight
   world/       # reactive world state: conditions, placement, news, stock
   economy/     # what things are worth: prices, haggling, vendor ledgers
   ui/          # DOM screens and components
@@ -207,6 +217,19 @@ plus content from `src/data/`); rendering and DOM code stay thin.
   `optic-scan` / `machine-cant` gear channels buy buffer and sight,
   `settleBreach` records the outcome under `breach:<id>` and pays the
   award exactly once.
+- **Stealth** (`src/stealth/`) — the quiet way past two of the game's
+  fights. Guards walk data-defined patrols (`patrol.ts`, one tile and
+  facing per tick, indexed modulo the beat's own length so where a
+  patrol is at tick 10,000 is where it is at tick 4) behind vision cones
+  derived from range, spread, and what the walls leave of them
+  (`vision.ts`). Detection is asked at tick boundaries only
+  (`detect.ts`), which is what makes timing a crossing a decision:
+  sight always catches, footsteps only catch somebody standing up, and a
+  lunge at a pinch point buys one tick of not being looked at. The whole
+  layer is pure — the shell in `src/ui/gameScreen.ts` owns the clock,
+  the keys (`X` crouch, `F` for whichever quiet option is under your
+  feet), and the tinted ground, which is painted from the combat grid's
+  own telegraph palette.
 - **Iso scene** (`src/iso/`) — 2:1 diamond tiles, painter's-order depth
   sort, BFS pathfinding, and a combat arena scene with walk tweens, HP
   bars, and floating damage text. Presentation only: it never imports
@@ -333,7 +356,8 @@ every spawn's block fits its arena with nobody inside anyone.
 A spawn may also carry `absentWhenFlag`: while that flag holds true the
 body simply does not turn up, which is how work done *before* a fight
 shows up inside one (today: a Breach run that takes a drone off the
-executive floor's muster roster). The rule is deliberately narrow — a
+executive floor's muster roster, and a silent takedown on a patrolling
+guard). The rule is deliberately narrow — a
 spawn can be absent, never added, moved, or re-statted — so an
 encounter with the flag unset is byte-for-byte the fight it always was,
 and everybody who does turn up keeps their authored slot, so the faces
@@ -372,6 +396,50 @@ Two things a new terminal has to get right, both linted in
   salvage cage still comes up for a back or a set of gills, and the
   Cordon precedent still lies on the Ventworks floor for anybody with
   the Tech to read it where it lies.
+
+### Stealth zones (`src/data/stealth.ts`)
+
+A `StealthZone` is a **second route through a fight the game already
+had**, never a replacement for one: the encounter's own scene still
+starts it the way it always did, and the zone only adds a way to arrive
+on the far side without that scene ever being opened. Being seen is not
+a failure either — it starts the same fight with `alertFlag` written,
+which costs the player `ALERTED_INITIATIVE_PENALTY` places in the
+initiative order at setup and nothing else.
+
+A zone declares the map it is posted on, the `encounterId` it is an
+alternative to, `requires` (the state of the run that puts anybody
+there), the `bounds` the watch applies inside, its `guards`, optional
+`pinches`, a `goal` (tiles + the story node reaching them opens), and a
+`spottedNodeId`. Both nodes are opened by the *map* rather than by a
+choice, so each has to be listed in its arc's `entryNodeIds` or
+`validateArc` reports it as an orphan.
+
+A `StealthGuard` names the `spawnSlot` it occupies in that encounter —
+the archetype is authored in both places and `stealth.test.ts` pins them
+to each other, while *which face* the guard wears is never authored, it
+is the slot's own (`spawnLookIndex`), so the body on the walkway is the
+body the fight opens with. Its `route` is axis-aligned waypoints with
+optional `dwell` and `facing`; `vision` is a `range` and a `spread`
+(0 is a corridor's straight line, 1 opens the full quarter). Guards
+declaring `takedown: false` are walked around rather than stood down.
+
+Rules worth knowing before authoring one, all linted:
+
+- **A takedown writes the spawn's own `absentWhenFlag`.** One string
+  joins the watch to the fight, so the two can never disagree about who
+  is still standing — and the allowance (`takedowns`, `quietTakedowns`
+  behind `SILENT_TAKEDOWN_TAG` gear) may never reach the number of
+  bodies the encounter has, because a fight with nobody in it cannot be
+  walked into.
+- **A crossing has to be crossable.** `stealth.test.ts` searches
+  (tile × tick) for a route that is never seen — crouched, one tile per
+  tick — against the map *as it is dressed at runtime*, memory shards
+  included. A patrol re-timed into a wall fails there.
+- **Sight is absolute, sound is the player's.** A tile inside a cone
+  catches anybody standing on it at a tick boundary; the ring of tiles
+  around a guard only catches somebody walking, and crouching silences
+  it entirely. Timing a crossing between ticks is the whole skill.
 
 ### Abilities (`src/data/abilities.ts`)
 

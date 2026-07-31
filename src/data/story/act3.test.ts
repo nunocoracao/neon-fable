@@ -379,6 +379,10 @@ describe("act3 arc shape", () => {
       "a3-exec-floor",
       "a3-exec-checkpoint",
       "a3-exec-cleared",
+      // The two ends of the floor's watch (src/data/stealth.ts): the
+      // fourth way past the detail, and being caught trying it.
+      "a3-exec-slipped",
+      "a3-exec-spotted",
       "a3-exec-desk",
       "a3-exec-sheet",
       "a3-exec-minutes",

@@ -34,6 +34,11 @@ export const quaysArc: StoryArc = {
   id: "flooded-quays",
   title: "The Flooded Quays",
   entryNodeId: "fq-lock",
+  // The two beats the basin itself opens: the ends of the crossing out
+  // to the bonded store, reached by walking rather than by choosing
+  // (see the store-crossing zone in ../stealth.ts). Doorways, so
+  // reachability is seeded from them like the streets arc's are.
+  entryNodeIds: ["uw-quiet", "uw-spotted"],
   nodes: [
     {
       id: "fq-lock",

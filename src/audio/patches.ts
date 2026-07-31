@@ -51,6 +51,9 @@ export const SOUND_IDS = [
   // Exploration
   "footstep",
   "interact",
+  // Stealth
+  "takedown",
+  "spotted",
   // Combat
   "attack-swing",
   "attack-hit-light",
@@ -192,6 +195,23 @@ export const SOUND_PATCHES: Record<SoundId, SynthPatch> = {
     layers: [
       { kind: "tone", wave: "square", freq: 660, duration: 0.05, gain: 0.14 },
       { kind: "tone", wave: "square", freq: 440, delay: 0.06, duration: 0.06, gain: 0.14 },
+    ],
+  },
+  // A hand over a mouth: a muffled thump and nothing else. Quiet on
+  // purpose — the whole point of the move is that it is not heard.
+  takedown: {
+    layers: [
+      { kind: "noise", duration: 0.09, gain: 0.09, filter: { type: "lowpass", freq: 420 } },
+      { kind: "tone", wave: "sine", freq: 165, freqEnd: 82, duration: 0.16, gain: 0.12 },
+    ],
+  },
+  // The opposite: two hard rising notes, the sound of somebody else
+  // having decided something about you.
+  spotted: {
+    layers: [
+      { kind: "tone", wave: "square", freq: 523, duration: 0.1, gain: 0.2 },
+      { kind: "tone", wave: "square", freq: 784, delay: 0.1, duration: 0.18, gain: 0.2 },
+      { kind: "noise", delay: 0.1, duration: 0.2, gain: 0.1, filter: { type: "highpass", freq: 1800 } },
     ],
   },
   install: {

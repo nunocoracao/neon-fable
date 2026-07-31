@@ -49,7 +49,13 @@ import type {
 } from "./events";
 import type { MinimapView } from "./minimap";
 import { findPath, findPathToAdjacent } from "./path";
-import { renderScene, type OpeningView, type RenderView } from "./render";
+import {
+  renderScene,
+  type OpeningView,
+  type RenderView,
+  type SceneWatchSource,
+  type SceneWatchView,
+} from "./render";
 import { collectSetPieces } from "./setpiece";
 import { collectTickers } from "./ticker";
 import { doorCycleMs, doorOpen01, doorTiming } from "./transition";
@@ -122,6 +128,15 @@ export interface IsoSceneOptions {
    * no entry show nothing.
    */
   newsStrips?: Readonly<Record<string, readonly string[]>>;
+  /**
+   * Whoever is watching this map. Called once a frame with where the
+   * player stands, and answers with the figures to draw and the ground
+   * they are holding — or null when nothing is watching, which is every
+   * map most of the time. Same split as barks and the news: the scene
+   * positions and paints, and what a patrol *means* (see
+   * src/stealth/) never enters this layer.
+   */
+  watch?: SceneWatchSource;
 }
 
 export interface IsoScene {
@@ -145,12 +160,27 @@ export interface IsoScene {
    * cue to skip the door beat of a transition.
    */
   playOpening(interactableId: string): boolean;
+  /**
+   * Crouch-walk, or stand back up. The only thing it changes here is
+   * the pace (CROUCH_SPEED_SCALE); what crouching is *worth* is a rule
+   * in src/stealth/detect.ts, which this layer knows nothing about.
+   */
+  setCrouched(crouched: boolean): void;
+  /**
+   * Put the player on a tile immediately, dropping whatever walk was in
+   * flight — a dash across a gap rather than a step across it. The
+   * caller is responsible for the tile being somewhere a body can
+   * stand; nothing is pathed and nothing is triggered on arrival.
+   */
+  placePlayer(tile: TilePoint): void;
   /** Stop the animation loop and remove all listeners. */
   destroy(): void;
 }
 
 /** Tiles per second the player walks. */
 const WALK_SPEED = 3.5;
+/** What crouch-walking multiplies that by; see IsoScene.setCrouched. */
+const CROUCH_WALK_SCALE = 0.55;
 /**
  * World-screen pixels above a tile's center that a speaker's chip is
  * anchored at: clear of the head of a 48-pixel-tall figure standing on
@@ -207,6 +237,8 @@ export function createIsoScene(
   let focus: FocusedInteractable | null = null;
   /** Last focus reported to the shell, so the prompt only changes on change. */
   let focusHintSent: IsoFocusHint | null = null;
+  /** Crouch-walking: slower on the ground, and quieter in the rules. */
+  let crouched = false;
   /** Ambient pedestrians dressing the map; scenery only, never clicked. */
   let crowd: AmbientCrowd =
     options.ambient === false ? { pedestrians: [], zones: new Map() } : createCrowd(map);
@@ -426,7 +458,7 @@ export function createIsoScene(
 
   function stepWalk(dt: number): void {
     if (walkQueue.length === 0) return;
-    walkProgress += WALK_SPEED * dt;
+    walkProgress += WALK_SPEED * (crouched ? CROUCH_WALK_SCALE : 1) * dt;
     while (walkProgress >= 1 && walkQueue.length > 0) {
       walkProgress -= 1;
       playerTile = walkQueue.shift() ?? playerTile;
@@ -626,6 +658,15 @@ export function createIsoScene(
     const tickers = collectTickers(map, newsStrips, time, {
       motion: !reducedMotion,
     });
+    // Whoever is watching the map, asked against the real clock: a
+    // patrol is not scenery, and freezing it for reduced motion would
+    // freeze a rule rather than an effect.
+    const watch: SceneWatchView | null =
+      options.watch?.({
+        timeMs: time,
+        playerTile,
+        moving: walkQueue.length > 0,
+      }) ?? null;
     const view: RenderView = {
       map,
       camera,
@@ -658,7 +699,12 @@ export function createIsoScene(
             ]
           : []),
         ...crowdEntities(crowd),
+        // A patrol rides the same depth-sorted list as everybody else,
+        // so a guard walks in front of and behind the map's furniture
+        // with no patrol-specific depth code anywhere.
+        ...(watch?.entities ?? []),
       ],
+      tints: watch?.tints,
       // Reduced motion freezes the animation clock: neon flicker, water
       // shimmer, and marker pulses go still while movement (driven by
       // positions, not the clock) stays fully visible.
@@ -752,6 +798,20 @@ export function createIsoScene(
       if (next === dayPhase) return;
       dayPhase = next;
       sprites.setDayPhase?.(next);
+    },
+
+    setCrouched(next: boolean): void {
+      crouched = next;
+    },
+
+    placePlayer(tile: TilePoint): void {
+      const facing = facingFromDelta(tile.x - playerTile.x, tile.y - playerTile.y);
+      if (facing) playerFacing = facing;
+      walkQueue = [];
+      walkProgress = 0;
+      pendingInteractable = null;
+      playerTile = { x: tile.x, y: tile.y };
+      playerPos = { x: tile.x, y: tile.y };
     },
 
     playOpening(interactableId: string): boolean {
