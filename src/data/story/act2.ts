@@ -18,6 +18,10 @@ import type { StoryArc } from "../../narrative/types";
  * Branch bookkeeping: the opening taken sets a2-approach ("court" |
  * "voss" | "lone"), which keys the climax variant at the Cordon core;
  * gate2-route records how the player got past the Exchange perimeter.
+ * The coolant vault also carries the crew's own fault line — with both
+ * companions recruited, vent-vault-call records whose read of a dead
+ * crew's lockers the player backed, and moves the two loyalties in
+ * opposite directions.
  * Act 1 allies materially help (the Court's tunnel, Voss's writ and
  * retainer), and wanted-by-auric / betrayed-* / sable-burned all come
  * back to bite in the lone and Voss openings.
@@ -1009,6 +1013,140 @@ export const act2Arc: StoryArc = {
           requirements: [{ type: "stat", stat: "tech", value: 6 }],
           ifUnavailable: "disabled",
           effects: [{ type: "add-item", itemId: "wpn-spindle-projector" }],
+        },
+        {
+          id: "crew-split",
+          label: "Behind you, the crew have stopped agreeing.",
+          target: "a2-vent-split",
+          // Both of them, whichever one you brought: the argument is
+          // the beat, so the one on the bench came anyway.
+          requirements: [
+            { type: "companion", companionId: "vesper", status: "recruited" },
+            { type: "companion", companionId: "sill", status: "recruited" },
+          ],
+        },
+      ],
+    },
+    // ------------------------------------------------------------------
+    // The vault, and the crew's own fault line
+    //
+    // The one beat where both companions are in the room whoever is
+    // benched, because their agendas finally touch: a dead crew's
+    // lockers are either a haul or an exhibit, and the player says
+    // which. Loyalty moves by explicit effect rather than by reaction
+    // tag — a tagged choice would only be scored by whoever happens to
+    // be out, and this call is watched by both of them.
+    //
+    // Records vent-vault-call ("salvage" | "filed" | "brokered"), which
+    // the epilogues read.
+    // ------------------------------------------------------------------
+    {
+      id: "a2-vent-split",
+      text:
+        "Kade has three of the tagged lockers open before you turn " +
+        "round, and she is not being quiet about it: cable, a pump " +
+        "head, a torque driver worth a month. Sill is in the vault " +
+        "doorway with the slate against his chest, and he is not coming " +
+        "any further in. \"Every one of these has a name chalked on " +
+        "it,\" he says. \"Those names are on the exit-processing roster. " +
+        "This room is the only place both lists exist.\" — \"This room " +
+        "is under forty hours of air,\" Kade says, without looking up. " +
+        "\"They're gone, Deacon. This is what's left of them and it " +
+        "should go to people who are still breathing.\"",
+      location: "exchange:coolant-vault",
+      choices: [
+        {
+          id: "split-strip",
+          label: "\"Strip it. Every hour we spend here is an hour of air.\"",
+          target: "a2-vent-split-strip",
+          effects: [
+            { type: "set-flag", key: "vent-vault-call", value: "salvage" },
+            { type: "companion-loyalty", companionId: "vesper", amount: 3 },
+            { type: "companion-loyalty", companionId: "sill", amount: -3 },
+          ],
+        },
+        {
+          id: "split-file",
+          label: "\"Nothing leaves this room until it's on his slate.\"",
+          target: "a2-vent-split-file",
+          effects: [
+            { type: "set-flag", key: "vent-vault-call", value: "filed" },
+            { type: "companion-loyalty", companionId: "sill", amount: 3 },
+            { type: "companion-loyalty", companionId: "vesper", amount: -3 },
+          ],
+        },
+        {
+          id: "split-broker",
+          label: "Make them do it together — logged out, signed for, carried.",
+          target: "a2-vent-split-both",
+          // Getting these two to hold the same clipboard is the hardest
+          // social thing in the chapter, and it is priced that way.
+          requirements: [{ type: "stat", stat: "cool", value: 7 }],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "set-flag", key: "vent-vault-call", value: "brokered" },
+            { type: "companion-loyalty", companionId: "vesper", amount: 1 },
+            { type: "companion-loyalty", companionId: "sill", amount: 1 },
+          ],
+        },
+      ],
+    },
+    {
+      id: "a2-vent-split-strip",
+      text:
+        "Kade has the racks cleared in eleven minutes and she is good " +
+        "enough at it that it is almost not ugly. Sill photographs what " +
+        "he can before it goes, standing in the doorway the whole time, " +
+        "and when the last locker comes off the wall he writes one line " +
+        "on the slate and closes it. \"Ninety-one statements,\" he says, " +
+        "to nobody. \"And the corroboration went out under somebody's " +
+        "arm.\" Kade shoulders the bundle and does not answer, because " +
+        "she is right too, and both of them know it.",
+      location: "exchange:coolant-vault",
+      choices: [
+        {
+          id: "strip-on",
+          label: "Get it out of here before the escort circles back.",
+          target: "a2-vent-arrival",
+        },
+      ],
+    },
+    {
+      id: "a2-vent-split-file",
+      text:
+        "It takes an hour you do not have. Sill works the wall locker by " +
+        "locker — name, serial, tag number, the roster line it matches — " +
+        "and at the end of it he has a document that will make somebody " +
+        "in the tower put a hand over their mouth. Kade stands at the " +
+        "vault mouth with her back to both of you for most of it. \"Fine,\" " +
+        "she says, once. \"It's fine. I'm just counting what a month of " +
+        "somebody's rent looks like sat on a shelf being evidence.\"",
+      location: "exchange:coolant-vault",
+      choices: [
+        {
+          id: "file-on",
+          label: "Close the vault on it and move.",
+          target: "a2-vent-arrival",
+        },
+      ],
+    },
+    {
+      id: "a2-vent-split-both",
+      text:
+        "You put it to them as a receipt: he logs a locker, she carries " +
+        "it, both names go on the line, and whatever is sold gets sold " +
+        "against a list that exists. Sill objects on procedure for four " +
+        "minutes and then starts writing faster than she can lift. Kade " +
+        "objects on principle for one, and then reads a chalked name " +
+        "aloud so he can spell it right. It is not friendship. It is two " +
+        "people agreeing to be witnesses to each other, which on this " +
+        "floor tonight is very nearly the same thing.",
+      location: "exchange:coolant-vault",
+      choices: [
+        {
+          id: "both-on",
+          label: "Take the list and the load, and go.",
+          target: "a2-vent-arrival",
         },
       ],
     },

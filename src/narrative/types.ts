@@ -15,6 +15,7 @@ import type { FlagValue } from "../state/flags";
 export type Requirement =
   | FlagEqualsRequirement
   | FlagAtLeastRequirement
+  | FlagUnsetRequirement
   | StatRequirement
   | ItemRequirement
   | EnhancementRequirement
@@ -35,6 +36,16 @@ export interface FlagAtLeastRequirement {
   type: "flag-at-least";
   key: string;
   value: number;
+}
+
+/**
+ * Flag must never have been written — the "not yet" gate. A scene that
+ * records its own outcome closes itself with this, which is how a beat
+ * that pays out stays a beat rather than a tap.
+ */
+export interface FlagUnsetRequirement {
+  type: "flag-unset";
+  key: string;
 }
 
 /** Effective stat (base + equipment/enhancement mods) must be >= value. */

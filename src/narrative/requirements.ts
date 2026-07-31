@@ -24,6 +24,8 @@ export function checkRequirement(
       const value = state.flags[requirement.key];
       return (typeof value === "number" ? value : 0) >= requirement.value;
     }
+    case "flag-unset":
+      return !(requirement.key in state.flags);
     case "stat":
       return (
         effectiveStats(state.player, resolve)[requirement.stat] >=

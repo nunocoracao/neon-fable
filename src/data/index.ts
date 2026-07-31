@@ -127,6 +127,7 @@ export {
   act2Arc,
   act3Arc,
   chapelArc,
+  companionsArc,
   findArcByNode,
   getArc,
   introArc,

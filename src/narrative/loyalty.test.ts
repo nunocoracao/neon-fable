@@ -21,7 +21,7 @@ import {
   witnesses,
 } from "./loyalty";
 import { checkRequirement } from "./requirements";
-import type { StoryNode } from "./types";
+import type { Choice, StoryNode } from "./types";
 
 /**
  * Loyalty: a choice says what kind of act it is, a companion says what
@@ -205,6 +205,16 @@ describe("choice reactions, through the engine", () => {
     expect(getMember(outcome.state.party, "sill")!.loyalty).toBe(
       2 + SILL.values.record!,
     );
+  });
+});
+
+describe("choiceLoyaltyChanges", () => {
+  it("answers what a choice would cost before it is taken", () => {
+    const choice: Pick<Choice, "reactions"> = { reactions: ["salvage"] };
+    expect(choiceLoyaltyChanges(crew("sill", "vesper", "sill"), choice)).toEqual([
+      { companionId: "sill", delta: SILL.values.salvage },
+    ]);
+    expect(choiceLoyaltyChanges(freshState(), choice)).toEqual([]);
   });
 });
 
