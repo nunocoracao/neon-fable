@@ -8,6 +8,7 @@ import { NAME_MAX_LENGTH } from "../character/wizard";
 import { STAT_KEYS } from "../character/stats";
 import { getAbility, type Ability } from "../data/abilities";
 import { getCompanion } from "../data/companions";
+import { getFaction } from "../data/factions";
 import { getItem } from "../data/items";
 import { UNINSTALL_TRAUMA_PER_LOAD } from "../inventory/equipment";
 import type {
@@ -18,7 +19,9 @@ import type {
 import type { CombatEvent } from "../combat/types";
 import type { InteractableSpriteId, MapInteraction } from "../iso";
 import type { LoyaltyChange } from "../narrative/loyalty";
+import { bandCrossings, type StandingChange } from "../narrative/standing";
 import type { Requirement } from "../narrative/types";
+import { bandFor, thresholdValue } from "../state/reputation";
 import type { SaveError, SaveSlot } from "../state/save";
 
 /**
@@ -73,6 +76,25 @@ export function loyaltyNote(changes: readonly LoyaltyChange[]): string {
     .join(" · ");
 }
 
+/** A faction's display name, falling back to its id off content. */
+export function factionName(factionId: string): string {
+  return getFaction(factionId)?.name ?? factionId;
+}
+
+/**
+ * What a choice just moved with the city. Only band crossings are said
+ * out loud — the number behind them is bookkeeping, and a swing too
+ * small to change what a faction calls you is not news.
+ */
+export function standingNote(changes: readonly StandingChange[]): string {
+  return bandCrossings(changes)
+    .map(
+      (change) =>
+        `${factionName(change.factionId)}: ${bandFor(change.to).label}`,
+    )
+    .join(" · ");
+}
+
 /** Short bracketed reason a gated choice is shown disabled, e.g. "[Tech 6]". */
 export function requirementLabel(
   requirement: Requirement,
@@ -114,6 +136,14 @@ export function requirementLabel(
       return requirement.mode === "at-most"
         ? `[${companionName(requirement.companionId)} has had enough]`
         : `[${companionName(requirement.companionId)} trusts you]`;
+    case "reputation": {
+      // Named in the same word the character screen shows, so a player
+      // can read a locked door against their own standing.
+      const band = bandFor(thresholdValue(requirement.value));
+      return requirement.mode === "at-most"
+        ? `[${factionName(requirement.factionId)}: ${band.label} at best]`
+        : `[${factionName(requirement.factionId)}: ${band.label}+]`;
+    }
   }
 }
 

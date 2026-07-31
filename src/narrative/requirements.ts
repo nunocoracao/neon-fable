@@ -4,6 +4,7 @@ import type { ItemResolver } from "../inventory/items";
 import { effectiveStats } from "../inventory/selectors";
 import type { GameState } from "../state/gameState";
 import { getMember, loyaltyOf } from "../state/party";
+import { canAccess } from "../state/reputation";
 import type { Requirement } from "./types";
 
 /**
@@ -57,6 +58,13 @@ export function checkRequirement(
         ? standing <= requirement.value
         : standing >= requirement.value;
     }
+    case "reputation":
+      return canAccess(
+        state.reputation,
+        requirement.factionId,
+        requirement.value,
+        requirement.mode,
+      );
   }
 }
 

@@ -7,12 +7,18 @@ import {
   companionAside,
   getNode,
   type LoyaltyChange,
+  type StandingChange,
   type StoryArc,
   type StoryNode,
 } from "../narrative";
 import { revealDelayMs, settings } from "../settings";
 import { focusFirst } from "./focus";
-import { companionName, loyaltyNote, requirementLabels } from "./format";
+import {
+  companionName,
+  loyaltyNote,
+  requirementLabels,
+  standingNote,
+} from "./format";
 import type { OverlayHandle } from "./overlay";
 import { enemyPortraitCanvas, portraitCanvas } from "./portraits";
 import type { Session } from "./session";
@@ -59,6 +65,12 @@ export function createDialogueOverlay(
    * the moment it was earned, not to the rest of the conversation.
    */
   let lastLoyalty: LoyaltyChange[] = [];
+  /**
+   * What the last choice moved with the city, shown the same way and on
+   * the same terms — except that only a band crossing is ever worth a
+   * line, so most beats say nothing (see standingNote).
+   */
+  let lastStanding: StandingChange[] = [];
 
   const el = document.createElement("div");
   el.className = "nf-overlay nf-overlay-bottom";
@@ -189,6 +201,15 @@ export function createDialogueOverlay(
       lastLoyalty = [];
     }
 
+    const standingText = standingNote(lastStanding);
+    lastStanding = [];
+    if (standingText.length > 0) {
+      const line = document.createElement("p");
+      line.className = "nf-dialogue-standing";
+      line.textContent = standingText;
+      main.append(line);
+    }
+
     const choices = document.createElement("div");
     choices.className = "nf-dialogue-choices";
     for (const presented of availableChoices(session.state, node)) {
@@ -258,6 +279,7 @@ export function createDialogueOverlay(
     const outcome = applyChoice(session.state, node, choiceId);
     session.state = outcome.state;
     lastLoyalty = outcome.loyalty;
+    lastStanding = outcome.standing;
     options.onStateChange();
     if (outcome.encounterId) {
       options.onCombat(outcome.encounterId, outcome.nextNodeId);

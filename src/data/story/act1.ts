@@ -379,6 +379,7 @@ export const act1Arc: StoryArc = {
             { type: "set-flag", key: "act1-side", value: "voss" },
             { type: "set-flag", key: "voss-deal", value: true },
           ],
+          standing: { auric: 10, court: -6 },
         },
         {
           id: "string-along",
@@ -494,6 +495,7 @@ export const act1Arc: StoryArc = {
             { type: "set-flag", key: "act1-side", value: "court" },
             { type: "set-flag", key: "court-oath", value: true },
           ],
+          standing: { court: 12 },
         },
         {
           id: "ask-doubt",
@@ -1098,6 +1100,7 @@ export const act1Arc: StoryArc = {
             { type: "set-flag", key: "act1-side", value: "voss" },
             { type: "set-flag", key: "voss-deal", value: true },
           ],
+          standing: { auric: 10, court: -6 },
         },
         {
           id: "crown-open",
@@ -1121,6 +1124,7 @@ export const act1Arc: StoryArc = {
             { type: "set-flag", key: "betrayed-court", value: true },
             { type: "travel", mapId: "cinder-plaza" },
           ],
+          standing: { court: -25 },
           reactions: ["deception"],
         },
         {
@@ -1135,6 +1139,7 @@ export const act1Arc: StoryArc = {
             { type: "set-flag", key: "betrayed-voss", value: true },
             { type: "travel", mapId: "cinder-plaza" },
           ],
+          standing: { auric: -20 },
           reactions: ["deception", "defiance"],
         },
         {
@@ -1167,6 +1172,7 @@ export const act1Arc: StoryArc = {
             { type: "set-flag", key: "act1-side", value: "court" },
             { type: "set-flag", key: "court-oath", value: true },
           ],
+          standing: { court: 12 },
         },
         {
           id: "another-way",
@@ -1274,6 +1280,7 @@ export const act1Arc: StoryArc = {
             { type: "remove-item", itemId: "msc-cracked-spike" },
             { type: "end", endingId: "act1-court" },
           ],
+          standing: { auric: -20, court: 25 },
         },
       ],
     },
@@ -1346,6 +1353,7 @@ export const act1Arc: StoryArc = {
             { type: "set-flag", key: "betrayed-voss", value: true },
             { type: "travel", mapId: "cinder-plaza" },
           ],
+          standing: { auric: -20 },
         },
       ],
     },
@@ -1402,6 +1410,7 @@ export const act1Arc: StoryArc = {
           label: "Give up where Sable keeps the ghost-copy.",
           target: "a1-end-voss",
           effects: [{ type: "set-flag", key: "sable-burned", value: true }],
+          standing: { market: -12 },
         },
       ],
     },
@@ -1429,6 +1438,7 @@ export const act1Arc: StoryArc = {
             { type: "add-item", itemId: "msc-auric-writ" },
             { type: "end", endingId: "act1-voss" },
           ],
+          standing: { auric: 25, court: -20 },
         },
       ],
     },
@@ -1552,6 +1562,7 @@ export const act1Arc: StoryArc = {
             { type: "flag-equals", key: "voss-lie-known", value: true },
           ],
           effects: [{ type: "set-flag", key: "voss-exposed", value: true }],
+          standing: { auric: -10, market: 6 },
         },
         {
           id: "raw",
@@ -1583,6 +1594,7 @@ export const act1Arc: StoryArc = {
             { type: "remove-item", itemId: "msc-ledger-ghost" },
             { type: "end", endingId: "act1-broadcast" },
           ],
+          standing: { auric: -25, court: 10, market: 12 },
         },
       ],
     },

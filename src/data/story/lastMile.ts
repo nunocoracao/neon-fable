@@ -1,3 +1,4 @@
+import { SIDE_CHAIN_STEP, scaleStanding } from "../factions";
 import type { StoryNode } from "../../narrative/types";
 
 /**
@@ -543,6 +544,12 @@ export const lastMileNodes: StoryNode[] = [
           { type: "credits", amount: 200 },
           { type: "add-item", itemId: "out-highline-rig" },
         ],
+        // Straight off the table above: the outcome declared what it
+        // was worth long before there was a scale to put it on.
+        standing: scaleStanding(
+          LAST_MILE_OUTCOMES.delivered.standing,
+          SIDE_CHAIN_STEP,
+        ),
         reactions: ["procedure"],
       },
       {
@@ -563,6 +570,10 @@ export const lastMileNodes: StoryNode[] = [
           { type: "add-item", itemId: "out-highline-rig" },
           { type: "add-item", itemId: "msc-assessment-roll" },
         ],
+        standing: scaleStanding(
+          LAST_MILE_OUTCOMES.exposed.standing,
+          SIDE_CHAIN_STEP,
+        ),
         reactions: ["record", "defiance"],
       },
       {

@@ -17,9 +17,11 @@ import {
   itemEffectLabels,
   itemSummary,
   pointBuyErrorMessage,
+  factionName,
   requirementLabel,
   requirementLabels,
   saveErrorMessage,
+  standingNote,
   signedNumber,
   slotDisplayName,
   statLabel,
@@ -129,6 +131,24 @@ describe("requirementLabel", () => {
         mode: "at-most",
       }),
     ).toBe("[Vesper Kade has had enough]");
+  });
+
+  it("names the faction and the band, in the screen's own words", () => {
+    expect(
+      requirementLabel({
+        type: "reputation",
+        factionId: "court",
+        value: "warm",
+      }),
+    ).toBe("[The Cistern Court: Warm+]");
+    expect(
+      requirementLabel({
+        type: "reputation",
+        factionId: "auric",
+        value: -70,
+        mode: "at-most",
+      }),
+    ).toBe("[The Auric Combine: Hostile at best]");
   });
 
   it("joins multiple requirements with spaces", () => {
@@ -465,5 +485,52 @@ describe("combatantDisplayNames", () => {
       "nme-rustyard-bruiser-1": "Rustyard Bruiser 1",
       "nme-rustyard-bruiser-2": "Rustyard Bruiser 2",
     });
+  });
+});
+
+describe("factionName", () => {
+  it("names a faction, and falls back to the id off content", () => {
+    expect(factionName("market")).toBe("The Vertical Market");
+    expect(factionName("longshore")).toBe("longshore");
+  });
+});
+
+describe("standingNote", () => {
+  const crossing = {
+    factionId: "court" as const,
+    delta: 8,
+    from: 14,
+    to: 22,
+    fromBand: "neutral" as const,
+    toBand: "warm" as const,
+    bandChanged: true,
+  };
+
+  it("says only what crossed a band, in the band's own word", () => {
+    expect(standingNote([crossing])).toBe("The Cistern Court: Warm");
+  });
+
+  it("says nothing about a shift that changed no word", () => {
+    expect(
+      standingNote([{ ...crossing, to: 18, toBand: "neutral", bandChanged: false }]),
+    ).toBe("");
+    expect(standingNote([])).toBe("");
+  });
+
+  it("joins several crossings on one line", () => {
+    expect(
+      standingNote([
+        crossing,
+        {
+          factionId: "auric",
+          delta: -20,
+          from: -50,
+          to: -70,
+          fromBand: "cold",
+          toBand: "hostile",
+          bandChanged: true,
+        },
+      ]),
+    ).toBe("The Cistern Court: Warm · The Auric Combine: Hostile");
   });
 });

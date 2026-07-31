@@ -3,6 +3,7 @@ import { composeCharacter, defaultAppearance } from "../character";
 import { fixtureAppearance, fixtureCharacter } from "../character/testSupport";
 import { createNewGame, GAME_STATE_VERSION } from "./gameState";
 import { setFlag } from "./flags";
+import { bandOf, emptyReputation } from "./reputation";
 import {
   SAVE_SLOTS,
   SaveError,
@@ -48,6 +49,70 @@ const V6_SAVE_STATE = {
   credits: 180,
   pendingEncounterId: null,
   rng: { seed: 987654 },
+};
+
+/**
+ * A verbatim v8 save — the last shape before factions existed — taken
+ * from a run that stood with the Cistern Court through two chapters and
+ * walked the Vertical Market's courier chain to the boards. Frozen as
+ * data: it is the evidence that a finished playthrough arrives with the
+ * standing it earned rather than at nothing.
+ */
+const V8_COURT_SAVE_STATE = {
+  version: 8,
+  player: {
+    name: "Wick",
+    backgroundId: "gutter-courier",
+    stats: { body: 7, reflexes: 8, tech: 6, cool: 6, intelligence: 6 },
+    derived: {
+      maxHp: 33,
+      initiative: 8,
+      neuralCapacity: 8,
+      meleeDamageBonus: 1,
+      rangedDamageBonus: 1,
+    },
+    hp: 33,
+    neuralLoad: 0,
+    appearance: {
+      skinTone: "warm-brown",
+      build: "lean",
+      hairStyle: "buzz",
+      hairColor: "raven",
+      eyes: "standard",
+      eyeColor: "amber",
+      brows: "straight",
+      mouth: "neutral",
+      faceDetail: "none",
+      headwear: "none",
+    },
+    equipment: {
+      weapon: "wpn-stun-baton",
+      outfit: "out-courier-slicker",
+      enhancements: {},
+    },
+    tags: ["street", "courier"],
+    advancement: { pointsSpent: 0, abilityIds: [] },
+  },
+  flags: {
+    "act1-side": "court",
+    "court-oath": true,
+    "act1-outcome": "court",
+    "ally-cistern-court": true,
+    "undertow-stopped": true,
+    "act1-complete": true,
+    "act2-outcome": "severance",
+    "undercroft-severed": true,
+    "steps-independent": true,
+    "act2-complete": true,
+    "last-mile": "exposed",
+    "last-mile-exposed": true,
+  },
+  location: "greywater-steps",
+  inventory: { stacks: [{ itemId: "con-trauma-patch", quantity: 1 }] },
+  credits: 210,
+  pendingEncounterId: null,
+  party: { members: [] },
+  rng: { seed: 4242 },
 };
 
 function makeState() {
@@ -209,6 +274,53 @@ describe("save system", () => {
       loaded.player.equipment,
     );
     expect(composed.layers.some((layer) => layer.slot === "outfit")).toBe(true);
+  });
+
+  it("gives a v6 save a party and a standing it never had", () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      "neon-fable:save:slot1",
+      JSON.stringify({ version: 6, savedAt: 777, state: V6_SAVE_STATE }),
+    );
+    const loaded = loadGame("slot1", storage);
+    // Nothing in that run's flags is worth anything to anybody, so it
+    // loads at nothing — present and empty, never undefined.
+    expect(loaded.party).toEqual({ members: [] });
+    expect(loaded.reputation).toEqual(emptyReputation());
+  });
+
+  it("derives a v8 save's standing from the outcomes it recorded", () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      "neon-fable:save:slot1",
+      JSON.stringify({ version: 8, savedAt: 999, state: V8_COURT_SAVE_STATE }),
+    );
+
+    const loaded = loadGame("slot1", storage);
+    expect(loaded.version).toBe(GAME_STATE_VERSION);
+    // court-oath 12 + Act 1 with the Court 25 + severance 25 + the
+    // boards' half of the exposed courier case 6.
+    expect(loaded.reputation.standing.court).toBe(68);
+    expect(bandOf(loaded.reputation, "court").id).toBe("trusted");
+    // Two chapters against the Combine, plus a case it wanted quiet.
+    expect(bandOf(loaded.reputation, "auric").id).toBe("cold");
+    expect(loaded.reputation.standing.market).toBe(2);
+    // Everything the save already carried is untouched.
+    expect(loaded.player.name).toBe("Wick");
+    expect(loaded.credits).toBe(210);
+    expect(loaded.flags["act2-outcome"]).toBe("severance");
+    expect(loaded.party).toEqual({ members: [] });
+  });
+
+  it("a migrated v8 save round-trips through save and load", () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      "neon-fable:save:slot1",
+      JSON.stringify({ version: 8, savedAt: 999, state: V8_COURT_SAVE_STATE }),
+    );
+    const migrated = loadGame("slot1", storage);
+    saveGame(migrated, "slot2", storage, 1000);
+    expect(loadGame("slot2", storage)).toEqual(migrated);
   });
 
   it("a migrated v6 save round-trips through save and load", () => {

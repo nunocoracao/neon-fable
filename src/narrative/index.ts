@@ -20,12 +20,14 @@ export type {
   FlagUnsetRequirement,
   GotoEffect,
   IncrementFlagEffect,
+  FlagSetRequirement,
   ItemRequirement,
   LoyaltyRequirement,
   OpenStylistEffect,
   RecruitCompanionEffect,
   RemoveItemEffect,
   Requirement,
+  ReputationRequirement,
   SetFlagEffect,
   StartCombatEffect,
   StatRequirement,
@@ -50,6 +52,13 @@ export {
   witnesses,
   type LoyaltyChange,
 } from "./loyalty";
+export {
+  applyStandingChanges,
+  bandCrossings,
+  choiceStandingChanges,
+  standingChanges,
+  type StandingChange,
+} from "./standing";
 export {
   NarrativeError,
   applyChoice,

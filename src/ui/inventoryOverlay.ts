@@ -11,6 +11,7 @@ import {
   type EnhancementSlot,
   type Loadout,
 } from "../inventory";
+import { factionRows } from "./factionModel";
 import {
   itemEffectLabels,
   itemSummary,
@@ -185,6 +186,50 @@ export function createInventoryOverlay(
     container.append(section);
   }
 
+  /**
+   * Where the player stands with the three powers. Read-only: nothing
+   * on this panel spends standing, and the number never appears — the
+   * band name and the lean of the meter are the whole report.
+   */
+  function renderStanding(container: HTMLElement): void {
+    const section = document.createElement("div");
+    section.className = "nf-inventory-section";
+    const heading = document.createElement("h3");
+    heading.textContent = "Standing";
+    section.append(heading);
+
+    for (const row of factionRows(session.state.reputation)) {
+      const card = document.createElement("div");
+      card.className = "nf-faction-row";
+      card.dataset.faction = row.factionId;
+
+      const name = document.createElement("div");
+      name.className = "nf-item-name";
+      name.textContent = row.name;
+
+      const band = document.createElement("span");
+      band.className = `nf-faction-band nf-band-${row.band}`;
+      band.textContent = row.bandLabel;
+      name.append(band);
+
+      const track = document.createElement("div");
+      track.className = "nf-meter nf-standing-meter";
+      const fill = document.createElement("div");
+      fill.className = `nf-standing-fill nf-standing-${row.meter.side}`;
+      fill.style.left = `${row.meter.offsetPercent}%`;
+      fill.style.width = `${row.meter.widthPercent}%`;
+      track.append(fill);
+
+      const blurb = document.createElement("div");
+      blurb.className = "nf-item-summary";
+      blurb.textContent = row.blurb;
+
+      card.append(name, track, blurb);
+      section.append(card);
+    }
+    container.append(section);
+  }
+
   function renderCarried(container: HTMLElement): void {
     const { player, inventory } = session.state;
     const section = document.createElement("div");
@@ -287,7 +332,11 @@ export function createInventoryOverlay(
 
     const columns = document.createElement("div");
     columns.className = "nf-inventory-columns";
-    renderEquipment(columns);
+    const left = document.createElement("div");
+    left.className = "nf-inventory-column";
+    renderEquipment(left);
+    renderStanding(left);
+    columns.append(left);
     renderCarried(columns);
     panel.append(columns);
   }

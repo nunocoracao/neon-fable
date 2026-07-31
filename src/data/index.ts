@@ -75,6 +75,31 @@ export {
   type CompanionValues,
   type ReactionTag,
 } from "./companions";
+export {
+  FactionError,
+  FACTION_IDS,
+  REPUTATION_BANDS,
+  REPUTATION_BAND_IDS,
+  REPUTATION_MAX,
+  REPUTATION_MIN,
+  SIDE_CHAIN_STEP,
+  factions,
+  getBand,
+  getFaction,
+  isFactionId,
+  requireFaction,
+  scaleStanding,
+  type Faction,
+  type FactionId,
+  type ReputationBand,
+  type ReputationBandId,
+  type StandingDelta,
+} from "./factions";
+export {
+  FACTION_STANDINGS,
+  standingsForFlag,
+  type StandingSource,
+} from "./standings";
 export { getItem, items, requireItem } from "./items";
 export {
   abilities,

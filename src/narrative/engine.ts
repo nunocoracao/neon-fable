@@ -8,6 +8,11 @@ import {
   type LoyaltyChange,
 } from "./loyalty";
 import { checkRequirements } from "./requirements";
+import {
+  applyStandingChanges,
+  choiceStandingChanges,
+  type StandingChange,
+} from "./standing";
 import type { Choice, StoryArc, StoryNode } from "./types";
 
 /**
@@ -97,6 +102,11 @@ export interface ChoiceOutcome {
    * already folded into `state`, and surfaced so the UI can say so.
    */
   loyalty: LoyaltyChange[];
+  /**
+   * What the choice moved with the city's factions — already folded
+   * into `state`. Only what actually landed after clamping is here.
+   */
+  standing: StandingChange[];
 }
 
 /**
@@ -130,9 +140,13 @@ export function applyChoice(
   }
 
   const loyalty = choiceLoyaltyChanges(state, choice);
-  const nextState = applyLoyaltyChanges(
-    applyEffects(state, choice.effects, resolve),
-    loyalty,
+  // Standing is resolved against the reputation the choice was taken
+  // with, for the same reason loyalty is: what a beat moves is what it
+  // moved from, not what the effects left behind.
+  const standing = choiceStandingChanges(state, choice);
+  const nextState = applyStandingChanges(
+    applyLoyaltyChanges(applyEffects(state, choice.effects, resolve), loyalty),
+    standing,
   );
 
   let nextNodeId: string | null = choice.target ?? null;
@@ -162,5 +176,6 @@ export function applyChoice(
     ended,
     endingId,
     loyalty,
+    standing,
   };
 }

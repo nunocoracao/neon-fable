@@ -1,8 +1,10 @@
 import type { StatKey } from "../character/stats";
 import type { ExpressionId } from "../data/appearance";
 import type { ReactionTag } from "../data/companions";
+import type { FactionId, StandingDelta } from "../data/factions";
 import type { DayPhaseId } from "../iso/tilemap";
 import type { FlagValue } from "../state/flags";
+import type { ReputationThreshold } from "../state/reputation";
 
 /**
  * Story graph data model. Nodes, choices, requirements, and effects are
@@ -23,7 +25,8 @@ export type Requirement =
   | BackgroundRequirement
   | CreditsRequirement
   | CompanionRequirement
-  | LoyaltyRequirement;
+  | LoyaltyRequirement
+  | ReputationRequirement;
 
 /** Flag must exist and strictly equal the given value. */
 export interface FlagEqualsRequirement {
@@ -118,6 +121,20 @@ export interface LoyaltyRequirement {
   type: "loyalty";
   companionId: string;
   value: number;
+  mode?: "at-least" | "at-most";
+}
+
+/**
+ * How a faction reads the player. `value` is a band id ("warm") or a
+ * raw standing; prefer the band — it survives a re-tune of what an act
+ * outcome is worth, and it is the same word the character screen shows.
+ * `mode` defaults to "at-least"; "at-most" is the door that only opens
+ * once they have stopped liking you.
+ */
+export interface ReputationRequirement {
+  type: "reputation";
+  factionId: FactionId;
+  value: ReputationThreshold;
   mode?: "at-least" | "at-most";
 }
 
@@ -250,6 +267,18 @@ export interface Choice {
    * specific person rather than about the kind of thing it is.
    */
   reactions?: ReactionTag[];
+  /**
+   * What taking this moves with the city's factions, per faction (see
+   * src/data/factions.ts). Applied as the choice is taken and clamped
+   * into the scale; a band crossing is reported back so the scene can
+   * say so.
+   *
+   * A choice that writes an outcome the standing table already knows
+   * about must carry exactly what that table declares — the migration
+   * pass reads the same table off a finished save, and a test pins the
+   * two together so a live run and a re-loaded one can never disagree.
+   */
+  standing?: StandingDelta;
   /** Presentation when requirements fail; defaults to "hidden". */
   ifUnavailable?: UnavailablePresentation;
 }
