@@ -122,6 +122,60 @@ export function statusMarkerFrame(
   return frameAt(timeMs, frameMs, frameCount);
 }
 
+/* --- Static flicker ---------------------------------------------------
+ *
+ * The other thing a condition can look like: not a mark over a body but
+ * a tear through a picture of one. A screaming Static band flickers the
+ * portrait (see src/data/static.ts and the frames in
+ * ./art/layers/portrait.ts), and the timing is here because it is the
+ * same question every marker asks — which frame is showing right now.
+ *
+ * Unlike a marker, this loop is mostly *off*. A face permanently full
+ * of snow stops reading as interference and starts reading as a style;
+ * a clean portrait cut into two or three times a second is the thing
+ * itself. The cuts below are the windows in the cycle that carry a
+ * tear, and everything outside them is frame 0.
+ */
+
+/** Milliseconds one full flicker cycle takes. */
+export const STATIC_FLICKER_PERIOD_MS = 1300;
+
+/**
+ * Windows in the cycle that carry a tear: [start, end, frame], in
+ * milliseconds, non-overlapping and ascending. The doubled cut near the
+ * top of the cycle is what makes it read as interference rather than as
+ * a blink — a single evenly-spaced flash reads as a heartbeat.
+ */
+const STATIC_FLICKER_CUTS: readonly (readonly [number, number, number])[] = [
+  [0, 70, 1],
+  [110, 165, 2],
+  [620, 670, 2],
+  [700, 745, 1],
+];
+
+/**
+ * Which portrait flicker frame is showing: 0 for a clean face, and the
+ * tear frames inside their windows.
+ *
+ * Reduced motion holds 0 — clean, always. The flicker is the one place
+ * a condition is said in motion alone, and the band it is saying is
+ * already on the character screen in words and on a meter, so nothing
+ * is withheld from a player who has asked the screen to hold still.
+ */
+export function staticFlickerFrame(
+  timeMs: number,
+  reducedMotion = false,
+): number {
+  if (reducedMotion) return 0;
+  const phase =
+    ((timeMs % STATIC_FLICKER_PERIOD_MS) + STATIC_FLICKER_PERIOD_MS) %
+    STATIC_FLICKER_PERIOD_MS;
+  for (const [from, to, frame] of STATIC_FLICKER_CUTS) {
+    if (phase >= from && phase < to) return frame;
+  }
+  return 0;
+}
+
 /** Screen pixels between the centers of two markers over one body. */
 export const STATUS_MARKER_SPACING_PX = 22;
 

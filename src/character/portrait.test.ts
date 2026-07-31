@@ -12,14 +12,23 @@ import {
   MOUTH_OPTIONS,
   SKIN_TONE_OPTIONS,
 } from "../data/appearance";
-import { items } from "../data/items";
+import { getItem, items } from "../data/items";
 import { emptyEquipment } from "../inventory/equipment";
 import { CYBER_PORTRAITS } from "../iso/art/layers/cyberware";
-import { PORTRAIT_FRAME } from "../iso/art/layers/portrait";
+import {
+  PORTRAIT_FRAME,
+  STATIC_FLICKER_FRAMES,
+} from "../iso/art/layers/portrait";
+import { REMAP_CHANNELS } from "../iso/art/palette";
 import { gridErrors } from "../iso/art/pixel";
 import { createRng } from "../state/rng";
 import { defaultAppearance, randomAppearance, type Appearance } from "./appearance";
-import { composePortrait, portraitKey, resolvePortraitParts } from "./portrait";
+import {
+  composePortrait,
+  portraitKey,
+  resolvePortraitParts,
+  staticFlickerPart,
+} from "./portrait";
 
 const base = defaultAppearance;
 const bare = emptyEquipment;
@@ -318,5 +327,62 @@ describe("portraitKey", () => {
       "brows",
       "mouth",
     ]);
+  });
+});
+
+describe("the static flicker", () => {
+  it("leaves frame 0 exactly as a clean portrait", () => {
+    expect(staticFlickerPart(0)).toBeNull();
+    expect(resolvePortraitParts(base(), bare(), "neutral", getItem, 0)).toEqual(
+      resolvePortraitParts(base(), bare()),
+    );
+    expect(portraitKey(base(), bare(), "neutral", getItem, 0)).toBe(
+      portraitKey(base(), bare()),
+    );
+  });
+
+  it("tears the face on every other frame, above everything else", () => {
+    for (let frame = 1; frame < STATIC_FLICKER_FRAMES.length; frame++) {
+      const parts = resolvePortraitParts(base(), bare(), "neutral", getItem, frame);
+      const clean = resolvePortraitParts(base(), bare());
+      expect(parts).toHaveLength(clean.length + 1);
+      expect(parts[parts.length - 1]?.key).toBe(`static:${frame}`);
+    }
+  });
+
+  it("gives every flicker frame a key of its own, so bakes never collide", () => {
+    const keys = STATIC_FLICKER_FRAMES.map((_, frame) =>
+      portraitKey(base(), bare(), "neutral", getItem, frame),
+    );
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("draws a different picture on each torn frame", () => {
+    const grids = STATIC_FLICKER_FRAMES.map((_, frame) =>
+      composePortrait(base(), bare(), "neutral", getItem, frame).join("\n"),
+    );
+    expect(new Set(grids).size).toBe(grids.length);
+  });
+
+  it("stays inside the frame, and only in the cyber-chrome channel", () => {
+    const chrome = new Set<string>(REMAP_CHANNELS.cyberChrome);
+    for (const grid of STATIC_FLICKER_FRAMES) {
+      if (!grid) continue;
+      expect(grid).toHaveLength(PORTRAIT_FRAME.height);
+      for (const row of grid) {
+        expect(row).toHaveLength(PORTRAIT_FRAME.width);
+        for (const char of row) {
+          if (char === ".") continue;
+          expect(chrome.has(char), `flicker draws "${char}"`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("wraps a clock rather than throwing on one", () => {
+    const cycle = STATIC_FLICKER_FRAMES.length;
+    expect(staticFlickerPart(cycle)?.key).toBe(staticFlickerPart(0)?.key);
+    expect(staticFlickerPart(cycle + 1)?.key).toBe(staticFlickerPart(1)?.key);
+    expect(staticFlickerPart(-1)?.key).toBe(staticFlickerPart(cycle - 1)?.key);
   });
 });
