@@ -111,7 +111,9 @@ export function personalSceneReady(
   const member = getMember(state.party, companionId);
   if (!companion || !member?.recruited || !member.active) return false;
   if (member.loyalty < companion.personalScene.loyalty) return false;
-  return state.flags[companion.personalScene.resolvedFlag] === undefined;
+  // Read exactly the way the content's own `flag-unset` gate reads it,
+  // so the panel and the scene can never disagree about "not yet".
+  return !(companion.personalScene.resolvedFlag in state.flags);
 }
 
 /** Every companion with something to say right now, in party order. */

@@ -181,6 +181,28 @@ describe("createCombat with a party", () => {
     );
   });
 
+  it("brings whichever companion is out, with their own kit", () => {
+    // The second companion is content, not a second code path: the
+    // auditor arrives through the same seeding, carrying his own tool
+    // and his own trick, and the runner stays on the bench.
+    const state = createNewGame({ character: fixtureCharacter({}), seed: 11 });
+    const crewed: GameState = {
+      ...state,
+      party: recruitCompanion(
+        recruitCompanion(state.party, "vesper"),
+        "sill",
+      ),
+    };
+    const combat = createCombat(crewed, ENCOUNTER_ID);
+    expect(allyCombatants(combat).map((c) => c.id)).toEqual([
+      allyCombatantId("sill"),
+    ]);
+    const sill = requireCombatant(combat, allyCombatantId("sill"));
+    expect(sill.name).toBe("Deacon Sill");
+    expect(sill.weapon.name).toBe(requireItem("wpn-writ-seal").name);
+    expect(sill.abilityIds).toEqual(getCompanion("sill")!.abilityIds);
+  });
+
   it("changes nothing at all for a player with no party", () => {
     const solo = createNewGame({ character: fixtureCharacter({}), seed: 11 });
     const combat = createCombat(solo, ENCOUNTER_ID);

@@ -37,6 +37,9 @@ export function createPartyOverlay(
   panel.className = "nf-panel nf-party";
   el.append(panel);
 
+  /** Companion ids with a personal scene waiting; recomputed per render. */
+  let ready = new Set<string>();
+
   function actionButton(
     label: string,
     onClick: () => void,
@@ -127,9 +130,6 @@ export function createPartyOverlay(
     card.append(actions);
     container.append(card);
   }
-
-  /** Companion ids with a personal scene waiting, recomputed per render. */
-  let ready = new Set<string>();
 
   function render(): void {
     ready = new Set(
