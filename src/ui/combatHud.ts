@@ -412,6 +412,7 @@ export const TELEGRAPH_TINT_BY_ROLE: Readonly<
   range: "range",
   path: "path",
   impact: "impact",
+  threat: "threat",
   denied: "denied",
 };
 

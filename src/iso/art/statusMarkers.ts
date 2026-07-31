@@ -87,6 +87,33 @@ const guarded: readonly PixelGrid[] = [
   ],
 ];
 
+/* --- Charging: a capacitor cell filling from the bottom up. Amber,
+ * like every port and muzzle flash in the game, because the thing it
+ * warns about is about to come out of one. Three rungs, and the last
+ * frame is the full cell — the mark is at its brightest on the beat
+ * before the salvo. --- */
+
+const capacitor = (rungs: number): PixelGrid => {
+  const lit = (index: number): string =>
+    // Rungs light bottom-first: rung 0 is the lowest bar in the cell.
+    index < rungs ? "..m.nnn.m.." : "..m.....m..";
+  return [
+    "...........",
+    "....mmm....",
+    "..m00000m..",
+    "..m.....m..",
+    lit(2),
+    "..m.....m..",
+    lit(1),
+    "..m.....m..",
+    lit(0),
+    "..m00000m..",
+    "...........",
+  ];
+};
+
+const charging: readonly PixelGrid[] = [1, 2, 3].map(capacitor);
+
 /* --- Empowered: two chevrons, the lit one climbing. --- */
 
 const empowered: readonly PixelGrid[] = [
@@ -132,6 +159,7 @@ export const STATUS_MARKER_ART: Readonly<
   Record<StatusFamilyId, StatusMarkerArt>
 > = {
   stunned: art(stunned, "stunned"),
+  charging: art(charging, "charging"),
   guarded: art(guarded, "guarded"),
   empowered: art(empowered, "empowered"),
 };
