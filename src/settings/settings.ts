@@ -19,6 +19,14 @@ export type TextSpeed = (typeof TEXT_SPEEDS)[number];
 export const ZOOM_LEVELS = [1, 1.5, 2] as const;
 export type ZoomLevel = (typeof ZOOM_LEVELS)[number];
 
+/**
+ * Multipliers on combat screen shake. 0 stills it without touching the
+ * other two camera effects; 1 is the authored amplitude, which is
+ * deliberately small (see MAX_SHAKE_PX in src/iso/cameraFeel.ts).
+ */
+export const SHAKE_SCALES = [0, 0.5, 1, 1.5] as const;
+export type ShakeScale = (typeof SHAKE_SCALES)[number];
+
 export interface Settings {
   textSpeed: TextSpeed;
   reducedMotion: boolean;
@@ -29,6 +37,14 @@ export interface Settings {
   weather: boolean;
   /** The corner minimap while exploring; collapsed leaves its tab. */
   minimap: boolean;
+  /**
+   * Combat camera feel: the turn-start glide, the hit-pause on impact,
+   * and the shake off heavy blows. Off leaves a fixed, still camera —
+   * as does reduced motion, which switches all three off on its own.
+   */
+  combatFeel: boolean;
+  /** Scales the shake alone; 0 stills it with the rest left on. */
+  shakeScale: ShakeScale;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -38,18 +54,27 @@ export const DEFAULT_SETTINGS: Settings = {
   glow: true,
   weather: true,
   minimap: true,
+  combatFeel: true,
+  shakeScale: 1,
 };
 
 export const SETTINGS_KEY = "neon-fable:settings";
 
 /** Bump when the Settings shape changes; migrateSettings routes on it. */
-export const SETTINGS_VERSION = 5;
+export const SETTINGS_VERSION = 6;
 
 /** Coerces any value onto the zoom-level ladder; off-ladder → default. */
 export function clampZoom(value: unknown): ZoomLevel {
   return ZOOM_LEVELS.includes(value as ZoomLevel)
     ? (value as ZoomLevel)
     : DEFAULT_SETTINGS.zoom;
+}
+
+/** Coerces any value onto the shake ladder; off-ladder → default. */
+export function clampShakeScale(value: unknown): ShakeScale {
+  return SHAKE_SCALES.includes(value as ShakeScale)
+    ? (value as ShakeScale)
+    : DEFAULT_SETTINGS.shakeScale;
 }
 
 /** One step up (+1) or down (-1) the zoom ladder, clamped at the ends. */
@@ -85,11 +110,14 @@ export function clampSettings(value: unknown): Settings {
     textSpeed,
     reducedMotion: record.reducedMotion === true,
     zoom: clampZoom(record.zoom),
-    // Glow, weather, and the minimap default on: older payloads without
-    // the fields keep both passes and the HUD corner.
+    // Glow, weather, the minimap, and the combat camera default on:
+    // older payloads without the fields keep every pass, the HUD
+    // corner, and a camera that answers a fight.
     glow: record.glow !== false,
     weather: record.weather !== false,
     minimap: record.minimap !== false,
+    combatFeel: record.combatFeel !== false,
+    shakeScale: clampShakeScale(record.shakeScale),
   };
 }
 
@@ -97,8 +125,9 @@ export function clampSettings(value: unknown): Settings {
  * Migrates a parsed payload from any stored version to the current
  * shape. Every version so far routes through the field-tolerant clamp —
  * v1 payloads simply lack zoom, v2 payloads lack glow, v3 payloads lack
- * weather, v4 payloads lack minimap, and each gets its default; unknown
- * or future versions degrade to defaults per field instead of crashing.
+ * weather, v4 payloads lack minimap, v5 payloads lack the combat camera
+ * fields, and each gets its default; unknown or future versions degrade
+ * to defaults per field instead of crashing.
  */
 export function migrateSettings(parsed: unknown): Settings {
   return clampSettings(parsed);

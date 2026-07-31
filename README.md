@@ -122,6 +122,19 @@ plus content from `src/data/`); rendering and DOM code stay thin.
   game rules. `minimap.ts` holds the minimap's projection math (cells,
   pips, viewport box) as pure functions; `src/ui/minimap.ts` only paints
   them, and only when the scene's view has changed.
+- **Combat camera** (`src/iso/cameraFeel.ts`) — the arena runs on a
+  *scene clock*: the frame timestamp with every hit-pause it has served
+  taken back out. A freeze is therefore time that clock does not advance
+  through, so every sequence riding it (swings, tracers, flinches,
+  floating figures, walks) holds and resumes together instead of
+  drifting apart. The three effects — an eased glide to whoever is
+  acting, a few frozen frames on melee contact and on criticals, and a
+  small capped kick off heavy blows and blasts — are pure functions of
+  scene time, and each is switched off by reduced motion or by the
+  Combat camera setting, with Screen shake carrying its own scale. How
+  much a blow weighed is read off the figures the damage math already
+  produced (`impactWeight` in `src/ui/combatFeel.ts`); nothing in the
+  engine branches on any of it.
 - **UI** (`src/ui/`) — a screen router (`showScreen`) plus overlay
   panels. A mount error shows a crash notice instead of a blank page.
   Missing content ids log `console.error` and degrade (drop the fight,

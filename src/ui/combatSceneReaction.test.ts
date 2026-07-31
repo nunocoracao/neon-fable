@@ -100,6 +100,11 @@ describe("hit reactions and deaths in a real encounter", () => {
   beforeEach(() => {
     clock = 1000;
     frameCallback = null;
+    // What is under test here is the reaction sequencer, read off the
+    // scene clock. The combat camera's hit-pause deliberately holds
+    // that clock on a contact beat (see ../iso/cameraFeel.ts), which is
+    // its own subject — combatSceneFeel.test.ts — so it stays off here.
+    settings.update({ combatFeel: false });
     vi.spyOn(performance, "now").mockImplementation(() => clock);
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
       frameCallback = cb;
@@ -112,7 +117,7 @@ describe("hit reactions and deaths in a real encounter", () => {
   });
 
   afterEach(() => {
-    settings.update({ reducedMotion: false });
+    settings.update({ reducedMotion: false, combatFeel: true });
     vi.restoreAllMocks();
   });
 

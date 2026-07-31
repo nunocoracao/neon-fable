@@ -45,6 +45,7 @@ import {
   type DeathReactionKind,
   type StatusFamilyId,
 } from "../iso";
+import { impactWeight, turnFocus } from "./combatFeel";
 import {
   eventPopups,
   statusPopups,
@@ -158,6 +159,12 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
    * push that follows, and zero when nothing was thrown.
    */
   let conditionBeatMs = 0;
+  /**
+   * The combatant the camera was last pointed at. A turn start is a
+   * change of this and nothing else — every other sync leaves the
+   * framing alone.
+   */
+  let focusedId: string | null = null;
 
   /**
    * The body the target card is describing: whatever the pointer is
@@ -538,6 +545,17 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     showPopups(statusPopups(lastStatuses, statuses), conditionBeatMs);
     conditionBeatMs = 0;
     lastStatuses = statuses;
+    // A turn starting reframes the fight on whoever is about to act
+    // (see turnFocus). The scene glides — the AI's turns a little faster
+    // than the player's own — and does nothing at all when the camera
+    // feel is switched off.
+    const active =
+      activeId === null
+        ? null
+        : { id: activeId, kind: activeCombatant(combat).kind };
+    const focus = turnFocus(active, focusedId);
+    focusedId = activeId;
+    if (focus) scene.focusOn(focus.entityId, { pace: focus.pace });
   }
 
   /** Float readouts over the bodies they belong to; missing ones drop. */
@@ -637,6 +655,9 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
               attackerId: event.attackerId,
               delayMs: beatMs,
               glancing: isGlancingBlow(event.damage, target.armor),
+              // How much the camera owes the blow: the same reading the
+              // figure over the body is styled from (see ./combatFeel.ts).
+              weight: impactWeight(event.damage, target),
             });
           }
           break;
@@ -667,6 +688,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
             attackerId: event.combatantId,
             delayMs: beatMs,
             glancing: isGlancingBlow(event.damage, armor),
+            weight: impactWeight(event.damage, { armor, maxHp: target.maxHp }),
           });
           break;
         }
