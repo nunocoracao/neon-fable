@@ -5,10 +5,15 @@ import { applyStartingGear, emptyInventory } from "../inventory";
 import type { InventoryState } from "../inventory";
 import type { FlagMap } from "./flags";
 import { emptyParty, type PartyState } from "./party";
+import {
+  deriveReputation,
+  emptyReputation,
+  type ReputationState,
+} from "./reputation";
 import type { RngState } from "./rng";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 8;
+export const GAME_STATE_VERSION = 9;
 
 /**
  * Oldest save version migrateGameState can bring forward. Saves from
@@ -47,6 +52,11 @@ export interface GameState {
    * player. Always present (empty until somebody joins); see ./party.ts.
    */
   party: PartyState;
+  /**
+   * Where the player stands with the city's factions. Always present
+   * (everybody starts at nothing); see ./reputation.ts.
+   */
+  reputation: ReputationState;
   /** Deterministic RNG state; advance via the rng module, never Math.random. */
   rng: RngState;
 }
@@ -60,6 +70,10 @@ export interface GameState {
  *   defaultAppearance.
  * - v7 -> v8: the game gained companions; old saves get an empty party
  *   and can recruit from wherever they left off.
+ * - v8 -> v9: the factions started keeping a ledger. Rather than
+ *   starting an old save at nothing, its standing is read back off the
+ *   outcomes it already recorded (deriveReputation), so a run that
+ *   stood with the Court in Act 1 loads as somebody the Court knows.
  */
 export function migrateGameState(
   state: GameState,
@@ -74,6 +88,9 @@ export function migrateGameState(
   }
   if (fromVersion < 8) {
     migrated = { ...migrated, party: emptyParty() };
+  }
+  if (fromVersion < 9) {
+    migrated = { ...migrated, reputation: deriveReputation(migrated.flags) };
   }
   return { ...migrated, version: GAME_STATE_VERSION };
 }
@@ -105,6 +122,7 @@ export function createNewGame(options: NewGameOptions = {}): GameState {
     credits: STARTING_CREDITS,
     pendingEncounterId: null,
     party: emptyParty(),
+    reputation: emptyReputation(),
     rng: { seed: (options.seed ?? Date.now()) >>> 0 },
   };
 }

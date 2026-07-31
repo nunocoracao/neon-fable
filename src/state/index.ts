@@ -59,6 +59,21 @@ export {
   type PartyState,
 } from "./party";
 export {
+  adjustReputation,
+  applyStanding,
+  bandFor,
+  bandOf,
+  canAccess,
+  clampReputation,
+  deriveReputation,
+  emptyReputation,
+  reputationOf,
+  sumStanding,
+  thresholdValue,
+  type ReputationState,
+  type ReputationThreshold,
+} from "./reputation";
+export {
   NG_PLUS_BONUS_POINTS,
   NG_PLUS_CARRYOVER_FLAG,
   NG_PLUS_FLAG,
