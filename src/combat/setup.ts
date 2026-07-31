@@ -1,4 +1,4 @@
-import { requireEncounter } from "../data/encounters";
+import { requireEncounter, spawnLookIndex } from "../data/encounters";
 import { requireEnemy } from "../data/enemies";
 import { requireItem } from "../data/items";
 import { armorValue, effectiveStats, grantedAbilityIds } from "../inventory";
@@ -79,6 +79,11 @@ export function createCombat(
       kind: "enemy" as const,
       name: enemy.name,
       enemyId: enemy.id,
+      // Which face this slot wears. Pinned by the encounter or picked
+      // from the archetype's look family by a seed made of the
+      // encounter id and this slot — never from the combat RNG, so
+      // varying the faces cannot move a single die.
+      lookIndex: spawnLookIndex(encounterId, index, spawn),
       stats: { ...enemy.stats },
       maxHp: enemy.maxHp,
       hp: enemy.maxHp,

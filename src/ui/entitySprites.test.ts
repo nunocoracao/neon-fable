@@ -5,7 +5,18 @@ import {
   interactableVisual,
   seededAppearance,
 } from "../character";
-import { enemies, requireEnemy } from "../data/enemies";
+import { enemies, enemySpriteId, requireEnemy } from "../data/enemies";
+import { encounters, spawnLookIndex } from "../data/encounters";
+import { BODY_TIMING } from "../iso/animation";
+import { attackFrameCount } from "../iso/attack";
+import { reactionFrameCount } from "../iso/reaction";
+import {
+  characterArt,
+  droneArt,
+  entityAttackClass,
+  entityGrid,
+} from "../iso/art/entity";
+import { gridErrors } from "../iso/art/pixel";
 import { requireMap } from "../data/maps";
 import { ambientSpriteId, createCrowd } from "../iso/ambient";
 import {
@@ -13,6 +24,7 @@ import {
   enemyDeathStyle,
   enemySpriteSource,
   npcSpriteSource,
+  sceneSpriteSource,
 } from "./entitySprites";
 
 afterEach(() => {
@@ -79,13 +91,34 @@ describe("npcSpriteSource", () => {
 });
 
 describe("enemySpriteSource", () => {
-  it("composes an archetype's authored visual and memoizes it", () => {
+  it("composes the look a sprite id names and memoizes it", () => {
     const source = enemySpriteSource();
-    const agent = source("nme-auric-agent");
-    expect(agent).toEqual(
-      composeVisual(requireEnemy("nme-auric-agent").visual),
+    const agent = requireEnemy("nme-auric-agent");
+    if (agent.spriteKind !== "humanoid") throw new Error("expected a humanoid");
+    const first = source(enemySpriteId("nme-auric-agent", 0));
+    expect(first).toEqual(characterArt(composeVisual(agent.looks[0])));
+    expect(source(enemySpriteId("nme-auric-agent", 0))).toBe(first);
+  });
+
+  it("draws a different look for a different record of the same family", () => {
+    const source = enemySpriteSource();
+    const first = source(enemySpriteId("nme-auric-agent", 0));
+    const second = source(enemySpriteId("nme-auric-agent", 1));
+    expect(second).not.toEqual(first);
+  });
+
+  it("resolves the archetype's canonical look for a bare id", () => {
+    const source = enemySpriteSource();
+    expect(source("nme-auric-agent")).toEqual(
+      source(enemySpriteId("nme-auric-agent", 0)),
     );
-    expect(source("nme-auric-agent")).toBe(agent);
+  });
+
+  it("hands back an authored chassis for the archetypes that were never people", () => {
+    const source = enemySpriteSource();
+    expect(source(enemySpriteId("nme-static-drone", 0))).toEqual(
+      droneArt("static-drone"),
+    );
   });
 
   it("resolves nothing for unknown ids, letting the provider fall back", () => {
@@ -104,6 +137,15 @@ describe("enemyDeathStyle", () => {
     }
   });
 
+  it("reads a sprite id with a look suffix as the archetype it names", () => {
+    expect(enemyDeathStyle(enemySpriteId("nme-static-drone", 0))).toBe(
+      "sparkout",
+    );
+    expect(enemyDeathStyle(enemySpriteId("nme-court-sapper", 2))).toBe(
+      "collapse",
+    );
+  });
+
   it("crumples anything it cannot identify", () => {
     expect(enemyDeathStyle("nme-nobody")).toBe("collapse");
     expect(enemyDeathStyle(undefined)).toBe("collapse");
@@ -115,7 +157,7 @@ describe("ambientSpriteSource", () => {
     const source = ambientSpriteSource();
     const id = ambientSpriteId(12345);
     expect(source(id)).toEqual(
-      composeVisual({ appearance: seededAppearance(12345) }),
+      characterArt(composeVisual({ appearance: seededAppearance(12345) })),
     );
     // Memoized: a whole crowd sharing a look composes exactly once.
     expect(source(id)).toBe(source(id));
@@ -140,5 +182,82 @@ describe("ambientSpriteSource", () => {
       const id = ambientSpriteId(ped.lookSeed);
       expect(source(id)).toBe(source(id));
     }
+  });
+});
+
+describe("every enemy on every board", () => {
+  /**
+   * The coverage guarantee: walk every spawn of every authored
+   * encounter through the exact resolution the combat screen uses —
+   * spawnLookIndex, enemySpriteId, enemySpriteSource — and draw every
+   * frame of every set it could ever be asked for. Nothing the
+   * narrative can start may reach the renderer with no art.
+   */
+  const FACINGS = ["n", "e", "s", "w"] as const;
+
+  it("resolves to art that renders in every pose the fight can ask for", () => {
+    const source = enemySpriteSource();
+    let checked = 0;
+    for (const encounter of encounters) {
+      encounter.enemies.forEach((spawn, slot) => {
+        const look = spawnLookIndex(encounter.id, slot, spawn);
+        const spriteId = enemySpriteId(spawn.enemyId, look);
+        const art = source(spriteId);
+        const where = `${encounter.id} slot ${slot} (${spriteId})`;
+        expect(art, `${where} resolves`).toBeDefined();
+        if (!art) return;
+        for (const facing of FACINGS) {
+          for (const state of ["idle", "walk"] as const) {
+            for (let f = 0; f < BODY_TIMING[state].frameCount; f++) {
+              expect(
+                gridErrors(entityGrid(art, facing, state, f)),
+                `${where} ${state} ${facing} f${f}`,
+              ).toEqual([]);
+            }
+          }
+          const swing = entityAttackClass(art);
+          for (let f = 0; f < attackFrameCount(swing); f++) {
+            expect(
+              gridErrors(entityGrid(art, facing, "attack", f)),
+              `${where} attack ${facing} f${f}`,
+            ).toEqual([]);
+          }
+          // Including the way it goes down, which its chassis decides.
+          const death = enemyDeathStyle(spriteId);
+          for (let f = 0; f < reactionFrameCount(death); f++) {
+            expect(
+              gridErrors(
+                entityGrid(art, facing, "react", f, { kind: death, awayX: 1 }),
+              ),
+              `${where} ${death} ${facing} f${f}`,
+            ).toEqual([]);
+          }
+        }
+        checked++;
+      });
+    }
+    expect(checked, "every authored spawn was checked").toBe(
+      encounters.reduce((sum, e) => sum + e.enemies.length, 0),
+    );
+  });
+});
+
+describe("sceneSpriteSource", () => {
+  it("draws a street's pedestrians and, if a map places one, its enemies", () => {
+    const source = sceneSpriteSource();
+    const pedestrian = ambientSpriteId(4242);
+    expect(source(pedestrian)).toEqual(ambientSpriteSource()(pedestrian));
+    expect(source(enemySpriteId("nme-cordon-enforcer", 1))).toEqual(
+      enemySpriteSource()(enemySpriteId("nme-cordon-enforcer", 1)),
+    );
+    expect(source(enemySpriteId("nme-static-drone", 0))).toEqual(
+      droneArt("static-drone"),
+    );
+  });
+
+  it("still resolves nothing for the player and for ids it does not know", () => {
+    const source = sceneSpriteSource();
+    expect(source("player")).toBeUndefined();
+    expect(source("nobody-at-all")).toBeUndefined();
   });
 });

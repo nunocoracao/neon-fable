@@ -49,6 +49,14 @@ export interface Combatant {
   name: string;
   /** Content id in src/data/enemies.ts; absent for the player. */
   enemyId?: string;
+  /**
+   * Which record of the archetype's look family this spawn wears,
+   * resolved once at setup (see spawnLookIndex in src/data/encounters)
+   * and carried on the combatant so the fight, its saves, and its
+   * replays all draw the same faces. Absent for the player and for
+   * archetypes with a single authored look.
+   */
+  lookIndex?: number;
   stats: Stats;
   maxHp: number;
   hp: number;

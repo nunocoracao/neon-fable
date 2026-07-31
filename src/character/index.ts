@@ -25,6 +25,7 @@ export {
   composeCharacter,
   composeVisual,
   defaultAppearance,
+  outfitDyeRemap,
   presetAppearanceFor,
   randomAppearance,
   randomizeUnlocked,
@@ -38,13 +39,17 @@ export {
   type AppearanceLocks,
   type CharacterVisual,
   type ItemLookup,
+  type OutfitDye,
   type ResolvedLayer,
 } from "./appearance";
 export { interactableVisual, npcSeed } from "./npc";
 export {
   composePortrait,
+  composeVisualPortrait,
   portraitKey,
   resolvePortraitParts,
+  resolveVisualPortraitParts,
+  visualPortraitKey,
   type PortraitPart,
 } from "./portrait";
 export {

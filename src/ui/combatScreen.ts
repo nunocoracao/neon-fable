@@ -26,13 +26,11 @@ import {
   type GridPosition,
   type TelegraphIntent,
 } from "../combat";
-import { defaultAppearance } from "../character";
-import { emptyEquipment } from "../inventory";
 import { audio, hitSoundForDamage } from "../audio";
 import {
   getAbility,
   getEncounter,
-  getEnemy,
+  enemySpriteId,
   getItem,
   getMap,
   requireMap,
@@ -75,7 +73,7 @@ import {
 } from "./combatHudView";
 import { enemyDeathStyle, enemySpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
-import { portraitCanvas, visualPortraitCanvas } from "./portraits";
+import { enemyPortraitCanvas, portraitCanvas } from "./portraits";
 import type { DayPhaseId, IsoMap, TilePoint } from "../iso";
 import { SaveError, loadGame, type GameState } from "../state";
 import { focusFirst, installListNav } from "./focus";
@@ -234,17 +232,19 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
    * authored archetype visual. Enemies wear the grim variant — a chip
    * in an initiative rail is a face across a fight, not a conversation.
    */
-  function combatantPortrait(
-    view: { kind: "player" | "enemy"; enemyId: string | null },
-  ): HTMLCanvasElement {
+  function combatantPortrait(view: {
+    kind: "player" | "enemy";
+    enemyId: string | null;
+    lookIndex: number | null;
+  }): HTMLCanvasElement {
     if (view.kind === "player") {
       const { appearance, equipment } = session.state.player;
       return portraitCanvas(appearance, equipment);
     }
-    const visual = getEnemy(view.enemyId ?? "")?.visual;
-    return visual
-      ? visualPortraitCanvas(visual, "grim")
-      : portraitCanvas(defaultAppearance(), emptyEquipment(), "grim");
+    // The face on the chip is the face on the board: the archetype's
+    // look family record this body was spawned in, or an authored
+    // portrait for whatever was never a person.
+    return enemyPortraitCanvas(view.enemyId, view.lookIndex ?? 0, "grim");
   }
 
   function renderInitiative(): void {
@@ -527,8 +527,12 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     scene.setEntities(
       combat.combatants.map((c) => ({
         id: c.id,
-        // Enemy archetype ids key the composed look via enemySpriteSource.
-        spriteId: c.kind === "player" ? "player" : c.enemyId ?? "enemy",
+        // Enemy sprite ids (archetype + look) key the art through
+        // enemySpriteSource, which resolves the archetype's sprite kind.
+        spriteId:
+          c.kind === "player"
+            ? "player"
+            : enemySpriteId(c.enemyId ?? "enemy", c.lookIndex ?? 0),
         position: { ...c.position },
         hp: Math.max(0, c.hp),
         maxHp: c.maxHp,

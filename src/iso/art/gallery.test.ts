@@ -59,6 +59,7 @@ describe("gallery sections", () => {
       "interactables",
       "setpieces",
       "cast",
+      "drones",
       "bodies",
       "attacks",
       "reactions",
@@ -116,20 +117,31 @@ describe("gallery sections", () => {
     );
   });
 
-  it("covers every enemy archetype per facing and every map NPC", () => {
+  it("covers every record of every look family per facing and every map NPC", () => {
     const cast = section("cast");
     const npcCount = maps.reduce(
       (sum, map) =>
         sum + map.interactables.filter((i) => i.spriteId === "npc").length,
       0,
     );
-    expect(cast.entries.length).toBe(enemies.length * 4 + npcCount);
+    const lookCount = enemies.reduce(
+      (sum, enemy) => sum + (enemy.spriteKind === "humanoid" ? enemy.looks.length : 0),
+      0,
+    );
+    expect(cast.entries.length).toBe(lookCount * 4 + npcCount);
     for (const enemy of enemies) {
-      for (const facing of ["n", "e", "s", "w"]) {
-        expect(
-          cast.entries.some((e) => e.id === `enemy ${enemy.id} ${facing}`),
-          `enemy ${enemy.id} ${facing} present`,
-        ).toBe(true);
+      // Archetypes with an authored sprite set live in their own
+      // section — nothing in the cast composes them.
+      if (enemy.spriteKind !== "humanoid") continue;
+      for (let look = 0; look < enemy.looks.length; look++) {
+        for (const facing of ["n", "e", "s", "w"]) {
+          expect(
+            cast.entries.some(
+              (e) => e.id === `enemy ${enemy.id} look${look} ${facing}`,
+            ),
+            `enemy ${enemy.id} look${look} ${facing} present`,
+          ).toBe(true);
+        }
       }
     }
     for (const map of maps) {
@@ -550,9 +562,14 @@ describe("gallery entries", () => {
     const cast = section("cast");
     const frame = (id: string): string =>
       cast.entries.find((e) => e.id === id)?.frames[0]?.join("\n") ?? "";
-    // Every enemy archetype reads as its own figure.
-    const enemyLooks = enemies.map((e) => frame(`enemy ${e.id} s`));
-    expect(new Set(enemyLooks).size).toBe(enemies.length);
+    // Every record of every family reads as its own figure — within an
+    // archetype and across the roster alike.
+    const enemyLooks = enemies.flatMap((e) =>
+      e.spriteKind === "humanoid"
+        ? e.looks.map((_, look) => frame(`enemy ${e.id} look${look} s`))
+        : [],
+    );
+    expect(new Set(enemyLooks).size).toBe(enemyLooks.length);
     // Flick is the same person on both maps.
     expect(frame("npc flick")).toBe(frame("npc flick-steps"));
     // Seeded ambient NPCs (no authored visual) differ from each other.

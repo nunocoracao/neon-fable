@@ -377,6 +377,28 @@ export {
   type ComposedLayer,
 } from "./art/layers";
 export {
+  ENTITY_ART_KINDS,
+  characterArt,
+  droneArt,
+  entityAttackClass,
+  entityFrameKey,
+  entityGrid,
+  entityMuzzlePoint,
+  type CharacterEntityArt,
+  type DroneEntityArt,
+  type EntityArt,
+  type EntityArtKind,
+} from "./art/entity";
+export {
+  DRONE_ART,
+  DRONE_ART_IDS,
+  DRONE_SET_IDS,
+  droneFrameCount,
+  type DroneArt,
+  type DroneArtId,
+  type DroneSetId,
+} from "./art/drone";
+export {
   ATTACK_CLASS_IDS,
   ATTACK_TIMING,
   attackDurationMs,

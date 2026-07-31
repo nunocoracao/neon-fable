@@ -60,6 +60,11 @@ export interface InitiativeChip {
   kind: "player" | "enemy";
   /** Enemy archetype id, for the portrait; null for the player. */
   enemyId: string | null;
+  /**
+   * Which record of the archetype's look family this body wears, so the
+   * chip's face is the one on the board; null for the player.
+   */
+  lookIndex: number | null;
   hp: number;
   maxHp: number;
   /** HP as a fraction in [0, 1], for the bar under the chip. */
@@ -115,6 +120,7 @@ export function initiativeChips(
         name: names[id] ?? combatant.name,
         kind: combatant.kind,
         enemyId: combatant.enemyId ?? null,
+        lookIndex: combatant.lookIndex ?? null,
         hp,
         maxHp: combatant.maxHp,
         hpFraction: combatant.maxHp > 0 ? hp / combatant.maxHp : 0,
@@ -327,6 +333,8 @@ export interface TargetCard {
   name: string;
   kind: "player" | "enemy";
   enemyId: string | null;
+  /** The archetype look this body wears; null for the player. */
+  lookIndex: number | null;
   hp: number;
   maxHp: number;
   hpFraction: number;
@@ -369,6 +377,7 @@ export function targetCard(
     name: names[combatantId] ?? combatant.name,
     kind: combatant.kind,
     enemyId: combatant.enemyId ?? null,
+    lookIndex: combatant.lookIndex ?? null,
     hp,
     maxHp: combatant.maxHp,
     hpFraction: combatant.maxHp > 0 ? hp / combatant.maxHp : 0,

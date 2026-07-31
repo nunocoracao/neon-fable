@@ -29,7 +29,7 @@ import {
 import { settings } from "../settings";
 import { interactPrompt } from "./format";
 import { runMapTransition, type MapTransitionHandle } from "./mapTransition";
-import { ambientSpriteSource, npcSpriteSource } from "./entitySprites";
+import { npcSpriteSource, sceneSpriteSource } from "./entitySprites";
 import { playerSpriteSource } from "./playerSprite";
 import { createAdvancementOverlay } from "./advancementOverlay";
 import { COMBAT_RESUME_FLAG, createCombatScreen } from "./combatScreen";
@@ -565,7 +565,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         sprites: createPixelArtSprites({
           player: playerSpriteSource(session),
           npc: npcSpriteSource(map),
-          entity: ambientSpriteSource(),
+          entity: sceneSpriteSource(),
         }),
         onFocus: showFocusHint,
         onView: (view) => minimap?.update(view),

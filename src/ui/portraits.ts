@@ -10,13 +10,17 @@
  */
 import {
   composePortrait,
+  composeVisualPortrait,
   defaultAppearance,
   portraitKey,
-  visualEquipment,
+  visualPortraitKey,
   type Appearance,
   type CharacterVisual,
 } from "../character";
+import type { PixelGrid } from "../iso/art/pixel";
 import type { ExpressionId } from "../data/appearance";
+import { enemyLook, getEnemy, parseEnemySpriteId } from "../data/enemies";
+import { DRONE_ART } from "../iso";
 import type { EquipmentState } from "../inventory/equipment";
 import { ART_SCALE, bakeSprite, spriteBytes } from "../iso/art/pixel";
 import { PORTRAIT_FRAME } from "../iso/art/layers/portrait";
@@ -53,8 +57,23 @@ export function portraitCanvas(
     look = defaultAppearance();
     key = portraitKey(look, equipment, expression);
   }
+  return gridPortraitCanvas(key, () =>
+    composePortrait(look, equipment, expression),
+  );
+}
+
+/**
+ * A display canvas for any composed portrait grid, baked and cached
+ * under `key`. Every portrait in the game goes through here — the
+ * player's, an authored look's, and the authored grids of the things
+ * that were never people (the combat drone's camera-eye plate).
+ */
+export function gridPortraitCanvas(
+  key: string,
+  compose: () => PixelGrid,
+): HTMLCanvasElement {
   const baked = cache.get(`portrait:${key}`, () =>
-    bakeSprite(composePortrait(look, equipment, expression), 0, 0),
+    bakeSprite(compose(), 0, 0),
   );
 
   const el = document.createElement("canvas");
@@ -66,18 +85,54 @@ export function portraitCanvas(
 }
 
 /**
- * The portrait for an authored non-player look — a named NPC, an enemy
- * archetype — through the same bake and cache as the player's. Gear on
- * a visual resolves exactly like equipment, so an enemy's coat and
- * optics show in its portrait the way they show on its sprite.
+ * The portrait for an authored non-player look — a named NPC, one
+ * record of an enemy archetype's look family — through the same bake
+ * and cache as the player's. Gear on a visual resolves exactly like
+ * equipment, so an enemy's coat and optics show in its portrait the way
+ * they show on its sprite, crew dye included.
  */
 export function visualPortraitCanvas(
   visual: CharacterVisual,
   expression: ExpressionId = "neutral",
 ): HTMLCanvasElement {
-  return portraitCanvas(
-    visual.appearance,
-    visualEquipment(visual),
-    expression,
-  );
+  let key: string;
+  try {
+    key = visualPortraitKey(visual, expression);
+  } catch (error) {
+    console.error("Invalid appearance; rendering the default portrait", error);
+    return portraitCanvas(defaultAppearance(), emptyPortraitEquipment(), expression);
+  }
+  return gridPortraitCanvas(key, () => composeVisualPortrait(visual, expression));
+}
+
+/** No gear at all: what the fallback portrait wears. */
+function emptyPortraitEquipment(): EquipmentState {
+  return { weapon: null, outfit: null, enhancements: {} };
+}
+
+/**
+ * The face in the initiative rail for one enemy on the board: the
+ * record of its archetype's look family it is actually wearing, or —
+ * for the archetypes that were never people — the authored portrait its
+ * sprite set carries. Every enemy has a face here; an unknown id falls
+ * back to the stock look rather than an empty chip.
+ */
+export function enemyPortraitCanvas(
+  enemyId: string | null,
+  lookIndex = 0,
+  expression: ExpressionId = "grim",
+): HTMLCanvasElement {
+  const parsed = parseEnemySpriteId(enemyId ?? "");
+  const enemy = getEnemy(parsed.enemyId);
+  if (enemy?.spriteKind === "drone") {
+    // No appearance to derive from: a camera plate, authored whole.
+    return gridPortraitCanvas(
+      `drone:${enemy.droneArt}`,
+      () => DRONE_ART[enemy.droneArt].portrait,
+    );
+  }
+  const visual = enemy ? enemyLook(enemy, lookIndex) : undefined;
+  return visual
+    ? visualPortraitCanvas(visual, expression)
+    : portraitCanvas(defaultAppearance(), emptyPortraitEquipment(), expression);
 }
