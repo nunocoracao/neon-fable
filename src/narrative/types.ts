@@ -29,6 +29,7 @@ export type Requirement =
   | CreditsRequirement
   | CompanionRequirement
   | LoyaltyRequirement
+  | InjuryRequirement
   | ReputationRequirement
   | DominantFactionRequirement;
 
@@ -159,6 +160,21 @@ export interface LoyaltyRequirement {
 }
 
 /**
+ * Somebody is carrying a wound out of a fight they won. `injuryId`
+ * names one (src/data/injuries.ts) and is how a clinic line gets to
+ * acknowledge the *specific* thing that is wrong; omit it to ask only
+ * whether they are hurt at all. `companionId` asks about a crew member
+ * instead of the player — a companion who never joined is never hurt,
+ * so pair it with a `companion` requirement when the scene needs them
+ * standing there.
+ */
+export interface InjuryRequirement {
+  type: "injury";
+  injuryId?: string;
+  companionId?: string;
+}
+
+/**
  * How a faction reads the player. `value` is a band id ("warm") or a
  * raw standing; prefer the band — it survives a re-tune of what an act
  * outcome is worth, and it is the same word the character screen shows.
@@ -204,6 +220,7 @@ export type Effect =
   | OpenVendorEffect
   | RecruitCompanionEffect
   | CompanionLoyaltyEffect
+  | TreatInjuryEffect
   | GotoEffect
   | EndEffect;
 
@@ -316,6 +333,24 @@ export interface CompanionLoyaltyEffect {
   type: "companion-loyalty";
   companionId: string;
   amount: number;
+}
+
+/**
+ * A clinic closes somebody's injury and charges for it. The fee is the
+ * carried injury's own (src/data/injuries.ts), never a figure authored
+ * on the choice — so a scene that quotes a price and the effect that
+ * takes it can never drift apart, and re-tuning what a wound costs to
+ * fix is a change to the content and nowhere else.
+ *
+ * A no-op for somebody with nothing wrong, or with the credits short:
+ * a refusal costs nothing, exactly like a refused restyle. Gate the
+ * choice on `injury` and `credits` and the player never sees the
+ * refusal at all.
+ */
+export interface TreatInjuryEffect {
+  type: "treat-injury";
+  /** Companion content id; omit to treat the player. */
+  companionId?: string;
 }
 
 /** Jump marker: overrides the choice's target node. */

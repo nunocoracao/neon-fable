@@ -2,6 +2,7 @@ import {
   createCharacter,
   defaultAllocation,
   defaultAppearance,
+  normalizeInjury,
   normalizePerkIds,
 } from "../character";
 import type { CharacterState } from "../character";
@@ -25,7 +26,7 @@ import type { RngState } from "./rng";
 import { clampVendors, emptyVendors, type VendorsState } from "./vendors";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 14;
+export const GAME_STATE_VERSION = 15;
 
 /**
  * Oldest save version migrateGameState can bring forward. Saves from
@@ -124,6 +125,12 @@ export interface GameState {
  *   milestones grant are stored, and an old save has taken none. The
  *   normalize pass below (which runs at every version, like the lore
  *   clamp) is what fills the empty list in rather than assuming it.
+ * - v14 -> v15: fights started leaving marks. There is nothing to fill
+ *   in — an old save describes a runner and a crew who are carrying
+ *   nothing, which is exactly what an absent injury field says — and
+ *   the sanitize pass below is what makes that true rather than
+ *   assumed: a wound naming an injury this build retired closes rather
+ *   than quietly going on costing.
  */
 export function migrateGameState(
   state: GameState,
@@ -173,11 +180,21 @@ export function migrateGameState(
       ...cleaned.player.advancement,
       perkIds: normalizePerkIds(cleaned.player.advancement?.perkIds),
     },
+    injury: normalizeInjury(cleaned.player.injury),
   };
   return {
     ...migrated,
     player,
     inventory: cleaned.inventory,
+    // And a fourth time, for the crew: a companion's wound follows the
+    // same rules the player's does, including this one.
+    party: {
+      ...migrated.party,
+      members: (migrated.party?.members ?? []).map((member) => ({
+        ...member,
+        injury: normalizeInjury(member.injury),
+      })),
+    },
     lore: clampLore(migrated.lore),
     vendors: clampVendors(migrated.vendors),
     version: GAME_STATE_VERSION,

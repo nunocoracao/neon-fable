@@ -29,7 +29,7 @@ import {
   type TelegraphRole,
   type TelegraphTile,
 } from "../combat";
-import { getAbility, getItem } from "../data";
+import { getAbility, getInjury, getItem } from "../data";
 import {
   STATUS_MARKERS,
   statusFamilies,
@@ -87,6 +87,28 @@ export interface InitiativeChip {
   turnsAway: number | null;
   /** Condition families badging the chip, in registry order. */
   statuses: readonly StatusFamilyId[];
+  /**
+   * The wound this body walked in with, already spelled out: its name
+   * and what it is costing them. Null for anybody unhurt, which is most
+   * bodies — and always null on the enemy side, which does not carry
+   * injuries between fights because it does not get between fights.
+   *
+   * Spelled out here rather than left as an id because the rail is one
+   * of the two places a player is promised they can *read* a debuff
+   * (the other is the character screen), and a badge that only said
+   * "injured" would be telling them the half they had already guessed.
+   */
+  injury: InjuryChipView | null;
+}
+
+/** A carried injury as the rail shows it. */
+export interface InjuryChipView {
+  /** Injury id in src/data/injuries.ts. */
+  id: string;
+  /** What it is called ("Winged"). */
+  name: string;
+  /** What it costs, one line, nothing hidden. */
+  effect: string;
 }
 
 /**
@@ -137,9 +159,18 @@ export function initiativeChips(
         active: active && queue.get(id) === 0,
         turnsAway: queue.get(id) ?? null,
         statuses: combatantStatuses(combatant),
+        injury: injuryChip(combatant),
       },
     ];
   });
+}
+
+/** The wound a body walked in with, as the rail shows it, or null. */
+export function injuryChip(combatant: Combatant): InjuryChipView | null {
+  if (combatant.injury == null) return null;
+  const def = getInjury(combatant.injury);
+  if (!def) return null;
+  return { id: def.id, name: def.name, effect: def.effect };
 }
 
 /** The condition families true of a combatant right now. */

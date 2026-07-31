@@ -6,6 +6,7 @@ import {
   type Appearance,
 } from "./appearance";
 import { deriveAttributes, type DerivedAttributes } from "./derived";
+import type { CarriedInjury } from "./injury";
 import {
   applyBonuses,
   validateAllocation,
@@ -54,6 +55,13 @@ export interface CharacterState {
   tags: string[];
   /** Chapter-advancement spends (stat raises, unlocked abilities). */
   advancement: AdvancementState;
+  /**
+   * What the last bad fight left behind, or nothing. At most one at a
+   * time (see src/character/injury.ts); absent and null both mean
+   * unhurt, which is what every save written before injuries existed
+   * already says.
+   */
+  injury?: CarriedInjury | null;
 }
 
 export class CharacterCreationError extends Error {

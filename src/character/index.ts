@@ -113,6 +113,22 @@ export {
   type CredLine,
 } from "./cred";
 export {
+  NO_INJURY,
+  characterInjury,
+  characterInjuryModifiers,
+  healCharacter,
+  injuryDef,
+  injuryModifiers,
+  injureCharacter,
+  normalizeInjury,
+  takeInjury,
+  tickCharacterInjury,
+  tickInjury,
+  worseInjury,
+  type CarriedInjury,
+  type InjuryModifiers,
+} from "./injury";
+export {
   NO_PERKS,
   availablePerks,
   characterPerks,

@@ -1,5 +1,5 @@
 import { audio, type SoundId } from "../audio";
-import { neuralCapacityOf } from "../character";
+import { characterInjury, neuralCapacityOf } from "../character";
 import { getItem } from "../data/items";
 import {
   ENHANCEMENT_SLOTS,
@@ -16,6 +16,9 @@ import {
 import { factionRows } from "./factionModel";
 import {
   dyeChannelSummary,
+  injuryEffectText,
+  injuryName,
+  injuryRecoveryNote,
   itemEffectLabels,
   itemSummary,
   slotLabel,
@@ -130,7 +133,41 @@ export function createInventoryOverlay(
 
     status.append(hp, credits, neural);
     container.append(status);
+    renderInjury(container);
     renderStatic(container);
+  }
+
+  /**
+   * What the last bad fight left behind, above the noise meter because
+   * it is the more urgent of the two and the only one that goes away on
+   * its own. Three lines and no numbers hidden: what it is, what it is
+   * costing, and when it stops — a debuff a player cannot read is a
+   * debuff they experience as bad luck.
+   */
+  function renderInjury(container: HTMLElement): void {
+    const carried = characterInjury(session.state.player);
+    const name = injuryName(carried);
+    if (name === null) return;
+    const section = document.createElement("div");
+    section.className = "nf-injury";
+    section.dataset.injury = carried?.id ?? "";
+
+    const head = document.createElement("div");
+    head.className = "nf-injury-head";
+    const label = document.createElement("span");
+    label.className = "nf-injury-name";
+    label.textContent = name;
+    const cost = document.createElement("span");
+    cost.className = "nf-injury-effect";
+    cost.textContent = injuryEffectText(carried) ?? "";
+    head.append(label, cost);
+
+    const note = document.createElement("div");
+    note.className = "nf-item-summary";
+    note.textContent = injuryRecoveryNote(carried) ?? "";
+
+    section.append(head, note);
+    container.append(section);
   }
 
   /**

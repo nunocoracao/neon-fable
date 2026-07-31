@@ -6,6 +6,7 @@ import type { ItemResolver } from "../inventory/items";
 import type { GameState } from "../state/gameState";
 import { getMember, setCompanionHp } from "../state/party";
 import { companionIdOf } from "./ally";
+import { applyCombatInjuries } from "./injury";
 import { allyCombatants, playerCombatant } from "./state";
 import { CombatError, type CombatState } from "./types";
 
@@ -86,5 +87,12 @@ export function resolveCombat(
       inventory: rewarded,
     };
   }
-  return next;
+
+  // And what the win cost. Only a won fight can leave a wound (see
+  // ./injury.ts): a defeat's whole answer is the panel and the reload,
+  // and adding a debuff to it would be charging the player twice for
+  // the same bad night. Applied after the hp write-back above, because
+  // the read that decides who limps out is of the *fight*, not of the
+  // state it folded into.
+  return applyCombatInjuries(next, combat, resolve);
 }

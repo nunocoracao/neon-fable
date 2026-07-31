@@ -102,6 +102,13 @@ export {
   type AttackOption,
   type ItemOption,
 } from "./legal";
+export {
+  BLOODIED_SHARE,
+  applyCombatInjuries,
+  combatInjuries,
+  hasSeizableChrome,
+  type InjuryDraw,
+} from "./injury";
 export { combatResultFlag, resolveCombat } from "./outcome";
 export {
   COMBAT_ACTION_KINDS,
