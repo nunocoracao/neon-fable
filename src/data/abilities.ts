@@ -166,6 +166,22 @@ export const abilities: Ability[] = [
     effectRef: "volley-streak",
   },
   {
+    // Granted only by the Burst Governor mod (see src/data/items.ts) —
+    // the one ability in the game that comes off a part rather than a
+    // whole weapon, which is why it reads as the weapon doing more
+    // rather than the shooter knowing more.
+    id: "ability-burst-fire",
+    name: "Burst Fire",
+    description:
+      "The governor lets three rounds through where the trigger asked for " +
+      "one. It is not aiming; it is arithmetic, and the arithmetic is " +
+      "leaning on whoever the barrel happened to be pointing at.",
+    range: 5,
+    cooldown: 2,
+    effect: { type: "damage", amount: 5 },
+    effectRef: "volley-streak",
+  },
+  {
     id: "ability-shatter-hand",
     name: "Shatter Hand",
     description:

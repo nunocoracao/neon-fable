@@ -18,6 +18,41 @@ export type ItemEffect =
 
 export type RangeType = "melee" | "ranged";
 
+/**
+ * Where a part bolts onto a weapon. The kind is the whole compatibility
+ * rule: a barrel socket takes what shapes the shot, a core socket what
+ * drives it, a grip socket what steadies it — so a scope can never be
+ * screwed into a knife's handle mount, and a weapon offers only the
+ * sockets its silhouette could plausibly carry.
+ */
+export const MOD_SOCKET_KINDS = ["barrel", "core", "grip"] as const;
+export type ModSocketKind = (typeof MOD_SOCKET_KINDS)[number];
+
+/**
+ * How a part reshapes the weapon's own numbers. These are the figures
+ * the attack math reads (see src/combat/damage.ts); everything a mod
+ * does to the *character* — stats, granted abilities, dialogue tags —
+ * is said in the ordinary ItemEffect vocabulary instead, so a mod's
+ * +1 Reflexes and an outfit's are folded in by the same selector.
+ */
+export type WeaponModEffect =
+  /** Shifts the weapon's base damage. */
+  | { type: "weapon-damage"; amount: number }
+  /** Armor points a landed blow ignores. */
+  | { type: "armor-pierce"; amount: number }
+  /** Shifts the hit roll, in points of the attack stat. */
+  | { type: "accuracy"; amount: number }
+  /** Shifts the weapon's reach, in tiles. */
+  | { type: "weapon-range"; amount: number }
+  /**
+   * Shifts the share of a target's frame a blow must take to read as a
+   * critical one (negative makes criticals easier). Like the reading it
+   * moves, this changes what a blow *looks* like, never what it deals.
+   */
+  | { type: "crit-share"; amount: number };
+
+export type ModEffect = ItemEffect | WeaponModEffect;
+
 export const ENHANCEMENT_SLOTS = ["eyes", "arms", "neural", "dermal"] as const;
 export type EnhancementSlot = (typeof ENHANCEMENT_SLOTS)[number];
 
@@ -49,7 +84,35 @@ export interface WeaponItem extends ItemBase {
   requirement?: { stat: StatKey; value: number };
   /** Sprite layer held while equipped; absent means empty hands. */
   weaponLayer?: WeaponLayerRef;
+  /**
+   * Mod sockets this weapon carries, in bench order. Absent (and empty)
+   * means the weapon takes no parts at all. Tier decides the count —
+   * one on a starter, two on tier-2 hardware — and the kinds decide
+   * what fits (see ModSocketKind and src/inventory/mods.ts).
+   */
+  sockets?: readonly ModSocketKind[];
   effects: ItemEffect[];
+}
+
+/**
+ * A part that bolts into a weapon socket. Mods are carried like any
+ * other item and do nothing until fitted; while fitted they are not in
+ * the inventory at all — they live on the weapon copy they were fitted
+ * to (see ItemStack.mods), which is what makes a modded weapon a
+ * distinct object rather than an id.
+ */
+export interface ModItem extends ItemBase {
+  kind: "mod";
+  /** Socket kind this fits; a weapon must offer one to take it. */
+  socket: ModSocketKind;
+  effects: ModEffect[];
+  /**
+   * Repaints the weapon layer's energy-glow accent channel while
+   * fitted — the same channel an item's own `weaponLayer.accent` uses,
+   * so a modded weapon reads as modded on the street. The first fitted
+   * part with an accent wins (see modAccent).
+   */
+  accent?: MaterialName;
 }
 
 /**
@@ -125,7 +188,25 @@ export type Item =
   | OutfitItem
   | ConsumableItem
   | EnhancementItem
+  | ModItem
   | MiscItem;
+
+/**
+ * Item kinds whose effects the equipment selectors fold over the
+ * character. Mods qualify — a fitted part's +1 Reflexes counts exactly
+ * like an outfit's — but only through the weapon it is fitted to, so
+ * `equippedItems` (which reports slots) never returns one.
+ */
+export type EffectBearingItem =
+  | WeaponItem
+  | OutfitItem
+  | EnhancementItem
+  | ModItem;
+
+/** True for the kinds that carry an `effects` list. */
+export function bearsEffects(item: Item): item is EffectBearingItem {
+  return item.kind !== "consumable" && item.kind !== "misc";
+}
 
 /**
  * Looks an item up by id, throwing InventoryError("unknown-item") for ids
@@ -134,9 +215,16 @@ export type Item =
  */
 export type ItemResolver = (id: string) => Item;
 
-/** Consumables and misc items stack; gear is tracked one copy per stack. */
+/**
+ * Consumables, misc items, and loose mods stack; worn gear is tracked
+ * one copy per stack, because a copy can differ from its fellows (a
+ * weapon carries the parts fitted to it). A loose mod carries nothing,
+ * so two of them are genuinely the same thing.
+ */
 export function isStackable(item: Item): boolean {
-  return item.kind === "consumable" || item.kind === "misc";
+  return (
+    item.kind === "consumable" || item.kind === "misc" || item.kind === "mod"
+  );
 }
 
 export type InventoryErrorCode =
@@ -148,7 +236,19 @@ export type InventoryErrorCode =
   | "neural-capacity"
   | "not-equipped"
   | "not-installed"
-  | "not-usable";
+  | "not-usable"
+  /** The weapon carries no sockets at all. */
+  | "no-sockets"
+  /** No socket at that index on this weapon. */
+  | "unknown-socket"
+  /** The part does not fit that socket's kind. */
+  | "wrong-socket"
+  /** Something is already fitted there. */
+  | "socket-occupied"
+  /** Nothing is fitted there to take out. */
+  | "socket-empty"
+  /** The bench's fee is more than the player is carrying. */
+  | "insufficient-credits";
 
 export class InventoryError extends Error {
   constructor(

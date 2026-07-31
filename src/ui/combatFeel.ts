@@ -31,10 +31,17 @@ export interface ImpactTarget {
 export function impactWeight(
   damage: number,
   target: ImpactTarget,
+  /**
+   * The share of the frame this blow has to take to read as critical.
+   * Absent is the standard reading; a weapon with a hairline sear
+   * fitted passes its own (see CombatWeapon.critShare) — the one thing
+   * a crit-behavior mod moves is where this line is drawn.
+   */
+  critShare?: number,
 ): ImpactWeight {
   if (damage <= 0) return "glancing";
   if (isGlancingBlow(damage, target.armor)) return "glancing";
-  if (isCriticalBlow(damage, target.maxHp)) return "critical";
+  if (isCriticalBlow(damage, target.maxHp, critShare)) return "critical";
   return isHeavyBlow(damage, target.maxHp) ? "heavy" : "solid";
 }
 

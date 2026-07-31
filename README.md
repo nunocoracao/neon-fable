@@ -136,6 +136,16 @@ plus content from `src/data/`); rendering and DOM code stay thin.
   into `GameState` as a `combat:<encounterId>` flag.
 - **Inventory** (`src/inventory/`) — pure equip/install/consume
   functions with typed `InventoryError`s the UI shows verbatim.
+  Weapons carry **mod sockets**: parts are fitted at a workbench and
+  live on the *copy* they were fitted to (`ItemStack.mods` /
+  `EquipmentState.weaponMods`), so two of the same weapon can differ.
+  `weaponProfile` (`src/inventory/mods.ts`) is the single place a
+  modded weapon's figures are derived; combat snapshots it as the
+  combatant's `CombatWeapon`, which is why the engine, the legal-option
+  queries and every tooltip quote one number without any of them
+  knowing a mod exists. A part's character-facing effects (`stat-mod`,
+  `grant-ability`, `unlock-dialogue`) fold in through the ordinary
+  equipment selectors.
 - **Iso scene** (`src/iso/`) — 2:1 diamond tiles, painter's-order depth
   sort, BFS pathfinding, and a combat arena scene with walk tweens, HP
   bars, and floating damage text. Presentation only: it never imports
@@ -171,10 +181,30 @@ cross-references, so `npm test` is the authoring safety net.
 ### Items (`src/data/items.ts`)
 
 Add an `Item` to the `items` array. Kinds: `weapon`, `outfit`,
-`consumable`, `enhancement` (with a body `slot` and `neuralCost`), and
-`misc`. Gear carries typed `effects` (`stat-mod`, `grant-ability`,
-`unlock-dialogue`). `items.test.ts` checks id uniqueness and slot
-coverage.
+`consumable`, `enhancement` (with a body `slot` and `neuralCost`),
+`mod`, and `misc`. Gear carries typed `effects` (`stat-mod`,
+`grant-ability`, `unlock-dialogue`). `items.test.ts` checks id
+uniqueness and slot coverage.
+
+#### Weapon mods
+
+A weapon declares `sockets` — one on a starter, two on tier-2 hardware,
+each a `ModSocketKind` (`barrel`, `core`, `grip`). A `mod` item
+declares the one socket kind it fits, an `accent` material (fitted
+parts repaint the weapon layer's energy channel, so a modded weapon
+reads as modded in the world), and `effects` drawn from the wider mod
+vocabulary: the gear effects above plus `weapon-damage`,
+`armor-pierce`, `accuracy`, `weapon-range`, and `crit-share`.
+
+Author every part as a **trade** — a mod that only gives is a stat
+stick with a screw thread — and place it in loot (an `add-item` effect)
+or vendor stock. `items.test.ts` enforces the tier/kind socket rules,
+the trade, the accent, and that nothing is unobtainable.
+
+Fitting is free; pulling a part back out costs `MOD_REMOVAL_FEE` and
+returns it intact. Both are only reachable through the workbench
+screen, which a choice opens with the `open-workbench` effect — "only
+at a bench" is enforced by there being no other door.
 
 ### Enemies & encounters (`src/data/enemies.ts`, `encounters.ts`)
 
@@ -309,7 +339,9 @@ A `StoryArc` is a list of nodes; each node has `speaker`, `text`, and
   another map and continues there), `recruit-companion` (somebody joins
   the party — idempotent, so re-recruiting only un-benches),
   `companion-loyalty` (moves their standing; a no-op for somebody not
-  in the party), `goto`, and `end` (optionally with an `endingId`).
+  in the party), `open-stylist` and `open-workbench` (the screen
+  replaces the dialogue and closing it resumes at the choice's
+  `target`), `goto`, and `end` (optionally with an `endingId`).
 
 A choice may also carry `reactions`: tags naming what *kind* of act it
 is (`mercy`, `salvage`, `defiance`, `record`, `procedure`,

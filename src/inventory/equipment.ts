@@ -1,11 +1,19 @@
 import type { CharacterState } from "../character/create";
 import { requireItem } from "../data/items";
-import { addItem, removeItem, type InventoryState } from "./inventory";
+import {
+  addGear,
+  addItem,
+  findCopy,
+  removeItem,
+  takeCopy,
+  type InventoryState,
+} from "./inventory";
 import {
   InventoryError,
   type EnhancementSlot,
   type ItemResolver,
 } from "./items";
+import { normalizeMods, storedMods } from "./mods";
 import { effectiveStats } from "./selectors";
 
 /**
@@ -17,6 +25,14 @@ import { effectiveStats } from "./selectors";
 export interface EquipmentState {
   weapon: string | null;
   outfit: string | null;
+  /**
+   * Parts fitted to the weapon in hand, one entry per socket in socket
+   * order — the same per-copy state a carried weapon keeps on its stack
+   * (see ItemStack.mods), moved into the slot along with the weapon.
+   * Absent while unarmed, and on every weapon that has never been to a
+   * bench.
+   */
+  weaponMods?: (string | null)[];
   enhancements: Partial<Record<EnhancementSlot, string>>;
 }
 
@@ -37,21 +53,50 @@ export interface Loadout {
 export const UNINSTALL_TRAUMA_PER_LOAD = 3;
 
 /**
- * Equips a carried weapon or outfit into its slot. Weapons with a stat
- * requirement check it against current effective stats. Anything already
- * in the slot is returned to the inventory.
+ * Puts a weapon back in the bag with whatever was fitted to it, and
+ * leaves the slot's parts behind. Outfits carry nothing, so they go
+ * back the plain way.
  */
-export function equip(
+function stowSlot(
+  inventory: InventoryState,
+  slot: "weapon" | "outfit",
+  itemId: string,
+  weaponMods: (string | null)[] | undefined,
+  resolve: ItemResolver,
+): InventoryState {
+  return slot === "weapon"
+    ? addGear(inventory, itemId, weaponMods ?? [], resolve)
+    : addItem(inventory, itemId, 1, resolve);
+}
+
+/**
+ * Equips the copy at `stackIndex`. Addressing the copy rather than the
+ * id is what lets a player carry two of the same weapon and equip the
+ * one they modded; `equip` below is the same call for callers with
+ * nothing but an id.
+ *
+ * Weapons with a stat requirement check it against current effective
+ * stats. Anything already in the slot is returned to the inventory,
+ * with its own parts still on it.
+ */
+export function equipStack(
   character: CharacterState,
   inventory: InventoryState,
-  itemId: string,
+  stackIndex: number,
   resolve: ItemResolver = requireItem,
 ): Loadout {
-  const item = resolve(itemId);
+  const stack = inventory.stacks[stackIndex];
+  if (!stack) {
+    throw new InventoryError(
+      "not-carried",
+      `No carried stack at index ${stackIndex}`,
+    );
+  }
+  const item = resolve(stack.itemId);
   if (item.kind !== "weapon" && item.kind !== "outfit") {
     throw new InventoryError(
       "wrong-kind",
-      `Cannot equip "${itemId}": ${item.kind} items do not go in equipment slots`,
+      `Cannot equip "${stack.itemId}": ${item.kind} items do not go in equipment slots`,
     );
   }
   if (item.kind === "weapon" && item.requirement) {
@@ -60,23 +105,74 @@ export function equip(
     if (current < value) {
       throw new InventoryError(
         "stat-requirement",
-        `Cannot equip "${itemId}": requires ${stat} ${value}, have ${current}`,
+        `Cannot equip "${stack.itemId}": requires ${stat} ${value}, have ${current}`,
       );
     }
   }
-  let nextInventory = removeItem(inventory, itemId);
+
+  const taken = takeCopy(inventory, stackIndex);
+  let nextInventory = taken.inventory;
   const slot = item.kind;
   const previous = character.equipment[slot];
   if (previous != null) {
-    nextInventory = addItem(nextInventory, previous, 1, resolve);
+    nextInventory = stowSlot(
+      nextInventory,
+      slot,
+      previous,
+      character.equipment.weaponMods,
+      resolve,
+    );
   }
+  // Parts come off the copy and into the slot; the slot's own parts
+  // left with whatever was displaced, so neither set is ever shared.
+  const weaponMods =
+    item.kind === "weapon"
+      ? storedMods(normalizeMods(item, taken.stack.mods, resolve))
+      : character.equipment.weaponMods;
   return {
     character: {
       ...character,
-      equipment: { ...character.equipment, [slot]: itemId },
+      equipment: {
+        ...character.equipment,
+        [slot]: stack.itemId,
+        ...(item.kind === "weapon"
+          ? weaponMods
+            ? { weaponMods }
+            : { weaponMods: undefined }
+          : {}),
+      },
     },
     inventory: nextInventory,
   };
+}
+
+/**
+ * Equips a carried weapon or outfit into its slot, taking the first
+ * copy carried. See equipStack for choosing between copies.
+ */
+export function equip(
+  character: CharacterState,
+  inventory: InventoryState,
+  itemId: string,
+  resolve: ItemResolver = requireItem,
+): Loadout {
+  const index = findCopy(inventory, itemId);
+  if (index < 0) {
+    // Kind errors read better than "you aren't carrying that" when the
+    // item is one that could never go in a slot at all.
+    const item = resolve(itemId);
+    if (item.kind !== "weapon" && item.kind !== "outfit") {
+      throw new InventoryError(
+        "wrong-kind",
+        `Cannot equip "${itemId}": ${item.kind} items do not go in equipment slots`,
+      );
+    }
+    throw new InventoryError(
+      "not-carried",
+      `Cannot equip "${itemId}": not carried`,
+    );
+  }
+  return equipStack(character, inventory, index, resolve);
 }
 
 /** Removes the item in a weapon/outfit slot, returning it to the inventory. */
@@ -90,12 +186,18 @@ export function unequip(
   if (itemId == null) {
     throw new InventoryError("not-equipped", `No item equipped in ${slot} slot`);
   }
+  const equipment = { ...character.equipment, [slot]: null };
+  if (slot === "weapon") equipment.weaponMods = undefined;
   return {
-    character: {
-      ...character,
-      equipment: { ...character.equipment, [slot]: null },
-    },
-    inventory: addItem(inventory, itemId, 1, resolve),
+    character: { ...character, equipment },
+    // The parts leave with the weapon they are bolted to.
+    inventory: stowSlot(
+      inventory,
+      slot,
+      itemId,
+      character.equipment.weaponMods,
+      resolve,
+    ),
   };
 }
 

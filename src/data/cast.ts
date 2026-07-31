@@ -105,6 +105,26 @@ export const QUILL_VISUAL: CharacterVisual = {
   outfit: "out-diver-harness",
 };
 
+// The bench at the east scaffold. Sabbat works with her sleeves off
+// and a chrome forearm she does not explain; friendly-side, like the
+// district's other fixtures — no crimson optic, no hostile cue.
+export const SABBAT_VISUAL: CharacterVisual = {
+  appearance: {
+    skinTone: "porcelain",
+    build: "heavy",
+    hairStyle: "mohawk",
+    hairColor: "silver",
+    eyes: "narrow",
+    eyeColor: "amber",
+    brows: "heavy",
+    mouth: "neutral",
+    faceDetail: "scar",
+    headwear: "none",
+  },
+  outfit: "out-diver-harness",
+  enhancements: { arms: "cyb-myomer-arms" },
+};
+
 export const MARROW_VISUAL: CharacterVisual = {
   appearance: {
     skinTone: "deep-umber",
@@ -203,6 +223,7 @@ export const cast: Readonly<Record<string, CharacterVisual>> = {
   "Auditor Lin": LIN_VISUAL,
   Quill: QUILL_VISUAL,
   Marrow: MARROW_VISUAL,
+  Sabbat: SABBAT_VISUAL,
   Dredge: DREDGE_VISUAL,
   Keel: KEEL_VISUAL,
   "Spire Security": SPIRE_SECURITY_VISUAL,

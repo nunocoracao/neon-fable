@@ -93,6 +93,8 @@ export interface ChoiceOutcome {
   /** True when an open-stylist effect fired: the UI shows the re-style
    * screen, then resumes dialogue at nextNodeId. */
   stylist: boolean;
+  /** True when an open-workbench effect fired; same handoff as stylist. */
+  workbench: boolean;
   /** True when an end marker fired. */
   ended: boolean;
   /** Ending id from the end marker, when it carried one. */
@@ -153,12 +155,14 @@ export function applyChoice(
   let encounterId: string | null = null;
   let travelTo: string | null = null;
   let stylist = false;
+  let workbench = false;
   let ended = false;
   let endingId: string | undefined;
   for (const effect of choice.effects ?? []) {
     if (effect.type === "start-combat") encounterId = effect.encounterId;
     if (effect.type === "travel") travelTo = effect.mapId;
     if (effect.type === "open-stylist") stylist = true;
+    if (effect.type === "open-workbench") workbench = true;
     if (effect.type === "goto") nextNodeId = effect.nodeId;
     if (effect.type === "end") {
       ended = true;
@@ -173,6 +177,7 @@ export function applyChoice(
     encounterId,
     travelTo,
     stylist,
+    workbench,
     ended,
     endingId,
     loyalty,

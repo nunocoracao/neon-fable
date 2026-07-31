@@ -1,5 +1,5 @@
 import type { StatKey, Stats } from "../character/stats";
-import type { RangeType } from "../inventory/items";
+import type { WeaponProfile } from "../inventory/mods";
 import type { RngState } from "../state/rng";
 
 /**
@@ -18,12 +18,17 @@ export interface GridSize {
   height: number;
 }
 
-/** Snapshot of whatever the combatant fights with (item or enemy data). */
-export interface CombatWeapon {
-  name: string;
-  damage: number;
-  rangeType: RangeType;
-}
+/**
+ * Snapshot of whatever the combatant fights with (item or enemy data).
+ *
+ * This is the item layer's `WeaponProfile` — the figures a weapon has
+ * *with its fitted parts already folded in*, derived once at setup (see
+ * equippedWeaponProfile). The engine therefore never learns that mods
+ * exist: it reads a weapon's numbers, and a modded weapon simply has
+ * different ones. Enemy weapons are the same shape with every optional
+ * figure absent, which is exactly the unmodded reading.
+ */
+export type CombatWeapon = WeaponProfile;
 
 /** A temporary stat modifier from a consumable or ability. */
 export interface ActiveBoost {

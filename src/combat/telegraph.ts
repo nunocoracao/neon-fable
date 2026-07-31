@@ -1,7 +1,7 @@
 import { requireAbility } from "../data/abilities";
 import { abilityAreaTiles } from "./area";
 import { threatenedTiles } from "./charge";
-import { weaponRange } from "./damage";
+import { weaponReach } from "./damage";
 import { bodyGap, bodyTiles, tileGap } from "./footprint";
 import { canStand, combatantAt, inBounds, isBlocked, manhattan } from "./grid";
 import { manhattanPath, reachableTiles } from "./legal";
@@ -249,7 +249,7 @@ export function telegraphField(
   if (state.actionUsed) return [];
 
   if (intent.kind === "attack") {
-    return [...origin, ...reachField(state, actor, weaponRange(actor.weapon.rangeType))];
+    return [...origin, ...reachField(state, actor, weaponReach(actor.weapon))];
   }
 
   if (!actor.abilityIds.includes(intent.abilityId)) return [];
@@ -354,7 +354,7 @@ function aimHover(
   if (!body || !areOpposed(body, actor)) return emptyHover(tile, "no-target");
   const reach = ability
     ? ability.range
-    : weaponRange(actor.weapon.rangeType);
+    : weaponReach(actor.weapon);
   if (bodyGap(actor, body) > reach) {
     return emptyHover(tile, "out-of-range");
   }

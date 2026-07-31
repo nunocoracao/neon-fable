@@ -1342,6 +1342,102 @@ body::after {
   color: var(--nf-ink-dim);
 }
 
+/* --- Rig-up bench (weapon mods) --- */
+
+.nf-workbench {
+  width: min(66rem, calc(100vw - 3rem));
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+}
+
+.nf-bench-credits {
+  font-family: var(--nf-font-display);
+  font-size: 0.85rem;
+  color: var(--nf-glow-amber);
+  margin-left: auto;
+  margin-right: 1rem;
+}
+
+.nf-bench-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.nf-bench-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.nf-bench-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* A weapon on the rack: a card that is also the radio for choosing it. */
+.nf-bench-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  background: var(--nf-bg-raised);
+  border: 2px solid var(--nf-border);
+  color: var(--nf-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.nf-bench-card:disabled {
+  cursor: default;
+  color: var(--nf-ink-dim);
+}
+
+.nf-bench-card.nf-selected {
+  border-color: var(--nf-glow-cyan);
+}
+
+.nf-bench-sockets {
+  font-size: 0.75rem;
+  color: var(--nf-ink-dim);
+}
+
+.nf-bench-socket,
+.nf-bench-part {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--nf-bg-raised);
+  border: 2px solid var(--nf-border);
+}
+
+.nf-bench-socket.nf-selected {
+  border-color: var(--nf-glow-cyan);
+}
+
+.nf-bench-socket .nf-button,
+.nf-bench-part .nf-button {
+  align-self: flex-start;
+}
+
+/* The whole point of the screen: what a fitting would move, before it
+   is committed. Reads in the accent so it is never mistaken for what
+   the part already does. */
+.nf-bench-delta {
+  font-size: 0.75rem;
+  color: var(--nf-glow-cyan);
+}
+
+@media (max-width: 900px) {
+  .nf-bench-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* --- Save / load --- */
 
 .nf-saves {

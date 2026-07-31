@@ -79,6 +79,7 @@ function openDialogue(): void {
     onCombat: () => {},
     onTravel: () => {},
     onStylist: () => {},
+    onWorkbench: () => {},
     onEnded: () => {},
     onComplete: () => {},
   });

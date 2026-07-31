@@ -2,7 +2,7 @@ import type { StatKey } from "../character/stats";
 import { requireAbility } from "../data/abilities";
 import type { RangeType } from "../inventory/items";
 import { abilityImpact } from "./area";
-import { abilityHit, weaponRange } from "./damage";
+import { abilityHit, weaponReach } from "./damage";
 import {
   abilityOptions,
   attackOptions,
@@ -253,7 +253,7 @@ export function attackPreview(state: CombatState): AttackPreview {
   return {
     weaponName: actor.weapon.name,
     rangeType: actor.weapon.rangeType,
-    range: weaponRange(actor.weapon.rangeType),
+    range: weaponReach(actor.weapon),
     options,
     best: options[0] ?? null,
   };

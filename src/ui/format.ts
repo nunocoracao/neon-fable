@@ -11,10 +11,13 @@ import { getCompanion } from "../data/companions";
 import { getFaction } from "../data/factions";
 import { getItem } from "../data/items";
 import { UNINSTALL_TRAUMA_PER_LOAD } from "../inventory/equipment";
+import { bearsEffects } from "../inventory/items";
 import type {
   EnhancementItem,
   EnhancementSlot,
   Item,
+  ModEffect,
+  ModSocketKind,
 } from "../inventory/items";
 import type { CombatEvent } from "../combat/types";
 import type { InteractableSpriteId, MapInteraction } from "../iso";
@@ -208,27 +211,67 @@ export function itemSummary(item: Item): string {
             `${statLabel(item.effect.stat)} for ${item.effect.turns} turns (combat only)`;
     case "enhancement":
       return `Cyberware · ${slotLabel(item.slot)} · ${item.neuralCost} neural load`;
+    case "mod":
+      return `Weapon mod · ${socketLabel(item.socket)} socket`;
     case "misc":
       return "Item";
   }
 }
 
-/** Per-effect labels for gear ("+1 Reflexes", "Grants Stun Strike", …). */
+/** "Barrel", "Core", "Grip" — a mod socket, for a bench row's heading. */
+export function socketLabel(socket: ModSocketKind): string {
+  switch (socket) {
+    case "barrel":
+      return "Barrel";
+    case "core":
+      return "Core";
+    case "grip":
+      return "Grip";
+  }
+}
+
+/** "1 barrel, 1 core" — the sockets a weapon offers, or "no sockets". */
+export function socketSummary(sockets: readonly ModSocketKind[]): string {
+  if (sockets.length === 0) return "No mod sockets";
+  return sockets.map(socketLabel).join(" · ");
+}
+
+/**
+ * Per-effect labels for gear ("+1 Reflexes", "Grants Stun Strike", …).
+ * A weapon mod's list is wider than a coat's — it also says what it
+ * does to the weapon itself — and both halves read the same way.
+ */
 export function itemEffectLabels(
   item: Item,
   lookupAbility: AbilityLookup = getAbility,
 ): string[] {
-  if (item.kind === "consumable" || item.kind === "misc") return [];
-  return item.effects.map((effect) => {
-    switch (effect.type) {
-      case "stat-mod":
-        return `${signedNumber(effect.amount)} ${statLabel(effect.stat)}`;
-      case "grant-ability":
-        return `Grants ${lookupAbility(effect.abilityId)?.name ?? effect.abilityId}`;
-      case "unlock-dialogue":
-        return `Unlocks "${effect.tag}" dialogue`;
-    }
-  });
+  if (!bearsEffects(item)) return [];
+  return item.effects.map((effect) => modEffectLabel(effect, lookupAbility));
+}
+
+/** One effect, as a chip: gear vocabulary and the weapon-shaping half. */
+export function modEffectLabel(
+  effect: ModEffect,
+  lookupAbility: AbilityLookup = getAbility,
+): string {
+  switch (effect.type) {
+    case "stat-mod":
+      return `${signedNumber(effect.amount)} ${statLabel(effect.stat)}`;
+    case "grant-ability":
+      return `Grants ${lookupAbility(effect.abilityId)?.name ?? effect.abilityId}`;
+    case "unlock-dialogue":
+      return `Unlocks "${effect.tag}" dialogue`;
+    case "weapon-damage":
+      return `${signedNumber(effect.amount)} damage`;
+    case "armor-pierce":
+      return `${signedNumber(effect.amount)} armor pierce`;
+    case "accuracy":
+      return `${signedNumber(effect.amount)} accuracy`;
+    case "weapon-range":
+      return `${signedNumber(effect.amount)} range`;
+    case "crit-share":
+      return effect.amount < 0 ? "Crits land sooner" : "Crits land later";
+  }
 }
 
 /** Trade-off warning shown before confirming a cyberware extraction. */

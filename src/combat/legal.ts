@@ -2,10 +2,10 @@ import { requireAbility } from "../data/abilities";
 import {
   abilityHit,
   attackDamage,
+  attackHitChance,
   attackStatKey,
   fleeChance,
-  hitChance,
-  weaponRange,
+  weaponReach,
 } from "./damage";
 import { bodyGap } from "./footprint";
 import { canStand, manhattan } from "./grid";
@@ -94,7 +94,7 @@ export function reachableTiles(state: CombatState): GridPosition[] {
 export function attackOptions(state: CombatState): AttackOption[] {
   if (!mainActionAvailable(state)) return [];
   const actor = activeCombatant(state);
-  const range = weaponRange(actor.weapon.rangeType);
+  const range = weaponReach(actor.weapon);
   const attackStat = combatStat(actor, attackStatKey(actor.weapon.rangeType));
   return state.combatants
     .filter((c) => areOpposed(c, actor) && isAlive(c))
@@ -103,7 +103,11 @@ export function attackOptions(state: CombatState): AttackOption[] {
       // Block to block: pressed against a chassis anywhere along it is
       // melee reach, whichever of its four tiles you are beside.
       distance: bodyGap(actor, target),
-      hitChance: hitChance(attackStat, combatStat(target, "reflexes")),
+      hitChance: attackHitChance(
+        actor.weapon,
+        attackStat,
+        combatStat(target, "reflexes"),
+      ),
       damage: attackDamage(actor.weapon, attackStat, target.armor),
     }))
     .filter((option) => option.distance <= range);

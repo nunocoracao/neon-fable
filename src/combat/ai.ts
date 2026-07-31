@@ -2,7 +2,7 @@ import { requireAbility } from "../data/abilities";
 import { requireItem } from "../data/items";
 import type { ItemResolver } from "../inventory/items";
 import { takeAction } from "./actions";
-import { weaponRange } from "./damage";
+import { weaponReach } from "./damage";
 import { bodyGap } from "./footprint";
 import { canStand } from "./grid";
 import { activeCombatant, livingCrew } from "./state";
@@ -94,7 +94,7 @@ export function chooseEnemyAction(state: CombatState): CombatAction {
   // Block to block, so a chassis reads its own reach from whichever of
   // its tiles is nearest — not from the corner it is anchored on.
   const distance = bodyGap(actor, quarry);
-  const range = weaponRange(actor.weapon.rangeType);
+  const range = weaponReach(actor.weapon);
 
   if (!state.actionUsed) {
     for (const abilityId of actor.abilityIds) {

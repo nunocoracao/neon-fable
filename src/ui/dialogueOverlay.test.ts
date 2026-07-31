@@ -93,6 +93,7 @@ function open(nodeId: string, onNode?: (node: StoryNode) => void): void {
     onCombat: () => {},
     onTravel: () => {},
     onStylist: () => {},
+    onWorkbench: () => {},
     onEnded: () => {},
     onComplete: () => {},
   });

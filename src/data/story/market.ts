@@ -105,6 +105,11 @@ export const marketArc: StoryArc = {
           target: "vm-auditor",
         },
         {
+          id: "to-bench",
+          label: "Somebody at the east scaffold is working on a gun.",
+          target: "vm-bench",
+        },
+        {
           id: "to-stair",
           label: "Look back down the Cinderway stair.",
           target: "vm-stair",
@@ -658,6 +663,10 @@ export const marketArc: StoryArc = {
           ifUnavailable: "disabled",
           effects: [
             { type: "add-item", itemId: "con-field-kit" },
+            // Somebody's rent-a-week consignment: a field kit and a
+            // sight nobody came back for. Loot, not stock — the only
+            // Smartlink on the boards that costs nothing.
+            { type: "add-item", itemId: "mod-smartlink-sight" },
             { type: "credits", amount: 25 },
             { type: "set-flag", key: "market-locker", value: "picked" },
           ],
@@ -675,15 +684,108 @@ export const marketArc: StoryArc = {
       text:
         "The hasp gives with a noise the aisle swallows whole. Inside: a " +
         "consignment nobody came back for — a trauma kit gone slightly " +
-        "yellow at the seals, a hand of loose credit chits, and a child's " +
-        "drawing of the market done in four colours, folded into eighths. " +
-        "You leave the drawing where it is and close the door on it.",
+        "yellow at the seals, a ranging head still foil-wrapped, a hand of " +
+        "loose credit chits, and a child's drawing of the market done in " +
+        "four colours, folded into eighths. You leave the drawing where it " +
+        "is and close the door on it.",
       location: "vertical-market:gallery",
       choices: [
         {
           id: "locker-done",
           label: "Push the door shut and get back in the crowd.",
           effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      // The bench. `open-workbench` is the only door to the fitting
+      // screen — the "only at a bench" rule is that there is nowhere
+      // else the effect is authored (see maps.test's node lint).
+      id: "vm-bench",
+      text:
+        "Against the east scaffold, where the stall row runs out, somebody " +
+        "has bolted a steel bench to the uprights and hung a work lamp over " +
+        "it on a wire. A woman with a machinist's squint and both sleeves " +
+        "cut off at the shoulder is running a bore brush through something " +
+        "that is not, strictly, hers. She does not look up.\n\n" +
+        "\"Bench is open,\" she says. \"Sabbat. I fit, I pull, I don't ask. " +
+        "Fitting's free — you brought the part. Pulling one back out costs " +
+        "forty, because that's my time and your threads.\"",
+      location: "vertical-market:east-scaffold",
+      speaker: "Sabbat",
+      choices: [
+        {
+          id: "bench-work",
+          label: "Put your weapon on the bench.",
+          // The bench screen replaces the dialogue and resumes here.
+          target: "vm-bench",
+          effects: [
+            { type: "open-workbench" },
+            { type: "set-flag", key: "bench-known", value: true },
+          ],
+        },
+        {
+          id: "bench-buy-choke",
+          label: "\"What's in the tray?\" — Splitbore Choke. (70 cr)",
+          target: "vm-bench",
+          requirements: [{ type: "credits", value: 70 }],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "credits", amount: -70 },
+            { type: "add-item", itemId: "mod-splitbore-choke" },
+          ],
+        },
+        {
+          id: "bench-buy-sleeve",
+          label: "Gyro Sleeve, off the tray. (90 cr)",
+          target: "vm-bench",
+          requirements: [{ type: "credits", value: 90 }],
+          ifUnavailable: "disabled",
+          effects: [
+            { type: "credits", amount: -90 },
+            { type: "add-item", itemId: "mod-gyro-sleeve" },
+          ],
+        },
+        {
+          id: "bench-scrap",
+          label: "Read the scrap bin under the bench.",
+          target: "vm-bench-scrap",
+          requirements: [
+            { type: "stat", stat: "tech", value: 5 },
+            // A bin is emptied once. `flag-not-equals` is what makes a
+            // genuinely one-time find expressible on a node the player
+            // can walk back to.
+            { type: "flag-not-equals", key: "bench-scrap", value: true },
+          ],
+          ifUnavailable: "hidden",
+          effects: [
+            { type: "add-item", itemId: "mod-ballast-shim" },
+            { type: "set-flag", key: "bench-scrap", value: true },
+          ],
+        },
+        {
+          id: "bench-leave",
+          label: "Leave her to it.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "vm-bench-scrap",
+      text:
+        "The bin under the bench is half offcuts and half things that were " +
+        "nearly right. Near the bottom, under a coil of swarf, there is a " +
+        "grip shim: four hundred grams of dead stock machined to a taper, " +
+        "rejected for a burr you can feel but not see.\n\n" +
+        "Sabbat watches you find it and goes back to her brush. \"Bin's " +
+        "bin,\" she says. \"Burr's on the inside face. Won't matter to you.\"",
+      location: "vertical-market:east-scaffold",
+      speaker: "Sabbat",
+      choices: [
+        {
+          id: "scrap-back",
+          label: "Pocket it and get back to the bench.",
+          target: "vm-bench",
         },
       ],
     },

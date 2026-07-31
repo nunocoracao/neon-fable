@@ -4,16 +4,28 @@ import {
   isStackable,
   type ItemResolver,
 } from "./items";
+import { storedMods, type ModSlots } from "./mods";
 
 /**
- * Carried items. Stackable kinds (consumables, misc) merge into a single
- * stack per item id; gear (weapons, outfits, enhancements) is stored one
- * copy per stack so individual pieces can be equipped or installed.
- * All operations are pure: they return a new InventoryState.
+ * Carried items. Stackable kinds (consumables, misc, loose mods) merge
+ * into a single stack per item id; gear (weapons, outfits, enhancements)
+ * is stored one copy per stack so individual pieces can be equipped or
+ * installed. All operations are pure: they return a new InventoryState.
  */
 export interface ItemStack {
   itemId: string;
   quantity: number;
+  /**
+   * Parts fitted to *this copy* of a weapon, one entry per socket in
+   * socket order (see src/inventory/mods.ts). Because gear is stored
+   * one copy per stack, the stack is the copy — this field is the whole
+   * of a weapon's identity beyond its id, and it travels with the copy
+   * through equips, unequips and saves.
+   *
+   * Absent on everything unmodded, which is every stack any save
+   * written before weapons had sockets contains.
+   */
+  mods?: (string | null)[];
 }
 
 export interface InventoryState {
@@ -61,6 +73,73 @@ export function addItem(
     quantity: 1,
   }));
   return { stacks: [...inventory.stacks, ...copies] };
+}
+
+/**
+ * Adds one copy of a piece of gear, keeping the per-copy state it
+ * carried. This is how a modded weapon survives a round trip through
+ * the inventory: unequipping puts the parts back on the stack, and
+ * equipping takes them off it again (see takeCopy).
+ *
+ * An all-empty set of parts is stored as none at all, so a weapon that
+ * has never been to a bench serializes exactly as it always did.
+ */
+export function addGear(
+  inventory: InventoryState,
+  itemId: string,
+  mods: ModSlots = [],
+  resolve: ItemResolver = requireItem,
+): InventoryState {
+  const item = resolve(itemId);
+  if (isStackable(item)) {
+    throw new InventoryError(
+      "wrong-kind",
+      `"${itemId}" stacks; it carries no per-copy state`,
+    );
+  }
+  const stored = storedMods(mods);
+  return {
+    stacks: [
+      ...inventory.stacks,
+      { itemId, quantity: 1, ...(stored ? { mods: stored } : {}) },
+    ],
+  };
+}
+
+/**
+ * Takes one copy out of the inventory and hands it back whole, so the
+ * caller can put whatever the copy was carrying somewhere else.
+ *
+ * Addressed by stack index rather than by item id: with two of the same
+ * weapon in the bag, one scoped and one bare, "the Rail Spitter" is not
+ * an answer. `findCopy` resolves an id to the first copy for callers
+ * that genuinely do not care which.
+ */
+export function takeCopy(
+  inventory: InventoryState,
+  stackIndex: number,
+): { inventory: InventoryState; stack: ItemStack } {
+  const stack = inventory.stacks[stackIndex];
+  if (!stack) {
+    throw new InventoryError(
+      "not-carried",
+      `No carried stack at index ${stackIndex}`,
+    );
+  }
+  const stacks = [...inventory.stacks];
+  if (stack.quantity > 1) {
+    stacks[stackIndex] = { ...stack, quantity: stack.quantity - 1 };
+  } else {
+    stacks.splice(stackIndex, 1);
+  }
+  return { inventory: { stacks }, stack: { ...stack, quantity: 1 } };
+}
+
+/** Index of the first carried copy of an item id, or -1 when none is. */
+export function findCopy(inventory: InventoryState, itemId: string): number {
+  return inventory.stacks.findIndex(
+    (stack) => stack.itemId === itemId && stack.quantity > 0,
+  );
 }
 
 export function removeItem(

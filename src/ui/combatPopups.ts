@@ -61,6 +61,12 @@ export interface PopupTargetView {
 export interface PopupContext {
   /** The target of a blow; absent for events that land on nobody. */
   readonly target?: PopupTargetView;
+  /**
+   * The share of the frame the attacker's weapon needs to take for a
+   * blow to read as critical. Absent is the standard reading — only a
+   * weapon with a crit-behavior part fitted passes one.
+   */
+  readonly critShare?: number;
 }
 
 /**
@@ -71,8 +77,9 @@ export interface PopupContext {
 export function damagePopupKind(
   damage: number,
   target: PopupTargetView | undefined,
+  critShare?: number,
 ): PopupKind {
-  if (isCriticalBlow(damage, target?.maxHp ?? 0)) return "critical";
+  if (isCriticalBlow(damage, target?.maxHp ?? 0, critShare)) return "critical";
   return isGlancingBlow(damage, target?.armor ?? 0) ? "reduced" : "damage";
 }
 
@@ -96,7 +103,11 @@ export function eventPopups(
         ? [
             {
               combatantId: event.targetId,
-              kind: damagePopupKind(event.damage, context.target),
+              kind: damagePopupKind(
+                event.damage,
+                context.target,
+                context.critShare,
+              ),
               text: damagePopupText(event.damage),
             },
           ]
@@ -108,7 +119,11 @@ export function eventPopups(
         ? [
             {
               combatantId: event.targetId,
-              kind: damagePopupKind(event.damage, context.target),
+              kind: damagePopupKind(
+                event.damage,
+                context.target,
+                context.critShare,
+              ),
               text: damagePopupText(event.damage),
             },
           ]

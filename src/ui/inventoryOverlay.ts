@@ -4,6 +4,7 @@ import {
   ENHANCEMENT_SLOTS,
   InventoryError,
   equip,
+  equippedMods,
   installEnhancement,
   unequip,
   uninstallEnhancement,
@@ -142,6 +143,17 @@ export function createInventoryOverlay(
         );
       }
       section.append(row);
+      // What is bolted to the weapon in hand, read-only: changing it
+      // needs a bench, and the bench is the only place that can.
+      if (slot === "weapon") {
+        const fitted = equippedMods(player);
+        if (fitted.length > 0) {
+          const parts = document.createElement("div");
+          parts.className = "nf-item-effects";
+          parts.textContent = `Fitted: ${fitted.map((m) => m.name).join(" · ")}`;
+          section.append(parts);
+        }
+      }
     }
 
     for (const slot of ENHANCEMENT_SLOTS) {

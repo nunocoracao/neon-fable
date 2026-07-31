@@ -66,6 +66,7 @@ import { createPartyOverlay } from "./partyOverlay";
 import type { OverlayHandle } from "./overlay";
 import { createSaveLoadPanel } from "./saveLoad";
 import { createStylistOverlay } from "./stylistOverlay";
+import { createWorkbenchOverlay } from "./workbenchOverlay";
 import { showScreen, type Screen } from "./screen";
 import { autosave, enterMap, type Session } from "./session";
 import { createSettingsOverlay } from "./settingsScreen";
@@ -95,7 +96,8 @@ type OverlayKind =
   | "saves"
   | "menu"
   | "settings"
-  | "stylist";
+  | "stylist"
+  | "workbench";
 
 /** Flag marking that this playthrough's ending is already in meta-progress. */
 const META_RECORDED_FLAG = "meta-recorded";
@@ -341,6 +343,21 @@ export function createGameScreen(options: GameScreenOptions): Screen {
           openOverlay(
             "stylist",
             createStylistOverlay({
+              session,
+              onStateChange: refreshHud,
+              onClose() {
+                closeOverlay();
+                if (resumeNodeId) openDialogue(resumeNodeId);
+              },
+            }),
+          );
+        },
+        onWorkbench(resumeNodeId) {
+          // Same handoff as the stylist: the bench replaces the
+          // dialogue, and closing it resumes at the choice's target.
+          openOverlay(
+            "workbench",
+            createWorkbenchOverlay({
               session,
               onStateChange: refreshHud,
               onClose() {

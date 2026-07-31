@@ -7,10 +7,10 @@ import { chargeImpact, windUpTurns } from "./charge";
 import {
   abilityHit,
   attackDamage,
+  attackHitChance,
   attackStatKey,
   fleeChance,
-  hitChance,
-  weaponRange,
+  weaponReach,
 } from "./damage";
 import { bodyGap } from "./footprint";
 import { canStand, manhattan, moveSpeed } from "./grid";
@@ -132,7 +132,7 @@ function doAttack(state: CombatState, targetId: string): CombatState {
   const actor = activeCombatant(state);
   const target = requireOpponent(state, actor, targetId);
   const distance = bodyGap(actor, target);
-  const range = weaponRange(actor.weapon.rangeType);
+  const range = weaponReach(actor.weapon);
   if (distance > range) {
     throw new CombatError(
       "out-of-range",
@@ -141,7 +141,11 @@ function doAttack(state: CombatState, targetId: string): CombatState {
   }
 
   const attackStat = combatStat(actor, attackStatKey(actor.weapon.rangeType));
-  const chance = hitChance(attackStat, combatStat(target, "reflexes"));
+  const chance = attackHitChance(
+    actor.weapon,
+    attackStat,
+    combatStat(target, "reflexes"),
+  );
   const roll = nextFloat(state.rng);
   const hit = roll.value < chance;
   const damage = hit ? attackDamage(actor.weapon, attackStat, target.armor) : 0;

@@ -832,6 +832,49 @@ export const VENDOR_STOCK: readonly VendorStockEntry[] = [
     label: "Buy the Torsion Frame, Exchange wrap still on it. (360 cr)",
     requires: ["cordon-broken"],
   },
+  // Bench parts on the back shelf. Fitting them needs a bench (the
+  // market's, see vm-bench) — the wet market only sells the hardware.
+  {
+    id: "buy-lattice-rifling",
+    vendorId: "wet-market-back",
+    itemId: "mod-lattice-rifling",
+    price: 140,
+    label: "Buy the Lattice Rifling, still in its foil. (140 cr)",
+  },
+  {
+    id: "buy-smartlink-sight",
+    vendorId: "wet-market-back",
+    itemId: "mod-smartlink-sight",
+    price: 160,
+    label: "Buy the Smartlink Sight. (160 cr)",
+  },
+  {
+    // Nobody sells a burst governor to somebody with a live warrant;
+    // fitting one is the difference between armed and intending.
+    id: "buy-burst-governor",
+    vendorId: "wet-market-back",
+    itemId: "mod-burst-governor",
+    price: 220,
+    label: "Buy the Burst Governor. (220 cr)",
+    requires: ["warrant-clear"],
+  },
+  {
+    // Exchange machining, on the street the week after the Cordon fell
+    // — the same shelf the Torsion Frame turned up on.
+    id: "buy-hairline-sear",
+    vendorId: "wet-market-back",
+    itemId: "mod-hairline-sear",
+    price: 180,
+    label: "Buy the Hairline Sear, Exchange machining. (180 cr)",
+    requires: ["cordon-broken"],
+  },
+  {
+    id: "buy-longspar-extension",
+    vendorId: "wet-market-back",
+    itemId: "mod-longspar-extension",
+    price: 120,
+    label: "Buy the Longspar Extension. (120 cr)",
+  },
   {
     // Consignment out of the Vertical Market: only offered to somebody
     // the boards are willing to vouch for.

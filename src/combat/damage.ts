@@ -38,6 +38,29 @@ export function weaponRange(rangeType: RangeType): number {
   return rangeType === "melee" ? MELEE_RANGE : RANGED_RANGE;
 }
 
+/**
+ * How far a weapon actually reaches: its class's range plus whatever a
+ * fitted part lends it, never less than the tile in front. Every range
+ * check in the engine, the legal-option queries, the AI's approach and
+ * the telegraph goes through this — so a longspar is long everywhere or
+ * nowhere.
+ */
+export function weaponReach(weapon: CombatWeapon): number {
+  return Math.max(1, weaponRange(weapon.rangeType) + (weapon.rangeBonus ?? 0));
+}
+
+/**
+ * The plating a blow from this weapon actually meets: what the target
+ * wears, less whatever the weapon punches through. Never negative — a
+ * piercing round does not give the target's own armor back.
+ */
+export function effectiveArmor(
+  weapon: CombatWeapon,
+  targetArmor: number,
+): number {
+  return Math.max(0, targetArmor - (weapon.armorPierce ?? 0));
+}
+
 /** Flat damage added on top of weapon damage from the attack stat. */
 export function damageBonus(attackStat: number): number {
   return Math.floor((attackStat - 4) / 2);
@@ -56,13 +79,33 @@ export function hitChance(attackStat: number, defenderReflexes: number): number 
   );
 }
 
-/** Damage a landed hit deals: weapon + stat bonus, minus armor, min 1. */
+/**
+ * Damage a landed hit deals: weapon + stat bonus, minus the plating it
+ * actually meets, min 1. A weapon that pierces meets less of it.
+ */
 export function attackDamage(
   weapon: CombatWeapon,
   attackStat: number,
   targetArmor: number,
 ): number {
-  return Math.max(1, weapon.damage + damageBonus(attackStat) - targetArmor);
+  return Math.max(
+    1,
+    weapon.damage + damageBonus(attackStat) - effectiveArmor(weapon, targetArmor),
+  );
+}
+
+/**
+ * Chance a weapon attack lands. The one place a weapon's own accuracy
+ * meets the roll: a fitted sight is worth the same points of attack
+ * stat wherever the shot is priced — the engine's roll, the odds a
+ * tooltip quotes, and the AI's read.
+ */
+export function attackHitChance(
+  weapon: CombatWeapon,
+  attackStat: number,
+  defenderReflexes: number,
+): number {
+  return hitChance(attackStat + (weapon.accuracy ?? 0), defenderReflexes);
 }
 
 /**
@@ -94,9 +137,19 @@ export const CRITICAL_DAMAGE_SHARE = 1 / 3;
  * on nothing here. The combat screen reads it to style the floating
  * figure larger and hotter; the log reports the same number either way.
  */
-export function isCriticalBlow(damageDealt: number, targetMaxHp: number): boolean {
+export function isCriticalBlow(
+  damageDealt: number,
+  targetMaxHp: number,
+  /**
+   * The share this blow has to take. Defaults to the standard reading;
+   * a weapon with a hairline sear fitted passes its own, which is the
+   * whole of what a crit-behavior mod does — it moves where the line
+   * is drawn, never what the blow deals.
+   */
+  share: number = CRITICAL_DAMAGE_SHARE,
+): boolean {
   if (targetMaxHp <= 0 || damageDealt <= 0) return false;
-  return damageDealt >= targetMaxHp * CRITICAL_DAMAGE_SHARE;
+  return damageDealt >= targetMaxHp * share;
 }
 
 /**

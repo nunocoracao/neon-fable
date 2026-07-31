@@ -182,6 +182,7 @@ export type Effect =
   | StartCombatEffect
   | TravelEffect
   | OpenStylistEffect
+  | OpenWorkbenchEffect
   | RecruitCompanionEffect
   | CompanionLoyaltyEffect
   | GotoEffect
@@ -244,6 +245,20 @@ export interface TravelEffect {
  */
 export interface OpenStylistEffect {
   type: "open-stylist";
+}
+
+/**
+ * Opens the weapon bench. Shaped exactly like the stylist's: the
+ * dialogue closes while the player works, and the choice's target node
+ * reopens when the bench screen closes. Every socket rule, the removal
+ * fee, and the moves between bag and weapon live in the workbench logic
+ * (src/inventory/workbench.ts) — this effect is only the door.
+ *
+ * "Only at a bench" is enforced by there being no other door: nothing
+ * outside a workbench screen calls fitMod or pullMod.
+ */
+export interface OpenWorkbenchEffect {
+  type: "open-workbench";
 }
 
 /**

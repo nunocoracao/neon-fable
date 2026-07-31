@@ -48,6 +48,8 @@ export interface DialogueOverlayOptions {
   onTravel(mapId: string, nextNodeId: string | null): void;
   /** An open-stylist effect fired; resume dialogue at resumeNodeId after. */
   onStylist(resumeNodeId: string | null): void;
+  /** An open-workbench effect fired; same handoff as the stylist's. */
+  onWorkbench(resumeNodeId: string | null): void;
   /** An end marker fired. */
   onEnded(endingId: string | undefined): void;
   /** The node chain ran out without an end marker. */
@@ -291,6 +293,10 @@ export function createDialogueOverlay(
     }
     if (outcome.stylist) {
       options.onStylist(outcome.nextNodeId);
+      return;
+    }
+    if (outcome.workbench) {
+      options.onWorkbench(outcome.nextNodeId);
       return;
     }
     if (outcome.ended) {

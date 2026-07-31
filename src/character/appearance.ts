@@ -26,6 +26,7 @@ import {
   type Item,
 } from "../inventory/items";
 import type { EquipmentState } from "../inventory/equipment";
+import { modAccent } from "../inventory/mods";
 import { getItem } from "../data/items";
 import { createRng, nextInt, type RngResult, type RngState } from "../state/rng";
 
@@ -416,11 +417,17 @@ export function resolveLayers(
   if (equipment.weapon !== null) {
     const item = lookupItem(equipment.weapon);
     const ref = item?.kind === "weapon" ? item.weaponLayer : undefined;
-    if (ref) {
+    if (ref && item?.kind === "weapon") {
+      // A weapon that has been to a bench wears its parts: the first
+      // fitted part with an accent repaints the energy channel, so a
+      // modded weapon reads as modded from across the street. Unmodded
+      // weapons keep the accent their own content authored.
+      const accent =
+        modAccent(item, equipment.weaponMods, lookupItem) ?? ref.accent;
       layers.push({
         slot: "weapon",
         art: weaponArtId(ref.id, build),
-        remap: weaponChannelRemap(ref.accent),
+        remap: weaponChannelRemap(accent),
       });
     }
   }
