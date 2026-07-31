@@ -46,7 +46,7 @@ function armedCharacter(weaponId = "wpn-rail-spitter"): CharacterState {
     ...base,
     stats: { ...base.stats, reflexes: 8, body: 8 },
   };
-  return equip(character, addGear(emptyInventory(), weaponId, []), weaponId)
+  return equip(character, addGear(emptyInventory(), weaponId, {}), weaponId)
     .character;
 }
 
@@ -255,10 +255,10 @@ describe("parts survive a save", () => {
     const state: GameState = {
       ...createNewGame({ seed: 3 }),
       player: held,
-      inventory: addGear(emptyInventory(), "wpn-torque-cleaver", [
+      inventory: addGear(emptyInventory(), "wpn-torque-cleaver", { mods: [
         null,
         "mod-gyro-sleeve",
-      ]),
+      ] }),
     };
 
     const storage = createMemoryStorage();
@@ -282,7 +282,7 @@ describe("parts survive a save", () => {
   it("stores an unmodded weapon exactly as it always did", () => {
     const state: GameState = {
       ...createNewGame({ seed: 3 }),
-      inventory: addGear(emptyInventory(), "wpn-shard-knife", []),
+      inventory: addGear(emptyInventory(), "wpn-shard-knife", {}),
     };
     expect(JSON.parse(JSON.stringify(state.inventory))).toEqual({
       stacks: [{ itemId: "wpn-shard-knife", quantity: 1 }],
@@ -296,7 +296,7 @@ describe("saves written before weapons had sockets", () => {
     const state = createNewGame({ seed: 5 });
     const player = equip(
       state.player,
-      addGear(emptyInventory(), "wpn-shard-knife", []),
+      addGear(emptyInventory(), "wpn-shard-knife", {}),
       "wpn-shard-knife",
     );
     return {

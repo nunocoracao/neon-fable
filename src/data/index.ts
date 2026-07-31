@@ -116,6 +116,13 @@ export {
 } from "./standings";
 export { getItem, items, requireItem } from "./items";
 export {
+  CHAPEL_DYE_SHELF,
+  chapelDyePrice,
+  dyeItems,
+  getDye,
+  type DyeShelfEntry,
+} from "./dyes";
+export {
   abilities,
   advancementPool,
   getAbility,

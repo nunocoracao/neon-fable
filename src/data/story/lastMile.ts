@@ -543,6 +543,10 @@ export const lastMileNodes: StoryNode[] = [
           { type: "set-flag", key: "last-mile-delivered", value: true },
           { type: "credits", amount: 200 },
           { type: "add-item", itemId: "out-highline-rig" },
+          // Courier colour: given, never sold, and only to somebody who
+          // walked the last forty minutes of a run that had every
+          // reason to be dropped.
+          { type: "add-item", itemId: "dye-last-mile" },
         ],
         // Straight off the table above: the outcome declared what it
         // was worth long before there was a scale to put it on.
@@ -593,7 +597,9 @@ export const lastMileNodes: StoryNode[] = [
       "fee in chits, because the fee was never the expensive part. Pell " +
       "watches the coat go. Then she unclips the harness over her head " +
       "and pushes it into your hands. \"I'm not going back up,\" she " +
-      "says. \"It knows the way. You take it.\"",
+      "says. \"It knows the way. You take it.\" There is a tin taped " +
+      "inside the chest pocket, hand-mixed, courier blue with a cyan " +
+      "cuff. \"And that. So the boards know what you finished.\"",
     location: "vertical-market:cinderway-stair",
     choices: [
       {

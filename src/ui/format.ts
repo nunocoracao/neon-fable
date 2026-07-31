@@ -18,7 +18,9 @@ import type {
   Item,
   ModEffect,
   ModSocketKind,
+  OutfitDye,
 } from "../inventory/items";
+import type { MaterialName } from "../iso/art/palette";
 import type { CombatEvent } from "../combat/types";
 import type { InteractableSpriteId, MapInteraction } from "../iso";
 import type { LoyaltyChange } from "../narrative/loyalty";
@@ -213,9 +215,43 @@ export function itemSummary(item: Item): string {
       return `Cyberware · ${slotLabel(item.slot)} · ${item.neuralCost} neural load`;
     case "mod":
       return `Weapon mod · ${socketLabel(item.socket)} socket`;
+    case "dye":
+      return `Outfit dye · ${dyeChannelSummary(item.colors)}`;
     case "misc":
       return "Item";
   }
+}
+
+/**
+ * A material ramp in the words a person would use for a color. The
+ * palette names the pigment ("hazardAmber"); a shop label names what it
+ * looks like on a coat.
+ */
+export function materialLabel(material: MaterialName): string {
+  switch (material) {
+    case "concrete":
+      return "grey";
+    case "brushedChrome":
+      return "chrome";
+    case "glass":
+      return "pale";
+    case "darkFabric":
+      return "black";
+    case "hazardAmber":
+      return "amber";
+    case "hologramBlue":
+      return "blue";
+    case "neonCyan":
+      return "cyan";
+  }
+}
+
+/** "black cloth · amber trim" — the channels a tin actually repaints. */
+export function dyeChannelSummary(colors: OutfitDye): string {
+  const parts: string[] = [];
+  if (colors.primary) parts.push(`${materialLabel(colors.primary)} cloth`);
+  if (colors.accent) parts.push(`${materialLabel(colors.accent)} trim`);
+  return parts.length > 0 ? parts.join(" · ") : "no color";
 }
 
 /** "Barrel", "Core", "Grip" — a mod socket, for a bench row's heading. */

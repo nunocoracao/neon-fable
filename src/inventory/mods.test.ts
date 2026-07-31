@@ -272,10 +272,10 @@ describe("sanitizeMods", () => {
         weaponMods: ["mod-gyro-sleeve", "mod-burst-governor"],
       },
     };
-    const inventory = addGear(emptyInventory(), "wpn-torque-cleaver", [
+    const inventory = addGear(emptyInventory(), "wpn-torque-cleaver", { mods: [
       "mod-lattice-rifling",
       "mod-gyro-sleeve",
-    ]);
+    ] });
     const cleaned = sanitizeMods(player, inventory);
     expect(cleaned.player.equipment.weaponMods).toEqual([
       null,
@@ -293,9 +293,9 @@ describe("sanitizeMods", () => {
 describe("parts travel with the copy they are fitted to", () => {
   it("moves onto the character when the weapon is equipped", () => {
     const player = fixtureCharacter();
-    const inventory = addGear(emptyInventory(), "wpn-shard-knife", [
+    const inventory = addGear(emptyInventory(), "wpn-shard-knife", { mods: [
       "mod-gyro-sleeve",
-    ]);
+    ] });
     const loadout = equip(player, inventory, "wpn-shard-knife");
     expect(loadout.character.equipment.weaponMods).toEqual([
       "mod-gyro-sleeve",
@@ -307,7 +307,7 @@ describe("parts travel with the copy they are fitted to", () => {
     const player = fixtureCharacter();
     const equipped = equip(
       player,
-      addGear(emptyInventory(), "wpn-shard-knife", ["mod-gyro-sleeve"]),
+      addGear(emptyInventory(), "wpn-shard-knife", { mods: ["mod-gyro-sleeve"] }),
       "wpn-shard-knife",
     );
     const stowed = unequip(equipped.character, equipped.inventory, "weapon");
@@ -319,10 +319,10 @@ describe("parts travel with the copy they are fitted to", () => {
 
   it("keeps two copies of one weapon apart", () => {
     const player = fixtureCharacter();
-    let inventory = addGear(emptyInventory(), "wpn-shard-knife", [
+    let inventory = addGear(emptyInventory(), "wpn-shard-knife", { mods: [
       "mod-gyro-sleeve",
-    ]);
-    inventory = addGear(inventory, "wpn-shard-knife", []);
+    ] });
+    inventory = addGear(inventory, "wpn-shard-knife", {});
     // Equipping the *second* copy must not take the first one's part.
     const loadout = equipStack(player, inventory, 1);
     expect(loadout.character.equipment.weaponMods).toBeUndefined();
@@ -333,7 +333,7 @@ describe("parts travel with the copy they are fitted to", () => {
 
   it("refuses to hang per-copy state on something that stacks", () => {
     expect(() =>
-      addGear(emptyInventory(), "con-trauma-patch", []),
+      addGear(emptyInventory(), "con-trauma-patch", {}),
     ).toThrowError(InventoryError);
   });
 });

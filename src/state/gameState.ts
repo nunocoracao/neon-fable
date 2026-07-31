@@ -1,7 +1,12 @@
 import { createCharacter, defaultAllocation, defaultAppearance } from "../character";
 import type { CharacterState } from "../character";
 import { DEFAULT_BACKGROUND_ID, getBackground } from "../data/backgrounds";
-import { applyStartingGear, emptyInventory, sanitizeMods } from "../inventory";
+import {
+  applyStartingGear,
+  emptyInventory,
+  sanitizeDyes,
+  sanitizeMods,
+} from "../inventory";
 import type { InventoryState } from "../inventory";
 import type { FlagMap } from "./flags";
 import { clampLore, emptyLore, type LoreState } from "./lore";
@@ -14,7 +19,7 @@ import {
 import type { RngState } from "./rng";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 11;
+export const GAME_STATE_VERSION = 12;
 
 /**
  * Oldest save version migrateGameState can bring forward. Saves from
@@ -89,6 +94,10 @@ export interface GameState {
  *   already describes, and the sanitize pass below (which runs at every
  *   version, like the lore clamp) is what makes that true rather than
  *   assumed.
+ * - v11 -> v12: outfits started taking dye. Same story as the sockets:
+ *   a coat with no color rubbed into it is exactly what every older
+ *   save already describes, and the sanitize pass is what makes that
+ *   true rather than assumed.
  */
 export function migrateGameState(
   state: GameState,
@@ -118,7 +127,13 @@ export function migrateGameState(
   // a socket its weapon no longer offers has to stop being fitted
   // rather than quietly keep paying out. An unmodded loadout — which is
   // every pre-v11 save — comes back unchanged.
-  const cleaned = sanitizeMods(migrated.player, migrated.inventory);
+  //
+  // Dyed outfits get the same treatment for the same reason: a color
+  // whose material this build no longer has, or one sitting on a coat
+  // that lost its sprite layer, has to stop being worn rather than
+  // quietly paint nothing.
+  const withMods = sanitizeMods(migrated.player, migrated.inventory);
+  const cleaned = sanitizeDyes(withMods.player, withMods.inventory);
   return {
     ...migrated,
     player: cleaned.player,

@@ -1,6 +1,7 @@
 import { getCompanion } from "../data/companions";
 import { STAT_HARD_CAP, STAT_KEYS, type Stats } from "../character/stats";
 import { requireItem } from "../data/items";
+import { bearsEffects } from "../inventory/items";
 import type { Item, ItemResolver } from "../inventory/items";
 import type { PartyMember } from "../state/party";
 import { UNARMED_WEAPON } from "./damage";
@@ -42,7 +43,7 @@ function equippedItems(member: PartyMember, resolve: ItemResolver): Item[] {
 export function allyStats(member: PartyMember, resolve: ItemResolver): Stats {
   const stats = { ...member.stats };
   for (const item of equippedItems(member, resolve)) {
-    if (item.kind === "consumable" || item.kind === "misc") continue;
+    if (!bearsEffects(item)) continue;
     for (const effect of item.effects) {
       if (effect.type === "stat-mod") stats[effect.stat] += effect.amount;
     }
@@ -78,7 +79,7 @@ export function allyAbilityIds(
 ): string[] {
   const ids = [...member.abilityIds];
   for (const item of equippedItems(member, resolve)) {
-    if (item.kind === "consumable" || item.kind === "misc") continue;
+    if (!bearsEffects(item)) continue;
     for (const effect of item.effects) {
       if (effect.type === "grant-ability" && !ids.includes(effect.abilityId)) {
         ids.push(effect.abilityId);

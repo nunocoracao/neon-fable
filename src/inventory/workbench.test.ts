@@ -28,8 +28,8 @@ function makeBench(credits = 500): Workbench {
     ...base,
     stats: { ...base.stats, reflexes: 8, body: 8 },
   };
-  let inventory = addGear(emptyInventory(), "wpn-rail-spitter", []);
-  inventory = addGear(inventory, "wpn-torque-cleaver", []);
+  let inventory = addGear(emptyInventory(), "wpn-rail-spitter", {});
+  inventory = addGear(inventory, "wpn-torque-cleaver", {});
   for (const modId of [
     "mod-lattice-rifling",
     "mod-smartlink-sight",

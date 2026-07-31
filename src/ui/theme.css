@@ -1033,6 +1033,47 @@ body::after {
   min-height: 1.2em;
 }
 
+/* The colour counter: the one part of the chapel that charges on the
+   click rather than on Confirm, so it reads as its own transaction. */
+.nf-stylist-dyes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--nf-bg-raised);
+  border: 2px solid var(--nf-border);
+}
+
+.nf-stylist-dyes h3 {
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nf-ink-dim);
+}
+
+.nf-dye-coats,
+.nf-dye-shelf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.nf-dye-tin {
+  text-align: left;
+}
+
+.nf-dye-target {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--nf-glow-cyan);
+}
+
+.nf-dye-status {
+  min-height: 1.2em;
+  font-size: 0.8rem;
+}
+
 /* --- Inventory --- */
 
 .nf-inventory {
