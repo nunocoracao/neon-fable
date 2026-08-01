@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { fixtureCharacter } from "../character/testSupport";
 import { getBackground } from "../data/backgrounds";
-import { GAME_STATE_VERSION, createNewGame } from "./gameState";
+import { noAssists } from "../data/assists";
+import {
+  DEFAULT_DIFFICULTY_ID,
+  NEUTRAL_MODIFIERS,
+} from "../data/difficulty";
+import {
+  GAME_STATE_VERSION,
+  createNewGame,
+  migrateGameState,
+} from "./gameState";
+import { defaultRules, rulesModifiers } from "./rules";
 
 describe("createNewGame", () => {
   it("creates a versioned fresh state with a default character", () => {
@@ -46,5 +56,101 @@ describe("createNewGame", () => {
     state.flags.credits = 250;
     state.flags.faction = "lumen-cartel";
     expect(JSON.parse(JSON.stringify(state))).toEqual(state);
+  });
+});
+
+/**
+ * Difficulty and the assists on the save: what a fresh run records,
+ * that it survives a round-trip, and — the promise that matters most —
+ * that every save written before any of this existed loads as the game
+ * it actually was.
+ */
+describe("the rules a save carries", () => {
+  it("starts a fresh run on the middle preset with every assist off", () => {
+    expect(createNewGame({ seed: 1 }).rules).toEqual(defaultRules());
+  });
+
+  it("takes the rules it is handed", () => {
+    const rules = {
+      difficulty: "blackout" as const,
+      assists: { ...noAssists(), "damage-floor": true },
+      difficultyChanged: true,
+    };
+    expect(createNewGame({ seed: 1, rules }).rules).toEqual(rules);
+  });
+
+  it("clamps rules that name something this build has retired", () => {
+    const state = createNewGame({
+      seed: 1,
+      rules: { difficulty: "nightmare", assists: {}, difficultyChanged: false },
+    } as never);
+    expect(state.rules).toEqual(defaultRules());
+  });
+
+  it("survives a JSON round-trip with everything switched on", () => {
+    const state = createNewGame({
+      seed: 3,
+      rules: {
+        difficulty: "drift",
+        assists: {
+          "always-preview": true,
+          "damage-floor": true,
+          "bold-telegraphs": true,
+          "breach-rescue": true,
+        },
+        difficultyChanged: true,
+      },
+    });
+    const reloaded = JSON.parse(JSON.stringify(state)) as typeof state;
+    expect(reloaded.rules).toEqual(state.rules);
+    expect(reloaded).toEqual(state);
+  });
+
+  it("loads a save from before difficulty existed as the authored game", () => {
+    const before = createNewGame({ seed: 5 });
+    const old = { ...before, version: 16 } as Record<string, unknown>;
+    delete old.rules;
+    const migrated = migrateGameState(old as never, 16);
+    expect(migrated.rules).toEqual(defaultRules());
+    expect(rulesModifiers(migrated.rules)).toEqual(NEUTRAL_MODIFIERS);
+    expect(migrated.version).toBe(GAME_STATE_VERSION);
+  });
+
+  it("closes a preset or an assist an older build wrote and this one lost", () => {
+    const state = createNewGame({ seed: 5 });
+    const migrated = migrateGameState(
+      {
+        ...state,
+        version: 16,
+        rules: {
+          difficulty: "nightmare",
+          assists: { "auto-win": true, "damage-floor": true },
+          difficultyChanged: true,
+        },
+      } as never,
+      16,
+    );
+    expect(migrated.rules.difficulty).toBe(DEFAULT_DIFFICULTY_ID);
+    expect(migrated.rules.assists).toEqual({
+      ...noAssists(),
+      "damage-floor": true,
+    });
+    // The record of the change survives the clamp; it is a fact about
+    // the run, not a setting.
+    expect(migrated.rules.difficultyChanged).toBe(true);
+  });
+
+  it("carries a current-version save's rules through untouched", () => {
+    const state = createNewGame({
+      seed: 7,
+      rules: {
+        difficulty: "blackout",
+        assists: { ...noAssists(), "breach-rescue": true },
+        difficultyChanged: true,
+      },
+    });
+    expect(migrateGameState(state, GAME_STATE_VERSION).rules).toEqual(
+      state.rules,
+    );
   });
 });

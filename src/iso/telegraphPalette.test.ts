@@ -6,6 +6,7 @@ import {
   TELEGRAPH_PALETTE_IDS,
   TELEGRAPH_PATH_LINE,
   TELEGRAPH_TINT_IDS,
+  boostTelegraphStyle,
   telegraphStyle,
   type TelegraphPaletteId,
   type TelegraphStyle,
@@ -121,3 +122,94 @@ describe("telegraphStyle", () => {
     expect(style).toEqual(TELEGRAPH_PALETTES[DEFAULT_TELEGRAPH_PALETTE].reach);
   });
 });
+
+/**
+ * The "bold telegraphs" assist. What it must do is push the marks up
+ * without touching any of the channels the palette tells its tints
+ * apart by — otherwise switching it on would quietly undo the
+ * colourblind-safe property the table exists to guarantee.
+ */
+/** The three colour channels of an rgb/rgba(), alpha dropped. */
+function rgbOf(color: string | null): string | null {
+  if (color === null) return null;
+  const parts = color.match(/rgba?\(([^)]+)\)/)?.[1]?.split(",") ?? [];
+  return parts.slice(0, 3).map((p) => p.trim()).join(",");
+}
+
+describe("the bold-telegraphs boost", () => {
+  it("pushes alpha up on every tint of every palette", () => {
+    for (const palette of TELEGRAPH_PALETTE_IDS) {
+      for (const tint of TELEGRAPH_TINT_IDS) {
+        const plain = telegraphStyle(tint, palette);
+        const bold = telegraphStyle(tint, palette, true);
+        for (const channel of ["fill", "stroke"] as const) {
+          const before = alphaOf(plain[channel]);
+          if (plain[channel] === null) {
+            expect(bold[channel], `${palette}/${tint}`).toBeNull();
+            continue;
+          }
+          // Already at 1 can only stay at 1; everything else rises.
+          expect(alphaOf(bold[channel]), `${palette}/${tint}`).toBeGreaterThan(
+            before === 1 ? 0.99 : before,
+          );
+        }
+      }
+    }
+  });
+
+  it("never pushes alpha past opaque", () => {
+    for (const palette of TELEGRAPH_PALETTE_IDS) {
+      for (const tint of TELEGRAPH_TINT_IDS) {
+        const bold = telegraphStyle(tint, palette, true);
+        expect(alphaOf(bold.fill)).toBeLessThanOrEqual(1);
+        expect(alphaOf(bold.stroke)).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it("leaves outline weight, dash pattern, and hue exactly where they were", () => {
+    for (const palette of TELEGRAPH_PALETTE_IDS) {
+      for (const tint of TELEGRAPH_TINT_IDS) {
+        const plain = telegraphStyle(tint, palette);
+        const bold = telegraphStyle(tint, palette, true);
+        expect(bold.lineWidth, `${palette}/${tint}`).toBe(plain.lineWidth);
+        expect([...bold.dash], `${palette}/${tint}`).toEqual([...plain.dash]);
+        // Same three channels, only the fourth pushed up.
+        for (const channel of ["fill", "stroke"] as const) {
+          expect(rgbOf(bold[channel]), `${palette}/${tint}`).toEqual(
+            rgbOf(plain[channel]),
+          );
+        }
+      }
+    }
+  });
+
+  it("keeps every pair of tints told apart by something other than hue", () => {
+    for (const palette of TELEGRAPH_PALETTE_IDS) {
+      const shapes = TELEGRAPH_TINT_IDS.map((tint) =>
+        shape(telegraphStyle(tint, palette, true)),
+      );
+      expect(new Set(shapes).size, palette).toBe(shapes.length);
+    }
+  });
+
+  it("changes nothing at all when it is off", () => {
+    for (const tint of TELEGRAPH_TINT_IDS) {
+      expect(telegraphStyle(tint, "neon", false)).toEqual(
+        TELEGRAPH_PALETTES.neon[tint],
+      );
+    }
+  });
+
+  it("leaves a colour it cannot read alone", () => {
+    expect(boostTelegraphStyle({ ...NAMED_STYLE }).fill).toBe("magenta");
+  });
+});
+
+/** A style painted with a named colour rather than an rgba() one. */
+const NAMED_STYLE: TelegraphStyle = {
+  fill: "magenta",
+  stroke: null,
+  lineWidth: 1,
+  dash: [],
+};

@@ -16,6 +16,7 @@ import {
   revealDelayMs,
   saveSettings,
   serializeSettings,
+  settingsRules,
   stepZoom,
   type SettingsStorage,
 } from "./settings";
@@ -517,5 +518,87 @@ describe("reducedMotionActive", () => {
         },
       }),
     ).toBe(false);
+  });
+});
+
+/**
+ * The difficulty and assist *preferences*: what a new run starts on.
+ * What a run is actually being played under is on its own GameState
+ * (see src/state/rules.test.ts); this is the half that persists across
+ * runs and across sessions.
+ */
+describe("the difficulty and assist preference", () => {
+  it("defaults to the middle preset with every assist off", () => {
+    expect(DEFAULT_SETTINGS.difficulty).toBe(DEFAULT_DIFFICULTY_ID);
+    expect(DEFAULT_SETTINGS.assists).toEqual(noAssists());
+  });
+
+  it("clamps a preset this build does not have", () => {
+    expect(clampSettings({ difficulty: "nightmare" }).difficulty).toBe(
+      DEFAULT_DIFFICULTY_ID,
+    );
+    expect(clampSettings({ difficulty: "drift" }).difficulty).toBe("drift");
+  });
+
+  it("clamps the switchboard to a complete one, unknown keys dropped", () => {
+    expect(
+      clampSettings({ assists: { "damage-floor": true, "auto-win": true } })
+        .assists,
+    ).toEqual({ ...noAssists(), "damage-floor": true });
+  });
+
+  it("round-trips every switch through storage", () => {
+    const storage = fakeStorage();
+    const store = createSettingsStore(storage);
+    store.update({
+      difficulty: "blackout",
+      assists: {
+        "always-preview": true,
+        "damage-floor": true,
+        "bold-telegraphs": true,
+        "breach-rescue": true,
+      },
+    });
+    const reopened = createSettingsStore(storage);
+    expect(reopened.get().difficulty).toBe("blackout");
+    expect(reopened.get().assists).toEqual({
+      "always-preview": true,
+      "damage-floor": true,
+      "bold-telegraphs": true,
+      "breach-rescue": true,
+    });
+  });
+
+  it("hands a fresh run the preference, unmarked", () => {
+    const rules = settingsRules(
+      clampSettings({
+        difficulty: "drift",
+        assists: { "bold-telegraphs": true },
+      }),
+    );
+    expect(rules.difficulty).toBe("drift");
+    expect(rules.assists).toEqual({ ...noAssists(), "bold-telegraphs": true });
+    expect(rules.difficultyChanged).toBe(false);
+  });
+
+  it("gives a v7 payload — the last without them — the documented defaults", () => {
+    const v7 = JSON.stringify({
+      version: 7,
+      textSpeed: "fast",
+      reducedMotion: false,
+      zoom: 2,
+      glow: true,
+      weather: true,
+      minimap: true,
+      combatFeel: true,
+      shakeScale: 1,
+      barks: true,
+    });
+    const migrated = parseSettings(v7);
+    expect(migrated.difficulty).toBe(DEFAULT_DIFFICULTY_ID);
+    expect(migrated.assists).toEqual(noAssists());
+    // Everything the old payload did say survives intact.
+    expect(migrated.textSpeed).toBe("fast");
+    expect(migrated.zoom).toBe(2);
   });
 });
