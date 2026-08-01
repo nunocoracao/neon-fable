@@ -195,6 +195,20 @@ export interface Combatant {
   consumables: CombatConsumable[];
 }
 
+/**
+ * How hard this fight is, snapshotted from the run's rules at setup
+ * (see ./tuning.ts). Two plain numbers, because the engine is not
+ * allowed to know that a difficulty preset or an assist switch exists —
+ * it reads figures off the fight it is resolving, the way it reads
+ * stats and armor.
+ */
+export interface CombatTuning {
+  /** Percent on damage the other side deals to the player's. */
+  incomingDamagePct: number;
+  /** Least damage a landed blow of the player's deals; 0 is no floor. */
+  playerDamageFloor: number;
+}
+
 export type CombatStatus = "active" | "victory" | "defeat" | "fled";
 
 export type CombatAction =
@@ -338,6 +352,13 @@ export interface CombatState {
   rng: RngState;
   status: CombatStatus;
   fleeable: boolean;
+  /**
+   * What the run this fight belongs to is being played under. Optional
+   * so a battle saved before difficulty existed loads as exactly the
+   * fight it was: absent reads as NEUTRAL_TUNING, which is the authored
+   * arithmetic.
+   */
+  tuning?: CombatTuning;
   /**
    * The player's cyberware noise building toward its one discharge, or
    * absent when their Static band is quiet enough that nothing builds.

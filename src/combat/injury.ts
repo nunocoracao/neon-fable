@@ -1,11 +1,13 @@
 import type { CharacterState } from "../character/create";
 import { injureCharacter, takeInjury } from "../character/injury";
+import { tunedInjuryThreshold } from "../data/difficulty";
 import { drawInjury, type InjuryCause } from "../data/injuries";
 import { requireItem } from "../data/items";
 import type { ItemResolver } from "../inventory/items";
 import { equippedItems } from "../inventory/selectors";
 import type { GameState } from "../state/gameState";
 import { companionInjury, getMember, setCompanionInjury } from "../state/party";
+import { rulesModifiers } from "../state/rules";
 import { companionIdOf } from "./ally";
 import { isPlayerControlled } from "./state";
 import type { Combatant, CombatState } from "./types";
@@ -60,10 +62,16 @@ function wentDown(combat: CombatState, combatantId: string): boolean {
   );
 }
 
-/** True when the fight left this body at or under the bloodied share. */
-function bloodied(combatant: Combatant): boolean {
-  if (combatant.maxHp <= 0) return false;
-  return combatant.hp <= combatant.maxHp * BLOODIED_SHARE;
+/**
+ * True when the fight left this body at or under the bloodied share.
+ * The share is the preset's (see tunedInjuryThreshold): a kinder night
+ * marks only somebody who finished closer to nothing, and a share of 0
+ * marks nobody this way at all — going *down* still always counts,
+ * because that is not frequency, that is what happened.
+ */
+function bloodied(combatant: Combatant, share: number): boolean {
+  if (combatant.maxHp <= 0 || share <= 0) return false;
+  return combatant.hp <= combatant.maxHp * share;
 }
 
 /** True when a blow to the head is part of this body's account of the fight. */
@@ -121,6 +129,13 @@ function causesFor(
 export interface InjuryDrawOptions {
   /** True when the player's own implants could seize (see above). */
   playerChromed?: boolean;
+  /**
+   * The share of a frame a body has to finish at or under to count as
+   * bloodied. Defaults to the authored share; the fold-back passes the
+   * run's preset through (see applyCombatInjuries), which is the whole
+   * of how difficulty changes how often a night marks you.
+   */
+  bloodiedShare?: number;
 }
 
 /**
@@ -138,10 +153,11 @@ export function combatInjuries(
   options: InjuryDrawOptions = {},
 ): InjuryDraw[] {
   if (combat.status !== "victory") return [];
+  const share = options.bloodiedShare ?? BLOODIED_SHARE;
   const draws: InjuryDraw[] = [];
   for (const combatant of combat.combatants) {
     if (!isPlayerControlled(combatant)) continue;
-    if (!wentDown(combat, combatant.id) && !bloodied(combatant)) continue;
+    if (!wentDown(combat, combatant.id) && !bloodied(combatant, share)) continue;
     const chromed =
       combatant.kind === "player" && options.playerChromed === true;
     const injury = drawInjury(causesFor(combat, combatant, chromed));
@@ -174,6 +190,14 @@ export function applyCombatInjuries(
   // now — and the fight snapshotted figures, not implants.
   const draws = combatInjuries(combat, {
     playerChromed: hasSeizableChrome(state.player, resolve),
+    // And how bloodied is bloodied tonight. Read off the run rather
+    // than the fight because it is a fact about the playthrough, and
+    // asked here — where the wound is actually written — so the whole
+    // rule stays in one place.
+    bloodiedShare: tunedInjuryThreshold(
+      BLOODIED_SHARE,
+      rulesModifiers(state.rules).injuryThresholdPct,
+    ),
   });
   if (draws.length === 0) return state;
 

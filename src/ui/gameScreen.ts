@@ -901,11 +901,23 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   }
 
   function openSettings(): void {
-    // Settings live outside the session; the game state is untouched
-    // and Back returns to the pause menu.
+    // Every setting but two lives outside the session and leaves the
+    // game state untouched. Difficulty and the assists are also facts
+    // about *this* run, so the panel gets a handle onto it: a change is
+    // written to the run and autosaved, so reloading cannot quietly put
+    // the old preset back. Back returns to the pause menu.
     openOverlay(
       "settings",
-      createSettingsOverlay({ onClose: openSystemMenu }),
+      createSettingsOverlay({
+        onClose: openSystemMenu,
+        rules: {
+          get: () => session.state.rules,
+          set: (next) => {
+            session.state = { ...session.state, rules: next };
+            autosave(session);
+          },
+        },
+      }),
     );
   }
 

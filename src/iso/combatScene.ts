@@ -95,6 +95,7 @@ import {
   mapPixelBounds,
   snapToPixelGrid,
   viewportToWorld,
+  worldToViewport,
   type Camera,
 } from "./camera";
 import {
@@ -258,6 +259,13 @@ export interface CombatSceneOptions {
    */
   telegraphPalette?: TelegraphPaletteId;
   /**
+   * Whether the tile tints are painted at boosted opacity — the "bold
+   * telegraphs" assist (see src/data/assists.ts). Which tiles carry
+   * which role is decided by the engine and is identical either way;
+   * this only says how loudly they are drawn.
+   */
+  telegraphBoost?: boolean;
+  /**
    * Weather to fight under. An arena has no sky of its own, so the
    * combat screen passes the weather of the map the fight was entered
    * from; the streaks are then thinned (ARENA_STREAK_DENSITY) so the
@@ -333,6 +341,16 @@ export interface CombatScene {
    * the fixed arena view exactly as it was.
    */
   focusOn(entityId: string, options?: { pace?: TurnPace }): void;
+  /**
+   * Where a tile's center currently sits in viewport CSS pixels — the
+   * same coordinate space onTileHover reports the pointer in.
+   *
+   * The pointer's own position is what normally anchors the outcome
+   * chip; this is for the case where there is no pointer: the "keep
+   * previews up" assist points the chip at a body nobody is hovering
+   * (see src/data/assists.ts), and it has to hang somewhere real.
+   */
+  tileAnchor(tile: TilePoint): { x: number; y: number };
   destroy(): void;
 }
 
@@ -588,6 +606,7 @@ export function createCombatScene(
   };
   const telegraphPalette =
     options.telegraphPalette ?? DEFAULT_TELEGRAPH_PALETTE;
+  const telegraphBoost = options.telegraphBoost === true;
 
   /**
    * The scene clock's debt: every hit-pause still to be served, and the
@@ -770,7 +789,7 @@ export function createCombatScene(
     for (const tint of TELEGRAPH_PAINT_ORDER) {
       const batch = byTint.get(tint);
       if (!batch || batch.length === 0) continue;
-      const style = telegraphStyle(tint, telegraphPalette);
+      const style = telegraphStyle(tint, telegraphPalette, telegraphBoost);
       ctx!.beginPath();
       for (const tile of batch) traceDiamond(tile);
       if (style.fill) {
@@ -1661,6 +1680,13 @@ export function createCombatScene(
         bornAt,
         slot,
       });
+    },
+
+    tileAnchor(tile: TilePoint): { x: number; y: number } {
+      const rect = canvas.getBoundingClientRect();
+      const { sx, sy } = worldToScreen(tile.x, tile.y);
+      const point = worldToViewport(camera, viewportW, viewportH, zoom, sx, sy);
+      return { x: rect.left + point.x, y: rect.top + point.y };
     },
 
     destroy(): void {

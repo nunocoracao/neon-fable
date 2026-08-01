@@ -19,7 +19,12 @@ import {
   isAlive,
   isPlayerControlled,
 } from "./state";
-import { outcomesFor, type OutcomePreview, type PreviewIntent } from "./preview";
+import {
+  outcomesFor,
+  previewFocusId,
+  type OutcomePreview,
+  type PreviewIntent,
+} from "./preview";
 import type { Combatant, CombatState, GridPosition } from "./types";
 
 /**
@@ -486,6 +491,34 @@ export function resolveTelegraphTiles(
   const byTile = new Map<string, TelegraphTile>();
   for (const tile of tiles) byTile.set(`${tile.x},${tile.y}`, { ...tile });
   return [...byTile.values()];
+}
+
+/**
+ * The tile the "keep previews up" assist points at while the player is
+ * pointing at nothing: the anchor of the body the action bar already
+ * calls the aim worth taking (see previewFocusId). Null for an intent
+ * that aims at nobody — an open move, or nothing open at all — and null
+ * when the open action has no legal aim, so the assist adds a chip
+ * exactly where hovering would have produced one and nowhere else.
+ *
+ * A pure read, like everything else here. The screen decides whether to
+ * use it (src/ui/combatScreen.ts); the assist changes which tile is
+ * treated as hovered and nothing whatever about what a hover means.
+ */
+export function assistedHoverTile(
+  state: CombatState,
+  intent: TelegraphIntent,
+): GridPosition | null {
+  if (intent.kind !== "attack" && intent.kind !== "ability") return null;
+  const targetId = previewFocusId(
+    state,
+    intent.kind === "attack"
+      ? { kind: "attack" }
+      : { kind: "ability", abilityId: intent.abilityId },
+  );
+  if (targetId === null) return null;
+  const body = state.combatants.find((c) => c.id === targetId);
+  return body ? { x: body.position.x, y: body.position.y } : null;
 }
 
 /** The body a hovered tile is about, when the arena has one there. */

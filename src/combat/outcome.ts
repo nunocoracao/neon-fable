@@ -1,4 +1,5 @@
 import { clearReadied } from "../character/readied";
+import { tunedCredits } from "../data/difficulty";
 import { requireEncounter } from "../data/encounters";
 import { requireItem } from "../data/items";
 import { alertFlag } from "../data/stealth";
@@ -6,6 +7,7 @@ import { addItem, countItem, removeItem } from "../inventory/inventory";
 import type { ItemResolver } from "../inventory/items";
 import type { GameState } from "../state/gameState";
 import { getMember, setCompanionHp } from "../state/party";
+import { rulesModifiers } from "../state/rules";
 import { companionIdOf } from "./ally";
 import { applyCombatInjuries } from "./injury";
 import { allyCombatants, playerCombatant } from "./state";
@@ -87,7 +89,15 @@ export function resolveCombat(
     }
     next = {
       ...next,
-      credits: next.credits + rewards.credits,
+      // What the preset says the work was worth. Only the money moves:
+      // authored items are the *thing* an encounter hands over and a
+      // difficulty that took a key away would take a story away with it.
+      credits:
+        next.credits +
+        tunedCredits(
+          rewards.credits,
+          rulesModifiers(state.rules).creditRewardPct,
+        ),
       inventory: rewarded,
     };
   }

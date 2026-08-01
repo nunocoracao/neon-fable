@@ -58,6 +58,37 @@ export {
   type BarkTrigger,
 } from "./barks";
 export {
+  ASSIST_DAMAGE_FLOOR,
+  ASSIST_IDS,
+  ASSISTS,
+  BREACH_RESCUE_FAILURES,
+  anyAssistOn,
+  clampAssists,
+  getAssist,
+  noAssists,
+  requireAssist,
+  type Assist,
+  type AssistId,
+  type AssistState,
+} from "./assists";
+export {
+  DEFAULT_DIFFICULTY_ID,
+  DIFFICULTIES,
+  NEUTRAL_MODIFIERS,
+  clampDifficultyId,
+  difficultyModifiers,
+  getDifficulty,
+  requireDifficulty,
+  scaleByPercent,
+  tunedCredits,
+  tunedEnemyHp,
+  tunedIncomingDamage,
+  tunedInjuryThreshold,
+  type Difficulty,
+  type DifficultyId,
+  type DifficultyModifiers,
+} from "./difficulty";
+export {
   BREACH_CONTEXTS,
   BREACH_DIFFICULTIES,
   breachContextsOnMap,

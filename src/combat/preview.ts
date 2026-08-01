@@ -16,6 +16,7 @@ import {
   isPlayerControlled,
   livingEnemies,
 } from "./state";
+import { tunedDamage } from "./tuning";
 import type { CombatState } from "./types";
 
 /**
@@ -223,7 +224,10 @@ export function outcomesFor(
     : undefined;
   if (!target) return [];
   return abilityImpact(state, actor, ability, target).map((caught) => {
-    const { damage, stunTurns } = abilityHit(ability.effect, caught.armor);
+    const hit = abilityHit(ability.effect, caught.armor);
+    // Through the fight's own tuning, like every other quoted figure.
+    const damage = tunedDamage(state, actor, caught, hit.damage);
+    const { stunTurns } = hit;
     return {
       targetId: caught.id,
       primary: caught.id === targetId,
@@ -234,6 +238,52 @@ export function outcomesFor(
       statuses: stunTurns > 0 ? [{ kind: "stun", turns: stunTurns }] : [],
     };
   });
+}
+
+/**
+ * Every aim an ability has right now, priced through outcomesFor and
+ * ordered by the aim worth taking: most bodies caught, then hardest
+ * hit, then most conditions applied. Empty when it is not ready or has
+ * nothing in range.
+ */
+function abilityAims(
+  state: CombatState,
+  abilityId: string,
+): OutcomePreview[][] {
+  const option = abilityOptions(state).find((o) => o.abilityId === abilityId);
+  if (!option) return [];
+  const intent: PreviewIntent = { kind: "ability", abilityId };
+  return option.targets
+    .map((target) => outcomesFor(state, intent, target.targetId))
+    .filter((outcomes) => outcomes.length > 0)
+    .sort(
+      (a, b) =>
+        b.length - a.length ||
+        (b[0]?.damageMax ?? 0) - (a[0]?.damageMax ?? 0) ||
+        (b[0]?.statuses.length ?? 0) - (a[0]?.statuses.length ?? 0),
+    );
+}
+
+/**
+ * The body an always-on preview points at when the player is pointing
+ * at nobody: the target the tooltips already call the one worth taking.
+ * Null when the open action has no legal aim at all.
+ *
+ * Purely a *choice of subject* — the assist that reads it (see
+ * src/data/assists.ts) shows the same chip, with the same figures, that
+ * hovering this body would have shown. It changes no rule and no
+ * number, which is what makes "keep previews up" an accessibility
+ * switch rather than a difficulty one.
+ */
+export function previewFocusId(
+  state: CombatState,
+  intent: PreviewIntent,
+): string | null {
+  if (state.status !== "active") return null;
+  if (!isPlayerControlled(activeCombatant(state))) return null;
+  if (intent.kind === "attack") return attackPreview(state).best?.targetId ?? null;
+  const best = abilityAims(state, intent.abilityId)[0];
+  return best?.find((outcome) => outcome.primary)?.targetId ?? null;
 }
 
 /** Hardest hit first, then likeliest, then nearest. Total and stable. */
@@ -263,24 +313,11 @@ export function attackPreview(state: CombatState): AttackPreview {
 export function abilityPreviews(state: CombatState): AbilityPreview[] {
   return abilityOptions(state).map((option) => {
     const ability = requireAbility(option.abilityId);
-    const intent: PreviewIntent = {
-      kind: "ability",
-      abilityId: option.abilityId,
-    };
     // Every aim this ability has, priced through the one outcome
     // function the telegraph's chips read — so the tooltip and the chip
     // quote the same figures for the same aim. The tooltip then reports
     // the aim worth taking: most bodies caught, then hardest hit.
-    const aims = option.targets
-      .map((target) => outcomesFor(state, intent, target.targetId))
-      .filter((outcomes) => outcomes.length > 0)
-      .sort(
-        (a, b) =>
-          b.length - a.length ||
-          (b[0]?.damageMax ?? 0) - (a[0]?.damageMax ?? 0) ||
-          (b[0]?.statuses.length ?? 0) - (a[0]?.statuses.length ?? 0),
-      );
-    const best = aims[0];
+    const best = abilityAims(state, option.abilityId)[0];
     const primary = best?.[0];
     return {
       abilityId: option.abilityId,

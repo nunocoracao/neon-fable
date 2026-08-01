@@ -48,6 +48,9 @@ import { emptyEquipment, type EquipmentState } from "../inventory/equipment";
 import { createRng, type RngState } from "../state/rng";
 import { startingEquipment } from "../inventory/startingGear";
 import { applyNewGamePlus, createNewGame } from "../state";
+import { DIFFICULTIES, requireDifficulty } from "../data/difficulty";
+import type { DifficultyId } from "../data/difficulty";
+import { settings, settingsRules } from "../settings";
 import { createAppearancePicker } from "./appearancePicker";
 import {
   createAppearancePreview,
@@ -168,6 +171,13 @@ export function createCharacterCreateScreen(
   let appearanceSeeded = legacyLook !== null;
   /** Set by a review Edit link: finishing that step returns to review. */
   let returnToReview = false;
+  /**
+   * The preset this runner will go out into the city on. Seeded from
+   * the stored preference — which is what the last run settled on, so a
+   * New Game+ character keeps the difficulty of the run that earned it
+   * unless it is changed right here — and written back on confirm.
+   */
+  let difficulty: DifficultyId = settings.get().difficulty;
   /** Per-category locks; locked categories survive Surprise Me. */
   let locks: AppearanceLocks = {};
   /** Advancing RNG behind Surprise Me — each click rolls a new look. */
@@ -755,6 +765,60 @@ export function createCharacterCreateScreen(
   }
 
   /**
+   * The difficulty picker on the review sheet: a row of presets and the
+   * chosen one's blurb underneath. Deliberately not an Edit link to
+   * another step — there is no step to jump to — so it carries its own
+   * heading and lives inline.
+   */
+  function difficultySection(): HTMLElement {
+    const section = document.createElement("div");
+    section.className = "nf-review-section nf-review-difficulty";
+    const header = document.createElement("div");
+    header.className = "nf-review-header";
+    const heading = document.createElement("h3");
+    heading.textContent = "Difficulty";
+    header.append(heading);
+    section.append(header);
+
+    const row = document.createElement("div");
+    row.className = "nf-segmented";
+    const blurb = document.createElement("p");
+    blurb.className = "nf-review-line nf-dim";
+
+    const sync = (): void => {
+      for (const button of row.querySelectorAll<HTMLButtonElement>("button")) {
+        const selected = button.dataset.value === difficulty;
+        button.classList.toggle("nf-selected", selected);
+        button.setAttribute("aria-pressed", String(selected));
+      }
+      blurb.textContent = requireDifficulty(difficulty).blurb;
+    };
+
+    for (const preset of DIFFICULTIES) {
+      const button = document.createElement("button");
+      button.className = "nf-button nf-button-small";
+      button.textContent = preset.label;
+      button.dataset.value = preset.id;
+      button.addEventListener("click", () => {
+        difficulty = preset.id;
+        audio.play("ui-click");
+        sync();
+      });
+      row.append(button);
+    }
+    sync();
+
+    section.append(row, blurb);
+    const changeable = document.createElement("p");
+    changeable.className = "nf-review-line nf-dim";
+    changeable.textContent =
+      "Changeable later from Settings, along with the assists — the save " +
+      "will simply record that it happened.";
+    section.append(changeable);
+    return section;
+  }
+
+  /**
    * The review step as a character sheet: the full-size showcase render
    * (largest crisp zoom, slow facing spin, portrait card on the stage)
    * on the left; on the right the whole draft in words via the pure
@@ -850,6 +914,14 @@ export function createCharacterCreateScreen(
       legacy.append(legacyLine, excludes);
       right.append(reviewSection("Legacy carry-over", "background", legacy));
     }
+
+    // The one thing on this panel that is not about the runner: how
+    // hard the city is going to be on them. It sits on review rather
+    // than getting a step of its own because it is one choice with a
+    // default, and because it is changeable later from settings — the
+    // wizard is where a run is *set up*, not where it is decided
+    // forever.
+    right.append(difficultySection());
 
     const errors = document.createElement("div");
     for (const error of submitErrors) {
@@ -1041,7 +1113,17 @@ export function createCharacterCreateScreen(
         pointPool,
         appearance: current.appearance,
       });
-      let state = createNewGame({ character });
+      // The preset goes into the preference first, so the run created
+      // from it and the setting the *next* run reads are one choice
+      // rather than two that can drift.
+      settings.update({ difficulty });
+      let state = createNewGame({
+        character,
+        // Assists come along from the preference untouched — they are
+        // not a creation choice, and defaulting them off is what
+        // "assists off" means.
+        rules: settingsRules(settings.get()),
+      });
       if (ngPlus) state = applyNewGamePlus(state, current.legacyItemId);
       const session = createSession(state);
       audio.play("ui-confirm");

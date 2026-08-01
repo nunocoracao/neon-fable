@@ -16,6 +16,7 @@ export {
   saveSettings,
   serializeSettings,
   stepZoom,
+  settingsRules,
   type Settings,
   type SettingsStorage,
   type ShakeScale,

@@ -5,7 +5,28 @@
  * which the audio bus owns. Pure functions over a plain object; the
  * storage interface is injectable so tests run against an in-memory
  * fake.
+ *
+ * ## Difficulty and assists are here *and* on the run
+ *
+ * The two live in different places on purpose. What is stored here is
+ * the *preference*: what the player last chose, which is what a fresh
+ * run starts on and what New Game+ keeps. What actually governs a
+ * playthrough is the copy on its own GameState (see
+ * src/state/rules.ts), because a fight has to resolve the same way
+ * wherever the save is opened — a modifier read out of localStorage
+ * halfway down a pure function would make the same save behave
+ * differently on a different device. Changing either mid-run writes
+ * both: the run so it takes effect, the preference so the next one
+ * remembers.
  */
+
+import { clampAssists, noAssists, type AssistState } from "../data/assists";
+import {
+  clampDifficultyId,
+  DEFAULT_DIFFICULTY_ID,
+  type DifficultyId,
+} from "../data/difficulty";
+import { startingRules, type RunRules } from "../state/rules";
 
 export const TEXT_SPEEDS = ["instant", "fast", "normal"] as const;
 export type TextSpeed = (typeof TEXT_SPEEDS)[number];
@@ -51,6 +72,14 @@ export interface Settings {
    * the street and costs nothing (see src/data/barks.ts).
    */
   barks: boolean;
+  /**
+   * The difficulty preset a new run starts on — the last one chosen,
+   * in the wizard or in this panel. Not what the current run is being
+   * played under; see the file header.
+   */
+  difficulty: DifficultyId;
+  /** The assist switches a new run starts with. Same story. */
+  assists: AssistState;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -63,12 +92,14 @@ export const DEFAULT_SETTINGS: Settings = {
   combatFeel: true,
   shakeScale: 1,
   barks: true,
+  difficulty: DEFAULT_DIFFICULTY_ID,
+  assists: noAssists(),
 };
 
 export const SETTINGS_KEY = "neon-fable:settings";
 
 /** Bump when the Settings shape changes; migrateSettings routes on it. */
-export const SETTINGS_VERSION = 7;
+export const SETTINGS_VERSION = 8;
 
 /** Coerces any value onto the zoom-level ladder; off-ladder → default. */
 export function clampZoom(value: unknown): ZoomLevel {
@@ -127,6 +158,14 @@ export function clampSettings(value: unknown): Settings {
     combatFeel: record.combatFeel !== false,
     shakeScale: clampShakeScale(record.shakeScale),
     barks: record.barks !== false,
+    // Difficulty and the assists are the other way round from the
+    // flags above: a payload that does not mention them is a player
+    // who has never chosen, and the documented default is the middle
+    // preset with every switch off. A retired preset or assist id
+    // degrades to the same place rather than scaling something by a
+    // number nobody can see (see clampDifficultyId / clampAssists).
+    difficulty: clampDifficultyId(record.difficulty),
+    assists: clampAssists(record.assists),
   };
 }
 
@@ -135,8 +174,10 @@ export function clampSettings(value: unknown): Settings {
  * shape. Every version so far routes through the field-tolerant clamp —
  * v1 payloads simply lack zoom, v2 payloads lack glow, v3 payloads lack
  * weather, v4 payloads lack minimap, v5 payloads lack the combat camera
- * fields, v6 payloads lack barks, and each gets its default; unknown or
- * future versions degrade to defaults per field instead of crashing.
+ * fields, v6 payloads lack barks, v7 payloads lack the difficulty
+ * preference and the assist switches, and each gets its default;
+ * unknown or future versions degrade to defaults per field instead of
+ * crashing.
  */
 export function migrateSettings(parsed: unknown): Settings {
   return clampSettings(parsed);
@@ -157,6 +198,20 @@ export function parseSettings(raw: string | null): Settings {
     return { ...DEFAULT_SETTINGS };
   }
   return migrateSettings(parsed);
+}
+
+/**
+ * The rules a run created right now would start on: the stored
+ * preference, with nothing carried across from any previous run (see
+ * startingRules). The one bridge between the preference and the
+ * playthrough, so "what does a new game start on" has a single answer
+ * shared by the wizard and by New Game+.
+ */
+export function settingsRules(current: Settings): RunRules {
+  return startingRules({
+    difficulty: current.difficulty,
+    assists: current.assists,
+  });
 }
 
 // --- Persistence -------------------------------------------------------

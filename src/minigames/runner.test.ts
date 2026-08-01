@@ -16,14 +16,22 @@ import {
 } from "../data/breach";
 import { installEnhancement } from "../inventory/equipment";
 import { addItem } from "../inventory/inventory";
+import { BREACH_RESCUE_FAILURES, noAssists } from "../data/assists";
+import {
+  requireDifficulty,
+  tunedCredits,
+  type DifficultyId,
+} from "../data/difficulty";
 import { createNewGame, type GameState } from "../state";
-import { breachOutcome, stepBreach, withdrawBreach } from "./breach";
+import { BreachError, breachOutcome, routeBreach, stepBreach, withdrawBreach } from "./breach";
 import {
   BREACH_NET_BONUS,
   BREACH_TECH_FLOOR,
   CREDITS_PER_CHAIN,
   CREDITS_PER_DATA,
   breachAward,
+  breachLockouts,
+  breachRescueOffered,
   breachSpent,
   openBreach,
   readRunner,
@@ -279,4 +287,187 @@ describe("every placed terminal is beatable by the worst runner in the game", ()
       }
     },
   );
+});
+
+/**
+ * The breach-rescue assist, and the preset's cut of a payday. Both act
+ * on the settlement rather than on the lattice: the grid a terminal
+ * generates is the same grid at every difficulty with every switch in
+ * every position (it is seeded off the context and the run), and that
+ * is asserted here too.
+ */
+
+function runWith(
+  difficulty: DifficultyId,
+  assists: Partial<Record<string, boolean>> = {},
+  flags: GameState["flags"] = {},
+): GameState {
+  const base = createNewGame({ seed: 99 });
+  return {
+    ...base,
+    flags: { ...base.flags, ...flags },
+    rules: {
+      difficulty,
+      assists: { ...noAssists(), ...assists },
+      difficultyChanged: false,
+    },
+  };
+}
+
+/** Flags recording `count` terminals that locked the run out. */
+function lockouts(count: number): GameState["flags"] {
+  const flags: GameState["flags"] = {};
+  for (let i = 0; i < count; i++) flags[breachFlag(`ctx-${i}`)] = "locked-out";
+  return flags;
+}
+
+describe("counting lockouts", () => {
+  it("counts only the terminals that actually shut the run out", () => {
+    const state = runWith("grind", {}, {
+      ...lockouts(2),
+      [breachFlag("ctx-won")]: "breached",
+      [breachFlag("ctx-left")]: "withdrawn",
+      "not-a-breach": "locked-out",
+    });
+    expect(breachLockouts(state)).toBe(2);
+  });
+
+  it("counts nothing on a run that has not touched a terminal", () => {
+    expect(breachLockouts(runWith("grind"))).toBe(0);
+  });
+});
+
+describe("when a lattice offers to route itself", () => {
+  it("offers nothing with the assist off, however many lockouts", () => {
+    expect(
+      breachRescueOffered(runWith("grind", {}, lockouts(BREACH_RESCUE_FAILURES))),
+    ).toBe(false);
+  });
+
+  it("offers nothing until the run has taken enough lockouts", () => {
+    for (let taken = 0; taken < BREACH_RESCUE_FAILURES; taken++) {
+      expect(
+        breachRescueOffered(
+          runWith("grind", { "breach-rescue": true }, lockouts(taken)),
+        ),
+        `after ${taken}`,
+      ).toBe(false);
+    }
+  });
+
+  it("offers once the switch is on and the lockouts are in", () => {
+    expect(
+      breachRescueOffered(
+        runWith(
+          "grind",
+          { "breach-rescue": true },
+          lockouts(BREACH_RESCUE_FAILURES),
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps offering past the threshold", () => {
+    expect(
+      breachRescueOffered(
+        runWith(
+          "grind",
+          { "breach-rescue": true },
+          lockouts(BREACH_RESCUE_FAILURES + 3),
+        ),
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("a route handed over", () => {
+  const context = BREACH_CONTEXTS[0]!;
+
+  it("counts as a breach, so the core's own prize is paid", () => {
+    const state = runWith("grind", { "breach-rescue": true });
+    const routed = routeBreach(openBreach(state, context));
+    expect(routed.status).toBe("breached");
+    const settled = settleBreach(state, context, breachOutcome(routed));
+    expect(settled.state.flags[breachFlag(context.id)]).toBe("breached");
+    if (context.rewards.shardId) {
+      expect(settled.filedShardId).toBe(context.rewards.shardId);
+    }
+  });
+
+  it("pays nothing for the route, because nothing was routed", () => {
+    const state = runWith("grind", { "breach-rescue": true });
+    const outcome = breachOutcome(routeBreach(openBreach(state, context)));
+    expect(outcome.harvest).toBe(0);
+    expect(outcome.chains).toBe(0);
+    expect(outcome.steps).toBe(0);
+    expect(breachAward(context, outcome).credits).toBe(0);
+  });
+
+  it("refuses to route a run that is already over", () => {
+    const game = routeBreach(openBreach(runWith("grind"), context));
+    expect(() => routeBreach(game)).toThrow(BreachError);
+  });
+});
+
+describe("what a preset says a terminal pays", () => {
+  const context = BREACH_CONTEXTS[0]!;
+
+  /** A clean breach on this preset, settled, with what it paid. */
+  function fullBreach(difficulty: DifficultyId): {
+    state: GameState;
+    settled: ReturnType<typeof settleBreach>;
+  } {
+    const state = runWith(difficulty);
+    let game = openBreach(state, context);
+    for (const id of solveRoute(game.lattice)) game = stepBreach(game, id);
+    return { state, settled: settleBreach(state, context, breachOutcome(game)) };
+  }
+
+  it("scales what the route earned, preset by preset", () => {
+    const earned = fullBreach("grind").settled.award.credits;
+    expect(earned).toBeGreaterThan(0);
+    for (const difficulty of ["drift", "blackout"] as DifficultyId[]) {
+      expect(fullBreach(difficulty).settled.award.credits).toBe(
+        tunedCredits(
+          earned,
+          requireDifficulty(difficulty).modifiers.creditRewardPct,
+        ),
+      );
+    }
+  });
+
+  it("leaves the core's authored prize alone, as encounter items are", () => {
+    // What the context *holds* is the story's, not the economy's: a
+    // preset takes a cut of the payday and never of the unlock.
+    for (const difficulty of ["drift", "grind", "blackout"] as DifficultyId[]) {
+      const { state, settled } = fullBreach(difficulty);
+      expect(settled.state.flags[breachFlag(context.id)]).toBe("breached");
+      expect(settled.filedShardId).toBe(context.rewards.shardId ?? null);
+      // The credits actually banked are the scaled route plus whatever
+      // the authored effects paid, which is the same at every preset.
+      const banked = settled.state.credits - state.credits;
+      expect(banked - settled.award.credits).toBe(
+        fullBreach("grind").settled.state.credits -
+          fullBreach("grind").state.credits -
+          fullBreach("grind").settled.award.credits,
+      );
+    }
+  });
+
+  it("generates the same lattice at every preset and every switch", () => {
+    const base = JSON.stringify(openBreach(runWith("grind"), context).lattice);
+    for (const difficulty of ["drift", "grind", "blackout"] as DifficultyId[]) {
+      for (const rescue of [false, true]) {
+        expect(
+          JSON.stringify(
+            openBreach(
+              runWith(difficulty, { "breach-rescue": rescue }),
+              context,
+            ).lattice,
+          ),
+          `${difficulty}/${rescue}`,
+        ).toBe(base);
+      }
+    }
+  });
 });

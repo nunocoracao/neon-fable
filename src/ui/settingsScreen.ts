@@ -1,4 +1,8 @@
 import { audio, type VolumeChannel } from "../audio";
+import { ASSISTS } from "../data/assists";
+import { DIFFICULTIES, requireDifficulty } from "../data/difficulty";
+import type { AssistId } from "../data/assists";
+import type { DifficultyId } from "../data/difficulty";
 import {
   clampShakeScale,
   clampZoom,
@@ -9,17 +13,46 @@ import {
   type ShakeScale,
   type TextSpeed,
 } from "../settings";
+import { withAssist, withDifficulty, type RunRules } from "../state";
 import { focusFirst, installListNav } from "./focus";
 import type { OverlayHandle } from "./overlay";
 import type { Screen } from "./screen";
 
 /**
  * The Settings panel: audio mixer (persisted by the audio bus), text
- * speed and reduced motion (persisted by the settings store), and the
- * keyboard controls reference. Built once, used two ways — as a full
- * screen from the main menu and as an in-game overlay from the pause
- * menu, so opening it mid-game never touches the session.
+ * speed and reduced motion (persisted by the settings store), the
+ * difficulty and assist switches, and the keyboard controls reference.
+ * Built once, used two ways — as a full screen from the main menu and
+ * as an in-game overlay from the pause menu.
+ *
+ * ## Difficulty in two places, on purpose
+ *
+ * Everything else here is a device preference and there is nothing else
+ * for it to be. Difficulty and the assists are also a fact about the
+ * *run* (see src/state/rules.ts), so the panel takes an optional handle
+ * onto the live one: with it, a change is written to the run as well as
+ * the preference and takes effect immediately; without it — opened from
+ * the main menu, with no run to change — the rows say plainly that they
+ * are setting what the next run will start on.
+ *
+ * Changing the preset mid-run asks first. Not because anything is at
+ * stake — there is nothing to lock and nothing to take away — but
+ * because the save records that it happened, and a record written
+ * without being mentioned is a record kept behind somebody's back.
  */
+
+/** A handle onto the live run's rules, when the panel is opened over one. */
+export interface RunRulesHandle {
+  get(): RunRules;
+  /** Writes the run. The caller owns persisting it (see gameScreen). */
+  set(next: RunRules): void;
+}
+
+export interface SettingsPanelOptions {
+  onClose(): void;
+  /** The run being played, when there is one. */
+  rules?: RunRulesHandle | null;
+}
 
 const TEXT_SPEED_LABELS: Record<TextSpeed, string> = {
   instant: "Instant",
@@ -112,13 +145,166 @@ function segmentedRow<T extends string>(
   return settingRow(label, group);
 }
 
-function buildSettingsPanel(onClose: () => void): HTMLElement {
+/**
+ * The difficulty rows, plus the assists.
+ *
+ * Rebuilt in place rather than re-rendered wholesale, because the
+ * confirmation is a row that appears between the buttons and the note —
+ * and because everything else on this panel is a build-once control.
+ */
+function buildRulesSection(
+  panel: HTMLElement,
+  run: RunRulesHandle | null,
+): void {
+  const heading = document.createElement("h3");
+  heading.textContent = "Difficulty";
+  panel.append(heading);
+
+  /** The preset in force: the run's, or the preference outside one. */
+  const currentDifficulty = (): DifficultyId =>
+    run ? run.get().difficulty : settings.get().difficulty;
+
+  /** Whether one assist is on, from whichever record is authoritative. */
+  const assistIsOn = (id: AssistId): boolean =>
+    run ? run.get().assists[id] === true : settings.get().assists[id] === true;
+
+  const confirmRow = document.createElement("div");
+  confirmRow.className = "nf-setting-confirm";
+  confirmRow.hidden = true;
+
+  const blurb = document.createElement("p");
+  blurb.className = "nf-dim";
+
+  let syncDifficulty = (): void => {};
+
+  /**
+   * Writes a preset to whichever records it. The run always gets the
+   * preference too, so the *next* run remembers what this one settled
+   * on — which is what "New Game+ keeps the chosen difficulty" is.
+   */
+  function commitDifficulty(id: DifficultyId): void {
+    settings.update({ difficulty: id });
+    if (run) run.set(withDifficulty(run.get(), id));
+    confirmRow.hidden = true;
+    confirmRow.replaceChildren();
+    syncDifficulty();
+  }
+
+  /** Mid-run: ask, in the panel, before the record is written. */
+  function askDifficulty(id: DifficultyId): void {
+    if (id === currentDifficulty()) return;
+    if (!run) {
+      commitDifficulty(id);
+      return;
+    }
+    const preset = requireDifficulty(id);
+    confirmRow.replaceChildren();
+    const question = document.createElement("span");
+    question.className = "nf-setting-label";
+    question.textContent =
+      `Switch this run to ${preset.label}? It takes effect at once, and ` +
+      "the save will record that the difficulty was changed.";
+    const yes = document.createElement("button");
+    yes.className = "nf-button nf-button-small";
+    yes.textContent = `Switch to ${preset.label}`;
+    yes.dataset.confirm = id;
+    yes.addEventListener("click", () => {
+      audio.play("ui-confirm");
+      commitDifficulty(id);
+    });
+    const no = document.createElement("button");
+    no.className = "nf-button nf-button-small";
+    no.textContent = "Keep playing";
+    no.addEventListener("click", () => {
+      audio.play("ui-cancel");
+      confirmRow.hidden = true;
+      confirmRow.replaceChildren();
+    });
+    confirmRow.append(question, yes, no);
+    confirmRow.hidden = false;
+    yes.focus();
+  }
+
+  const difficultyRow = segmentedRow(
+    run ? "This run" : "New runs start on",
+    DIFFICULTIES.map((entry) => [entry.id, entry.label] as const),
+    (id) => currentDifficulty() === id,
+    askDifficulty,
+  );
+  // segmentedRow syncs itself on click; the confirmation path means a
+  // click can be refused, so the row is re-synced from the record
+  // whenever the record actually moves.
+  syncDifficulty = (): void => {
+    for (const button of difficultyRow.querySelectorAll<HTMLButtonElement>(
+      "button",
+    )) {
+      const selected = button.dataset.value === currentDifficulty();
+      button.classList.toggle("nf-selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    }
+    blurb.textContent = requireDifficulty(currentDifficulty()).blurb;
+  };
+  syncDifficulty();
+
+  panel.append(difficultyRow, confirmRow, blurb);
+
+  if (run?.get().difficultyChanged === true) {
+    const changed = document.createElement("p");
+    changed.className = "nf-dim";
+    changed.textContent =
+      "This run has had its difficulty changed. Nothing is locked out by " +
+      "that — the save simply says so.";
+    panel.append(changed);
+  }
+
+  const assistHeading = document.createElement("h3");
+  assistHeading.textContent = "Assists";
+  panel.append(assistHeading);
+  const assistNote = document.createElement("p");
+  assistNote.className = "nf-dim";
+  assistNote.textContent = run
+    ? "Independent of difficulty, and of each other. Every one of them " +
+      "takes effect immediately and none of them changes a die roll."
+    : "Independent of difficulty, and of each other. These are what a " +
+      "new run will start with.";
+  panel.append(assistNote);
+
+  for (const assist of ASSISTS) {
+    panel.append(
+      segmentedRow(
+        assist.label,
+        [
+          ["on", "On"],
+          ["off", "Off"],
+        ] as const,
+        (value) => (value === "on") === assistIsOn(assist.id),
+        (value) => {
+          const on = value === "on";
+          settings.update({
+            assists: { ...settings.get().assists, [assist.id]: on },
+          });
+          if (run) run.set(withAssist(run.get(), assist.id, on));
+        },
+      ),
+    );
+    const note = document.createElement("p");
+    note.className = "nf-dim";
+    note.textContent = assist.blurb;
+    panel.append(note);
+  }
+}
+
+function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
+  const { onClose } = options;
+  const run = options.rules ?? null;
   const panel = document.createElement("div");
   panel.className = "nf-panel nf-settings";
 
   const title = document.createElement("h2");
   title.textContent = "Settings";
   panel.append(title);
+
+  buildRulesSection(panel, run);
 
   const audioHeading = document.createElement("h3");
   audioHeading.textContent = "Audio";
@@ -325,12 +511,12 @@ function buildSettingsPanel(onClose: () => void): HTMLElement {
 }
 
 /** In-game overlay form; closing returns to whatever opened it. */
-export function createSettingsOverlay(options: {
-  onClose(): void;
-}): OverlayHandle {
+export function createSettingsOverlay(
+  options: SettingsPanelOptions,
+): OverlayHandle {
   const el = document.createElement("div");
   el.className = "nf-overlay nf-overlay-center";
-  el.append(buildSettingsPanel(options.onClose));
+  el.append(buildSettingsPanel(options));
   return { el, destroy: () => el.remove() };
 }
 
@@ -347,7 +533,9 @@ export function createSettingsScreen(options: { onBack(): void }): Screen {
       audio.setMusicContext("menu");
       container = document.createElement("div");
       container.className = "nf-screen";
-      const panel = buildSettingsPanel(options.onBack);
+      // No run to change from the main menu: the rows set what the
+      // next one will start on, and say so.
+      const panel = buildSettingsPanel({ onClose: options.onBack });
       container.append(panel);
       root.append(container);
       window.addEventListener("keydown", onKeyDown);

@@ -620,6 +620,25 @@ export function withdrawBreach(game: BreachGame): BreachGame {
   return { ...game, status: "withdrawn" };
 }
 
+/**
+ * The route handed over rather than run: the core is reached and
+ * nothing else about the game moves.
+ *
+ * This is the engine side of the "breach rescue" assist (see
+ * src/data/assists.ts and src/minigames/runner.ts, which decides when
+ * it is offered). Deliberately no path, no harvest, and no chains: the
+ * run counts as breached, so the context's own prize is paid, and every
+ * credit that comes from *routing* — the data carried out, the chains
+ * completed — is worth exactly what it was worth, which is nothing. An
+ * assist that hands you the door does not also hand you the payday.
+ */
+export function routeBreach(game: BreachGame): BreachGame {
+  if (game.status !== "running") {
+    throw new BreachError("not-running", "The run is over.");
+  }
+  return { ...game, status: "breached" };
+}
+
 /** How a finished run reads; throws while one is still going. */
 export function breachOutcome(game: BreachGame): BreachOutcome {
   if (game.status === "running") {

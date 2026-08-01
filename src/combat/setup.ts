@@ -5,6 +5,7 @@ import { isConsumable, usableIn } from "../inventory/consumables";
 import { liveSpawns, requireEncounter, spawnLookIndex } from "../data/encounters";
 import { ALERTED_INITIATIVE_PENALTY, alertFlag } from "../data/stealth";
 import { requireEnemy } from "../data/enemies";
+import { tunedEnemyHp } from "../data/difficulty";
 import { requireItem } from "../data/items";
 import {
   armorValue,
@@ -16,12 +17,14 @@ import type { ItemResolver } from "../inventory/items";
 import type { GameState } from "../state/gameState";
 import { activeMembers } from "../state/party";
 import { nextFloat, type RngState } from "../state/rng";
+import { rulesModifiers } from "../state/rules";
 import { staticEffects } from "../inventory/staticLoad";
 import { allyCombatant, allyStartTile } from "./ally";
 import { applyTimedEffect } from "./effects";
 import { stepBudget } from "./grid";
 import { initiativeScore } from "./state";
 import { openSurgeTurn, startingSurge } from "./surge";
+import { tuningFor } from "./tuning";
 import {
   type Combatant,
   type CombatConsumable,
@@ -80,6 +83,13 @@ export function createCombat(
 ): CombatState {
   const encounter = requireEncounter(encounterId);
 
+  // How hard tonight is, taken once here and carried on the fight like
+  // every other snapshotted figure (see ./tuning.ts) — the engine never
+  // learns that a difficulty preset exists, it simply resolves a fight
+  // whose numbers are what they are.
+  const tuning = tuningFor(state);
+  const modifiers = rulesModifiers(state.rules);
+
   // What the noise costs, taken once here and carried on the combatant
   // like every other snapshotted figure — the engine never learns that
   // Static exists, it simply orders a body that is a step slow.
@@ -137,6 +147,11 @@ export function createCombat(
   const foes: Combatant[] = liveSpawns(encounter, state.flags).map(
     ({ spawn, slot }) => {
       const enemy = requireEnemy(spawn.enemyId);
+      // How much frame the preset says this archetype stands up with.
+      // Scaled once, here, so max and current agree and every share the
+      // game reads off a frame — bloodied, heavy, critical — is a share
+      // of the frame this fight actually has.
+      const maxHp = tunedEnemyHp(enemy.maxHp, modifiers.enemyHpPct);
       return {
         id: `${enemy.id}-${slot + 1}`,
         kind: "enemy" as const,
@@ -148,8 +163,8 @@ export function createCombat(
         // varying the faces cannot move a single die.
         lookIndex: spawnLookIndex(encounterId, slot, spawn),
         stats: { ...enemy.stats },
-        maxHp: enemy.maxHp,
-        hp: enemy.maxHp,
+        maxHp,
+        hp: maxHp,
         weapon: { ...enemy.weapon },
         armor: enemy.armor,
         abilityIds: [...enemy.abilityIds],
@@ -219,6 +234,7 @@ export function createCombat(
     rng,
     status: "active",
     fleeable: encounter.fleeable ?? true,
+    tuning,
     surge: startingSurge(state.player, PLAYER_COMBATANT_ID, resolve),
     itemsConsumed: [],
     log,

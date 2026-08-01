@@ -131,6 +131,16 @@ export {
   type RestyleResult,
 } from "./restyle";
 export {
+  assistOn,
+  clampRules,
+  defaultRules,
+  rulesModifiers,
+  startingRules,
+  withAssist,
+  withDifficulty,
+  type RunRules,
+} from "./rules";
+export {
   createRng,
   nextFloat,
   nextInt,

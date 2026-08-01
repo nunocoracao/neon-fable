@@ -3,6 +3,7 @@ import {
   PLAYER_COMBATANT_ID,
   abilityOptions,
   activeCombatant,
+  assistedHoverTile,
   attackOptions,
   chooseEnemyAction,
   combatantAt,
@@ -90,7 +91,7 @@ import {
   portraitCanvas,
 } from "./portraits";
 import type { DayPhaseId, IsoMap, TilePoint } from "../iso";
-import { SaveError, loadGame, type GameState } from "../state";
+import { SaveError, assistOn, loadGame, type GameState } from "../state";
 import { focusFirst, installListNav } from "./focus";
 import {
   combatEventText,
@@ -549,8 +550,17 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
   function refreshHighlights(): void {
     if (!scene || !combat) return;
     const intent = telegraphIntent();
-    const hover =
-      hoverTile === null ? null : telegraphHover(combat, intent, hoverTile);
+    // Pointing at nothing, with an action open and the assist on, is
+    // read as pointing at the body the action bar already calls the aim
+    // worth taking (see assistedHoverTile). Everything downstream is
+    // the ordinary hover path — same tiles, same figures, same chip —
+    // so the assist adds a subject and changes nothing else.
+    const assisted =
+      hoverTile === null && assistOn(session.state.rules, "always-preview")
+        ? assistedHoverTile(combat, intent)
+        : null;
+    const tile = hoverTile ?? assisted;
+    const hover = tile === null ? null : telegraphHover(combat, intent, tile);
     scene.setHighlights({
       tiles: telegraphTileViews(telegraphTiles(combat, intent, hover)),
       // Drawn from the walker's own feet through the previewed steps.
@@ -558,11 +568,13 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         hover && hover.path.length > 0
           ? [activeCombatant(combat).position, ...hover.path]
           : [],
-      hover: hoverTile,
+      hover: tile,
     });
     telegraphChipView?.update({
       chip: telegraphChip(combat, intent, hover, displayNames),
-      at: hoverAt,
+      // The pointer's own position, or — with no pointer — over the
+      // body the assist picked out.
+      at: hoverAt ?? (assisted ? scene.tileAnchor(assisted) : null),
     });
   }
 
@@ -1229,6 +1241,10 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         weather: getMap(session.state.location)?.weather,
         dayPhase:
           options.dayPhase ?? getMap(session.state.location)?.dayPhase,
+        // How loudly the marked ground is painted. Read once, here,
+        // like the palette: there is no way into Settings from inside a
+        // fight, so a switch flipped between fights is the next fight's.
+        telegraphBoost: assistOn(session.state.rules, "bold-telegraphs"),
         onTileClick,
         onTileHover,
       });

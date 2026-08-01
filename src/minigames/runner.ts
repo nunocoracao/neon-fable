@@ -10,8 +10,11 @@
  * opening it, playing it, being paid for it — can be driven in a test
  * without a DOM.
  */
+import { BREACH_RESCUE_FAILURES } from "../data/assists";
+import { tunedCredits } from "../data/difficulty";
 import { requireItem } from "../data/items";
 import {
+  BREACH_FLAG_PREFIX,
   breachDifficulty,
   breachFlag,
   type BreachContext,
@@ -22,6 +25,7 @@ import { applyEffects } from "../narrative/effects";
 import type { Effect } from "../narrative/types";
 import { collectShard } from "../state/lore";
 import type { GameState } from "../state/gameState";
+import { assistOn, rulesModifiers } from "../state/rules";
 import {
   breachSeed,
   generateLattice,
@@ -134,6 +138,38 @@ export function breachSpent(state: GameState, contextId: string): boolean {
   return breachFlag(contextId) in state.flags;
 }
 
+/**
+ * How many terminals have locked this run out. Read straight off the
+ * flags every finished run already writes — nothing extra is recorded
+ * for the assist's sake — and counted across terminals rather than per
+ * terminal, because a terminal is attempted once (see src/data/breach.ts).
+ */
+export function breachLockouts(state: GameState): number {
+  let locked = 0;
+  for (const [flag, value] of Object.entries(state.flags)) {
+    if (flag.startsWith(BREACH_FLAG_PREFIX) && value === "locked-out") {
+      locked += 1;
+    }
+  }
+  return locked;
+}
+
+/**
+ * Whether a lattice should offer to route itself: the assist is on and
+ * this run has been shut out of BREACH_RESCUE_FAILURES terminals.
+ *
+ * Offered, never applied — the overlay puts a button on the briefing
+ * and the player decides (see routeBreach). Somebody who has taken
+ * three lockouts and still wants to route the fourth by hand is
+ * entitled to, and an assist that took the game away would not be one.
+ */
+export function breachRescueOffered(state: GameState): boolean {
+  return (
+    assistOn(state.rules, "breach-rescue") &&
+    breachLockouts(state) >= BREACH_RESCUE_FAILURES
+  );
+}
+
 /** What a finished run pays, before anything is written to the run. */
 export interface BreachAward {
   /** Credits the route itself earned. */
@@ -201,7 +237,20 @@ export function settleBreach(
       filedShardId: null,
     };
   }
-  const award = breachAward(context, outcome);
+  // What the route earned, and then what the preset says a payday is
+  // worth. Scaled here rather than inside breachAward so the award
+  // stays a pure reading of the *run* — a briefing can quote what a
+  // clean breach pays without knowing which city it is being paid in —
+  // and so credits from a terminal and credits from a fight go through
+  // the one seam (see tunedCredits).
+  const earned = breachAward(context, outcome);
+  const award: BreachAward = {
+    ...earned,
+    credits: tunedCredits(
+      earned.credits,
+      rulesModifiers(state.rules).creditRewardPct,
+    ),
+  };
   let next: GameState = {
     ...state,
     flags: { ...state.flags, [breachFlag(context.id)]: outcome.status },
