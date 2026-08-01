@@ -16,6 +16,12 @@
  * curtain wall. Arenas stay deliberately quiet — see the arena
  * section's note.
  *
+ * Every map also declares which theme of the score it plays
+ * (`music`, see src/data/music.ts). Districts declare their own;
+ * arenas declare their district's, because a fight keeps the music of
+ * the place it started in and the arena's declaration is only the
+ * fallback for a fight with no such place — one resumed off a reload.
+ *
  * Interiors differ from districts in two data-visible ways: they are
  * drawn without the tenement wall prop (the far faces are glazing, the
  * near two edges are left open) and they declare their own weather and
@@ -117,6 +123,7 @@ const hubGrid = buildMapGrid(hubLegend, hubRows);
 const cinderPlaza: IsoMap = {
   id: "cinder-plaza",
   name: "Cinder Row Plaza",
+  music: "hub",
   width: hubGrid.width,
   height: hubGrid.height,
   tiles: hubGrid.tiles,
@@ -425,6 +432,7 @@ const greywaterGrid = buildMapGrid(greywaterLegend, greywaterRows);
 const greywaterSteps: IsoMap = {
   id: "greywater-steps",
   name: "Greywater Steps",
+  music: "greywater",
   width: greywaterGrid.width,
   height: greywaterGrid.height,
   tiles: greywaterGrid.tiles,
@@ -582,6 +590,7 @@ const ventworksGrid = buildMapGrid(ventworksLegend, ventworksRows);
 const exchangeVentworks: IsoMap = {
   id: "exchange-ventworks",
   name: "Meridian Exchange — Ventworks",
+  music: "ventworks",
   width: ventworksGrid.width,
   height: ventworksGrid.height,
   tiles: ventworksGrid.tiles,
@@ -720,6 +729,7 @@ const spireGrid = buildMapGrid(spireLegend, spireRows);
 const auricSpire: IsoMap = {
   id: "auric-spire",
   name: "Auric Spire — Crown Concourse",
+  music: "spire",
   width: spireGrid.width,
   height: spireGrid.height,
   tiles: spireGrid.tiles,
@@ -872,6 +882,7 @@ const executiveGrid = buildMapGrid(executiveLegend, executiveRows);
 const auricExecutive: IsoMap = {
   id: "auric-executive",
   name: "Auric Spire — Executive Floor",
+  music: "spire",
   width: executiveGrid.width,
   height: executiveGrid.height,
   tiles: executiveGrid.tiles,
@@ -998,6 +1009,7 @@ const marketGrid = buildMapGrid(marketLegend, marketRows);
 const verticalMarket: IsoMap = {
   id: "vertical-market",
   name: "The Vertical Market",
+  music: "market",
   width: marketGrid.width,
   height: marketGrid.height,
   tiles: marketGrid.tiles,
@@ -1224,6 +1236,7 @@ const quaysGrid = buildMapGrid(quaysLegend, quaysRows);
 const floodedQuays: IsoMap = {
   id: "flooded-quays",
   name: "The Flooded Quays",
+  music: "quays",
   width: quaysGrid.width,
   height: quaysGrid.height,
   tiles: quaysGrid.tiles,
@@ -1410,6 +1423,7 @@ const rustyardGrid = buildMapGrid(rustyardLegend, rustyardRows);
 const rustyardArena: IsoMap = {
   id: "rustyard-arena",
   name: "Rustyard Arena",
+  music: "hub",
   width: rustyardGrid.width,
   height: rustyardGrid.height,
   tiles: rustyardGrid.tiles,
@@ -1446,6 +1460,7 @@ const undercroftGrid = buildMapGrid(undercroftLegend, undercroftRows);
 const undercroftArena: IsoMap = {
   id: "undercroft-arena",
   name: "Undercroft Junction Nine",
+  music: "greywater",
   width: undercroftGrid.width,
   height: undercroftGrid.height,
   tiles: undercroftGrid.tiles,
@@ -1484,6 +1499,7 @@ const vaultGrid = buildMapGrid(vaultLegend, vaultRows);
 const vaultArena: IsoMap = {
   id: "vault-arena",
   name: "Vault Antechamber",
+  music: "spire",
   width: vaultGrid.width,
   height: vaultGrid.height,
   tiles: vaultGrid.tiles,
@@ -1521,6 +1537,7 @@ const pumpworksGrid = buildMapGrid(pumpworksLegend, pumpworksRows);
 const pumpworksArena: IsoMap = {
   id: "pumpworks-arena",
   name: "Undertow Pumpworks",
+  music: "greywater",
   width: pumpworksGrid.width,
   height: pumpworksGrid.height,
   tiles: pumpworksGrid.tiles,
@@ -1556,6 +1573,7 @@ const relayCrownGrid = buildMapGrid(relayCrownLegend, relayCrownRows);
 const relayCrownArena: IsoMap = {
   id: "relay-crown-arena",
   name: "Relay Crown",
+  music: "hub",
   width: relayCrownGrid.width,
   height: relayCrownGrid.height,
   tiles: relayCrownGrid.tiles,
@@ -1592,6 +1610,7 @@ const cyclerFloorGrid = buildMapGrid(cyclerFloorLegend, cyclerFloorRows);
 const cyclerFloorArena: IsoMap = {
   id: "cycler-floor-arena",
   name: "Exchange Cycler Floor",
+  music: "ventworks",
   width: cyclerFloorGrid.width,
   height: cyclerFloorGrid.height,
   tiles: cyclerFloorGrid.tiles,
@@ -1631,6 +1650,7 @@ const spireCrownGrid = buildMapGrid(spireCrownLegend, spireCrownRows);
 const spireCrownArena: IsoMap = {
   id: "spire-crown-arena",
   name: "The Crown Ring",
+  music: "spire",
   width: spireCrownGrid.width,
   height: spireCrownGrid.height,
   tiles: spireCrownGrid.tiles,
@@ -1671,6 +1691,7 @@ const execArenaGrid = buildMapGrid(execArenaLegend, execArenaRows);
 const execFloorArena: IsoMap = {
   id: "exec-floor-arena",
   name: "The Executive Floor",
+  music: "spire",
   width: execArenaGrid.width,
   height: execArenaGrid.height,
   tiles: execArenaGrid.tiles,
@@ -1707,6 +1728,7 @@ const marketScaffoldGrid = buildMapGrid(marketScaffoldLegend, marketScaffoldRows
 const marketScaffoldArena: IsoMap = {
   id: "market-scaffold-arena",
   name: "Scaffold Row",
+  music: "market",
   width: marketScaffoldGrid.width,
   height: marketScaffoldGrid.height,
   tiles: marketScaffoldGrid.tiles,
@@ -1747,6 +1769,7 @@ const quaysWalkwayGrid = buildMapGrid(quaysWalkwayLegend, quaysWalkwayRows);
 const quaysWalkwayArena: IsoMap = {
   id: "quays-walkway-arena",
   name: "Lockgate Walkway",
+  music: "quays",
   width: quaysWalkwayGrid.width,
   height: quaysWalkwayGrid.height,
   tiles: quaysWalkwayGrid.tiles,

@@ -103,6 +103,7 @@ export {
 export {
   DAY_PHASES,
   DEFAULT_DAY_PHASE,
+  DEFAULT_MUSIC_THEME,
   ENTRY_SPAWN_ID,
   TILE_DEFS,
   buildMapGrid,
@@ -127,6 +128,7 @@ export {
   type AmbientZone,
   type DayPhaseId,
   type DronePath,
+  type MusicThemeId,
   type SetPieceSpec,
   type TrainTrack,
   type VentBurstSpec,
