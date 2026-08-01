@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_MIXER, migrateLegacyMixer, LEGACY_AUDIO_KEY } from "../audio/mixer";
 import { noAssists } from "../data/assists";
 import { DEFAULT_DIFFICULTY_ID } from "../data/difficulty";
 import {
@@ -7,6 +8,7 @@ import {
   SETTINGS_VERSION,
   SHAKE_SCALES,
   ZOOM_LEVELS,
+  adoptLegacyMixer,
   clampSettings,
   clampShakeScale,
   clampZoom,
@@ -58,6 +60,7 @@ describe("clampSettings", () => {
       barks: true,
       difficulty: DEFAULT_DIFFICULTY_ID,
       assists: noAssists(),
+      mixer: DEFAULT_MIXER,
     });
     expect(
       clampSettings({ textSpeed: "warp", reducedMotion: true }),
@@ -73,6 +76,7 @@ describe("clampSettings", () => {
       barks: true,
       difficulty: DEFAULT_DIFFICULTY_ID,
       assists: noAssists(),
+      mixer: DEFAULT_MIXER,
     });
   });
 
@@ -89,6 +93,7 @@ describe("clampSettings", () => {
       barks: true,
       difficulty: DEFAULT_DIFFICULTY_ID,
       assists: noAssists(),
+      mixer: DEFAULT_MIXER,
     });
   });
 
@@ -182,6 +187,7 @@ describe("parse / serialize / migrate", () => {
         "bold-telegraphs": true,
         "breach-rescue": false,
       },
+      mixer: DEFAULT_MIXER,
     } as const;
     expect(parseSettings(serializeSettings(settings))).toEqual(settings);
   });
@@ -215,6 +221,7 @@ describe("parse / serialize / migrate", () => {
       barks: true,
       difficulty: DEFAULT_DIFFICULTY_ID,
       assists: noAssists(),
+      mixer: DEFAULT_MIXER,
     });
     expect(migrateSettings({ version: "zero" })).toEqual(DEFAULT_SETTINGS);
   });
@@ -237,6 +244,7 @@ describe("parse / serialize / migrate", () => {
       barks: true,
       difficulty: DEFAULT_DIFFICULTY_ID,
       assists: noAssists(),
+      mixer: DEFAULT_MIXER,
     });
   });
 
@@ -259,6 +267,7 @@ describe("parse / serialize / migrate", () => {
       barks: true,
       difficulty: DEFAULT_DIFFICULTY_ID,
       assists: noAssists(),
+      mixer: DEFAULT_MIXER,
     });
   });
 
@@ -283,6 +292,7 @@ describe("parse / serialize / migrate", () => {
       barks: true,
       difficulty: DEFAULT_DIFFICULTY_ID,
       assists: noAssists(),
+      mixer: DEFAULT_MIXER,
     });
   });
 
@@ -310,6 +320,7 @@ describe("parse / serialize / migrate", () => {
       barks: true,
       difficulty: DEFAULT_DIFFICULTY_ID,
       assists: noAssists(),
+      mixer: DEFAULT_MIXER,
     });
   });
 
@@ -335,6 +346,7 @@ describe("parse / serialize / migrate", () => {
       barks: true,
       difficulty: DEFAULT_DIFFICULTY_ID,
       assists: noAssists(),
+      mixer: DEFAULT_MIXER,
     });
   });
 });
@@ -360,6 +372,7 @@ describe("load / save", () => {
         barks: false,
         difficulty: "drift",
         assists: noAssists(),
+        mixer: DEFAULT_MIXER,
       },
       storage,
     );
@@ -376,6 +389,7 @@ describe("load / save", () => {
       barks: false,
       difficulty: "drift",
       assists: noAssists(),
+      mixer: DEFAULT_MIXER,
     });
   });
 
@@ -426,6 +440,7 @@ describe("settings store", () => {
         barks: true,
         difficulty: "grind",
         assists: noAssists(),
+        mixer: DEFAULT_MIXER,
       },
       storage,
     );
@@ -442,6 +457,7 @@ describe("settings store", () => {
       barks: true,
       difficulty: DEFAULT_DIFFICULTY_ID,
       assists: noAssists(),
+      mixer: DEFAULT_MIXER,
     });
   });
 
@@ -464,6 +480,7 @@ describe("settings store", () => {
       barks: true,
       difficulty: DEFAULT_DIFFICULTY_ID,
       assists: noAssists(),
+      mixer: DEFAULT_MIXER,
     });
     expect(loadSettings(storage).textSpeed).toBe("instant");
     expect(seen).toEqual(["instant"]);
@@ -600,5 +617,157 @@ describe("the difficulty and assist preference", () => {
     // Everything the old payload did say survives intact.
     expect(migrated.textSpeed).toBe("fast");
     expect(migrated.zoom).toBe(2);
+  });
+});
+
+// --- The mixer moving into the settings store ---------------------------
+//
+// The mixer used to have a localStorage record of its own. These pin the
+// one thing that upgrade must not do: change what an existing player
+// hears the next time they open the game.
+
+describe("the mixer in settings", () => {
+  it("gives a fresh install the documented defaults", () => {
+    expect(clampSettings({}).mixer).toEqual(DEFAULT_MIXER);
+    expect(DEFAULT_SETTINGS.mixer).toEqual(DEFAULT_MIXER);
+  });
+
+  it("round-trips a moved mixer through serialize and parse", () => {
+    const settings = clampSettings({
+      ...DEFAULT_SETTINGS,
+      mixer: {
+        volumes: { master: 0.42, music: 0, sfx: 1, ui: 0.6 },
+        mutes: { master: false, music: true, sfx: false, ui: false },
+        duckOnBlur: false,
+      },
+    });
+    const reloaded = parseSettings(serializeSettings(settings));
+    expect(reloaded.mixer).toEqual(settings.mixer);
+    expect(reloaded).toEqual(settings);
+  });
+
+  it("survives the store, so a fader move outlives the session", () => {
+    const storage = fakeStorage();
+    const store = createSettingsStore(storage);
+    store.update({
+      mixer: { ...DEFAULT_MIXER, volumes: { ...DEFAULT_MIXER.volumes, ui: 0.2 } },
+    });
+    expect(createSettingsStore(storage).get().mixer.volumes.ui).toBe(0.2);
+  });
+
+  it("clamps a corrupt mixer rather than losing the whole payload", () => {
+    const settings = parseSettings(
+      JSON.stringify({ version: SETTINGS_VERSION, textSpeed: "fast", mixer: 7 }),
+    );
+    expect(settings.mixer).toEqual(DEFAULT_MIXER);
+    expect(settings.textSpeed).toBe("fast");
+  });
+});
+
+describe("adoptLegacyMixer", () => {
+  const legacy = JSON.stringify({
+    master: 0.5,
+    sfx: 0.8,
+    music: 0.4,
+    muted: false,
+  });
+
+  it("adopts the old record when the payload has no mixer of its own", () => {
+    const v8 = { version: 8, textSpeed: "fast" };
+    const adopted = adoptLegacyMixer(clampSettings(v8), v8, legacy);
+    expect(adopted.mixer).toEqual(migrateLegacyMixer(JSON.parse(legacy)));
+    // And nothing else about the payload moved.
+    expect(adopted.textSpeed).toBe("fast");
+  });
+
+  it("leaves a payload that already has a mixer alone", () => {
+    const current = clampSettings({
+      mixer: { ...DEFAULT_MIXER, volumes: { ...DEFAULT_MIXER.volumes, ui: 0.1 } },
+    });
+    const adopted = adoptLegacyMixer(
+      current,
+      { version: SETTINGS_VERSION, mixer: current.mixer },
+      legacy,
+    );
+    expect(adopted.mixer.volumes.ui).toBe(0.1);
+    expect(adopted).toBe(current);
+  });
+
+  it("does nothing when there is no old record", () => {
+    const current = clampSettings({ version: 8 });
+    expect(adoptLegacyMixer(current, { version: 8 }, null)).toBe(current);
+  });
+
+  it("degrades a corrupt old record to defaults instead of throwing", () => {
+    const current = clampSettings({ version: 8 });
+    expect(adoptLegacyMixer(current, { version: 8 }, "not json {")).toBe(
+      current,
+    );
+    expect(current.mixer).toEqual(DEFAULT_MIXER);
+  });
+});
+
+describe("loading an install that predates the four buses", () => {
+  it("finds the old audio record and keeps its levels", () => {
+    // A v8 install: settings under one key, the mixer under another.
+    const storage = fakeStorage({
+      [SETTINGS_KEY]: JSON.stringify({
+        version: 8,
+        textSpeed: "fast",
+        zoom: 2,
+        barks: false,
+      }),
+      [LEGACY_AUDIO_KEY]: JSON.stringify({
+        master: 0.5,
+        sfx: 0.8,
+        music: 0.4,
+        muted: false,
+      }),
+    });
+    const loaded = loadSettings(storage);
+    expect(loaded.mixer).toEqual(
+      migrateLegacyMixer({ master: 0.5, sfx: 0.8, music: 0.4, muted: false }),
+    );
+    // Everything the v8 payload did say survives intact.
+    expect(loaded.textSpeed).toBe("fast");
+    expect(loaded.zoom).toBe(2);
+    expect(loaded.barks).toBe(false);
+    // The old record is left where it is: nothing deletes a player's data.
+    expect(storage.data[LEGACY_AUDIO_KEY]).toBeDefined();
+  });
+
+  it("adopts the old record even when the settings payload is unreadable", () => {
+    const storage = fakeStorage({
+      [SETTINGS_KEY]: "not json {",
+      [LEGACY_AUDIO_KEY]: JSON.stringify({ master: 0.25, sfx: 1, music: 1 }),
+    });
+    const loaded = loadSettings(storage);
+    expect(loaded.mixer.volumes.master).toBe(
+      migrateLegacyMixer({ master: 0.25 }).volumes.master,
+    );
+    expect(loaded.textSpeed).toBe(DEFAULT_SETTINGS.textSpeed);
+  });
+
+  it("stops adopting once settings have been written back", () => {
+    const storage = fakeStorage({
+      [SETTINGS_KEY]: JSON.stringify({ version: 8 }),
+      [LEGACY_AUDIO_KEY]: JSON.stringify({ master: 0.5, sfx: 0.8, music: 0.4 }),
+    });
+    const store = createSettingsStore(storage);
+    const adopted = store.get().mixer;
+    expect(adopted).not.toEqual(DEFAULT_MIXER);
+
+    // Any write persists the mixer where it now belongs; the old record
+    // stops being consulted, and the adopted levels are what is kept.
+    store.update({ textSpeed: "instant" });
+    expect(createSettingsStore(storage).get().mixer).toEqual(adopted);
+
+    // Even if the old record is later changed by nothing at all.
+    storage.data[LEGACY_AUDIO_KEY] = JSON.stringify({ master: 1, sfx: 1 });
+    expect(createSettingsStore(storage).get().mixer).toEqual(adopted);
+  });
+
+  it("gives a fresh install with no old record the defaults", () => {
+    expect(loadSettings(fakeStorage()).mixer).toEqual(DEFAULT_MIXER);
   });
 });

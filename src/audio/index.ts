@@ -2,26 +2,51 @@ export { createWebAudioAdapter, type AudioAdapter } from "./adapter";
 export {
   createAudioBus,
   installAutoUnlock,
+  installFocusDucking,
   MUSIC_FADE_SECONDS,
   type AudioBus,
   type AudioBusOptions,
+  type FocusDuckTargets,
 } from "./bus";
 export {
-  AUDIO_SETTINGS_KEY,
   DEFAULT_MIXER,
+  LEGACY_AUDIO_KEY,
+  busGain,
+  busNodeGain,
+  busNodeGains,
   clamp01,
-  effectiveGain,
-  loadMixerSettings,
-  parseMixer,
-  saveMixerSettings,
-  serializeMixer,
-  setMuted,
-  setVolume,
-  toggleMuted,
-  type AudioSettingsStorage,
+  clampMixer,
+  isAudible,
+  memoryMixerStore,
+  migrateLegacyMixer,
+  setBusMuted,
+  setBusVolume,
+  setDuckOnBlur,
+  toggleBusMuted,
   type MixerState,
-  type VolumeChannel,
+  type MixerStore,
 } from "./mixer";
+export {
+  FADER_MID,
+  FADER_MID_DB,
+  FADER_MIN_DB,
+  clampFader,
+  faderDb,
+  faderGain,
+  faderPercent,
+  formatFader,
+  gainToFader,
+} from "./gain";
+export {
+  ATTENDED,
+  DUCK_BLURRED_GAIN,
+  DUCK_HIDDEN_GAIN,
+  applyFocusEvent,
+  duckFactor,
+  isDucked,
+  type FocusEvent,
+  type FocusState,
+} from "./duck";
 export {
   collectDue,
   createSequencer,
@@ -64,11 +89,13 @@ export {
 export {
   ABILITY_EVENTS,
   ATTACK_EVENTS,
+  FAMILY_BUSES,
   FAMILY_GAINS,
   IMPACT_EVENTS,
   SOUND_EVENT_IDS,
   abilityEvent,
   attackEvent,
+  busForEvent,
   eventFamily,
   eventsInFamily,
   impactEvent,
@@ -95,15 +122,19 @@ export {
 
 import { createWebAudioAdapter } from "./adapter";
 import { createAudioBus, type AudioBus } from "./bus";
-import type { AudioSettingsStorage } from "./mixer";
+import type { MixerStore } from "./mixer";
+import { settings } from "../settings";
 
-function defaultStorage(): AudioSettingsStorage | null {
-  try {
-    return typeof localStorage !== "undefined" ? localStorage : null;
-  } catch {
-    return null;
-  }
-}
+/**
+ * The mixer lives in the settings store with every other device
+ * preference; the audio bus reads and writes it through here. Every
+ * write goes through settings.update, so a fader move persists and
+ * notifies on exactly the path a text-speed change does.
+ */
+const mixerStore: MixerStore = {
+  get: () => settings.get().mixer,
+  set: (next) => void settings.update({ mixer: next }),
+};
 
 /**
  * The shared bus every screen imports. Safe to create anywhere — no
@@ -112,5 +143,5 @@ function defaultStorage(): AudioSettingsStorage | null {
  */
 export const audio: AudioBus = createAudioBus({
   adapter: createWebAudioAdapter(),
-  storage: defaultStorage(),
+  mixer: mixerStore,
 });

@@ -2853,6 +2853,58 @@ canvas.nf-action-glyph {
   flex-wrap: wrap;
 }
 
+/* --- The mixer --- */
+
+/* A strip is label · fader · readout · mute · test. The fader takes
+   whatever the fixed-width parts leave; the readout is tabular so the
+   row does not twitch as the number changes under a drag. */
+.nf-mixer-row {
+  border-bottom: none;
+  padding-bottom: 0.2rem;
+}
+
+.nf-mixer-readout {
+  flex-shrink: 0;
+  width: 7.5rem;
+  text-align: right;
+  font-family: var(--nf-font-display);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--nf-glow-cyan);
+}
+
+.nf-mixer-blurb {
+  margin: 0 0 0.6rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--nf-border);
+  font-size: 0.75rem;
+}
+
+/* A test tone with nothing to sound through is disabled, not hidden:
+   the button staying put is what says the bus is silent. */
+.nf-mixer-row .nf-button[disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (max-width: 30rem) {
+  .nf-mixer-row {
+    flex-wrap: wrap;
+  }
+
+  .nf-mixer-row input[type="range"] {
+    flex: 1 1 100%;
+    order: 1;
+  }
+
+  .nf-mixer-readout {
+    order: 2;
+    width: auto;
+    text-align: left;
+    flex: 1;
+  }
+}
+
 /* The difficulty confirmation: a row that opens between the presets and
    their blurb while a mid-run change is waiting on an answer. Amber
    rather than cyan, because it is a question and not a selection. */

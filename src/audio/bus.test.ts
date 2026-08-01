@@ -1,11 +1,24 @@
 import { describe, expect, it } from "vitest";
 import type { AudioAdapter } from "./adapter";
-import { MUSIC_FADE_SECONDS, createAudioBus, installAutoUnlock } from "./bus";
-import { DEFAULT_MIXER, type AudioSettingsStorage } from "./mixer";
+import {
+  MUSIC_FADE_SECONDS,
+  createAudioBus,
+  installAutoUnlock,
+  installFocusDucking,
+} from "./bus";
+import {
+  DEFAULT_MIXER,
+  busGain,
+  memoryMixerStore,
+  type MixerStore,
+} from "./mixer";
+import { DUCK_BLURRED_GAIN, DUCK_HIDDEN_GAIN } from "./duck";
+import { faderGain } from "./gain";
 import type { ScheduledNote } from "./music";
 import { barSeconds, arrangementFor, layerKey, musicScene } from "./score";
 import { SOUND_PATCHES, type SynthPatch } from "./patches";
-import { SOUND_EVENT_IDS, patchForEvent } from "./events";
+import { SOUND_EVENT_IDS, busForEvent, patchForEvent } from "./events";
+import { MIX_BUS_IDS, PLAYBACK_BUS_IDS, type MixBusId } from "../data/mixBuses";
 
 interface Ramp {
   layer: string;
@@ -14,14 +27,23 @@ interface Ramp {
   seconds: number;
 }
 
+/** One patch, and the bus it was played onto. */
+interface Played {
+  patch: SynthPatch;
+  bus: MixBusId;
+}
+
 interface FakeAdapter {
   adapter: AudioAdapter;
+  played: Played[];
   patches: SynthPatch[];
   notes: ScheduledNote[];
   ramps: Ramp[];
   drops: string[];
   stops: number;
-  gains: Array<[number, number]>;
+  gains: Array<Record<MixBusId, number>>;
+  /** The most recent gain written to one bus node. */
+  gain(bus: MixBusId): number | undefined;
   setTime(time: number): void;
   setRunning(running: boolean): void;
   /** Layers currently ramped up and not dropped. */
@@ -30,12 +52,16 @@ interface FakeAdapter {
 
 function fakeAdapter(running = true): FakeAdapter {
   const fake: FakeAdapter = {
-    patches: [],
+    played: [],
+    get patches() {
+      return fake.played.map((entry) => entry.patch);
+    },
     notes: [],
     ramps: [],
     drops: [],
     stops: 0,
     gains: [],
+    gain: (bus) => fake.gains[fake.gains.length - 1]?.[bus],
     setTime: (time) => {
       now = time;
     },
@@ -61,8 +87,8 @@ function fakeAdapter(running = true): FakeAdapter {
       return isRunning;
     },
     now: () => now,
-    setChannelGains: (sfx, music) => void fake.gains.push([sfx, music]),
-    playPatch: (patch) => void fake.patches.push(patch),
+    setBusGains: (gains) => void fake.gains.push({ ...gains }),
+    playPatch: (patch, bus) => void fake.played.push({ patch, bus }),
     scheduleNote: (note) => void fake.notes.push(note),
     rampLayer: (layer, target, startTime, seconds) =>
       void fake.ramps.push({ layer, target, startTime, seconds }),
@@ -75,17 +101,9 @@ function fakeAdapter(running = true): FakeAdapter {
   return fake;
 }
 
-function memoryStorage(): AudioSettingsStorage {
-  const data = new Map<string, string>();
-  return {
-    getItem: (key) => data.get(key) ?? null,
-    setItem: (key, value) => void data.set(key, value),
-  };
-}
-
 /** Bus wired to a fake adapter, timer disabled — tests call tick(). */
-function makeBus(fake: FakeAdapter, storage: AudioSettingsStorage | null = null) {
-  return createAudioBus({ adapter: fake.adapter, storage, tickIntervalMs: 0 });
+function makeBus(fake: FakeAdapter, mixer: MixerStore | null = null) {
+  return createAudioBus({ adapter: fake.adapter, mixer, tickIntervalMs: 0 });
 }
 
 /** Runs the scheduler forward to `time` in lookahead-sized steps. */
@@ -121,81 +139,287 @@ describe("emit", () => {
     expect(fake.patches).toHaveLength(SOUND_EVENT_IDS.length);
   });
 
-  it("respects the SFX bus: muting silences every event", () => {
+  it("plays every event onto the bus the registry routes it to", () => {
+    // The routing audit, driven rather than read: nothing gets to the
+    // adapter except on the one bus its family declares.
     const fake = fakeAdapter();
     const bus = makeBus(fake);
-    bus.setVolume("sfx", 0);
     for (const event of SOUND_EVENT_IDS) bus.emit(event);
-    expect(fake.patches).toEqual([]);
-    bus.setVolume("sfx", 1);
+    expect(fake.played).toHaveLength(SOUND_EVENT_IDS.length);
+    fake.played.forEach((entry, index) => {
+      const event = SOUND_EVENT_IDS[index]!;
+      expect(entry.bus, event).toBe(busForEvent(event));
+      expect(PLAYBACK_BUS_IDS, event).toContain(entry.bus);
+    });
+  });
+
+  it("silences one bus without silencing the others", () => {
+    const fake = fakeAdapter();
+    const bus = makeBus(fake);
+    bus.setBusVolume("ui", 0);
     bus.emit("ui.click");
-    expect(fake.patches).toHaveLength(1);
+    expect(fake.played).toEqual([]);
+    // The street is unaffected by the shell being turned off.
+    bus.emit("world.footstep");
+    expect(fake.played).toHaveLength(1);
+    expect(fake.played[0]?.bus).toBe("sfx");
+  });
+
+  it("stops everything when master is muted", () => {
+    const fake = fakeAdapter();
+    const bus = makeBus(fake);
+    bus.setBusMuted("master", true);
+    for (const event of SOUND_EVENT_IDS) bus.emit(event);
+    expect(fake.played).toEqual([]);
   });
 });
 
 describe("play", () => {
-  it("forwards the registered patch to the adapter", () => {
+  it("forwards the registered patch to the named bus", () => {
     const fake = fakeAdapter();
     const bus = makeBus(fake);
-    bus.play("ui-click");
-    expect(fake.patches).toEqual([SOUND_PATCHES["ui-click"]]);
+    bus.play("ui-click", "ui");
+    expect(fake.played).toEqual([{ patch: SOUND_PATCHES["ui-click"], bus: "ui" }]);
   });
 
-  it("skips playback entirely while muted", () => {
+  it("skips playback entirely while its bus is muted", () => {
     const fake = fakeAdapter();
     const bus = makeBus(fake);
-    bus.setMuted(true);
-    bus.play("ui-click");
-    expect(fake.patches).toEqual([]);
+    bus.setBusMuted("ui", true);
+    bus.play("ui-click", "ui");
+    expect(fake.played).toEqual([]);
   });
 
   it("never throws when the adapter is not running", () => {
     const fake = fakeAdapter(false);
     const bus = makeBus(fake);
-    expect(() => bus.play("attack-hit-heavy")).not.toThrow();
+    expect(() => bus.play("attack-hit-heavy", "sfx")).not.toThrow();
   });
 });
 
 describe("mixer controls", () => {
-  it("clamps volumes and reports them through getMixer", () => {
+  it("clamps faders and reports them through getMixer", () => {
     const bus = makeBus(fakeAdapter());
-    bus.setVolume("master", 5);
-    bus.setVolume("music", -3);
-    expect(bus.getMixer().master).toBe(1);
-    expect(bus.getMixer().music).toBe(0);
+    bus.setBusVolume("master", 5);
+    bus.setBusVolume("music", -3);
+    expect(bus.getMixer().volumes.master).toBe(1);
+    expect(bus.getMixer().volumes.music).toBe(0);
   });
 
-  it("persists settings so a new bus on the same storage restores them", () => {
-    const storage = memoryStorage();
-    const first = makeBus(fakeAdapter(), storage);
-    first.setVolume("sfx", 0.35);
-    first.setVolume("master", 0.5);
-    first.setMuted(true);
+  it("writes every change straight through to its store", () => {
+    const store = memoryMixerStore();
+    const bus = makeBus(fakeAdapter(), store);
+    bus.setBusVolume("sfx", 0.35);
+    bus.setBusMuted("ui", true);
+    bus.setDuckOnBlur(false);
 
-    const second = makeBus(fakeAdapter(), storage);
-    expect(second.getMixer()).toEqual({
-      ...DEFAULT_MIXER,
-      sfx: 0.35,
-      master: 0.5,
-      muted: true,
-    });
+    expect(store.get().volumes.sfx).toBe(0.35);
+    expect(store.get().mutes.ui).toBe(true);
+    expect(store.get().duckOnBlur).toBe(false);
+    // And a bus built on the same store afterwards is already there.
+    expect(makeBus(fakeAdapter(), store).getMixer()).toEqual(store.get());
   });
 
-  it("pushes effective channel gains to the adapter", () => {
+  it("reads the store rather than a cache of it", () => {
+    // The settings panel is not the only thing that can write settings.
+    const store = memoryMixerStore();
+    const bus = makeBus(fakeAdapter(), store);
+    store.set({ ...DEFAULT_MIXER, mutes: { ...DEFAULT_MIXER.mutes, sfx: true } });
+    expect(bus.getMixer().mutes.sfx).toBe(true);
+    expect(bus.isAudible("sfx")).toBe(false);
+  });
+
+  it("pushes a gain for every bus node, live", () => {
     const fake = fakeAdapter();
     const bus = makeBus(fake);
-    bus.setVolume("master", 0.5);
-    bus.setVolume("sfx", 0.5);
-    const [sfx] = fake.gains[fake.gains.length - 1] ?? [];
-    expect(sfx).toBeCloseTo(0.25);
-    bus.setMuted(true);
-    expect(fake.gains[fake.gains.length - 1]).toEqual([0, 0]);
+    bus.setBusVolume("master", 0.5);
+    bus.setBusVolume("sfx", 0.75);
+    expect(Object.keys(fake.gains[fake.gains.length - 1] ?? {}).sort()).toEqual(
+      [...MIX_BUS_IDS].sort(),
+    );
+    expect(fake.gain("master")).toBeCloseTo(faderGain(0.5), 9);
+    expect(fake.gain("sfx")).toBeCloseTo(faderGain(0.75), 9);
+
+    // A mute is a node at zero, not a flag the adapter has to know about.
+    bus.setBusMuted("master", true);
+    expect(fake.gain("master")).toBe(0);
+    expect(fake.gain("sfx")).toBeCloseTo(faderGain(0.75), 9);
   });
 
-  it("toggleMuted flips and reports the new state", () => {
+  it("toggleBusMuted flips one bus and reports where it landed", () => {
     const bus = makeBus(fakeAdapter());
-    expect(bus.toggleMuted()).toBe(true);
-    expect(bus.toggleMuted()).toBe(false);
+    expect(bus.toggleBusMuted("music")).toBe(true);
+    expect(bus.toggleBusMuted("music")).toBe(false);
+    expect(bus.getMixer().mutes.sfx).toBe(false);
+  });
+});
+
+describe("the test tone", () => {
+  it("plays the registered tone on whichever bus is asked for", () => {
+    const fake = fakeAdapter();
+    const bus = makeBus(fake);
+    const tone = SOUND_PATCHES[patchForEvent("ui.mixer.tone")];
+    for (const id of MIX_BUS_IDS) bus.playTestTone(id);
+    expect(fake.played).toEqual(MIX_BUS_IDS.map((bus) => ({ patch: tone, bus })));
+  });
+
+  it("reaches master, which nothing else is played onto", () => {
+    // The point of a master test tone: hearing that fader on its own.
+    const fake = fakeAdapter();
+    const bus = makeBus(fake);
+    bus.playTestTone("master");
+    expect(fake.played[0]?.bus).toBe("master");
+  });
+
+  it("stays quiet on a bus that cannot be heard", () => {
+    const fake = fakeAdapter();
+    const bus = makeBus(fake);
+    bus.setBusMuted("music", true);
+    bus.playTestTone("music");
+    expect(fake.played).toEqual([]);
+    // Master muted takes the rest with it.
+    bus.setBusMuted("master", true);
+    for (const id of MIX_BUS_IDS) bus.playTestTone(id);
+    expect(fake.played).toEqual([]);
+  });
+});
+
+describe("ducking", () => {
+  it("quiets a blurred window and silences a hidden tab", () => {
+    const fake = fakeAdapter();
+    const bus = makeBus(fake);
+    const master = fake.gain("master")!;
+
+    bus.setFocus("blur");
+    expect(bus.getDuckFactor()).toBe(DUCK_BLURRED_GAIN);
+    expect(fake.gain("master")).toBeCloseTo(master * DUCK_BLURRED_GAIN, 9);
+
+    bus.setFocus("hide");
+    expect(bus.getDuckFactor()).toBe(DUCK_HIDDEN_GAIN);
+    expect(fake.gain("master")).toBe(0);
+
+    bus.setFocus("show");
+    bus.setFocus("focus");
+    expect(bus.getDuckFactor()).toBe(1);
+    expect(fake.gain("master")).toBeCloseTo(master, 9);
+  });
+
+  it("keeps a ducked event out of the adapter entirely", () => {
+    const fake = fakeAdapter();
+    const bus = makeBus(fake);
+    bus.setFocus("hide");
+    bus.emit("world.footstep");
+    expect(fake.played).toEqual([]);
+    bus.setFocus("show");
+    bus.emit("world.footstep");
+    expect(fake.played).toHaveLength(1);
+  });
+
+  it("still plays, quieter, while merely unfocused", () => {
+    const fake = fakeAdapter();
+    const bus = makeBus(fake);
+    bus.setFocus("blur");
+    bus.emit("world.footstep");
+    expect(fake.played).toHaveLength(1);
+    expect(bus.isAudible("sfx")).toBe(true);
+  });
+
+  it("stops and resumes the score around a hidden tab", () => {
+    const fake = fakeAdapter();
+    const bus = makeBus(fake);
+    bus.setMusicScene(musicScene("hub"));
+    advance(fake, bus, 3);
+    const before = fake.notes.length;
+
+    bus.setFocus("hide");
+    advance(fake, bus, 8);
+    expect(fake.notes.length).toBe(before);
+    expect(bus.getMusicLayers()).toEqual([]);
+
+    bus.setFocus("show");
+    fake.setTime(20);
+    bus.tick();
+    expect(fake.notes.length).toBeGreaterThan(before);
+    expect(bus.getMusicLayers()).toEqual(["base", "melodic"]);
+  });
+
+  it("does nothing at all with the setting off, and lifts a live duck", () => {
+    const fake = fakeAdapter();
+    const bus = makeBus(fake);
+    const master = fake.gain("master")!;
+    bus.setFocus("hide");
+    expect(fake.gain("master")).toBe(0);
+
+    bus.setDuckOnBlur(false);
+    expect(bus.getDuckFactor()).toBe(1);
+    expect(fake.gain("master")).toBeCloseTo(master, 9);
+    // The focus state is still remembered — only its consequence is off.
+    expect(bus.getFocus()).toEqual({ focused: true, visible: false });
+    bus.setDuckOnBlur(true);
+    expect(fake.gain("master")).toBe(0);
+  });
+
+  it("keeps the duck out of the stored mix", () => {
+    // Ducking is a fact about right now, not a preference: it must not
+    // end up written into anybody's fader.
+    const store = memoryMixerStore();
+    const bus = makeBus(fakeAdapter(), store);
+    bus.setFocus("blur");
+    expect(store.get().volumes).toEqual(DEFAULT_MIXER.volumes);
+    expect(busGain(store.get(), "sfx")).toBeGreaterThan(0);
+  });
+});
+
+describe("installFocusDucking", () => {
+  /** A window/document pair whose listeners the test can fire. */
+  function fakeTargets(hidden = false) {
+    const listeners = new Map<string, () => void>();
+    const doc = {
+      hidden,
+      addEventListener: (type: string, fn: () => void) =>
+        void listeners.set(`doc:${type}`, fn),
+    };
+    return {
+      listeners,
+      doc,
+      targets: {
+        window: {
+          addEventListener: (type: string, fn: () => void) =>
+            void listeners.set(`win:${type}`, fn),
+        },
+        document: doc,
+      },
+    };
+  }
+
+  it("wires both attention signals onto the bus", () => {
+    const bus = makeBus(fakeAdapter());
+    const { listeners, doc, targets } = fakeTargets();
+    installFocusDucking(bus, targets as never);
+    expect([...listeners.keys()].sort()).toEqual([
+      "doc:visibilitychange",
+      "win:blur",
+      "win:focus",
+    ]);
+
+    listeners.get("win:blur")?.();
+    expect(bus.getDuckFactor()).toBe(DUCK_BLURRED_GAIN);
+    listeners.get("win:focus")?.();
+    expect(bus.getDuckFactor()).toBe(1);
+
+    doc.hidden = true;
+    listeners.get("doc:visibilitychange")?.();
+    expect(bus.getDuckFactor()).toBe(DUCK_HIDDEN_GAIN);
+    doc.hidden = false;
+    listeners.get("doc:visibilitychange")?.();
+    expect(bus.getDuckFactor()).toBe(1);
+  });
+
+  it("seeds from a page restored into a background tab", () => {
+    const bus = makeBus(fakeAdapter());
+    installFocusDucking(bus, fakeTargets(true).targets as never);
+    expect(bus.getFocus().visible).toBe(false);
+    expect(bus.getDuckFactor()).toBe(DUCK_HIDDEN_GAIN);
   });
 });
 
@@ -395,14 +619,14 @@ describe("the score", () => {
     const bus = makeBus(fake);
     bus.setMusicScene(musicScene("hub"));
     advance(fake, bus, 3);
-    bus.setMuted(true);
+    bus.setBusMuted("music", true);
     bus.tick();
     const muted = fake.notes.length;
     advance(fake, bus, 8);
     expect(fake.notes.length).toBe(muted);
     expect(bus.getMusicLayers()).toEqual([]);
 
-    bus.setMuted(false);
+    bus.setBusMuted("music", false);
     fake.setTime(20);
     bus.tick();
     const resumed = fake.notes.slice(muted);

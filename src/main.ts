@@ -1,4 +1,4 @@
-import { audio, installAutoUnlock } from "./audio";
+import { audio, installAutoUnlock, installFocusDucking } from "./audio";
 // Importing the settings store applies persisted preferences (reduced
 // motion class, text speed) before the first screen mounts.
 import "./settings";
@@ -13,6 +13,10 @@ if (!uiRoot) {
 // Audio starts on the first user gesture (autoplay policy); until then
 // every audio call is a safe no-op.
 installAutoUnlock(audio);
+
+// Looking away quiets the game: unfocused ducks, a hidden tab silences.
+// Switchable off in Settings, for the second monitor it is running on.
+installFocusDucking(audio);
 
 // Every standard button press clicks; specific handlers layer their own
 // cues (confirm chimes, combat impacts) on top.
