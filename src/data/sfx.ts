@@ -28,6 +28,11 @@
  * - `ambient` — one-shots for the world changing on its own. The
  *   quietest band in the game: audible, never in the way.
  *
+ * The family is also what decides the *bus* a cue is played on
+ * (FAMILY_BUSES below): the shell has a fader of its own, and the three
+ * families that are not the shell share the sound-effects one. A cue
+ * never names a bus, the same way it never names a patch.
+ *
  * ## What is pinned
  *
  * ../audio/events.test.ts checks this catalog against the id lists the
@@ -39,6 +44,7 @@
  * been through ../audio/events.ts.
  */
 import type { SoundId } from "../audio/patches";
+import type { PlaybackBusId } from "./mixBuses";
 
 /** Loudest first; the order the bands below are written in. */
 export const SOUND_FAMILIES = ["combat", "ui", "world", "ambient"] as const;
@@ -73,6 +79,25 @@ export const FAMILY_GAINS: Readonly<Record<SoundFamily, FamilyGains>> = {
   ui: { maxLayerGain: 0.24, maxPeakGain: 0.34, minPeakGain: 0.05 },
   world: { maxLayerGain: 0.2, maxPeakGain: 0.34, minPeakGain: 0.05 },
   ambient: { maxLayerGain: 0.18, maxPeakGain: 0.26, minPeakGain: 0.05 },
+};
+
+/**
+ * The bus each family is played on (../data/mixBuses.ts). Total over
+ * SOUND_FAMILIES, which is what makes "every sound routes through
+ * exactly one bus" true by construction rather than by inspection: a
+ * cue has a family because its id starts with one, and the family has a
+ * bus because this record cannot be written without one.
+ *
+ * `ui` is alone on its own bus because the shell is the noisiest thing
+ * in the game and the least worth hearing loudly. The other three share
+ * the sound-effects bus because they are all the same thing to a
+ * player — the world, making noise.
+ */
+export const FAMILY_BUSES: Readonly<Record<SoundFamily, PlaybackBusId>> = {
+  combat: "sfx",
+  ui: "ui",
+  world: "sfx",
+  ambient: "sfx",
 };
 
 /**
@@ -165,6 +190,11 @@ export const SOUND_EVENT_PATCHES = {
   "ui.shard.pickup": "shard-pickup",
   "ui.injury.taken": "injury-sting",
   "ui.bark.pop": "bark-pop",
+  // The mixer's own calibration tone. The one cue in the catalog that is
+  // deliberately heard somewhere other than its registered bus: the
+  // settings panel plays it on whichever fader is being set, because
+  // hearing it on the UI bus would tell you nothing about the music one.
+  "ui.mixer.tone": "mixer-tone",
 
   // --- world: the street ------------------------------------------------
   "world.footstep": "footstep",

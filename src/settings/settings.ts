@@ -1,10 +1,24 @@
 /**
- * Player-facing game settings: dialogue text speed and reduced motion.
- * Persisted to localStorage separately from save slots (device
- * preference, not game state) and separately from the audio mixer,
- * which the audio bus owns. Pure functions over a plain object; the
- * storage interface is injectable so tests run against an in-memory
- * fake.
+ * Player-facing game settings: dialogue text speed, reduced motion, the
+ * display switches, the difficulty preference — and, since the mixer
+ * grew four buses, the mixer. Persisted to localStorage separately from
+ * save slots (device preference, not game state). Pure functions over a
+ * plain object; the storage interface is injectable so tests run against
+ * an in-memory fake.
+ *
+ * ## The mixer used to live somewhere else
+ *
+ * It had a localStorage record of its own, holding three linear volumes
+ * and one mute, because the audio bus wrote it and the audio bus had no
+ * reason to know this file existed. It is a device preference like every
+ * other one on the settings panel, so it is here now. What the audio bus
+ * gets instead is a MixerStore handle (see src/audio/mixer.ts) — it
+ * still owns *what the mixer means*, and no longer owns where it is kept.
+ *
+ * Installs that predate the move still have the old record, and
+ * loadSettings adopts it exactly once per boot until something writes
+ * settings back — see adoptLegacyMixer, which converts the old
+ * amplitudes into fader positions that reproduce them exactly.
  *
  * ## Difficulty and assists are here *and* on the run
  *
@@ -20,6 +34,13 @@
  * remembers.
  */
 
+import {
+  clampMixer,
+  DEFAULT_MIXER,
+  LEGACY_AUDIO_KEY,
+  migrateLegacyMixer,
+  type MixerState,
+} from "../audio/mixer";
 import { clampAssists, noAssists, type AssistState } from "../data/assists";
 import {
   clampDifficultyId,
@@ -80,6 +101,12 @@ export interface Settings {
   difficulty: DifficultyId;
   /** The assist switches a new run starts with. Same story. */
   assists: AssistState;
+  /**
+   * Fader positions, mutes, and the focus-ducking switch for the four
+   * audio buses. The audio bus reads and writes this through a
+   * MixerStore; see the file header.
+   */
+  mixer: MixerState;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -94,12 +121,13 @@ export const DEFAULT_SETTINGS: Settings = {
   barks: true,
   difficulty: DEFAULT_DIFFICULTY_ID,
   assists: noAssists(),
+  mixer: DEFAULT_MIXER,
 };
 
 export const SETTINGS_KEY = "neon-fable:settings";
 
 /** Bump when the Settings shape changes; migrateSettings routes on it. */
-export const SETTINGS_VERSION = 8;
+export const SETTINGS_VERSION = 9;
 
 /** Coerces any value onto the zoom-level ladder; off-ladder → default. */
 export function clampZoom(value: unknown): ZoomLevel {
@@ -166,6 +194,10 @@ export function clampSettings(value: unknown): Settings {
     // number nobody can see (see clampDifficultyId / clampAssists).
     difficulty: clampDifficultyId(record.difficulty),
     assists: clampAssists(record.assists),
+    // A payload with no mixer is either a v8 install (whose mixer is in
+    // the old record, adopted by loadSettings) or a fresh one. Either
+    // way the answer here is the documented defaults.
+    mixer: clampMixer(record.mixer),
   };
 }
 
@@ -175,9 +207,15 @@ export function clampSettings(value: unknown): Settings {
  * v1 payloads simply lack zoom, v2 payloads lack glow, v3 payloads lack
  * weather, v4 payloads lack minimap, v5 payloads lack the combat camera
  * fields, v6 payloads lack barks, v7 payloads lack the difficulty
- * preference and the assist switches, and each gets its default;
- * unknown or future versions degrade to defaults per field instead of
- * crashing.
+ * preference and the assist switches, v8 payloads lack the mixer, and
+ * each gets its default; unknown or future versions degrade to defaults
+ * per field instead of crashing.
+ *
+ * The v8 mixer is the one field whose default is not the end of the
+ * story: the value it *should* have is in another record entirely, and
+ * adoptLegacyMixer puts it back. That happens in loadSettings rather
+ * than here because it needs the storage this payload came out of, and
+ * a migration that reads storage is not a migration anybody can test.
  */
 export function migrateSettings(parsed: unknown): Settings {
   return clampSettings(parsed);
@@ -222,10 +260,55 @@ export interface SettingsStorage {
   setItem(key: string, value: string): void;
 }
 
+/**
+ * Puts an older install's audio record back where it belongs.
+ *
+ * Only when the settings payload has no mixer of its own — once
+ * anything has written settings back, the mixer is here and the old
+ * record is history nobody reads. Kept pure and separate from
+ * loadSettings so the interesting part, "does upgrading change what a
+ * player hears", is testable without a storage fake.
+ *
+ * @param settings the already-parsed settings
+ * @param payload  the raw parsed JSON they came from, mixer field and all
+ * @param legacyRaw the old audio record's JSON string, or null
+ */
+export function adoptLegacyMixer(
+  settings: Settings,
+  payload: unknown,
+  legacyRaw: string | null,
+): Settings {
+  const hasOwnMixer =
+    typeof payload === "object" &&
+    payload !== null &&
+    (payload as Record<string, unknown>).mixer !== undefined;
+  if (hasOwnMixer || legacyRaw === null) return settings;
+  try {
+    return { ...settings, mixer: migrateLegacyMixer(JSON.parse(legacyRaw)) };
+  } catch {
+    // A corrupt old record is one the player has already lost; the
+    // documented defaults are a better answer than refusing to boot.
+    return settings;
+  }
+}
+
 export function loadSettings(storage: SettingsStorage | null): Settings {
   if (!storage) return { ...DEFAULT_SETTINGS };
   try {
-    return parseSettings(storage.getItem(SETTINGS_KEY));
+    const raw = storage.getItem(SETTINGS_KEY);
+    const settings = parseSettings(raw);
+    let payload: unknown = null;
+    try {
+      payload = raw === null ? null : JSON.parse(raw);
+    } catch {
+      // Unparseable: settings is defaults, and the old audio record —
+      // if there is one — is the only thing left worth keeping.
+    }
+    return adoptLegacyMixer(
+      settings,
+      payload,
+      storage.getItem(LEGACY_AUDIO_KEY),
+    );
   } catch {
     return { ...DEFAULT_SETTINGS };
   }

@@ -1,5 +1,6 @@
-import { audio, musicScene, type VolumeChannel } from "../audio";
+import { audio, formatFader, musicScene } from "../audio";
 import { ASSISTS } from "../data/assists";
+import { MIX_BUSES, type MixBusDef } from "../data/mixBuses";
 import { DIFFICULTIES, requireDifficulty } from "../data/difficulty";
 import type { AssistId } from "../data/assists";
 import type { DifficultyId } from "../data/difficulty";
@@ -19,11 +20,26 @@ import type { OverlayHandle } from "./overlay";
 import type { Screen } from "./screen";
 
 /**
- * The Settings panel: audio mixer (persisted by the audio bus), text
- * speed and reduced motion (persisted by the settings store), the
- * difficulty and assist switches, and the keyboard controls reference.
+ * The Settings panel: the audio mixer, text speed and reduced motion,
+ * the display switches, the difficulty and assist switches, and the
+ * keyboard controls reference — all persisted by the settings store.
  * Built once, used two ways — as a full screen from the main menu and
  * as an in-game overlay from the pause menu.
+ *
+ * ## The mixer strips
+ *
+ * One strip per bus (src/data/mixBuses.ts): a fader, what it is set to
+ * in both percent and decibels, a mute, and a test tone. The tone is
+ * there because a fader with no reference is a guess — the panel is
+ * usually opened over a quiet moment, and "is the music too loud" cannot
+ * be answered by a screen with no music on it. Pressing it plays a
+ * reference tone *on that bus*, through everything above it, so what you
+ * hear is what that fader does.
+ *
+ * Every strip is a native range input and native buttons, so arrows,
+ * Home/End and Page Up/Down work without this file implementing any of
+ * it; the readout is mirrored into aria-valuetext so it is spoken as
+ * "72 percent, minus 6.7 decibels" rather than as a bare number.
  *
  * ## Difficulty in two places, on purpose
  *
@@ -95,19 +111,122 @@ function settingRow(label: string, ...controls: HTMLElement[]): HTMLElement {
   return row;
 }
 
-function volumeRow(label: string, channel: VolumeChannel): HTMLElement {
+/**
+ * One bus's strip. Returns the rows it is made of plus a sync() the
+ * section calls when something *else* moved the mixer — muting master
+ * changes what every other strip is doing, and a strip that did not
+ * notice would be lying about it.
+ */
+function mixerStrip(bus: MixBusDef): {
+  rows: HTMLElement[];
+  sync(): void;
+} {
   const slider = document.createElement("input");
   slider.type = "range";
   slider.min = "0";
   slider.max = "100";
-  slider.setAttribute("aria-label", label);
-  slider.value = String(Math.round(audio.getMixer()[channel] * 100));
+  slider.step = "1";
+  slider.setAttribute("aria-label", `${bus.label} volume`);
+  slider.dataset.bus = bus.id;
+
+  const readout = document.createElement("span");
+  readout.className = "nf-mixer-readout";
+  // The slider speaks its own value through aria-valuetext; this is the
+  // same text for eyes, and would only be read out twice.
+  readout.setAttribute("aria-hidden", "true");
+
+  const mute = document.createElement("button");
+  mute.className = "nf-button nf-button-small";
+  mute.dataset.mute = bus.id;
+
+  const tone = document.createElement("button");
+  tone.className = "nf-button nf-button-small";
+  tone.textContent = "Test";
+  tone.dataset.tone = bus.id;
+  tone.setAttribute("aria-label", `Play a test tone on ${bus.label}`);
+
+  function sync(): void {
+    const mixer = audio.getMixer();
+    const position = mixer.volumes[bus.id];
+    const text = formatFader(position);
+    // Only written when it actually differs: assigning to .value while
+    // the player is dragging the same slider fights the drag.
+    const percent = String(Math.round(position * 100));
+    if (slider.value !== percent) slider.value = percent;
+    slider.setAttribute("aria-valuetext", text);
+    readout.textContent = text;
+
+    const muted = mixer.mutes[bus.id] === true;
+    mute.textContent = muted ? "Unmute" : "Mute";
+    mute.setAttribute("aria-pressed", String(muted));
+    mute.setAttribute(
+      "aria-label",
+      `${muted ? "Unmute" : "Mute"} ${bus.label}`,
+    );
+    mute.classList.toggle("nf-selected", muted);
+    // Nothing to calibrate against on a bus that cannot be heard —
+    // whether that is its own mute, its fader, or master's.
+    tone.disabled = !audio.isAudible(bus.id);
+  }
+
   slider.addEventListener("input", () => {
-    audio.setVolume(channel, Number(slider.value) / 100);
+    audio.setBusVolume(bus.id, Number(slider.value) / 100);
   });
-  // A sample blip on release so the new level is audible immediately.
-  slider.addEventListener("change", () => audio.emit("ui.confirm"));
-  return settingRow(label, slider);
+  mute.addEventListener("click", () => audio.toggleBusMuted(bus.id));
+  tone.addEventListener("click", () => audio.playTestTone(bus.id));
+
+  const blurb = document.createElement("p");
+  blurb.className = "nf-dim nf-mixer-blurb";
+  blurb.textContent = bus.blurb;
+
+  const row = settingRow(bus.label, slider, readout, mute, tone);
+  row.classList.add("nf-mixer-row");
+  sync();
+  return { rows: [row, blurb], sync };
+}
+
+/**
+ * The mixer: a strip per bus, then the ducking switch. Every control
+ * re-syncs every strip after it acts, because they are not independent —
+ * master's fader and mute are in the signal path of all three others.
+ */
+function buildMixerSection(panel: HTMLElement): void {
+  const heading = document.createElement("h3");
+  heading.textContent = "Audio";
+  panel.append(heading);
+
+  const strips = MIX_BUSES.map(mixerStrip);
+  const syncAll = (): void => {
+    for (const strip of strips) strip.sync();
+  };
+  for (const strip of strips) panel.append(...strip.rows);
+  // One listener for the section rather than a callback threaded through
+  // every control: anything that changes the mixer, from anywhere,
+  // leaves every strip telling the truth.
+  panel.addEventListener("input", syncAll);
+  panel.addEventListener("click", syncAll);
+
+  panel.append(
+    segmentedRow(
+      "When you look away",
+      [
+        ["on", "Quiet down"],
+        ["off", "Keep playing"],
+      ] as const,
+      (value) => (value === "on") === audio.getMixer().duckOnBlur,
+      (value) => {
+        audio.setDuckOnBlur(value === "on");
+        syncAll();
+      },
+    ),
+  );
+  const duckNote = document.createElement("p");
+  duckNote.className = "nf-dim";
+  duckNote.textContent =
+    "Clicking away turns the game down; switching to another tab stops " +
+    "it altogether, and it picks up where it was when you come back. " +
+    "Keep playing if you run it on a second screen.";
+  panel.append(duckNote);
 }
 
 /**
@@ -306,28 +425,7 @@ function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
 
   buildRulesSection(panel, run);
 
-  const audioHeading = document.createElement("h3");
-  audioHeading.textContent = "Audio";
-  panel.append(
-    audioHeading,
-    volumeRow("Master volume", "master"),
-    volumeRow("Sound effects", "sfx"),
-    volumeRow("Music", "music"),
-  );
-
-  const mute = document.createElement("button");
-  mute.className = "nf-button nf-button-small";
-  const syncMute = (): void => {
-    const muted = audio.getMixer().muted;
-    mute.textContent = muted ? "Unmute" : "Mute";
-    mute.setAttribute("aria-pressed", String(muted));
-  };
-  syncMute();
-  mute.addEventListener("click", () => {
-    audio.toggleMuted();
-    syncMute();
-  });
-  panel.append(settingRow("All audio", mute));
+  buildMixerSection(panel);
 
   const textHeading = document.createElement("h3");
   textHeading.textContent = "Text";

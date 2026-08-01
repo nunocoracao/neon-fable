@@ -1,10 +1,19 @@
 /**
  * The only file that touches the Web Audio API. Creates the context
  * lazily on unlock() (a user gesture, per autoplay policy) and renders
- * patches and music notes into an sfx/music gain graph. Music fans out
- * one gain node per named layer under the music channel — that is the
- * mixer the adaptive score fades stems against — and every layer is
- * created silent, so nothing can ever arrive except through a fade.
+ * patches and music notes into the bus graph.
+ *
+ * The graph is the one described in ../data/mixBuses.ts, built from that
+ * table rather than hand-wired: one GainNode per bus, each connected to
+ * its parent's, master connected to the destination. Nothing reaches the
+ * output any other way — a patch is played *onto* a named bus or not at
+ * all — so "every sound routes through exactly one bus" is a property of
+ * the graph and not a convention anybody has to remember.
+ *
+ * Music fans out one further gain node per named layer under the music
+ * bus — that is the mixer the adaptive score fades stems against — and
+ * every layer is created silent, so nothing can ever arrive except
+ * through a fade.
  *
  * The adapter is told *what* to fade and *when*, never why: which stems
  * should be up and which bar line to move on is decided in ./score.ts
@@ -12,6 +21,7 @@
  * when the context is unavailable (happy-dom, denied or failed
  * contexts) — nothing here ever throws into game code.
  */
+import { MIX_BUSES, MIX_BUS_IDS, type MixBusId } from "../data/mixBuses";
 import type { ScheduledNote } from "./music";
 import type { SynthPatch } from "./patches";
 
@@ -22,8 +32,10 @@ export interface AudioAdapter {
   readonly running: boolean;
   /** Context clock in seconds (0 when unavailable). */
   now(): number;
-  setChannelGains(sfx: number, music: number): void;
-  playPatch(patch: SynthPatch): void;
+  /** Writes each bus node's own gain; see busNodeGains in ./mixer.ts. */
+  setBusGains(gains: Readonly<Record<MixBusId, number>>): void;
+  /** Plays one patch onto one bus. There is no other way in. */
+  playPatch(patch: SynthPatch, bus: MixBusId): void;
   /** Schedules one music note into its named layer, created if new. */
   scheduleNote(note: ScheduledNote): void;
   /**
@@ -55,24 +67,46 @@ function contextConstructor(): AudioContextCtor | null {
   return w.webkitAudioContext ?? null;
 }
 
+function unityGains(): Record<MixBusId, number> {
+  const gains = {} as Record<MixBusId, number>;
+  for (const id of MIX_BUS_IDS) gains[id] = 1;
+  return gains;
+}
+
 export function createWebAudioAdapter(): AudioAdapter {
   let ctx: AudioContext | null = null;
-  let sfxGain: GainNode | null = null;
-  let musicGain: GainNode | null = null;
+  /** One gain node per bus, or empty before the context exists. */
+  const busNodes = new Map<MixBusId, GainNode>();
   /** One gain node per running stem, keyed by the bus's layer key. */
   const musicLayers = new Map<string, GainNode>();
   let noiseBuffer: AudioBuffer | null = null;
-  let pendingGains = { sfx: 1, music: 1 };
+  let pendingGains = unityGains();
   /** Set when context creation failed; don't retry every gesture. */
   let broken = false;
 
+  /**
+   * Builds the bus graph from the table: a node per bus, then each one
+   * connected to its parent — master, whose parent is null, to the
+   * destination. Adding a bus is an edit to ../data/mixBuses.ts and
+   * nothing here.
+   */
   function buildGraph(context: AudioContext): void {
-    sfxGain = context.createGain();
-    musicGain = context.createGain();
-    sfxGain.gain.value = pendingGains.sfx;
-    musicGain.gain.value = pendingGains.music;
-    sfxGain.connect(context.destination);
-    musicGain.connect(context.destination);
+    busNodes.clear();
+    for (const bus of MIX_BUSES) {
+      const node = context.createGain();
+      node.gain.value = pendingGains[bus.id];
+      busNodes.set(bus.id, node);
+    }
+    for (const bus of MIX_BUSES) {
+      const node = busNodes.get(bus.id);
+      if (!node) continue;
+      const parent = bus.parent === null ? null : busNodes.get(bus.parent);
+      node.connect(parent ?? context.destination);
+    }
+  }
+
+  function busNode(bus: MixBusId): GainNode | null {
+    return busNodes.get(bus) ?? null;
   }
 
   function unlock(): boolean {
@@ -129,15 +163,16 @@ export function createWebAudioAdapter(): AudioAdapter {
     return gain;
   }
 
-  function playPatch(patch: SynthPatch): void {
+  function playPatch(patch: SynthPatch, bus: MixBusId): void {
     try {
-      if (!ctx || !sfxGain || !running()) return;
+      const target = busNode(bus);
+      if (!ctx || !target || !running()) return;
       const base = ctx.currentTime;
       for (const layer of patch.layers) {
         const start = base + (layer.delay ?? 0);
         const attack = layer.attack ?? DEFAULT_ATTACK;
         const gain = envelope(ctx, start, layer.duration, layer.gain, attack);
-        gain.connect(sfxGain);
+        gain.connect(target);
         if (layer.kind === "tone") {
           const osc = ctx.createOscillator();
           osc.type = layer.wave;
@@ -178,20 +213,25 @@ export function createWebAudioAdapter(): AudioAdapter {
    * A stem's mixer channel. Created silent: every layer arrives through
    * a fade-in, so there is no path by which one snaps on at full gain.
    */
-  function ensureMusicLayer(context: AudioContext, key: string): GainNode {
+  function ensureMusicLayer(
+    context: AudioContext,
+    key: string,
+    music: GainNode,
+  ): GainNode {
     const existing = musicLayers.get(key);
     if (existing) return existing;
     const layer = context.createGain();
     layer.gain.value = 0;
-    layer.connect(musicGain!);
+    layer.connect(music);
     musicLayers.set(key, layer);
     return layer;
   }
 
   function scheduleNote(note: ScheduledNote): void {
     try {
-      if (!ctx || !musicGain || !running()) return;
-      const layer = ensureMusicLayer(ctx, note.layer);
+      const music = busNode("music");
+      if (!ctx || !music || !running()) return;
+      const layer = ensureMusicLayer(ctx, note.layer, music);
       const attack = Math.max(note.duration * 0.15, 0.02);
       const gain = envelope(ctx, note.time, note.duration, note.gain, attack);
       gain.connect(layer);
@@ -217,8 +257,9 @@ export function createWebAudioAdapter(): AudioAdapter {
     seconds: number,
   ): void {
     try {
-      if (!ctx || !musicGain || !running()) return;
-      const layer = ensureMusicLayer(ctx, key);
+      const music = busNode("music");
+      if (!ctx || !music || !running()) return;
+      const layer = ensureMusicLayer(ctx, key, music);
       // Never behind the clock: a fade planned for a bar line that has
       // already gone by starts now instead of being dropped.
       const t = Math.max(startTime, ctx.currentTime);
@@ -268,13 +309,20 @@ export function createWebAudioAdapter(): AudioAdapter {
     );
   }
 
-  function setChannelGains(sfx: number, music: number): void {
-    pendingGains = { sfx, music };
+  /**
+   * Every bus node's gain at once, smoothed rather than stepped so a
+   * dragged fader does not click. Held in pendingGains as well, because
+   * the panel is usable before the context exists and the graph has to
+   * be built at whatever the player has already set.
+   */
+  function setBusGains(gains: Readonly<Record<MixBusId, number>>): void {
+    pendingGains = { ...unityGains(), ...gains };
     try {
-      if (!ctx || !sfxGain || !musicGain) return;
+      if (!ctx) return;
       const t = ctx.currentTime;
-      sfxGain.gain.setTargetAtTime(sfx, t, 0.03);
-      musicGain.gain.setTargetAtTime(music, t, 0.03);
+      for (const id of MIX_BUS_IDS) {
+        busNodes.get(id)?.gain.setTargetAtTime(pendingGains[id], t, 0.03);
+      }
     } catch {
       // Applied on next unlock via pendingGains.
     }
@@ -292,7 +340,7 @@ export function createWebAudioAdapter(): AudioAdapter {
         return 0;
       }
     },
-    setChannelGains,
+    setBusGains,
     playPatch,
     scheduleNote,
     rampLayer,

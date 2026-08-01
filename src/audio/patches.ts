@@ -76,6 +76,7 @@ export const SOUND_IDS = [
   "shard-pickup",
   "injury-sting",
   "bark-pop",
+  "mixer-tone",
   // --- Exploration / world ----------------------------------------------
   "footstep",
   "interact",
@@ -413,6 +414,14 @@ export const SOUND_PATCHES: Record<SoundId, SynthPatch> = {
     layers: [
       { kind: "tone", wave: "triangle", freq: 620, duration: 0.03, gain: 0.1 },
       { kind: "tone", wave: "triangle", freq: 880, delay: 0.03, duration: 0.04, gain: 0.08 },
+    ],
+  },
+  // The mixer's reference tone: concert A, held long enough to judge a
+  // level by and short enough to press twice. Deliberately plain — a
+  // calibration tone with character would be calibrating the character.
+  "mixer-tone": {
+    layers: [
+      { kind: "tone", wave: "sine", freq: 440, duration: 0.45, gain: 0.22, attack: 0.02 },
     ],
   },
 

@@ -14,19 +14,21 @@
  * never pull the renderer into a module graph that does not want it.
  */
 import {
+  FAMILY_BUSES,
   FAMILY_GAINS,
   SOUND_EVENT_PATCHES,
   SOUND_FAMILIES,
   type SoundEventId,
   type SoundFamily,
 } from "../data/sfx";
+import type { PlaybackBusId } from "../data/mixBuses";
 import type { SoundId } from "./patches";
 import type { AbilityFxId } from "../iso/abilityFx";
 import type { AttackClassId } from "../iso/attack";
 import type { ImpactWeight } from "../iso/cameraFeel";
 
 export type { SoundEventId, SoundFamily };
-export { FAMILY_GAINS };
+export { FAMILY_BUSES, FAMILY_GAINS };
 
 /** Every registered event, in catalog order. */
 export const SOUND_EVENT_IDS = Object.keys(
@@ -61,6 +63,15 @@ export function eventFamily(event: SoundEventId): SoundFamily {
 /** Every event in one family, in catalog order. */
 export function eventsInFamily(family: SoundFamily): readonly SoundEventId[] {
   return SOUND_EVENT_IDS.filter((event) => eventFamily(event) === family);
+}
+
+/**
+ * The bus an event is played on — its family's, and never anything else.
+ * Total by construction: every registered id has a family, and every
+ * family has a bus. ./routing.test.ts pins both halves.
+ */
+export function busForEvent(event: SoundEventId): PlaybackBusId {
+  return FAMILY_BUSES[eventFamily(event)];
 }
 
 /**

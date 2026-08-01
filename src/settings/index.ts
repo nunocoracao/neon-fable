@@ -6,6 +6,7 @@ export {
   TEXT_SPEEDS,
   TEXT_SPEED_CHAR_MS,
   ZOOM_LEVELS,
+  adoptLegacyMixer,
   clampSettings,
   clampShakeScale,
   clampZoom,

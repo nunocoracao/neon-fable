@@ -14,16 +14,24 @@
  */
 import type { AudioAdapter } from "./adapter";
 import {
-  effectiveGain,
-  loadMixerSettings,
-  saveMixerSettings,
-  setMuted as mixerSetMuted,
-  setVolume as mixerSetVolume,
-  toggleMuted as mixerToggleMuted,
-  type AudioSettingsStorage,
+  busGain,
+  busNodeGains,
+  isAudible,
+  memoryMixerStore,
+  setBusMuted as mixerSetBusMuted,
+  setBusVolume as mixerSetBusVolume,
+  setDuckOnBlur as mixerSetDuckOnBlur,
+  toggleBusMuted as mixerToggleBusMuted,
   type MixerState,
-  type VolumeChannel,
+  type MixerStore,
 } from "./mixer";
+import {
+  applyFocusEvent,
+  ATTENDED,
+  duckFactor,
+  type FocusEvent,
+  type FocusState,
+} from "./duck";
 import {
   collectDue,
   createSequencer,
@@ -41,9 +49,10 @@ import {
   type MusicScene,
 } from "./score";
 import { SOUND_PATCHES, type SoundId } from "./patches";
-import { patchForEvent } from "./events";
+import { busForEvent, patchForEvent } from "./events";
 import type { SoundEventId } from "../data/sfx";
 import type { MusicLayerRole } from "../data/music";
+import type { MixBusId, PlaybackBusId } from "../data/mixBuses";
 
 /** Seconds of crossfade between arrangements. */
 export const MUSIC_FADE_SECONDS = 0.8;
@@ -65,7 +74,8 @@ interface LiveVoice {
 
 export interface AudioBusOptions {
   adapter: AudioAdapter;
-  storage?: AudioSettingsStorage | null;
+  /** Where the mixer lives; omitted, it lives in memory for this session. */
+  mixer?: MixerStore | null;
   /** Tick period; 0 disables the timer (tests call tick() directly). */
   tickIntervalMs?: number;
 }
@@ -82,11 +92,11 @@ export interface AudioBus {
    */
   emit(event: SoundEventId): void;
   /**
-   * Play one patch directly. The registry's own back end: game code
-   * emits events, and a test pins that nothing outside src/audio calls
-   * this.
+   * Play one patch directly, onto a named bus. The registry's own back
+   * end: game code emits events, and a test pins that nothing outside
+   * src/audio calls this.
    */
-  play(id: SoundId): void;
+  play(id: SoundId, bus: PlaybackBusId): void;
   /** Set what the score is underscoring; null fades music out. */
   setMusicScene(scene: MusicScene | null): void;
   /** Change mode alone — the district and hour carry through the fight. */
@@ -98,18 +108,37 @@ export interface AudioBus {
   unlock(): boolean;
   /** One scheduler step — normally timer-driven, public for tests. */
   tick(): void;
+
+  // --- The mixer -------------------------------------------------------
   getMixer(): MixerState;
-  setVolume(channel: VolumeChannel, value: number): void;
-  setMuted(muted: boolean): void;
-  toggleMuted(): boolean;
+  setBusVolume(bus: MixBusId, value: number): void;
+  setBusMuted(bus: MixBusId, muted: boolean): void;
+  /** Flips one bus's mute and reports where it landed. */
+  toggleBusMuted(bus: MixBusId): boolean;
+  /** Whether a sound on this bus would be heard, ducking included. */
+  isAudible(bus: MixBusId): boolean;
+  /**
+   * The mixer's calibration tone, played on one named bus — including
+   * master, which nothing else is ever played straight onto. Set a
+   * fader, hear what you set it to, without leaving the panel.
+   */
+  playTestTone(bus: MixBusId): void;
+
+  // --- Attention -------------------------------------------------------
+  setDuckOnBlur(on: boolean): void;
+  /** Feed one browser focus/visibility event; see ./duck.ts. */
+  setFocus(event: FocusEvent): void;
+  getFocus(): FocusState;
+  /** What the master bus is currently being multiplied by. */
+  getDuckFactor(): number;
 }
 
 export function createAudioBus(options: AudioBusOptions): AudioBus {
   const { adapter } = options;
-  const storage = options.storage ?? null;
+  const store = options.mixer ?? memoryMixerStore();
   const tickIntervalMs = options.tickIntervalMs ?? TICK_INTERVAL_MS;
 
-  let mixer = loadMixerSettings(storage);
+  let focus: FocusState = ATTENDED;
   let scene: MusicScene | null = null;
   /** What is actually playing; null while nothing is. */
   let arrangement: Arrangement | null = null;
@@ -118,16 +147,26 @@ export function createAudioBus(options: AudioBusOptions): AudioBus {
   let voices = new Map<string, LiveVoice>();
   let timer: ReturnType<typeof setInterval> | null = null;
 
+  /**
+   * The mixer is read from the store on every use rather than cached:
+   * the store is the settings store in production, and the settings
+   * panel is not the only thing that can write it.
+   */
+  const mixer = (): MixerState => store.get();
+
+  function duck(): number {
+    return duckFactor(focus, mixer().duckOnBlur);
+  }
+
   function applyGains(): void {
-    adapter.setChannelGains(
-      effectiveGain(mixer, "sfx"),
-      effectiveGain(mixer, "music"),
-    );
+    adapter.setBusGains(busNodeGains(mixer(), duck()));
   }
   applyGains();
 
-  function persist(): void {
-    saveMixerSettings(mixer, storage);
+  /** Writes the mixer and pushes the result at the graph immediately. */
+  function commit(next: MixerState): void {
+    store.set(next);
+    applyGains();
   }
 
   function ensureTimer(): void {
@@ -205,8 +244,9 @@ export function createAudioBus(options: AudioBusOptions): AudioBus {
 
   function tick(): void {
     if (scene === null || !adapter.running) return;
-    if (effectiveGain(mixer, "music") <= 0) {
-      // Muted: drop everything so unmuting restarts cleanly instead of
+    if (busGain(mixer(), "music", duck()) <= 0) {
+      // Silent — muted, faded to nothing, or the tab is not on screen.
+      // Drop everything so coming back restarts cleanly instead of
       // flushing a backlog of past-due notes.
       clearMusic(0.05);
       return;
@@ -247,14 +287,14 @@ export function createAudioBus(options: AudioBusOptions): AudioBus {
     }
   }
 
-  function play(id: SoundId): void {
-    if (effectiveGain(mixer, "sfx") <= 0) return;
-    adapter.playPatch(SOUND_PATCHES[id]);
+  function play(id: SoundId, bus: PlaybackBusId): void {
+    if (!isAudible(mixer(), bus, duck())) return;
+    adapter.playPatch(SOUND_PATCHES[id], bus);
   }
 
   return {
     emit(event: SoundEventId): void {
-      play(patchForEvent(event));
+      play(patchForEvent(event), busForEvent(event));
     },
 
     play,
@@ -289,26 +329,48 @@ export function createAudioBus(options: AudioBusOptions): AudioBus {
 
     tick,
 
-    getMixer: () => mixer,
+    getMixer: mixer,
 
-    setVolume(channel: VolumeChannel, value: number): void {
-      mixer = mixerSetVolume(mixer, channel, value);
-      persist();
-      applyGains();
+    setBusVolume(bus: MixBusId, value: number): void {
+      commit(mixerSetBusVolume(mixer(), bus, value));
     },
 
-    setMuted(muted: boolean): void {
-      mixer = mixerSetMuted(mixer, muted);
-      persist();
-      applyGains();
+    setBusMuted(bus: MixBusId, muted: boolean): void {
+      commit(mixerSetBusMuted(mixer(), bus, muted));
     },
 
-    toggleMuted(): boolean {
-      mixer = mixerToggleMuted(mixer);
-      persist();
-      applyGains();
-      return mixer.muted;
+    toggleBusMuted(bus: MixBusId): boolean {
+      commit(mixerToggleBusMuted(mixer(), bus));
+      return mixer().mutes[bus] === true;
     },
+
+    isAudible: (bus: MixBusId) => isAudible(mixer(), bus, duck()),
+
+    playTestTone(bus: MixBusId): void {
+      if (!isAudible(mixer(), bus, duck())) return;
+      adapter.playPatch(SOUND_PATCHES[patchForEvent("ui.mixer.tone")], bus);
+    },
+
+    setDuckOnBlur(on: boolean): void {
+      commit(mixerSetDuckOnBlur(mixer(), on));
+      // Turning ducking off while ducked has to lift it at once, and
+      // turning it on while away has to take hold at once.
+      tick();
+    },
+
+    setFocus(event: FocusEvent): void {
+      const next = applyFocusEvent(focus, event);
+      if (next === focus) return;
+      focus = next;
+      applyGains();
+      // The score stops and restarts around silence; the tick is what
+      // notices either way.
+      tick();
+    },
+
+    getFocus: () => focus,
+
+    getDuckFactor: duck,
   };
 }
 
@@ -328,4 +390,31 @@ export function installAutoUnlock(
   };
   target.addEventListener("pointerdown", onGesture, true);
   target.addEventListener("keydown", onGesture, true);
+}
+
+/** The listener surfaces installFocusDucking needs; window/document fit. */
+export interface FocusDuckTargets {
+  window: Pick<Window, "addEventListener">;
+  document: Pick<Document, "addEventListener"> & { hidden?: boolean };
+}
+
+/**
+ * Wires the browser's two attention signals onto the bus: window
+ * focus/blur, and document visibility. Both, not either — they answer
+ * different questions and ./duck.ts treats them differently.
+ *
+ * Seeds from document.hidden first, because a page can be restored into
+ * a background tab and would otherwise start at full volume in a tab
+ * nobody is looking at.
+ */
+export function installFocusDucking(
+  bus: AudioBus,
+  targets: FocusDuckTargets = { window, document },
+): void {
+  if (targets.document.hidden === true) bus.setFocus("hide");
+  targets.window.addEventListener("focus", () => bus.setFocus("focus"));
+  targets.window.addEventListener("blur", () => bus.setFocus("blur"));
+  targets.document.addEventListener("visibilitychange", () => {
+    bus.setFocus(targets.document.hidden === true ? "hide" : "show");
+  });
 }
