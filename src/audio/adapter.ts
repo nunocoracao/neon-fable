@@ -1,9 +1,16 @@
 /**
  * The only file that touches the Web Audio API. Creates the context
  * lazily on unlock() (a user gesture, per autoplay policy) and renders
- * patches and music notes into a master → sfx/music gain graph. Every
- * method is a safe no-op when the context is unavailable (jsdom, denied
- * or failed contexts) — nothing here ever throws into game code.
+ * patches and music notes into an sfx/music gain graph. Music fans out
+ * one gain node per named layer under the music channel — that is the
+ * mixer the adaptive score fades stems against — and every layer is
+ * created silent, so nothing can ever arrive except through a fade.
+ *
+ * The adapter is told *what* to fade and *when*, never why: which stems
+ * should be up and which bar line to move on is decided in ./score.ts
+ * and ./bus.ts, where it can be tested. Every method is a safe no-op
+ * when the context is unavailable (happy-dom, denied or failed
+ * contexts) — nothing here ever throws into game code.
  */
 import type { ScheduledNote } from "./music";
 import type { SynthPatch } from "./patches";
@@ -17,11 +24,22 @@ export interface AudioAdapter {
   now(): number;
   setChannelGains(sfx: number, music: number): void;
   playPatch(patch: SynthPatch): void;
-  /** Schedules one music note into the current music layer. */
+  /** Schedules one music note into its named layer, created if new. */
   scheduleNote(note: ScheduledNote): void;
-  /** Fades the current music layer out and fades a fresh one in. */
-  swapMusicLayer(fadeSeconds: number): void;
-  /** Fades out and drops the current music layer. */
+  /**
+   * Ramps a named music layer's gain to `target` over `seconds`,
+   * starting at `startTime` on the context clock. Creates the layer
+   * silent if it does not exist yet — which is how a stem fades in.
+   */
+  rampLayer(
+    layer: string,
+    target: number,
+    startTime: number,
+    seconds: number,
+  ): void;
+  /** Disconnects and forgets a layer; the bus calls it once faded out. */
+  dropLayer(layer: string): void;
+  /** Fades out and drops every music layer. */
   stopMusicLayer(fadeSeconds: number): void;
 }
 
@@ -41,7 +59,8 @@ export function createWebAudioAdapter(): AudioAdapter {
   let ctx: AudioContext | null = null;
   let sfxGain: GainNode | null = null;
   let musicGain: GainNode | null = null;
-  let musicLayer: GainNode | null = null;
+  /** One gain node per running stem, keyed by the bus's layer key. */
+  const musicLayers = new Map<string, GainNode>();
   let noiseBuffer: AudioBuffer | null = null;
   let pendingGains = { sfx: 1, music: 1 };
   /** Set when context creation failed; don't retry every gesture. */
@@ -155,35 +174,35 @@ export function createWebAudioAdapter(): AudioAdapter {
     }
   }
 
-  /** The layer new music notes play into; created lazily at full gain. */
-  function ensureMusicLayer(context: AudioContext): GainNode {
-    if (!musicLayer) {
-      musicLayer = context.createGain();
-      musicLayer.gain.value = 1;
-      musicLayer.connect(musicGain!);
-    }
-    return musicLayer;
+  /**
+   * A stem's mixer channel. Created silent: every layer arrives through
+   * a fade-in, so there is no path by which one snaps on at full gain.
+   */
+  function ensureMusicLayer(context: AudioContext, key: string): GainNode {
+    const existing = musicLayers.get(key);
+    if (existing) return existing;
+    const layer = context.createGain();
+    layer.gain.value = 0;
+    layer.connect(musicGain!);
+    musicLayers.set(key, layer);
+    return layer;
   }
 
   function scheduleNote(note: ScheduledNote): void {
     try {
       if (!ctx || !musicGain || !running()) return;
-      const layer = ensureMusicLayer(ctx);
+      const layer = ensureMusicLayer(ctx, note.layer);
       const attack = Math.max(note.duration * 0.15, 0.02);
       const gain = envelope(ctx, note.time, note.duration, note.gain, attack);
       gain.connect(layer);
       const osc = ctx.createOscillator();
       osc.type = note.wave;
       osc.frequency.setValueAtTime(Math.max(note.freq, 1), note.time);
-      if (note.filterFreq !== undefined) {
-        const filter = ctx.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.value = note.filterFreq;
-        osc.connect(filter);
-        filter.connect(gain);
-      } else {
-        osc.connect(gain);
-      }
+      const filter = ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = Math.max(note.filterFreq, 1);
+      osc.connect(filter);
+      filter.connect(gain);
       osc.start(note.time);
       osc.stop(note.time + note.duration + 0.1);
     } catch {
@@ -191,46 +210,62 @@ export function createWebAudioAdapter(): AudioAdapter {
     }
   }
 
-  function fadeOutLayer(layer: GainNode, fadeSeconds: number): void {
-    if (!ctx) return;
-    const t = ctx.currentTime;
-    layer.gain.cancelScheduledValues(t);
-    layer.gain.setValueAtTime(Math.max(layer.gain.value, MIN_GAIN), t);
-    layer.gain.exponentialRampToValueAtTime(MIN_GAIN, t + fadeSeconds);
+  function rampLayer(
+    key: string,
+    target: number,
+    startTime: number,
+    seconds: number,
+  ): void {
+    try {
+      if (!ctx || !musicGain || !running()) return;
+      const layer = ensureMusicLayer(ctx, key);
+      // Never behind the clock: a fade planned for a bar line that has
+      // already gone by starts now instead of being dropped.
+      const t = Math.max(startTime, ctx.currentTime);
+      const from = layer.gain.value;
+      layer.gain.cancelScheduledValues(t);
+      layer.gain.setValueAtTime(from, t);
+      // Linear, not exponential: only a linear ramp can reach zero.
+      layer.gain.linearRampToValueAtTime(target, t + Math.max(seconds, 0.01));
+    } catch {
+      // A layer that will not fade still plays; leave it alone.
+    }
+  }
+
+  function dropLayer(key: string): void {
+    const layer = musicLayers.get(key);
+    musicLayers.delete(key);
+    try {
+      layer?.disconnect();
+    } catch {
+      // Already gone.
+    }
+  }
+
+  /**
+   * Takes every stem down together and forgets them. The bus no longer
+   * holds these keys once it has called this, so disposal is on a timer
+   * here rather than on a later tick.
+   */
+  function stopMusicLayer(fadeSeconds: number): void {
+    const dying = [...musicLayers.entries()];
+    for (const [key] of dying) {
+      rampLayer(key, 0, ctx?.currentTime ?? 0, fadeSeconds);
+    }
+    musicLayers.clear();
+    if (dying.length === 0) return;
     setTimeout(
       () => {
-        try {
-          layer.disconnect();
-        } catch {
-          // Already gone.
+        for (const [, layer] of dying) {
+          try {
+            layer.disconnect();
+          } catch {
+            // Already gone.
+          }
         }
       },
       (fadeSeconds + 0.3) * 1000,
     );
-  }
-
-  function swapMusicLayer(fadeSeconds: number): void {
-    try {
-      if (!ctx || !musicGain) return;
-      if (musicLayer) fadeOutLayer(musicLayer, fadeSeconds);
-      const t = ctx.currentTime;
-      const layer = ctx.createGain();
-      layer.gain.setValueAtTime(MIN_GAIN, t);
-      layer.gain.linearRampToValueAtTime(1, t + fadeSeconds);
-      layer.connect(musicGain);
-      musicLayer = layer;
-    } catch {
-      musicLayer = null;
-    }
-  }
-
-  function stopMusicLayer(fadeSeconds: number): void {
-    try {
-      if (musicLayer) fadeOutLayer(musicLayer, fadeSeconds);
-    } catch {
-      // Nothing to stop.
-    }
-    musicLayer = null;
   }
 
   function setChannelGains(sfx: number, music: number): void {
@@ -260,7 +295,8 @@ export function createWebAudioAdapter(): AudioAdapter {
     setChannelGains,
     playPatch,
     scheduleNote,
-    swapMusicLayer,
+    rampLayer,
+    dropLayer,
     stopMusicLayer,
   };
 }

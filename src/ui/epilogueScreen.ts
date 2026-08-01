@@ -1,4 +1,4 @@
-import { audio } from "../audio";
+import { audio, musicScene } from "../audio";
 import { epilogueThreads, epilogueVignettes, getEnding } from "../data";
 import { composeEpilogue } from "../narrative";
 import { loadMetaProgress } from "../state";
@@ -30,7 +30,7 @@ export function createEpilogueScreen(options: EpilogueScreenOptions): Screen {
     mount(root: HTMLElement): void {
       const { state } = options.session;
 
-      audio.setMusicContext("ending");
+      audio.setMusicScene(musicScene("ending"));
       container = document.createElement("div");
       container.className = "nf-screen";
 

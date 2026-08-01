@@ -1,4 +1,4 @@
-import { audio } from "../audio";
+import { audio, musicScene } from "../audio";
 import { HUB_MAP_ID } from "../data";
 import {
   NG_PLUS_BONUS_POINTS,
@@ -33,7 +33,7 @@ export function createMainMenuScreen(): Screen {
 
   return {
     mount(root: HTMLElement): void {
-      audio.setMusicContext("menu");
+      audio.setMusicScene(musicScene("menu"));
       container = document.createElement("div");
       container.className = "nf-screen";
 

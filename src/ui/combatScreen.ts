@@ -32,7 +32,7 @@ import {
   type GridPosition,
   type TelegraphIntent,
 } from "../combat";
-import { audio, hitSoundForDamage } from "../audio";
+import { audio, hitSoundForDamage, musicScene, themeForMap } from "../audio";
 import {
   getAbility,
   getEncounter,
@@ -1073,7 +1073,10 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     ];
 
     if (combat.status === "victory") {
-      audio.setMusicContext(null);
+      // Back to the district's exploration mix rather than to silence:
+      // the drive and the tension layers go, the street stays, and the
+      // game screen it returns to is already playing exactly this.
+      audio.setMusicMode("explore");
       audio.play("victory");
       const { panel } = outcomePanel("Victory");
       const rewards = getEncounter(encounterId)?.rewards;
@@ -1130,7 +1133,8 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       return;
     }
 
-    audio.setMusicContext(null);
+    // A loss ends the run: the music goes out with it.
+    audio.setMusicScene(null);
     audio.play("defeat");
     showDefeatPanel();
   }
@@ -1225,7 +1229,19 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         },
       };
       autosave(session);
-      audio.setMusicContext("combat");
+      // The score does not change track for a fight. It keeps playing
+      // the district the fight was walked into from — under the same
+      // hour the arena is lit at — and swaps its melody for its tension
+      // writing with the combat drive over the top. A named
+      // antagonist's fight adds one layer more.
+      const from = getMap(session.state.location);
+      audio.setMusicScene(
+        musicScene(
+          themeForMap(from ?? arenaMap),
+          encounter.boss === true ? "boss" : "combat",
+          options.dayPhase ?? from?.dayPhase ?? arenaMap.dayPhase,
+        ),
+      );
       scene = createCombatScene(canvas, {
         map: arenaMap,
         sprites: createPixelArtSprites({
