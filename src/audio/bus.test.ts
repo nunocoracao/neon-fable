@@ -5,6 +5,7 @@ import { DEFAULT_MIXER, type AudioSettingsStorage } from "./mixer";
 import type { ScheduledNote } from "./music";
 import { barSeconds, arrangementFor, layerKey, musicScene } from "./score";
 import { SOUND_PATCHES, type SynthPatch } from "./patches";
+import { SOUND_EVENT_IDS, patchForEvent } from "./events";
 
 interface Ramp {
   layer: string;
@@ -100,6 +101,37 @@ function offGrid(time: number, origin: number, bar: number): number {
   const bars = (time - origin) / bar;
   return Math.abs(bars - Math.round(bars));
 }
+
+describe("emit", () => {
+  it("plays the patch the registry maps the event to", () => {
+    const fake = fakeAdapter();
+    const bus = makeBus(fake);
+    bus.emit("combat.attack.blade");
+    expect(fake.patches).toEqual([
+      SOUND_PATCHES[patchForEvent("combat.attack.blade")],
+    ]);
+  });
+
+  it("plays every registered event without throwing", () => {
+    const fake = fakeAdapter();
+    const bus = makeBus(fake);
+    for (const event of SOUND_EVENT_IDS) {
+      expect(() => bus.emit(event), event).not.toThrow();
+    }
+    expect(fake.patches).toHaveLength(SOUND_EVENT_IDS.length);
+  });
+
+  it("respects the SFX bus: muting silences every event", () => {
+    const fake = fakeAdapter();
+    const bus = makeBus(fake);
+    bus.setVolume("sfx", 0);
+    for (const event of SOUND_EVENT_IDS) bus.emit(event);
+    expect(fake.patches).toEqual([]);
+    bus.setVolume("sfx", 1);
+    bus.emit("ui.click");
+    expect(fake.patches).toHaveLength(1);
+  });
+});
 
 describe("play", () => {
   it("forwards the registered patch to the adapter", () => {

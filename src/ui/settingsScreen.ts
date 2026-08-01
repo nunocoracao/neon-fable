@@ -106,7 +106,7 @@ function volumeRow(label: string, channel: VolumeChannel): HTMLElement {
     audio.setVolume(channel, Number(slider.value) / 100);
   });
   // A sample blip on release so the new level is audible immediately.
-  slider.addEventListener("change", () => audio.play("ui-confirm"));
+  slider.addEventListener("change", () => audio.emit("ui.confirm"));
   return settingRow(label, slider);
 }
 
@@ -209,14 +209,14 @@ function buildRulesSection(
     yes.textContent = `Switch to ${preset.label}`;
     yes.dataset.confirm = id;
     yes.addEventListener("click", () => {
-      audio.play("ui-confirm");
+      audio.emit("ui.confirm");
       commitDifficulty(id);
     });
     const no = document.createElement("button");
     no.className = "nf-button nf-button-small";
     no.textContent = "Keep playing";
     no.addEventListener("click", () => {
-      audio.play("ui-cancel");
+      audio.emit("ui.cancel");
       confirmRow.hidden = true;
       confirmRow.replaceChildren();
     });

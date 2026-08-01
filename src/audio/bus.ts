@@ -41,6 +41,8 @@ import {
   type MusicScene,
 } from "./score";
 import { SOUND_PATCHES, type SoundId } from "./patches";
+import { patchForEvent } from "./events";
+import type { SoundEventId } from "../data/sfx";
 import type { MusicLayerRole } from "../data/music";
 
 /** Seconds of crossfade between arrangements. */
@@ -69,7 +71,21 @@ export interface AudioBusOptions {
 }
 
 export interface AudioBus {
-  /** Fire-and-forget SFX; a safe no-op when audio is unavailable. */
+  /**
+   * Say something happened. The one call game code makes: the registry
+   * decides which patch that is (see ../data/sfx.ts), so no screen ever
+   * names a sound. A safe no-op when audio is unavailable.
+   *
+   * Sounds that have to land on a beat rather than now — anything in a
+   * fight — are queued on the scene clock instead and emitted through
+   * here when they come due (see ./cues.ts).
+   */
+  emit(event: SoundEventId): void;
+  /**
+   * Play one patch directly. The registry's own back end: game code
+   * emits events, and a test pins that nothing outside src/audio calls
+   * this.
+   */
   play(id: SoundId): void;
   /** Set what the score is underscoring; null fades music out. */
   setMusicScene(scene: MusicScene | null): void;
@@ -231,11 +247,17 @@ export function createAudioBus(options: AudioBusOptions): AudioBus {
     }
   }
 
+  function play(id: SoundId): void {
+    if (effectiveGain(mixer, "sfx") <= 0) return;
+    adapter.playPatch(SOUND_PATCHES[id]);
+  }
+
   return {
-    play(id: SoundId): void {
-      if (effectiveGain(mixer, "sfx") <= 0) return;
-      adapter.playPatch(SOUND_PATCHES[id]);
+    emit(event: SoundEventId): void {
+      play(patchForEvent(event));
     },
+
+    play,
 
     setMusicScene(next: MusicScene | null): void {
       if (sceneEquals(next, scene)) return;

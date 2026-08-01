@@ -1,4 +1,4 @@
-import { audio, type SoundId } from "../audio";
+import { audio, type SoundEventId } from "../audio";
 import { characterInjury, neuralCapacityOf } from "../character";
 import { getItem } from "../data/items";
 import {
@@ -74,7 +74,7 @@ export function createInventoryOverlay(
   /** Slot whose Uninstall button is waiting on its confirm click. */
   let pendingUninstall: EnhancementSlot | null = null;
 
-  function apply(action: () => Loadout, sound: SoundId): void {
+  function apply(action: () => Loadout, sound: SoundEventId): void {
     try {
       const loadout = action();
       session.state = {
@@ -82,7 +82,7 @@ export function createInventoryOverlay(
         player: loadout.character,
         inventory: loadout.inventory,
       };
-      audio.play(sound);
+      audio.emit(sound);
       message = "";
       messageIsError = false;
       options.onStateChange();
@@ -236,7 +236,7 @@ export function createInventoryOverlay(
       if (itemId) {
         row.append(
           actionButton("Unequip", () =>
-            apply(() => unequip(player, session.state.inventory, slot), "unequip"),
+            apply(() => unequip(player, session.state.inventory, slot), "ui.unequip"),
           ),
         );
       }
@@ -280,7 +280,7 @@ export function createInventoryOverlay(
               apply(
                 () =>
                   uninstallEnhancement(player, session.state.inventory, slot),
-                "unequip",
+                "ui.unequip",
               ),
             ),
           );
@@ -404,7 +404,7 @@ export function createInventoryOverlay(
         if (item.kind === "weapon" || item.kind === "outfit") {
           card.append(
             actionButton("Equip", () =>
-              apply(() => equip(player, inventory, item.id), "equip"),
+              apply(() => equip(player, inventory, item.id), "ui.equip"),
             ),
           );
         } else if (item.kind === "enhancement") {
@@ -421,7 +421,7 @@ export function createInventoryOverlay(
           card.append(preview);
           card.append(
             actionButton("Install", () =>
-              apply(() => installEnhancement(player, inventory, item.id), "install"),
+              apply(() => installEnhancement(player, inventory, item.id), "ui.install"),
             ),
           );
         } else if (item.kind === "consumable") {
@@ -441,7 +441,7 @@ export function createInventoryOverlay(
               actionButton("Use", () =>
                 apply(
                   () => useConsumable(player, inventory, item.id),
-                  "item-use",
+                  "ui.item.use",
                 ),
               ),
             );

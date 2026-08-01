@@ -23,7 +23,7 @@ document.addEventListener(
       event.target instanceof Element &&
       event.target.closest("button.nf-button")
     ) {
-      audio.play("ui-click");
+      audio.emit("ui.click");
     }
   },
   true,

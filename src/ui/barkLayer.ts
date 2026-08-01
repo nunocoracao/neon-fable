@@ -21,6 +21,7 @@
  *   open: chatter under a dialogue box is noise, so the layer is
  *   paused and cleared rather than left to fade behind the panel.
  */
+import { audio } from "../audio";
 import type { BarkTrigger } from "../data/barks";
 import { activeMember } from "../state";
 import type { GameState } from "../state/gameState";
@@ -144,11 +145,16 @@ export function createBarkLayer(options: BarkLayerOptions): BarkLayerHandle {
     for (const live of schedule.live) {
       const speaker = anchors.get(live.speakerId);
       const alpha = barkAlphaAt(frame.timeMs - live.startedAt, reducedMotion);
+      const fresh = chips.get(live.speakerId)?.barkId !== live.barkId;
       const chip = chipFor(live);
       if (!speaker || !speaker.onScreen || alpha === null) {
         chip.el.style.opacity = "0";
         continue;
       }
+      // A line opening over somebody in frame gets its pop; one that
+      // started off-screen is already half said by the time it is
+      // visible, and announcing it then would be a lie about when.
+      if (fresh) audio.emit("ui.bark.pop");
       chip.el.style.opacity = String(alpha);
       chip.el.style.left = `${Math.round(speaker.anchorX)}px`;
       chip.el.style.top = `${Math.round(speaker.anchorY)}px`;

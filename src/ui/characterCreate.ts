@@ -247,6 +247,9 @@ export function createCharacterCreateScreen(
     }
     wizard = next;
     if (wizard.step === "review") returnToReview = false;
+    // One cue for every step change, forwards or back: the sound is
+    // "that page is behind you", which is true in both directions.
+    audio.emit("ui.wizard.step");
     renderStep();
     renderChrome();
     announce(
@@ -801,7 +804,7 @@ export function createCharacterCreateScreen(
       button.dataset.value = preset.id;
       button.addEventListener("click", () => {
         difficulty = preset.id;
-        audio.play("ui-click");
+        audio.emit("ui.click");
         sync();
       });
       row.append(button);
@@ -1008,7 +1011,7 @@ export function createCharacterCreateScreen(
   // --- Leaving the screen ---
 
   function exitToMenu(): void {
-    audio.play("ui-cancel");
+    audio.emit("ui.cancel");
     showScreen(createMainMenuScreen());
   }
 
@@ -1126,7 +1129,7 @@ export function createCharacterCreateScreen(
       });
       if (ngPlus) state = applyNewGamePlus(state, current.legacyItemId);
       const session = createSession(state);
-      audio.play("ui-confirm");
+      audio.emit("ui.confirm");
       showScreen(
         createGameScreen({ session, dialogueNodeId: introArc.entryNodeId }),
       );

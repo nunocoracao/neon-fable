@@ -16,6 +16,7 @@
  * single tab stop with a roving tabindex — arrow keys move inside,
  * Enter/Space picks, Tab moves to the next group (see ./focus).
  */
+import { audio } from "../audio";
 import {
   composeCharacter,
   defaultAppearance,
@@ -209,9 +210,12 @@ export function createAppearancePicker(
       button.title = option.label;
       button.setAttribute("aria-label", `${config.label}: ${option.label}`);
       button.append(thumbCanvas(config, look, option.id));
-      button.addEventListener("click", () =>
-        options.onPick(config.category, option.id),
-      );
+      button.addEventListener("click", () => {
+        // Browsing a catalog is dozens of these in a row, so the cue is
+        // the quietest thing in the UI band (see ../data/sfx.ts).
+        audio.emit("ui.wizard.thumbnail");
+        options.onPick(config.category, option.id);
+      });
       grid.append(button);
     }
 
@@ -259,9 +263,10 @@ export function createAppearancePicker(
       button.dataset.id = chip.id;
       button.title = chip.label;
       button.setAttribute("aria-label", `${config.label}: ${chip.label}`);
-      button.addEventListener("click", () =>
-        options.onPick(config.category, chip.id),
-      );
+      button.addEventListener("click", () => {
+        audio.emit("ui.wizard.swatch");
+        options.onPick(config.category, chip.id);
+      });
       row.append(button);
     }
 

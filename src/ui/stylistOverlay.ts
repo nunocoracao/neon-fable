@@ -133,7 +133,7 @@ export function createStylistOverlay(
     };
     dyeMessage = line;
     dyeMessageIsError = false;
-    audio.play("ui-confirm");
+    audio.emit("ui.dye.apply");
     options.onStateChange();
     // The worn coat's new colour is in the equipment the preview and
     // the portrait inset already read; they just have to look again.
@@ -244,7 +244,7 @@ export function createStylistOverlay(
   cancel.className = "nf-button";
   cancel.textContent = "Cancel";
   cancel.addEventListener("click", () => {
-    audio.play("ui-cancel");
+    audio.emit("ui.cancel");
     options.onClose();
   });
   const confirm = document.createElement("button");
@@ -258,7 +258,7 @@ export function createStylistOverlay(
       return;
     }
     session.state = result.state;
-    audio.play("ui-confirm");
+    audio.emit("ui.stylist.snip");
     options.onStateChange();
     options.onClose();
   });

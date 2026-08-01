@@ -45,7 +45,7 @@ export function createPerkOverlay(options: PerkOverlayOptions): OverlayHandle {
       session.state = { ...session.state, player: action() };
       message = "";
       messageIsError = false;
-      audio.play("ui-confirm");
+      audio.emit("ui.perk.pick");
       options.onStateChange();
     } catch (error) {
       if (error instanceof AdvancementError) {
