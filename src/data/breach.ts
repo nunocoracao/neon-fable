@@ -276,6 +276,8 @@ export function breachContextsOnMap(mapId: string): BreachContext[] {
  * as firmly as a breach does — which is what makes failing cost
  * something (see the file header for why that never blocks anybody).
  */
+export const BREACH_FLAG_PREFIX = "breach:";
+
 export function breachFlag(contextId: string): string {
-  return `breach:${contextId}`;
+  return `${BREACH_FLAG_PREFIX}${contextId}`;
 }

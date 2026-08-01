@@ -258,6 +258,13 @@ export interface CombatSceneOptions {
    */
   telegraphPalette?: TelegraphPaletteId;
   /**
+   * Whether the tile tints are painted at boosted opacity — the "bold
+   * telegraphs" assist (see src/data/assists.ts). Which tiles carry
+   * which role is decided by the engine and is identical either way;
+   * this only says how loudly they are drawn.
+   */
+  telegraphBoost?: boolean;
+  /**
    * Weather to fight under. An arena has no sky of its own, so the
    * combat screen passes the weather of the map the fight was entered
    * from; the streaks are then thinned (ARENA_STREAK_DENSITY) so the
@@ -588,6 +595,7 @@ export function createCombatScene(
   };
   const telegraphPalette =
     options.telegraphPalette ?? DEFAULT_TELEGRAPH_PALETTE;
+  const telegraphBoost = options.telegraphBoost === true;
 
   /**
    * The scene clock's debt: every hit-pause still to be served, and the
@@ -770,7 +778,7 @@ export function createCombatScene(
     for (const tint of TELEGRAPH_PAINT_ORDER) {
       const batch = byTint.get(tint);
       if (!batch || batch.length === 0) continue;
-      const style = telegraphStyle(tint, telegraphPalette);
+      const style = telegraphStyle(tint, telegraphPalette, telegraphBoost);
       ctx!.beginPath();
       for (const tile of batch) traceDiamond(tile);
       if (style.fill) {

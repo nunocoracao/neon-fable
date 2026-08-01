@@ -275,11 +275,13 @@ export {
 } from "./combatScene";
 export {
   DEFAULT_TELEGRAPH_PALETTE,
+  TELEGRAPH_BOOST,
   TELEGRAPH_PAINT_ORDER,
   TELEGRAPH_PALETTES,
   TELEGRAPH_PALETTE_IDS,
   TELEGRAPH_PATH_LINE,
   TELEGRAPH_TINT_IDS,
+  boostTelegraphStyle,
   telegraphStyle,
   type TelegraphPaletteId,
   type TelegraphStyle,

@@ -160,15 +160,56 @@ export const TELEGRAPH_PALETTES: Record<
   "high-contrast": HIGH_CONTRAST,
 };
 
-/** The style one tint is painted with; unknown palettes fall back. */
+/**
+ * How much stronger the "bold telegraphs" assist paints the marked
+ * ground (see src/data/assists.ts). Applied to alpha alone: a boosted
+ * tint is the same colour, the same outline weight, and the same dash
+ * pattern, so every channel the palette tells its tints apart by
+ * survives the boost intact — the marks are simply harder to miss.
+ */
+export const TELEGRAPH_BOOST = 1.8;
+
+/** An rgb/rgba colour with its alpha scaled, clamped into [0, 1]. */
+function boostAlpha(color: string, factor: number): string {
+  const match = /^rgba?\(([^)]+)\)$/i.exec(color.trim());
+  if (!match) return color;
+  const parts = (match[1] ?? "").split(",").map((part) => part.trim());
+  if (parts.length < 3) return color;
+  const [r, g, b] = parts;
+  const alpha = parts.length >= 4 ? Number(parts[3]) : 1;
+  if (!Number.isFinite(alpha)) return color;
+  const boosted = Math.min(1, Math.max(0, alpha * factor));
+  return `rgba(${r}, ${g}, ${b}, ${Number(boosted.toFixed(3))})`;
+}
+
+/** One style with its fill and outline pushed up; shape untouched. */
+export function boostTelegraphStyle(
+  style: TelegraphStyle,
+  factor: number = TELEGRAPH_BOOST,
+): TelegraphStyle {
+  return {
+    ...style,
+    fill: style.fill === null ? null : boostAlpha(style.fill, factor),
+    stroke: style.stroke === null ? null : boostAlpha(style.stroke, factor),
+    dash: [...style.dash],
+  };
+}
+
+/**
+ * The style one tint is painted with; unknown palettes fall back.
+ * `boosted` is the assist's switch — the table itself is untouched, so
+ * a boosted grid and a plain one are the same palette read two ways.
+ */
 export function telegraphStyle(
   tint: TelegraphTintId,
   palette: TelegraphPaletteId = DEFAULT_TELEGRAPH_PALETTE,
+  boosted = false,
 ): TelegraphStyle {
   const table =
     TELEGRAPH_PALETTES[palette] ??
     TELEGRAPH_PALETTES[DEFAULT_TELEGRAPH_PALETTE];
-  return table[tint];
+  const style = table[tint];
+  return boosted ? boostTelegraphStyle(style) : style;
 }
 
 /**

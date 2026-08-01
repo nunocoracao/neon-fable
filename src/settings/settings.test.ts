@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { noAssists } from "../data/assists";
+import { DEFAULT_DIFFICULTY_ID } from "../data/difficulty";
 import {
   DEFAULT_SETTINGS,
   SETTINGS_KEY,
@@ -53,6 +55,8 @@ describe("clampSettings", () => {
       combatFeel: true,
       shakeScale: 1,
       barks: true,
+      difficulty: DEFAULT_DIFFICULTY_ID,
+      assists: noAssists(),
     });
     expect(
       clampSettings({ textSpeed: "warp", reducedMotion: true }),
@@ -66,6 +70,8 @@ describe("clampSettings", () => {
       combatFeel: true,
       shakeScale: 1,
       barks: true,
+      difficulty: DEFAULT_DIFFICULTY_ID,
+      assists: noAssists(),
     });
   });
 
@@ -80,6 +86,8 @@ describe("clampSettings", () => {
       combatFeel: true,
       shakeScale: 1,
       barks: true,
+      difficulty: DEFAULT_DIFFICULTY_ID,
+      assists: noAssists(),
     });
   });
 
@@ -166,6 +174,13 @@ describe("parse / serialize / migrate", () => {
       combatFeel: false,
       shakeScale: 0.5,
       barks: false,
+      difficulty: "blackout",
+      assists: {
+        "always-preview": true,
+        "damage-floor": false,
+        "bold-telegraphs": true,
+        "breach-rescue": false,
+      },
     } as const;
     expect(parseSettings(serializeSettings(settings))).toEqual(settings);
   });
@@ -197,6 +212,8 @@ describe("parse / serialize / migrate", () => {
       combatFeel: true,
       shakeScale: 1,
       barks: true,
+      difficulty: DEFAULT_DIFFICULTY_ID,
+      assists: noAssists(),
     });
     expect(migrateSettings({ version: "zero" })).toEqual(DEFAULT_SETTINGS);
   });
@@ -217,6 +234,8 @@ describe("parse / serialize / migrate", () => {
       combatFeel: true,
       shakeScale: 1,
       barks: true,
+      difficulty: DEFAULT_DIFFICULTY_ID,
+      assists: noAssists(),
     });
   });
 
@@ -237,6 +256,8 @@ describe("parse / serialize / migrate", () => {
       combatFeel: true,
       shakeScale: 1,
       barks: true,
+      difficulty: DEFAULT_DIFFICULTY_ID,
+      assists: noAssists(),
     });
   });
 
@@ -259,6 +280,8 @@ describe("parse / serialize / migrate", () => {
       combatFeel: true,
       shakeScale: 1,
       barks: true,
+      difficulty: DEFAULT_DIFFICULTY_ID,
+      assists: noAssists(),
     });
   });
 
@@ -284,6 +307,8 @@ describe("parse / serialize / migrate", () => {
       combatFeel: false,
       shakeScale: 0,
       barks: true,
+      difficulty: DEFAULT_DIFFICULTY_ID,
+      assists: noAssists(),
     });
   });
 
@@ -307,6 +332,8 @@ describe("parse / serialize / migrate", () => {
       combatFeel: true,
       shakeScale: 1,
       barks: true,
+      difficulty: DEFAULT_DIFFICULTY_ID,
+      assists: noAssists(),
     });
   });
 });
@@ -330,6 +357,8 @@ describe("load / save", () => {
         combatFeel: false,
         shakeScale: 1.5,
         barks: false,
+        difficulty: "drift",
+        assists: noAssists(),
       },
       storage,
     );
@@ -344,6 +373,8 @@ describe("load / save", () => {
       combatFeel: false,
       shakeScale: 1.5,
       barks: false,
+      difficulty: "drift",
+      assists: noAssists(),
     });
   });
 
@@ -392,6 +423,8 @@ describe("settings store", () => {
         combatFeel: true,
         shakeScale: 1,
         barks: true,
+        difficulty: "grind",
+        assists: noAssists(),
       },
       storage,
     );
@@ -406,6 +439,8 @@ describe("settings store", () => {
       combatFeel: true,
       shakeScale: 1,
       barks: true,
+      difficulty: DEFAULT_DIFFICULTY_ID,
+      assists: noAssists(),
     });
   });
 
@@ -426,6 +461,8 @@ describe("settings store", () => {
       combatFeel: true,
       shakeScale: 1,
       barks: true,
+      difficulty: DEFAULT_DIFFICULTY_ID,
+      assists: noAssists(),
     });
     expect(loadSettings(storage).textSpeed).toBe("instant");
     expect(seen).toEqual(["instant"]);
