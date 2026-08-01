@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { encounters, liveSpawns } from "../data/encounters";
-import { addItem } from "../inventory";
+import { addItem, useConsumable } from "../inventory";
 import { createNewGame } from "../state";
 import { moveSpeed } from "./grid";
 import { PLAYER_COMBATANT_ID, createCombat } from "./setup";
@@ -143,6 +143,54 @@ describe("createCombat", () => {
  * src/data/breach.ts); what matters to the engine is that an absent
  * spawn changes nothing but its own presence.
  */
+describe("what the player walks in with", () => {
+  it("brings only what can be opened mid-fight", () => {
+    const base = makeGame();
+    const state = {
+      ...base,
+      inventory: [
+        "con-trauma-patch",
+        "con-surge-stim",
+        // Neither of these is a thing anybody opens with a chassis
+        // walking at them, so neither is in the fight's kit.
+        "con-medic-roll",
+        "con-cage-noodles",
+      ].reduce((inv, id) => addItem(inv, id), base.inventory),
+    };
+    const combat = createCombat(state, "enc-rustyard-ambush");
+    expect(
+      playerCombatant(combat).consumables.map((stack) => stack.itemId).sort(),
+    ).toEqual(["con-surge-stim", "con-trauma-patch"]);
+  });
+
+  it("starts the fight lifted by whatever was eaten before the door", () => {
+    const base = makeGame();
+    const fed = useConsumable(
+      base.player,
+      addItem(base.inventory, "con-cage-noodles"),
+      "con-cage-noodles",
+    );
+    const combat = createCombat(
+      { ...base, player: fed.character, inventory: fed.inventory },
+      "enc-rustyard-ambush",
+    );
+    const player = playerCombatant(combat);
+    expect(player.boosts).toEqual([
+      { stat: "reflexes", amount: 1, turnsLeft: 4, family: "well-fed" },
+    ]);
+    // The lift is real from turn one, not a note on the sheet.
+    expect(combatStat(player, "reflexes")).toBe(
+      // Base 7 + knife 1 + slicker 1 + the meal.
+      10,
+    );
+  });
+
+  it("brings nothing extra for somebody who has not eaten", () => {
+    const combat = createCombat(makeGame(), "enc-rustyard-ambush");
+    expect(playerCombatant(combat).boosts).toEqual([]);
+  });
+});
+
 describe("spawns a run has stood down", () => {
   const ENCOUNTER = "enc-exec-security";
   const DARK = "exec-muster-dark";

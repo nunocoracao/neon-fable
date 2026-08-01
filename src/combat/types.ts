@@ -1,5 +1,6 @@
 import type { PerkModifiers } from "../character/perks";
 import type { StatKey, Stats } from "../character/stats";
+import type { EffectFamily } from "../inventory/items";
 import type { WeaponProfile } from "../inventory/mods";
 import type { RngState } from "../state/rng";
 
@@ -37,6 +38,21 @@ export interface ActiveBoost {
   amount: number;
   /** Owner's turns remaining, including the current one. */
   turnsLeft: number;
+  /**
+   * The slot this effect occupies, when it came out of a bottle (see
+   * EffectFamily). Absent on an ability's own buff and on every fight
+   * from before consumables had families — which is the same thing to
+   * the stacking rule: something with no family displaces nothing and
+   * is displaced by nothing, exactly as an ability buff always behaved.
+   */
+  family?: EffectFamily;
+  /**
+   * What the body owes when this wears off — the crash on the other
+   * side of a stim. Applied by ./effects.ts at the moment the lift
+   * expires, in the same family, so a fresh dose pushes the bill back
+   * rather than doubling it. Absent on anything clean.
+   */
+  after?: { stat: StatKey; amount: number; turns: number };
 }
 
 export interface CombatConsumable {
@@ -281,6 +297,27 @@ export type CombatEvent =
       amount: number;
       turns: number;
     }
+  | {
+      /**
+       * A stim's bill coming due: the lift expired and the crash on the
+       * other side of it landed. Reported separately from `boosted` so
+       * the log reads as the two events it is — the dose, and paying
+       * for the dose several turns later.
+       */
+      type: "crashed";
+      combatantId: string;
+      stat: StatKey;
+      amount: number;
+      turns: number;
+    }
+  | {
+      /**
+       * Somebody settled: the chrome's banked noise back to nothing and
+       * whatever crash they were carrying bled off with it.
+       */
+      type: "settled";
+      combatantId: string;
+    }
   | { type: "flee-attempted"; combatantId: string; success: boolean }
   | { type: "defeated"; combatantId: string }
   | { type: "combat-ended"; result: Exclude<CombatStatus, "active"> };
@@ -322,6 +359,8 @@ export type CombatErrorCode =
   | "invalid-target"
   | "out-of-range"
   | "no-item"
+  /** Carried, but not a thing anybody opens mid-fight. */
+  | "wrong-context"
   | "unknown-ability"
   | "ability-on-cooldown"
   | "cannot-flee"

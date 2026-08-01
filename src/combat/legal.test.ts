@@ -173,7 +173,52 @@ describe("itemOptions", () => {
     const state = makeCombat([
       player({ consumables: [{ itemId: "con-trauma-patch", quantity: 2 }] }),
     ]);
-    expect(itemOptions(state)).toEqual([{ itemId: "con-trauma-patch", quantity: 2 }]);
+    expect(itemOptions(state)).toEqual([
+      {
+        itemId: "con-trauma-patch",
+        quantity: 2,
+        // Every option carries what it would do to this body, so the
+        // button quoting it and the engine applying it are one figure.
+        outcome: expect.objectContaining({
+          itemId: "con-trauma-patch",
+          heal: expect.any(Number),
+        }),
+      },
+    ]);
+  });
+
+  it("prices each option against the body holding it", () => {
+    const nearlyWhole = makeCombat([
+      player({
+        hp: 18,
+        maxHp: 20,
+        consumables: [{ itemId: "con-trauma-patch", quantity: 1 }],
+      }),
+    ]);
+    expect(itemOptions(nearlyWhole)[0]?.outcome.heal).toBe(2);
+    const bleeding = makeCombat([
+      player({
+        hp: 4,
+        maxHp: 20,
+        consumables: [{ itemId: "con-trauma-patch", quantity: 1 }],
+      }),
+    ]);
+    expect(itemOptions(bleeding)[0]?.outcome.heal).toBe(10);
+  });
+
+  it("leaves out anything nobody opens mid-fight", () => {
+    const state = makeCombat([
+      player({
+        consumables: [
+          { itemId: "con-trauma-patch", quantity: 1 },
+          { itemId: "con-medic-roll", quantity: 1 },
+          { itemId: "con-cage-noodles", quantity: 2 },
+        ],
+      }),
+    ]);
+    expect(itemOptions(state).map((option) => option.itemId)).toEqual([
+      "con-trauma-patch",
+    ]);
   });
 
   it("is empty for enemies, spent actions, and empty packs", () => {

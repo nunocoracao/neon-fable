@@ -38,7 +38,7 @@ import {
   type TelegraphTintId,
 } from "../iso";
 import type { ActionIconId } from "../iso/art/actionIcons";
-import { percentLabel } from "./format";
+import { consumableOutcomeText, percentLabel } from "./format";
 
 /**
  * The combat HUD's model layer: everything shown in the initiative rail,
@@ -306,9 +306,12 @@ function availableTooltip(state: CombatState, kind: CombatActionKind): string {
       return lines.length > 0 ? lines.join("\n") : "No abilities installed.";
     }
     case "item": {
+      // The figures a dose would actually land, off the same derivation
+      // the button in the selection rail quotes.
       const lines = itemOptions(state).map(
-        ({ itemId, quantity }) =>
-          `${getItem(itemId)?.name ?? itemId} ×${quantity}`,
+        ({ itemId, quantity, outcome }) =>
+          `${getItem(itemId)?.name ?? itemId} ×${quantity} — ` +
+          `${consumableOutcomeText(outcome)}`,
       );
       return lines.length > 0 ? lines.join("\n") : "No usable items carried.";
     }

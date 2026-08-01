@@ -24,11 +24,13 @@
  */
 import { buildMapGrid, type IsoMap, type LegendEntry } from "../iso/tilemap";
 import {
+  BELL_VISUAL,
   DREDGE_VISUAL,
   FERROW_VISUAL,
   FLICK_VISUAL,
   LIN_VISUAL,
   MARROW_VISUAL,
+  ONDER_VISUAL,
   QUILL_VISUAL,
   SPIRE_SECURITY_VISUAL,
   VESPER_VISUAL,
@@ -398,6 +400,9 @@ const greywaterLegend: Record<string, LegendEntry> = {
   // Patch's Den doorway: a scrubbed clinical-tile threshold under the
   // door, baseboard-shadowed toward the den behind it.
   p: { tile: "clinic-floor-n" },
+  // Somebody's griddle cart, parked up on the east walk where the
+  // court's light reaches. The Steps had nowhere to eat before it.
+  F: { tile: "pavement", prop: { propId: "food-cart", blocks: true } },
 };
 
 const greywaterRows = [
@@ -410,7 +415,7 @@ const greywaterRows = [
   "#..u..==...v.#",
   "#sl.......c..#",
   "#.p..,.u..,..#",
-  "#..,.v...t.l.#",
+  "#..,.v...t.lF#",
   "#,....,......#",
   "##############",
 ];
@@ -478,6 +483,16 @@ const greywaterSteps: IsoMap = {
       interaction: { kind: "dialogue", nodeId: "a1-pumpgate" },
       // A door the story sends you through: worth a minimap pip.
       minimap: true,
+    },
+    {
+      id: "steps-food-cart",
+      // Beside the cart on the east walk, ladle in hand.
+      x: 12,
+      y: 8,
+      label: "Bell — griddle cart",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "ct-steps" },
+      visual: BELL_VISUAL,
     },
     {
       id: "chainwell-stair",
@@ -1181,11 +1196,14 @@ const quaysLegend: Record<string, LegendEntry> = {
   c: { tile: "pavement", prop: { propId: "crate", blocks: true } },
   t: { tile: "pavement", prop: { propId: "trash-heap", blocks: true } },
   u: { tile: "pavement", prop: { propId: "cable-bundle", blocks: false } },
+  // A griddle cart parked up on the wharf for the night shift, over
+  // the water, where the basin can take its light.
+  F: { tile: "pavement", prop: { propId: "food-cart", blocks: true } },
 };
 
 const quaysRows = [
   "################",
-  "#.,..l......ht.#",
+  "#.,..l.F....ht.#",
   "#ssPssssssPssss#",
   "#DD~r~~~~~~r~DD#",
   "#D~~r~~~~~~r~~D#",
@@ -1259,6 +1277,18 @@ const floodedQuays: IsoMap = {
       spriteId: "npc",
       interaction: { kind: "dialogue", nodeId: "fq-kade" },
       visual: VESPER_KADE_LOOK,
+    },
+    {
+      id: "quays-food-cart",
+      // Up on the wharf beside the cart, west of the tide board, hood
+      // up against the rain — the strand below has no room for a cart,
+      // and every crew coming out of the water walks past here.
+      x: 6,
+      y: 1,
+      label: "Onder — griddle cart",
+      spriteId: "npc",
+      interaction: { kind: "dialogue", nodeId: "ct-quays" },
+      visual: ONDER_VISUAL,
     },
     {
       id: "quays-cage",

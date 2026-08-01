@@ -4,6 +4,7 @@ import {
   defaultAppearance,
   normalizeInjury,
   normalizePerkIds,
+  normalizeReadied,
 } from "../character";
 import type { CharacterState } from "../character";
 import { DEFAULT_BACKGROUND_ID, getBackground } from "../data/backgrounds";
@@ -26,7 +27,7 @@ import type { RngState } from "./rng";
 import { clampVendors, emptyVendors, type VendorsState } from "./vendors";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 15;
+export const GAME_STATE_VERSION = 16;
 
 /**
  * Oldest save version migrateGameState can bring forward. Saves from
@@ -131,6 +132,14 @@ export interface GameState {
  *   the sanitize pass below is what makes that true rather than
  *   assumed: a wound naming an injury this build retired closes rather
  *   than quietly going on costing.
+ * - v15 -> v16: the carts started selling hot food, and a meal is
+ *   something you carry into the *next* fight rather than something you
+ *   feel at once. There is nothing to fill in — an old save describes
+ *   somebody who has not eaten, which is exactly what an absent
+ *   held-over list says — and the normalize pass below is what makes
+ *   that true rather than assumed: an effect naming a family or a stat
+ *   this build no longer has stops being carried rather than riding
+ *   along forever.
  */
 export function migrateGameState(
   state: GameState,
@@ -181,6 +190,10 @@ export function migrateGameState(
       perkIds: normalizePerkIds(cleaned.player.advancement?.perkIds),
     },
     injury: normalizeInjury(cleaned.player.injury),
+    // And a fifth time, for what somebody ate: content moves, and a
+    // held-over lift naming a family this build retired has to stop
+    // being carried rather than quietly go on lifting.
+    readied: normalizeReadied(cleaned.player.readied),
   };
   return {
     ...migrated,

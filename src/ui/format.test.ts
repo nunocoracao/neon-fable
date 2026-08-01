@@ -3,9 +3,17 @@ import { UNINSTALL_TRAUMA_PER_LOAD } from "../inventory/equipment";
 import type { EnhancementItem, Item } from "../inventory/items";
 import { SaveError } from "../state/save";
 import type { CombatEvent } from "../combat/types";
+import { requireItem } from "../data/items";
+import {
+  consumableOutcome,
+  plainSubject,
+} from "../inventory/consumables";
 import {
   characterNameError,
   combatEventText,
+  consumableKindLabel,
+  consumableOutcomeText,
+  contextLabel,
   exitLabel,
   combatantDisplayNames,
   formatBonuses,
@@ -213,20 +221,37 @@ describe("item formatting", () => {
       itemSummary({
         id: "patch",
         kind: "consumable",
+        consumableKind: "kit",
         name: "Patch",
         description: "",
-        effect: { type: "heal", amount: 10 },
+        contexts: ["combat", "exploration"],
+        effects: [{ type: "heal", amount: 10 }],
       }),
-    ).toBe("Consumable · heals 10 HP");
+    ).toBe("Field kit · heals 10 HP · either side of a fight");
     expect(
       itemSummary({
         id: "stim",
         kind: "consumable",
+        consumableKind: "stim",
         name: "Stim",
         description: "",
-        effect: { type: "combat-boost", stat: "reflexes", amount: 2, turns: 3 },
+        contexts: ["combat"],
+        effects: [
+          {
+            type: "boost",
+            boost: {
+              family: "reflex-stim",
+              stat: "reflexes",
+              amount: 2,
+              turns: 3,
+              after: { stat: "reflexes", amount: -1, turns: 2 },
+            },
+          },
+        ],
       }),
-    ).toBe("Consumable · +2 Reflexes for 3 turns (combat only)");
+      // The crash is on the shelf label, not a surprise several turns
+      // into the fight.
+    ).toBe("Stim · +2 Reflexes for 3 turns, then -1 Reflexes for 2 · in a fight");
     expect(
       itemSummary({
         id: "m",
@@ -263,6 +288,78 @@ describe("item formatting", () => {
     expect(uninstallWarning(optic)).toBe(
       `Extraction destroys the Optic Suite and deals ${2 * UNINSTALL_TRAUMA_PER_LOAD} HP of trauma.`,
     );
+  });
+});
+
+describe("consumable previews", () => {
+  const patch = requireItem("con-trauma-patch");
+  const noodles = requireItem("con-cage-noodles");
+  const splint = requireItem("con-splint-kit");
+  const sugar = requireItem("con-wake-sugar");
+
+  it("puts the crash on the shelf label beside the lift", () => {
+    expect(itemSummary(requireItem("con-redline-amp"))).toBe(
+      "Stim · +3 Reflexes for 3 turns, then -2 Reflexes for 4 · in a fight",
+    );
+  });
+
+  it("says what a meal buys, and when it lands", () => {
+    expect(itemSummary(noodles)).toBe(
+      "Street food · heals 9 HP · next fight: +1 Reflexes for 4 turns · " +
+        "out of combat",
+    );
+  });
+
+  it("names the kit's real product", () => {
+    expect(itemSummary(splint)).toBe(
+      "Field kit · heals 8 HP · closes an injury · out of combat",
+    );
+    expect(itemSummary(sugar)).toBe(
+      "Oddity · settles the chrome, clears the crash · in a fight",
+    );
+  });
+
+  it("quotes what a dose is worth to this body, not to any body", () => {
+    if (patch.kind !== "consumable") throw new Error("not a consumable");
+    // The same patch, three bodies.
+    expect(
+      consumableOutcomeText(consumableOutcome(patch, plainSubject(5, 30))),
+    ).toBe("+10 HP");
+    expect(
+      consumableOutcomeText(consumableOutcome(patch, plainSubject(27, 30))),
+    ).toBe("+3 HP");
+    expect(
+      consumableOutcomeText(consumableOutcome(patch, plainSubject(30, 30))),
+    ).toBe("no effect right now");
+  });
+
+  it("mentions a wound only when there is one to close", () => {
+    if (splint.kind !== "consumable") throw new Error("not a consumable");
+    const whole = plainSubject(30, 30);
+    expect(consumableOutcomeText(consumableOutcome(splint, whole))).toBe(
+      "no effect right now",
+    );
+    expect(
+      consumableOutcomeText(
+        consumableOutcome(splint, { ...whole, injured: true }),
+      ),
+    ).toBe("closes the injury");
+  });
+
+  it("labels the contexts a player would say out loud", () => {
+    expect(contextLabel(["combat", "exploration"])).toBe(
+      "either side of a fight",
+    );
+    expect(contextLabel(["combat"])).toBe("in a fight");
+    expect(contextLabel(["exploration"])).toBe("out of combat");
+    expect(contextLabel([])).toBe("nowhere");
+  });
+
+  it("names each family the way a shelf would", () => {
+    expect(consumableKindLabel("stim")).toBe("Stim");
+    expect(consumableKindLabel("food")).toBe("Street food");
+    expect(consumableKindLabel("kit")).toBe("Field kit");
+    expect(consumableKindLabel("oddity")).toBe("Oddity");
   });
 });
 

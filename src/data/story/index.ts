@@ -5,6 +5,7 @@ import { act3Arc } from "./act3";
 import { breachArc } from "./breach";
 import { chapelArc } from "./chapel";
 import { companionsArc } from "./companions";
+import { countersArc } from "./counters";
 import { introArc } from "./intro";
 import { marketArc } from "./market";
 import { quaysArc } from "./quays";
@@ -19,6 +20,7 @@ export const storyArcs: StoryArc[] = [
   breachArc,
   chapelArc,
   companionsArc,
+  countersArc,
   marketArc,
   quaysArc,
   streetsArc,
@@ -41,6 +43,7 @@ export {
   breachArc,
   chapelArc,
   companionsArc,
+  countersArc,
   marketArc,
   quaysArc,
   streetsArc,

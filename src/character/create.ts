@@ -1,5 +1,6 @@
 import type { Background } from "../data/backgrounds";
 import { emptyEquipment, type EquipmentState } from "../inventory/equipment";
+import type { TimedEffect } from "../inventory/items";
 import {
   AppearanceValidationError,
   validateAppearance,
@@ -62,6 +63,13 @@ export interface CharacterState {
    * already says.
    */
   injury?: CarriedInjury | null;
+  /**
+   * Timed effects bought out of combat and held over for the next
+   * fight — what a hot meal is worth (see src/character/readied.ts).
+   * Absent means carrying nothing, which is what every save written
+   * before street food existed already says.
+   */
+  readied?: TimedEffect[];
 }
 
 export class CharacterCreationError extends Error {

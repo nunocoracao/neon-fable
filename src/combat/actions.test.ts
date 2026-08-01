@@ -40,6 +40,22 @@ function duel(overrides: Partial<CombatState> = {}): CombatState {
   );
 }
 
+/** A duel where the player has these consumables in reach. */
+function carrying(...itemIds: string[]): CombatState {
+  const state = duel();
+  return {
+    ...state,
+    combatants: state.combatants.map((c) =>
+      c.id === "player"
+        ? {
+            ...c,
+            consumables: itemIds.map((itemId) => ({ itemId, quantity: 1 })),
+          }
+        : c,
+    ),
+  };
+}
+
 describe("move", () => {
   it("steps the actor and spends the move budget", () => {
     const state = duel({ moveRemaining: 3 });
@@ -280,7 +296,14 @@ describe("use-item", () => {
     const player = playerCombatant(next);
     expect(combatStat(player, "reflexes")).toBe(7); // 5 + 2
     expect(player.boosts).toEqual([
-      { stat: "reflexes", amount: 2, turnsLeft: 3 },
+      {
+        stat: "reflexes",
+        amount: 2,
+        turnsLeft: 3,
+        family: "reflex-stim",
+        // The bill, carried on the lift that owes it.
+        after: { stat: "reflexes", amount: -1, turns: 2 },
+      },
     ]);
     expect(player.consumables).toEqual([]);
   });
@@ -299,6 +322,89 @@ describe("use-item", () => {
         }),
       ),
     ).toBe("player-only");
+  });
+
+  it("refuses a kit nobody opens mid-fight, even when it is in the pack", () => {
+    // The snapshot normally filters these out (see playerConsumables);
+    // the engine still refuses one, so a hand-built state cannot smuggle
+    // a twenty-minute dressing into a firefight.
+    const state = carrying("con-medic-roll");
+    expect(
+      code(() => takeAction(state, { type: "use-item", itemId: "con-medic-roll" })),
+    ).toBe("wrong-context");
+  });
+
+  it("hands the crash back when the lift runs out, and says so", () => {
+    let state = takeAction(carrying("con-surge-stim"), {
+      type: "use-item",
+      itemId: "con-surge-stim",
+    });
+    expect(combatStat(playerCombatant(state), "reflexes")).toBe(7);
+    // Three of the player's own turns of lift, then the bill.
+    for (let i = 0; i < 3; i++) {
+      state = takeAction(state, { type: "end-turn" });
+      state = takeAction(state, { type: "end-turn" });
+    }
+    expect(combatStat(playerCombatant(state), "reflexes")).toBe(4);
+    expect(state.log).toContainEqual({
+      type: "crashed",
+      combatantId: "player",
+      stat: "reflexes",
+      amount: -1,
+      turns: 2,
+    });
+    // And the bill runs out too.
+    for (let i = 0; i < 2; i++) {
+      state = takeAction(state, { type: "end-turn" });
+      state = takeAction(state, { type: "end-turn" });
+    }
+    expect(combatStat(playerCombatant(state), "reflexes")).toBe(5);
+  });
+
+  it("replaces a running dose of the same family instead of stacking it", () => {
+    let state = carrying("con-kick-stim", "con-redline-amp");
+    state = takeAction(state, { type: "use-item", itemId: "con-kick-stim" });
+    expect(combatStat(playerCombatant(state), "reflexes")).toBe(6);
+    state = { ...state, actionUsed: false };
+    state = takeAction(state, { type: "use-item", itemId: "con-redline-amp" });
+    // 5 + 3, not 5 + 1 + 3: one nerve, one lift.
+    expect(combatStat(playerCombatant(state), "reflexes")).toBe(8);
+    expect(playerCombatant(state).boosts).toHaveLength(1);
+  });
+
+  it("lets lifts on different nerves run together", () => {
+    let state = carrying("con-surge-stim", "con-hammerhead");
+    state = takeAction(state, { type: "use-item", itemId: "con-surge-stim" });
+    state = takeAction(
+      { ...state, actionUsed: false },
+      { type: "use-item", itemId: "con-hammerhead" },
+    );
+    const player = playerCombatant(state);
+    expect(combatStat(player, "reflexes")).toBe(7);
+    expect(combatStat(player, "body")).toBe(7);
+  });
+
+  it("settles a body: the crash bled off and the chrome's clock restarted", () => {
+    let state = carrying("con-surge-stim", "con-wake-sugar");
+    state = takeAction(state, { type: "use-item", itemId: "con-surge-stim" });
+    for (let i = 0; i < 3; i++) {
+      state = takeAction(state, { type: "end-turn" });
+      state = takeAction(state, { type: "end-turn" });
+    }
+    expect(combatStat(playerCombatant(state), "reflexes")).toBe(4);
+
+    // Chrome one turn from going off, and a crash already being carried.
+    state = {
+      ...state,
+      surge: { combatantId: "player", charge: 3, armed: true, spent: false },
+    };
+    state = takeAction(state, { type: "use-item", itemId: "con-wake-sugar" });
+    expect(playerCombatant(state).boosts).toEqual([]);
+    expect(combatStat(playerCombatant(state), "reflexes")).toBe(5);
+    // Restarted rather than spent: the noise still has to be answered,
+    // it simply has three more turns to build in.
+    expect(state.surge).toMatchObject({ charge: 0, armed: false, spent: false });
+    expect(state.log.at(-1)).toEqual({ type: "settled", combatantId: "player" });
   });
 });
 

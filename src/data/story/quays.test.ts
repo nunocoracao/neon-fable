@@ -83,8 +83,15 @@ describe("flooded quays arc", () => {
     // Every fixture that opens a *conversation*. The lockgate cabinet
     // opens a lattice instead (see ../breach.ts), which is nobody's
     // dialogue and belongs to no arc.
+    //
+    // Onder's cart on the wharf is not one of them and is left out on
+    // purpose: it is a counter rather than a beat of the district's
+    // story (see ../story/counters.ts), it belongs to another arc, and
+    // it is found the way a cart is found — by walking up to it.
     const opened = quays.interactables.flatMap((i) =>
-      i.interaction.kind === "dialogue" ? [i.interaction.nodeId] : [],
+      i.interaction.kind === "dialogue" && i.id !== "quays-food-cart"
+        ? [i.interaction.nodeId]
+        : [],
     );
     expect(opened.sort()).toEqual([
       "fq-board",

@@ -1,4 +1,5 @@
 import { InventoryError, type Item } from "../inventory/items";
+import { consumableItems } from "./consumables";
 import { dyeItems } from "./dyes";
 
 /**
@@ -438,33 +439,10 @@ export const items: Item[] = [
     ],
   },
   // --- Consumables ---
-  {
-    id: "con-trauma-patch",
-    kind: "consumable",
-    name: "Trauma Patch",
-    description:
-      "A slap-on dermal pack of coagulants and synth-endorphins. Hurts " +
-      "going on, then nothing hurts at all.",
-    effect: { type: "heal", amount: 10 },
-  },
-  {
-    id: "con-surge-stim",
-    kind: "consumable",
-    name: "Surge Stim",
-    description:
-      "A single-use injector of gray-market reflex accelerant. The crash " +
-      "afterward is somebody else's problem.",
-    effect: { type: "combat-boost", stat: "reflexes", amount: 2, turns: 3 },
-  },
-  {
-    id: "con-field-kit",
-    kind: "consumable",
-    name: "Vent-Crew Field Kit",
-    description:
-      "A cycler crew's wall-box kit: burn gel, splint tape, and a stimulant " +
-      "lozenge older than the shift roster. All of it still works.",
-    effect: { type: "heal", amount: 12 },
-  },
+  // Authored in ./consumables.ts, which also carries the balance
+  // reasoning behind every price: stims that borrow, food that buys
+  // the next fight, kits that only open when nobody is shooting.
+  ...consumableItems,
   // --- Misc / story items ---
   {
     id: "msc-cracked-spike",

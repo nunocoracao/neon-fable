@@ -1,5 +1,7 @@
 import { characterInjury } from "../character/injury";
 import { characterPerks, perkIdsOf } from "../character/perks";
+import { readiedEffects } from "../character/readied";
+import { isConsumable, usableIn } from "../inventory/consumables";
 import { liveSpawns, requireEncounter, spawnLookIndex } from "../data/encounters";
 import { ALERTED_INITIATIVE_PENALTY, alertFlag } from "../data/stealth";
 import { requireEnemy } from "../data/enemies";
@@ -16,6 +18,7 @@ import { activeMembers } from "../state/party";
 import { nextFloat, type RngState } from "../state/rng";
 import { staticEffects } from "../inventory/staticLoad";
 import { allyCombatant, allyStartTile } from "./ally";
+import { applyTimedEffect } from "./effects";
 import { stepBudget } from "./grid";
 import { initiativeScore } from "./state";
 import { openSurgeTurn, startingSurge } from "./surge";
@@ -51,13 +54,20 @@ function playerWeapon(
   return equippedWeaponProfile(state.player, resolve) ?? UNARMED_WEAPON;
 }
 
+/**
+ * What the player can actually reach for mid-fight. Filtered here
+ * rather than at the point of use, so the fight's snapshot is the kit
+ * this fight has — a bag full of field kits and cold noodles is a
+ * combatant with no items, and the action bar says so.
+ */
 function playerConsumables(
   state: GameState,
   resolve: ItemResolver,
 ): CombatConsumable[] {
   const totals = new Map<string, number>();
   for (const stack of state.inventory.stacks) {
-    if (resolve(stack.itemId).kind !== "consumable") continue;
+    const item = resolve(stack.itemId);
+    if (!isConsumable(item) || !usableIn(item, "combat")) continue;
     totals.set(stack.itemId, (totals.get(stack.itemId) ?? 0) + stack.quantity);
   }
   return [...totals].map(([itemId, quantity]) => ({ itemId, quantity }));
@@ -108,7 +118,13 @@ export function createCombat(
     // only — the cost is already in the stats and abilities above.
     ...(injured ? { injury: injured.id } : {}),
     position: { ...encounter.playerStart },
-    boosts: [],
+    // Whatever was eaten before the door: a meal's lift starts on turn
+    // one of the fight it was bought for, through the same family rule
+    // a dose taken mid-fight goes through (see ./effects.ts).
+    boosts: readiedEffects(state.player).reduce(
+      applyTimedEffect,
+      [] as Combatant["boosts"],
+    ),
     stunTurns: 0,
     charge: null,
     cooldowns: {},
