@@ -7,6 +7,7 @@ import { requireMap } from "../data";
 import { addItem, countItem, equip, installEnhancement } from "../inventory";
 import { clampCamera, mapPixelBounds, worldToScreen } from "../iso";
 import { worldToViewport } from "../iso/camera";
+import { noAssists, type AssistId } from "../data/assists";
 import { createNewGame, type GameState } from "../state";
 import { createCombatScreen } from "./combatScreen";
 import { createGameScreen } from "./gameScreen";
@@ -610,6 +611,18 @@ function hoverTile(mapId: string, tile: { x: number; y: number }): void {
   );
 }
 
+/** Clicks an arena tile, as the player would. */
+function clickTile(mapId: string, tile: { x: number; y: number }): void {
+  const canvas = document.getElementById("iso-canvas")!;
+  canvas.dispatchEvent(
+    new MouseEvent("pointerup", {
+      bubbles: true,
+      button: 0,
+      ...pointerAtTile(mapId, tile),
+    }),
+  );
+}
+
 function telegraph(): HTMLElement | null {
   const el = document.querySelector<HTMLElement>(".nf-telegraph-chip");
   return el && !el.hidden ? el : null;
@@ -806,4 +819,85 @@ describe("aiming through the grid telegraph", () => {
     }
     expect(logText()).toMatch(/Overclock Burst/);
   });
+});
+
+/**
+ * The two display assists in the arena. Neither changes a figure or a
+ * rule — one changes which body an outcome is shown for when nobody is
+ * being pointed at, the other how loudly the marked ground is painted.
+ */
+describe("display assists", () => {
+  const ARENA = "rustyard-arena";
+
+  /** The courier with a pistol, so the ambush is shootable from cover. */
+  function gunner(...ids: AssistId[]): Session {
+    const state = courierState(1);
+    const inventory = addItem(state.inventory, "wpn-compact-pistol", 1);
+    const loadout = equip(state.player, inventory, "wpn-compact-pistol");
+    const assists = { ...noAssists() };
+    for (const id of ids) assists[id] = true;
+    return createSession({
+      ...state,
+      player: loadout.character,
+      inventory: loadout.inventory,
+      rules: { ...state.rules, assists },
+    });
+  }
+
+  /** Walks into range of the ambush, then opens Attack. */
+  function openAttackInRange(): void {
+    click("Move");
+    clickTile(ARENA, { x: 3, y: 3 });
+    click("Attack");
+  }
+
+  it("leaves the chip down without the assist, until somebody is pointed at", () => {
+    mountCombat(gunner(), "enc-rustyard-ambush");
+    openAttackInRange();
+    expect(telegraph()).toBeNull();
+  });
+
+  it("keeps the chip up on the likeliest target with the assist on", () => {
+    mountCombat(gunner("always-preview"), "enc-rustyard-ambush");
+    openAttackInRange();
+    const chip = telegraph();
+    expect(chip).not.toBeNull();
+    expect(chip?.dataset.tone).toBe("ok");
+    // The figures are an outcome's, not a move's — the same chip a
+    // hover would have produced.
+    expect(chip?.querySelectorAll(".nf-telegraph-outcome").length).toBe(1);
+  });
+
+  it("quotes the same figures the hover would have", () => {
+    mountCombat(gunner("always-preview"), "enc-rustyard-ambush");
+    openAttackInRange();
+    const assistedText = telegraph()?.textContent;
+
+    mountCombat(gunner(), "enc-rustyard-ambush");
+    openAttackInRange();
+    // Point at the body the assist chose for itself.
+    hoverTile(ARENA, { x: 1, y: 1 });
+    const hoveredText = telegraph()?.textContent;
+    expect(assistedText).toBe(hoveredText);
+  });
+
+  it("says nothing at all while no action is open", () => {
+    // The assist keeps a preview up for what the player has *open*; it
+    // does not put one up for an empty hand.
+    mountCombat(gunner("always-preview"), "enc-rustyard-ambush");
+    expect(telegraph()).toBeNull();
+  });
+
+  it("says nothing for an open action that aims at nobody", () => {
+    // Move is a walk, not an aim: there is no outcome to keep up, and
+    // the chip still waits for a tile to be pointed at.
+    mountCombat(gunner("always-preview"), "enc-rustyard-ambush");
+    click("Move");
+    expect(telegraph()).toBeNull();
+    hoverTile(ARENA, { x: 3, y: 4 });
+    expect(telegraph()?.querySelector(".nf-telegraph-title")?.textContent).toBe(
+      "Move",
+    );
+  });
+
 });

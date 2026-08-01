@@ -16,7 +16,12 @@ import {
   transitionDurationMs,
   transitionSwapMs,
 } from "../iso/transition";
-import { createNewGame, type GameState } from "../state";
+import { noAssists } from "../data/assists";
+import {
+  DEFAULT_DIFFICULTY_ID,
+  requireDifficulty,
+} from "../data/difficulty";
+import { createNewGame, loadGame, type GameState } from "../state";
 import { createCharacterCreateScreen } from "./characterCreate";
 import { findFightSeed, replayStep } from "./combatTestSupport";
 import { createGameScreen } from "./gameScreen";
@@ -345,6 +350,41 @@ describe("character creation wizard", () => {
     tabTo((el) => label(el) === "Jack In");
     enter();
     expect(document.querySelector(".nf-dialogue")).toBeTruthy();
+  });
+
+  it("picks a difficulty on the review sheet and starts the run on it", () => {
+    click("New Game");
+    setName("Vex");
+    click("Next"); // background
+    click("Next"); // stats
+    bumpStat(0, 5);
+    bumpStat(2, 5);
+    bumpStat(4, 5);
+    click("Next"); // appearance
+    click("Next"); // review
+
+    // The section is on review, showing the default and its blurb.
+    const section = document.querySelector(".nf-review-difficulty")!;
+    expect(section).toBeTruthy();
+    expect(section.textContent).toContain(
+      requireDifficulty(DEFAULT_DIFFICULTY_ID).blurb,
+    );
+    expect(section.textContent).toContain("Changeable later from Settings");
+
+    click("Blackout");
+    expect(
+      section.querySelector<HTMLButtonElement>('[data-value="blackout"]')
+        ?.getAttribute("aria-pressed"),
+    ).toBe("true");
+
+    click("Jack In");
+    // The run started on it, the preference remembers it for the next
+    // one, and the assists stayed off — they are not a creation choice.
+    const saved = loadGame("autosave", localStorage);
+    expect(saved.rules.difficulty).toBe("blackout");
+    expect(saved.rules.difficultyChanged).toBe(false);
+    expect(saved.rules.assists).toEqual(noAssists());
+    expect(settings.get().difficulty).toBe("blackout");
   });
 
   it("marks the current step with aria-current and announces changes politely", () => {

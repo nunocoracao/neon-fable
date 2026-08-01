@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it } from "vitest";
+import { BREACH_RESCUE_FAILURES, noAssists } from "../data/assists";
 import { breachFlag, requireBreachContext } from "../data/breach";
 import { openBreach, type BreachSettlement } from "../minigames";
 import { solveRoute } from "../minigames/testSupport";
@@ -228,5 +229,74 @@ describe("a terminal that has already been run", () => {
     // No way in from here: the only control is the way out.
     expect(buttonLabelled(handle, "Step back")).toBeDefined();
     expect(() => buttonLabelled(handle, "Jack in")).toThrow();
+  });
+});
+
+/**
+ * The breach-rescue assist on the briefing: offered only once the run
+ * has actually earned it, and never in place of playing.
+ */
+describe("a lattice that offers to route itself", () => {
+  /** A session whose run has taken `count` lockouts, assist as given. */
+  function struggling(count: number, rescue: boolean): Session {
+    const session = makeSession();
+    const flags: Record<string, string> = {};
+    for (let i = 0; i < count; i++) flags[breachFlag(`ctx-${i}`)] = "locked-out";
+    session.state = {
+      ...session.state,
+      flags: { ...session.state.flags, ...flags },
+      rules: {
+        ...session.state.rules,
+        assists: { ...noAssists(), "breach-rescue": rescue },
+      },
+    };
+    return session;
+  }
+
+  function hasRescue(handle: OverlayHandle): boolean {
+    return [...handle.el.querySelectorAll("button")].some((button) =>
+      (button.textContent ?? "").startsWith("Let it route itself"),
+    );
+  }
+
+  it("offers nothing with the switch off, however badly the run has gone", () => {
+    const { handle } = mount(struggling(BREACH_RESCUE_FAILURES, false));
+    expect(hasRescue(handle)).toBe(false);
+  });
+
+  it("offers nothing until the lockouts are in", () => {
+    const { handle } = mount(struggling(BREACH_RESCUE_FAILURES - 1, true));
+    expect(hasRescue(handle)).toBe(false);
+  });
+
+  it("offers it beside Jack in, never instead of it", () => {
+    const { handle } = mount(struggling(BREACH_RESCUE_FAILURES, true));
+    expect(hasRescue(handle)).toBe(true);
+    expect(buttonLabelled(handle, "Jack in")).toBeTruthy();
+    expect(handle.el.textContent).toContain("none of the data along the way");
+  });
+
+  it("routes to the core, pays the prize, and pays nothing for the route", () => {
+    const session = struggling(BREACH_RESCUE_FAILURES, true);
+    const before = session.state.credits;
+    const { handle, settled } = mount(session);
+    buttonLabelled(handle, "Let it route itself").click();
+
+    expect(settled).toHaveLength(1);
+    expect(settled[0]!.award.credits).toBe(0);
+    expect(session.state.credits).toBeGreaterThanOrEqual(before);
+    expect(session.state.flags[breachFlag(CONTEXT.id)]).toBe("breached");
+    // Straight to the report, with the run written before it is drawn.
+    expect(handle.el.textContent).toContain("Jack out");
+  });
+
+  it("is not offered at a terminal this run has already used", () => {
+    const session = struggling(BREACH_RESCUE_FAILURES, true);
+    session.state = {
+      ...session.state,
+      flags: { ...session.state.flags, [breachFlag(CONTEXT.id)]: "locked-out" },
+    };
+    const { handle } = mount(session);
+    expect(hasRescue(handle)).toBe(false);
   });
 });

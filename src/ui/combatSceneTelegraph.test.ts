@@ -143,11 +143,12 @@ describe("telegraph painting", () => {
     frameCallback?.(1000);
   }
 
-  function mount(): CombatScene {
+  function mount(telegraphBoost = false): CombatScene {
     const canvas = document.createElement("canvas");
     document.body.append(canvas);
     return createCombatScene(canvas, {
       map: requireMap(ARENA),
+      telegraphBoost,
       onTileClick: () => {},
       onTileHover: () => {},
     });
@@ -192,6 +193,46 @@ describe("telegraph painting", () => {
     expect(batch?.moves).toBe(4);
     expect(batch?.fills).toHaveLength(1);
     expect(batch?.strokes).toHaveLength(1);
+  });
+
+
+  /**
+   * The "bold telegraphs" assist reaching the paint. The palette's own
+   * tests pin what a boosted style *is* (see telegraphPalette.test.ts);
+   * what is asserted here is that the scene actually paints with it,
+   * and that switching it off paints exactly what it always did.
+   */
+  it("paints the boosted style when the assist is switched on", () => {
+    scene!.destroy();
+    scene = mount(true);
+    scene.setHighlights({
+      tiles: [
+        { x: 1, y: 1, tint: "reach" },
+        { x: 2, y: 1, tint: "impact" },
+      ],
+    });
+    paintFrame();
+    for (const tint of ["reach", "impact"] as const) {
+      const bold = telegraphStyle(tint, "neon", true);
+      const plain = telegraphStyle(tint);
+      const painted = batches(ops).find((batch) =>
+        batch.fills.some((f) => f.style === bold.fill),
+      );
+      expect(painted, tint).toBeDefined();
+      expect(painted?.strokes[0]?.style, tint).toBe(bold.stroke);
+      // Stronger than it would have been, and unmistakably so.
+      expect(bold.fill, tint).not.toBe(plain.fill);
+      // The shape channels are untouched, so the tint still reads.
+      expect(painted?.strokes[0]?.lineWidth, tint).toBe(plain.lineWidth);
+      expect(painted?.strokes[0]?.dash, tint).toEqual([...plain.dash]);
+    }
+  });
+
+  it("paints the plain style when it is switched off", () => {
+    scene!.setHighlights({ tiles: [{ x: 1, y: 1, tint: "impact" }] });
+    paintFrame();
+    const style = telegraphStyle("impact");
+    expect(batchForTint(ops, "impact")?.fills[0]?.style).toBe(style.fill);
   });
 
   it("paints each tint in its palette's own colour, width, and dash", () => {
