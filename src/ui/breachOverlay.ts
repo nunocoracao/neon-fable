@@ -4,10 +4,12 @@ import type { BreachContext } from "../data/breach";
 import {
   BreachError,
   breachOutcome,
+  breachRescueOffered,
   breachSpent,
   headId,
   openBreach,
   readRunner,
+  routeBreach,
   settleBreach,
   stepBreach,
   stepRefusal,
@@ -71,6 +73,9 @@ export function createBreachOverlay(
   let phase: Phase = already ? "spent" : "brief";
   let game: BreachGame = openBreach(session.state, context);
   const runner = readRunner(session.state);
+  // Read at open, off the run as it stands: three lockouts already
+  // taken and the switch on (see breachRescueOffered).
+  const rescueOffered = !already && breachRescueOffered(session.state);
   let settlement: BreachSettlement | null = null;
   let message = "";
   let messageIsError = false;
@@ -99,6 +104,20 @@ export function createBreachOverlay(
     phase = "run";
     say("");
     audio.play("interact");
+    render();
+  }
+
+  /**
+   * The rescue assist taken up: the route is handed over rather than
+   * run. Settles straight to the report, which pays the context's own
+   * prize and none of the credits routing would have earned (see
+   * routeBreach). Offered on the briefing beside Jack in — never
+   * instead of it, because somebody who has taken three lockouts and
+   * still wants to route the fourth by hand is entitled to.
+   */
+  function routeForMe(): void {
+    game = routeBreach(game);
+    settle();
     render();
   }
 
@@ -190,11 +209,23 @@ export function createBreachOverlay(
     panel.append(paragraph(model.warning, "nf-dim"));
     const menu = document.createElement("div");
     menu.className = "nf-menu";
-    menu.append(
-      button("Jack in", "nf-button", jackIn),
-      button("Walk away", "nf-button", options.onClose),
-    );
+    menu.append(button("Jack in", "nf-button", jackIn));
+    if (rescueOffered) {
+      menu.append(
+        button("Let it route itself", "nf-button nf-breach-rescue", routeForMe),
+      );
+    }
+    menu.append(button("Walk away", "nf-button", options.onClose));
     panel.append(menu);
+    if (rescueOffered) {
+      panel.append(
+        paragraph(
+          "Assist: the lattice will route itself to the core. You take " +
+            "what the core holds and none of the data along the way.",
+          "nf-dim",
+        ),
+      );
+    }
   }
 
   function renderCell(cell: BreachCell): HTMLButtonElement {

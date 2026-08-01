@@ -95,6 +95,7 @@ import {
   mapPixelBounds,
   snapToPixelGrid,
   viewportToWorld,
+  worldToViewport,
   type Camera,
 } from "./camera";
 import {
@@ -340,6 +341,17 @@ export interface CombatScene {
    * the fixed arena view exactly as it was.
    */
   focusOn(entityId: string, options?: { pace?: TurnPace }): void;
+  /**
+   * Where a tile's center currently sits in viewport CSS pixels — the
+   * same coordinate space onTileHover reports the pointer in.
+   *
+   * The pointer's own position is what normally anchors the outcome
+   * chip; this is for the case where there is no pointer: the "keep
+   * previews up" assist points the chip at a body nobody is hovering
+   * (see src/data/assists.ts), and it has to hang somewhere real.
+   * Null before the canvas has been laid out.
+   */
+  tileAnchor(tile: TilePoint): { x: number; y: number } | null;
   destroy(): void;
 }
 
@@ -1669,6 +1681,14 @@ export function createCombatScene(
         bornAt,
         slot,
       });
+    },
+
+    tileAnchor(tile: TilePoint): { x: number; y: number } | null {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return null;
+      const { sx, sy } = worldToScreen(tile.x, tile.y);
+      const point = worldToViewport(camera, viewportW, viewportH, zoom, sx, sy);
+      return { x: rect.left + point.x, y: rect.top + point.y };
     },
 
     destroy(): void {

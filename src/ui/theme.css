@@ -2853,6 +2853,35 @@ canvas.nf-action-glyph {
   flex-wrap: wrap;
 }
 
+/* The difficulty confirmation: a row that opens between the presets and
+   their blurb while a mid-run change is waiting on an answer. Amber
+   rather than cyan, because it is a question and not a selection. */
+.nf-setting-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.75rem;
+  margin: 0.5rem 0;
+  border: 1px solid var(--nf-glow-amber);
+  background: rgba(240, 180, 41, 0.08);
+}
+
+.nf-setting-confirm .nf-setting-label {
+  width: auto;
+  flex: 1 1 16rem;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.85rem;
+  color: var(--nf-ink);
+}
+
+/* The difficulty picker on the review sheet sits in an ordinary review
+   section; only the preset row needs room of its own. */
+.nf-review-difficulty .nf-segmented {
+  margin: 0.35rem 0;
+}
+
 /* The active segment reads by border + aria-pressed, not color alone. */
 .nf-button.nf-selected {
   border-color: var(--nf-glow-cyan);
