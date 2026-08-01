@@ -117,11 +117,11 @@ export function createInterludeOverlay(
     const next = pressInterlude(reveal);
     reveal = next.reveal;
     if (next.action === "close") {
-      audio.play("ui-confirm");
+      audio.emit("ui.confirm");
       options.onClose();
       return;
     }
-    audio.play("ui-click");
+    audio.emit("ui.click");
     render();
   }
 

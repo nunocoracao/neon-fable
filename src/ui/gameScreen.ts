@@ -599,7 +599,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       return;
     }
     if (!shardOpens(session.state, shard)) {
-      audio.play("ui-cancel");
+      audio.emit("ui.cancel");
       showToast(shard.sealed ?? "The chip's index refuses to open.");
       return;
     }
@@ -610,6 +610,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     session.state = collectShard(session.state, shard.id);
     recordShardToStorage(shard.id, session.storage);
     autosave(session);
+    audio.emit("ui.shard.pickup");
     showToast(
       shardPickupToast(
         shard.title,
@@ -729,7 +730,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         flags: recordPassed(session.state.flags, zone),
       };
       autosave(session);
-      audio.play("ui-confirm");
+      audio.emit("ui.confirm");
       openDialogue(zone.goal.nodeId);
       return;
     }
@@ -737,7 +738,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       ...session.state,
       flags: recordSpotted(session.state.flags, zone),
     };
-    audio.play("spotted");
+    audio.emit("combat.stealth.spotted");
     flashAlert();
     if (detection) showToast(spottedLine(detection));
     openDialogue(zone.spottedNodeId);
@@ -808,7 +809,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         ...session.state,
         flags: recordTakedown(session.state.flags, offers.zone, guard.guardId),
       };
-      audio.play("takedown");
+      audio.emit("combat.stealth.takedown");
       showToast(takedownLine(guard));
       refreshStealthPrompt();
       return;
@@ -816,13 +817,13 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     if (offers.lunge.ok) {
       stealthRun = applyLunge(offers.run);
       scene?.placePlayer(offers.lunge.pinch.to);
-      audio.play("interact");
+      audio.emit("world.interact");
       refreshStealthPrompt();
       return;
     }
     const refusal = stealthRefusal(offers.takedown, offers.lunge);
     if (refusal) {
-      audio.play("ui-cancel");
+      audio.emit("ui.cancel");
       showToast(refusal);
     }
   }
@@ -831,7 +832,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     if (!stealthRun) return;
     stealthRun = toggleCrouch(stealthRun);
     scene?.setCrouched(stealthRun.crouched);
-    audio.play("ui-click");
+    audio.emit("ui.click");
     refreshHud();
   }
 
@@ -993,7 +994,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   function onKeyDown(event: KeyboardEvent): void {
     if (event.key === "Escape") {
       if (ownsKeyboard()) return;
-      audio.play("ui-cancel");
+      audio.emit("ui.cancel");
       if (overlay) closeOverlay();
       else openSystemMenu();
       return;
@@ -1178,7 +1179,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         onSpeakers: (frame) => barkLayer?.update(frame),
         onInteract(event): void {
           if (overlay) return;
-          audio.play("interact");
+          audio.emit("world.interact");
           usedInteractable =
             map.interactables.find((i) => i.id === event.interactableId) ?? null;
           if (event.interaction.kind === "dialogue") {

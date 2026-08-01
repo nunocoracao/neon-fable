@@ -279,11 +279,15 @@ export function createDialogueOverlay(
     if (!node) return;
     // A lone "Continue" is an advance; a real fork is a selection.
     const presented = availableChoices(session.state, node);
-    audio.play(presented.length > 1 ? "choice-select" : "dialogue-advance");
+    audio.emit(presented.length > 1 ? "ui.dialogue.choice" : "ui.dialogue.advance");
     const outcome = applyChoice(session.state, node, choiceId);
     session.state = outcome.state;
     lastLoyalty = outcome.loyalty;
     lastStanding = outcome.standing;
+    // A faction moving is the world changing shape around the player,
+    // not a thing that happened in this room — so it gets the ambient
+    // bell rather than a UI cue, under the line that reports it.
+    if (outcome.standing.length > 0) audio.emit("ambient.world.shift");
     options.onStateChange();
     if (outcome.encounterId) {
       options.onCombat(outcome.encounterId, outcome.nextNodeId);

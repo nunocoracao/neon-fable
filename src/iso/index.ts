@@ -57,6 +57,13 @@ export {
   type AmbientZoneState,
 } from "./ambient";
 export {
+  QUIET_AMBIENCE,
+  RAIN_BED_PERIOD_MS,
+  RAIN_SPLASH_PERIOD_MS,
+  ambienceCues,
+  type AmbienceSample,
+} from "./ambience";
+export {
   CAMERA_MARGIN,
   cameraDistance,
   clampCamera,

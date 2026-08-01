@@ -53,14 +53,45 @@ export {
   type MusicScene,
 } from "./score";
 export {
-  HEAVY_HIT_DAMAGE,
   SOUND_IDS,
   SOUND_PATCHES,
   getPatch,
-  hitSoundForDamage,
+  patchLayerGain,
+  patchPeakGain,
   type SoundId,
   type SynthPatch,
 } from "./patches";
+export {
+  ABILITY_EVENTS,
+  ATTACK_EVENTS,
+  FAMILY_GAINS,
+  IMPACT_EVENTS,
+  SOUND_EVENT_IDS,
+  abilityEvent,
+  attackEvent,
+  eventFamily,
+  eventsInFamily,
+  impactEvent,
+  isRangedAttack,
+  isSoundEvent,
+  patchForEvent,
+  type SoundEventId,
+  type SoundFamily,
+} from "./events";
+export {
+  CUE_MERGE_MS,
+  MAX_PENDING_CUES,
+  NO_CUES,
+  STALE_CUE_MS,
+  collectDueCues,
+  createCueScheduler,
+  queueCue,
+  queueCues,
+  type CueQueue,
+  type CueScheduler,
+  type DueCues,
+  type SoundCue,
+} from "./cues";
 
 import { createWebAudioAdapter } from "./adapter";
 import { createAudioBus, type AudioBus } from "./bus";

@@ -64,7 +64,7 @@ export function createPartyOverlay(
       ...session.state,
       party: setActiveCompanion(session.state.party, companionId),
     };
-    audio.play("equip");
+    audio.emit("ui.equip");
     options.onStateChange();
     render();
   }
@@ -197,7 +197,7 @@ export function createPartyOverlay(
 
     if (ready.size > 0) {
       const talk = actionButton("A word in private", () => {
-        audio.play("ui-confirm");
+        audio.emit("ui.confirm");
         options.onTalk(companionsArc.entryNodeId);
       });
       talk.classList.add("nf-button-attention");

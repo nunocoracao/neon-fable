@@ -63,7 +63,7 @@ export function createWorkbenchOverlay(
         inventory: next.inventory,
         credits: next.credits,
       };
-      audio.play("equip");
+      audio.emit("ui.install");
       message = "";
       messageIsError = false;
       options.onStateChange();

@@ -95,7 +95,7 @@ export function createBreachOverlay(
     settlement = settleBreach(session.state, context, breachOutcome(game));
     session.state = settlement.state;
     phase = "report";
-    audio.play(game.status === "breached" ? "ui-confirm" : "ui-cancel");
+    audio.emit(game.status === "breached" ? "ui.breach.breached" : "ui.breach.lockout");
     options.onStateChange();
     options.onSettled(settlement, context);
   }
@@ -103,7 +103,7 @@ export function createBreachOverlay(
   function jackIn(): void {
     phase = "run";
     say("");
-    audio.play("interact");
+    audio.emit("world.interact");
     render();
   }
 
@@ -124,13 +124,19 @@ export function createBreachOverlay(
   function step(nodeId: string): void {
     const refusal = stepRefusal(game, nodeId);
     if (refusal) {
-      audio.play("ui-cancel");
+      audio.emit("ui.cancel");
       say(refusal.message, true);
       render();
       return;
     }
+    const sprungBefore = game.sprung.length;
     game = stepBreach(game, nodeId);
-    audio.play("ui-click");
+    // A node taking is a pulse; a node that turns out to have been a
+    // watchdog is the alarm instead. The budget meter says the same
+    // thing a beat later, but the ear gets there first.
+    audio.emit(
+      game.sprung.length > sprungBefore ? "ui.breach.alarm" : "ui.breach.node",
+    );
     say("");
     settle();
     render();
@@ -139,7 +145,7 @@ export function createBreachOverlay(
   function undo(): void {
     try {
       game = undoBreach(game);
-      audio.play("ui-cancel");
+      audio.emit("ui.cancel");
       say("You back off the node. The hop is spent either way.");
     } catch (error) {
       if (!(error instanceof BreachError)) throw error;
@@ -381,7 +387,7 @@ export function createBreachOverlay(
       }
       // A run in progress cannot be closed away from: it is finished,
       // walked out of, or lost, and the panel says which keys do that.
-      audio.play("ui-cancel");
+      audio.emit("ui.cancel");
       say("Pull out with [W] — you cannot simply close the channel.", true);
       render();
       return;

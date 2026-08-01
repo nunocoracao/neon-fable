@@ -7,7 +7,25 @@
  * the combat screen feeds it authoritative state and interprets clicks;
  * this layer never imports the combat engine. All effect timing math
  * comes from the pure helpers in ./animation, ./attack, and ./reaction.
+ *
+ * ## The fight's ear
+ *
+ * Sound is scheduled here rather than played by the combat screen, for
+ * the same reason the flinches and the damage figures are: the engine
+ * settles a whole exchange at once, and the *beats* it happens on are
+ * this file's to decide. A swing sounds when the arm moves, a round's
+ * impact when it arrives, a collapse when the body starts falling — and
+ * all of them ride the scene clock, so a hit-pause holds the sound with
+ * the picture instead of leaving it a freeze ahead (see ../audio/cues.ts).
  */
+import {
+  abilityEvent,
+  attackEvent,
+  audio,
+  createCueScheduler,
+  impactEvent,
+  isRangedAttack,
+} from "../audio";
 import { settings, type ZoomLevel } from "../settings";
 import {
   ABILITY_FX,
@@ -617,6 +635,12 @@ export function createCombatScene(
    * than a desync.
    */
   let pauses: PauseTimeline = NO_PAUSES;
+  /**
+   * Sounds waiting on their beat. Drained against the same scene clock
+   * everything else in here rides, which is what keeps a hit's sound
+   * inside its own freeze rather than a few frames ahead of it.
+   */
+  const cues = createCueScheduler((event) => audio.emit(event));
   /** Kicks in flight; pruned as they decay to nothing. */
   const shakes: ShakeSource[] = [];
   /** The reframing in flight, or null when the camera is settled. */
@@ -724,6 +748,9 @@ export function createCombatScene(
         entity.progress -= 1;
         const reached = entity.queue.shift();
         if (reached) entity.visual = { ...reached };
+        // Only the heavy things are heard walking. A person crossing an
+        // arena is not an event; a chassis putting a foot down is.
+        if (isMultiTile(entity)) cues.at("combat.boss.stomp", now());
       }
       const next = entity.queue[0];
       if (next) {
@@ -878,6 +905,18 @@ export function createCombatScene(
     return sprites.attackClass?.(entity.spriteId, variant) ?? "unarmed";
   }
 
+  /**
+   * Whether a combatant stands on more than one tile — the only thing
+   * the scene knows about "boss", and enough for the purpose: a chassis
+   * that big has servos to turn and weight to put down, and both are
+   * heard (see the boss family in ../data/sfx.ts).
+   */
+  function isMultiTile(entity: EntityView): boolean {
+    const footprint = entity.footprint;
+    if (!footprint) return false;
+    return footprint.width * footprint.height > 1;
+  }
+
   /** Screen-space line from one combatant to another, for the shake. */
   function lineBetween(
     from: EntityView | undefined,
@@ -904,7 +943,12 @@ export function createCombatScene(
   ): void {
     syncFeel();
     if (feel.hitPause) {
-      pauses = insertPause(pauses, beatMs, hitPauseMs(weight, melee), now());
+      const pauseMs = hitPauseMs(weight, melee);
+      pauses = insertPause(pauses, beatMs, pauseMs, now());
+      // The freeze, heard. Queued on the beat the clock stops at, so
+      // the thump is the first thing inside the held frame — which is
+      // what makes the hold read as weight rather than as a stall.
+      if (pauseMs > 0) cues.at("combat.hitpause.thump", beatMs);
     }
     if (!feel.shake) return;
     const amplitudePx = shakeAmplitudePx(weight, feel.shakeScale);
@@ -938,11 +982,18 @@ export function createCombatScene(
   function killEntity(entity: EntityView, now: number): void {
     if (settings.get().reducedMotion) {
       entity.fadeStart = now;
+      cues.at("combat.death.collapse", now);
       return;
     }
+    const beatMs = latestBeatFor(reactions, entity.id) ?? now;
     queueReaction(entity, entity.deathStyle ?? DEFAULT_DEATH_STYLE, now, {
-      beatMs: latestBeatFor(reactions, entity.id) ?? now,
+      beatMs,
     });
+    // The fall sounds when the body starts falling — the same beat the
+    // collapse animation is queued on, not the moment the engine
+    // decided it. A chassis going over adds its own weight to it.
+    cues.at("combat.death.collapse", beatMs);
+    if (isMultiTile(entity)) cues.at("combat.boss.stomp", beatMs);
   }
 
   /** Place one reaction on the queue and hand back where it landed. */
@@ -1431,6 +1482,9 @@ export function createCombatScene(
     const sceneMs = advanced.sceneMs;
     const dt = lastTime === null ? 0 : Math.min((sceneMs - lastTime) / 1000, 0.1);
     lastTime = sceneMs;
+    // Before the step, so a beat that has just come due is heard on the
+    // frame it belongs to rather than the one after it.
+    cues.advance(sceneMs);
     stepEntities(dt);
     render(sceneMs);
     rafId = requestAnimationFrame(frame);
@@ -1520,18 +1574,34 @@ export function createCombatScene(
       const hit = options.hit ?? true;
       const attackClass = classOf(attacker);
       const at = now();
+      // A chassis that size has to turn before it can swing, and the
+      // servos doing it are the tell that something is coming.
+      if (isMultiTile(attacker)) cues.at("combat.boss.servo", at);
+      // The swing itself, on the frame the arm moves: one per weapon
+      // class, so a rifle and a blade are told apart with eyes shut.
+      cues.at(attackEvent(attackClass), at);
       // Reduced motion: face the target and let the whole exchange
       // resolve on the spot — no swing, no travel, no delayed beats.
       // One held impact frame stays, so a hit is still visibly a hit.
       if (settings.get().reducedMotion) {
         spawnImpact(attacker, target, attackClass, hit, at, true);
+        if (!hit) cues.at("combat.attack.miss", at);
         return 0;
       }
       throwAt(attacker, target, attackClass, at);
       // The blow lands when its effects say it does: for a fired round
       // that is the swing's own impact beat plus the flight time.
-      return spawnImpact(attacker, target, attackClass, hit, at, false)
+      const contactMs = spawnImpact(attacker, target, attackClass, hit, at, false)
         .contactMs;
+      // A round in the air, heard between the muzzle and the body. Only
+      // the classes that actually throw something have a flight to fill.
+      if (isRangedAttack(attackClass)) {
+        cues.at("combat.projectile.whoosh", at + contactMs / 2);
+      }
+      // A miss has no impact cue of its own to ride (the screen only
+      // reports hits to hitFx), so it says so where the shot went wide.
+      if (!hit) cues.at("combat.attack.miss", at + contactMs);
+      return contactMs;
     },
 
     abilityFx(
@@ -1563,6 +1633,10 @@ export function createCombatScene(
         faceToward(caster, first);
         if (!reducedMotion) throwAt(caster, first, attackClass, at);
       }
+      // One signature per archetype, on the frame the cast starts. The
+      // ability's id never reaches here — the look is the contract, and
+      // so is the sound (see ABILITY_EVENTS in ../audio/events.ts).
+      cues.at(abilityEvent(fx), at);
       const plan = planAbilityCast(
         fx,
         targets.map((entity) => ({
@@ -1590,13 +1664,16 @@ export function createCombatScene(
       // A blast going off pushes the view outward from the caster's own
       // line as it lands. Nothing connected, so nothing freezes — the
       // shake is the whole of it (see IMPACT_FEEL.explosion).
-      if (!reducedMotion && ABILITY_FX[fx].form === "burst") {
-        feelImpact(
-          "explosion",
-          false,
-          at + plan.sequence.contactMs,
-          lineBetween(caster, first ?? caster),
-        );
+      if (ABILITY_FX[fx].form === "burst") {
+        cues.at("combat.impact.explosion", at + plan.sequence.contactMs);
+        if (!reducedMotion) {
+          feelImpact(
+            "explosion",
+            false,
+            at + plan.sequence.contactMs,
+            lineBetween(caster, first ?? caster),
+          );
+        }
       }
       return plan.sequence.contactMs;
     },
@@ -1604,11 +1681,21 @@ export function createCombatScene(
     hitFx(targetId: string, options: HitFxOptions = {}): void {
       const entity = entities.get(targetId);
       if (!entity) return;
+      const at = now();
+      const beatMs = at + Math.max(0, options.delayMs ?? 0);
+      // What the blow was worth, said on the beat it lands. The same
+      // weight the camera reads (below) picks the sound, so the hold
+      // and the hit are one decision heard twice — and reduced motion
+      // keeps it: that setting withholds movement, not information.
+      cues.at(
+        impactEvent(
+          options.weight ?? (options.glancing === true ? "glancing" : "solid"),
+        ),
+        beatMs,
+      );
       // Reduced motion: no flash, no shake, no recoil — floating
       // numbers and the combat log still report every hit.
       if (settings.get().reducedMotion) return;
-      const at = now();
-      const beatMs = at + Math.max(0, options.delayMs ?? 0);
       entity.awayX = awayFrom(entity, options.attackerId);
       const scheduled = queueReaction(
         entity,
@@ -1691,6 +1778,10 @@ export function createCombatScene(
 
     destroy(): void {
       cancelAnimationFrame(rafId);
+      // Nothing still waiting on a beat is heard: the fight the cues
+      // described is over, and the frame loop that would drain them
+      // has just stopped.
+      cues.clear();
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointermove", onPointerMove);

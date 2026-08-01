@@ -1,5 +1,5 @@
 import { audio } from "../audio";
-import type { SoundId } from "../audio";
+import type { SoundEventId } from "../audio";
 import { EconomyError } from "../data/economy";
 import {
   buyFromVendor,
@@ -58,10 +58,14 @@ export function createVendorOverlay(
   let message = "";
   let messageIsError = false;
 
-  /** Runs a counter operation and folds the result back into the run. */
+  /**
+   * Runs a counter operation and folds the result back into the run.
+   * The sound may be deferred to a thunk, because a haggle does not
+   * know which of its two cues it is until the roll has been made.
+   */
   function apply(
     action: (state: GameState) => { state: GameState },
-    sound: SoundId = "equip",
+    sound: SoundEventId | (() => SoundEventId) = "ui.equip",
   ): void {
     // Cleared before the action, never after: a haggle writes its own
     // line from inside the action and must not be wiped by its success.
@@ -70,7 +74,7 @@ export function createVendorOverlay(
     try {
       const next = action(session.state);
       session.state = next.state;
-      audio.play(sound);
+      audio.emit(typeof sound === "function" ? sound() : sound);
       options.onStateChange();
     } catch (error) {
       if (!(error instanceof EconomyError)) throw error;
@@ -218,7 +222,7 @@ export function createVendorOverlay(
       button(`Sell — ${row.price.label}`, "nf-button nf-button-small", () =>
         apply(
           (state) => sellToVendor(state, vendorId, row.stackIndex),
-          "unequip",
+          "ui.unequip",
         ),
       ),
     );
@@ -260,15 +264,22 @@ export function createVendorOverlay(
     const label = model.haggle.chanceLabel
       ? `${model.haggle.label} (${model.haggle.chanceLabel})`
       : model.haggle.label;
+    // Which way the argument went, remembered across the action so the
+    // cue that answers it can be chosen after the roll rather than before.
+    let won = false;
     const attempt = button(label, "nf-button nf-button-small", () =>
-      apply((state) => {
-        const result = haggleWithVendor(state, vendorId);
-        message = result.won
-          ? `${model.keeper} sighs and takes it off the price.`
-          : `${model.keeper} does not blink. Prices here are what they are, this chapter.`;
-        messageIsError = !result.won;
-        return result;
-      }, "ui-confirm"),
+      apply(
+        (state) => {
+          const result = haggleWithVendor(state, vendorId);
+          won = result.won;
+          message = result.won
+            ? `${model.keeper} sighs and takes it off the price.`
+            : `${model.keeper} does not blink. Prices here are what they are, this chapter.`;
+          messageIsError = !result.won;
+          return result;
+        },
+        () => (won ? "ui.haggle.success" : "ui.haggle.fail"),
+      ),
     );
     attempt.disabled = !model.haggle.canTry;
 

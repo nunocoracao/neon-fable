@@ -32,7 +32,7 @@ import {
   type GridPosition,
   type TelegraphIntent,
 } from "../combat";
-import { audio, hitSoundForDamage, musicScene, themeForMap } from "../audio";
+import { audio, musicScene, themeForMap } from "../audio";
 import {
   getAbility,
   getEncounter,
@@ -708,24 +708,27 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     logEl.scrollTop = logEl.scrollHeight;
   }
 
+  /**
+   * The events whose sound is *not* the scene's to place.
+   *
+   * Everything a blow is made of — the swing, the round in the air, the
+   * impact, the freeze, the collapse — is cued inside the scene against
+   * its own clock, because only the scene knows which beat each of them
+   * lands on (see ../iso/combatScene.ts). What is left here is the two
+   * cues that answer the *engine*, not the animation: an item used has
+   * no animation to wait for, and "one of theirs is down" is a report
+   * about the fight rather than a thing that happened in the arena.
+   */
   function playEventSfx(event: CombatEvent): void {
     switch (event.type) {
-      case "attacked":
-        audio.play("attack-swing");
-        audio.play(event.hit ? hitSoundForDamage(event.damage) : "attack-miss");
-        break;
-      case "ability-used":
-        audio.play("ability-use");
-        if (event.damage > 0) audio.play(hitSoundForDamage(event.damage));
-        break;
       case "item-used":
-        audio.play("item-use");
+        audio.emit("combat.item.use");
         break;
       case "defeated":
         // The cue is "one of theirs is down"; a companion going down is
         // not that, and neither is the player.
         if (getCombatant(combat!, event.combatantId)?.kind === "enemy") {
-          audio.play("enemy-defeat");
+          audio.emit("combat.enemy.defeat");
         }
         break;
       default:
@@ -1077,7 +1080,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       // the drive and the tension layers go, the street stays, and the
       // game screen it returns to is already playing exactly this.
       audio.setMusicMode("explore");
-      audio.play("victory");
+      audio.emit("combat.outcome.victory");
       const { panel } = outcomePanel("Victory");
       const rewards = getEncounter(encounterId)?.rewards;
       const list = document.createElement("div");
@@ -1108,6 +1111,8 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
             textContent: "You did not walk away clean.",
           }),
         );
+        // What the win cost, heard as well as read.
+        audio.emit("ui.injury.taken");
         for (const text of woundLines) {
           const line = document.createElement("div");
           line.className = "nf-injury-line";
@@ -1135,7 +1140,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
 
     // A loss ends the run: the music goes out with it.
     audio.setMusicScene(null);
-    audio.play("defeat");
+    audio.emit("combat.outcome.defeat");
     showDefeatPanel();
   }
 

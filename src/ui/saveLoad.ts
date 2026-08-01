@@ -102,7 +102,7 @@ export function createSaveLoadPanel(
           const session = options.session;
           if (!session) return;
           saveGame(session.state, slot, storage);
-          audio.play("save-confirm");
+          audio.emit("ui.save");
           setMessage(`Saved to ${slotDisplayName(slot)}.`, false);
           pendingDelete = null;
           render();
@@ -114,7 +114,7 @@ export function createSaveLoadPanel(
         slotButton("Load", () => {
           try {
             const state = loadGame(slot, storage);
-            audio.play("load-confirm");
+            audio.emit("ui.load");
             options.onLoaded(state);
           } catch (error) {
             if (error instanceof SaveError) {
