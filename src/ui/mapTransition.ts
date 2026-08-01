@@ -9,6 +9,7 @@
  * screen underneath is replaced half-way through: it has to outlive the
  * thing it is covering.
  */
+import { audio } from "../audio";
 import {
   transitionDurationMs,
   transitionSwapMs,
@@ -103,6 +104,18 @@ export function runMapTransition(
     cover.style.transition = `opacity ${durationMs}ms linear`;
     cover.style.opacity = String(opacity);
   };
+
+  // The doorway cycling, said in two halves around the beat it holds
+  // open for: the servo up as the way parts, and the latch taking as it
+  // shuts behind the player. A transition with no door to open — a
+  // stair, a story handoff — has neither, and only the fade's own air.
+  if (door) {
+    audio.emit("world.door.open");
+    at(timing.doorMs, () => audio.emit("world.door.close"));
+  }
+  // The screen going under. Always: it is the transition itself and not
+  // the door, and a cut still moves the player somewhere else.
+  audio.emit("world.transition.whoosh");
 
   at(timing.doorMs, () => fade(timing.coverMs, timing.dim));
 

@@ -56,8 +56,17 @@ import {
   type SceneWatchSource,
   type SceneWatchView,
 } from "./render";
-import { collectSetPieces } from "./setpiece";
-import { collectTickers } from "./ticker";
+import {
+  ambienceCues,
+  type AmbienceSample,
+} from "./ambience";
+import {
+  collectSetPieces,
+  droneStateAt,
+  trainRunAt,
+  type SetPieceDraw,
+} from "./setpiece";
+import { collectTickers, type TickerDraw } from "./ticker";
 import { doorCycleMs, doorOpen01, doorTiming } from "./transition";
 import { resolveWeather, type WeatherView } from "./weather";
 import type { SpriteProvider } from "./sprites";
@@ -462,7 +471,7 @@ export function createIsoScene(
     while (walkProgress >= 1 && walkQueue.length > 0) {
       walkProgress -= 1;
       playerTile = walkQueue.shift() ?? playerTile;
-      audio.play("footstep");
+      audio.emit("world.footstep");
     }
     const next = walkQueue[0];
     if (next) {
@@ -632,6 +641,46 @@ export function createIsoScene(
     });
   }
 
+  /**
+   * What the street was doing last frame. Null until the first pass, so
+   * arriving on a map announces nothing (see ./ambience.ts).
+   */
+  let lastAmbience: AmbienceSample | null = null;
+
+  /**
+   * Say whatever the world has just done. The sample is read off the
+   * same set pieces and boards the renderer is about to draw, so the
+   * sound and the picture can never disagree about what is happening;
+   * which of those readings is worth a sound is decided in ./ambience.ts
+   * and nowhere else.
+   */
+  function speakAmbience(
+    timeMs: number,
+    setPieces: readonly SetPieceDraw[],
+    tickers: readonly TickerDraw[],
+  ): void {
+    const spec = map.setPieces;
+    const sample: AmbienceSample = {
+      timeMs,
+      train: (spec?.trains ?? []).some(
+        (track) => trainRunAt(track, timeMs) !== null,
+      ),
+      drone: (spec?.drones ?? []).some(
+        (path) => droneStateAt(path, timeMs) !== null,
+      ),
+      steam: setPieces.some((draw) => draw.spriteId === "steam-burst"),
+      rain: weather?.id === "rain",
+      // Every board's line at once: any of them turning over is a
+      // change of this, and one blip answers it however many did.
+      headline:
+        tickers.length === 0
+          ? null
+          : tickers.map((ticker) => ticker.text).join(" "),
+    };
+    for (const cue of ambienceCues(lastAmbience, sample)) audio.emit(cue);
+    lastAmbience = sample;
+  }
+
   let rafId = 0;
   let lastTime: number | null = null;
   function frame(time: number): void {
@@ -658,6 +707,7 @@ export function createIsoScene(
     const tickers = collectTickers(map, newsStrips, time, {
       motion: !reducedMotion,
     });
+    speakAmbience(reducedMotion ? 0 : time, setPieces, tickers);
     // Whoever is watching the map, asked against the real clock: a
     // patrol is not scenery, and freezing it for reduced motion would
     // freeze a rule rather than an effect.
