@@ -86,14 +86,6 @@ export function consumableOutcome(
   item: ConsumableItem,
   subject: ConsumableSubject,
 ): ConsumableOutcome {
-  const outcome: ConsumableOutcome = {
-    itemId: item.id,
-    heal: 0,
-    boosts: [],
-    readied: [],
-    treatsInjury: false,
-    settles: false,
-  };
   const boosts: TimedEffect[] = [];
   const readied: TimedEffect[] = [];
   let heal = 0;
@@ -127,7 +119,7 @@ export function consumableOutcome(
         break;
     }
   }
-  return { ...outcome, heal, boosts, readied, treatsInjury, settles };
+  return { itemId: item.id, heal, boosts, readied, treatsInjury, settles };
 }
 
 /**
