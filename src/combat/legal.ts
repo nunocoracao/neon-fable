@@ -25,6 +25,7 @@ import {
   isAlive,
   livingEnemies,
 } from "./state";
+import { tunedDamage } from "./tuning";
 import type { CombatState, GridPosition } from "./types";
 
 /**
@@ -124,7 +125,14 @@ export function attackOptions(state: CombatState): AttackOption[] {
         attackStat,
         combatStat(target, "reflexes"),
       ),
-      damage: attackDamage(actor.weapon, attackStat, target.armor),
+      // Quoted through the same tuning the blow will be resolved with,
+      // so the figure on the button is the figure that lands.
+      damage: tunedDamage(
+        state,
+        actor,
+        target,
+        attackDamage(actor.weapon, attackStat, target.armor),
+      ),
     }))
     .filter((option) => option.distance <= range);
 }
@@ -156,10 +164,14 @@ export function abilityOptions(state: CombatState): AbilityOption[] {
               isAlive(c) &&
               bodyGap(actor, c) <= ability.range,
           )
-          .map((target) => ({
-            targetId: target.id,
-            ...abilityHit(ability.effect, target.armor),
-          }))
+          .map((target) => {
+            const hit = abilityHit(ability.effect, target.armor);
+            return {
+              targetId: target.id,
+              damage: tunedDamage(state, actor, target, hit.damage),
+              stunTurns: hit.stunTurns,
+            };
+          })
       : [];
     return { abilityId, cooldown, ready, selfTarget: false, targets };
   });

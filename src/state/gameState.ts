@@ -24,10 +24,11 @@ import {
   type ReputationState,
 } from "./reputation";
 import type { RngState } from "./rng";
+import { clampRules, defaultRules, type RunRules } from "./rules";
 import { clampVendors, emptyVendors, type VendorsState } from "./vendors";
 
 /** Save-format version; bump when GameState shape changes incompatibly. */
-export const GAME_STATE_VERSION = 16;
+export const GAME_STATE_VERSION = 17;
 
 /**
  * Oldest save version migrateGameState can bring forward. Saves from
@@ -83,6 +84,12 @@ export interface GameState {
    * ./vendors.ts.
    */
   vendors: VendorsState;
+  /**
+   * What this run is being played under: difficulty preset, assist
+   * switches, and whether the preset was moved mid-run. Always present
+   * (a fresh run gets the middle preset and no assists); see ./rules.ts.
+   */
+  rules: RunRules;
   /** Deterministic RNG state; advance via the rng module, never Math.random. */
   rng: RngState;
 }
@@ -140,6 +147,14 @@ export interface GameState {
  *   that true rather than assumed: an effect naming a family or a stat
  *   this build no longer has stops being carried rather than riding
  *   along forever.
+ * - v16 -> v17: the game learned to be played at more than one
+ *   intensity. An old save is a run on the authored figures with no
+ *   assists switched on, which is exactly what the middle preset and an
+ *   empty switchboard describe — so it loads as precisely the game it
+ *   was, down to the arithmetic. The clamp below (which runs at every
+ *   version, like the lore clamp) is what fills the record in rather
+ *   than assuming it, and is also what closes a preset or an assist
+ *   this build has since retired.
  */
 export function migrateGameState(
   state: GameState,
@@ -210,6 +225,12 @@ export function migrateGameState(
     },
     lore: clampLore(migrated.lore),
     vendors: clampVendors(migrated.vendors),
+    // And a sixth time, for how hard the city is: a save from before
+    // difficulty existed has no record at all and gets the authored
+    // figures, and one naming a preset or an assist this build retired
+    // falls back to them rather than quietly scaling something by a
+    // number nobody can see.
+    rules: clampRules(migrated.rules),
     version: GAME_STATE_VERSION,
   };
 }
@@ -219,6 +240,12 @@ export interface NewGameOptions {
   seed?: number;
   /** Fully created character; when absent a default one is generated. */
   character?: CharacterState;
+  /**
+   * What the run is played under. Absent is the documented default —
+   * middle difficulty, every assist off — which is what a run created
+   * outside the wizard (a test, a dev screen) gets.
+   */
+  rules?: RunRules;
 }
 
 export function createNewGame(options: NewGameOptions = {}): GameState {
@@ -244,6 +271,7 @@ export function createNewGame(options: NewGameOptions = {}): GameState {
     reputation: emptyReputation(),
     lore: emptyLore(),
     vendors: emptyVendors(),
+    rules: options.rules ? clampRules(options.rules) : defaultRules(),
     rng: { seed: (options.seed ?? Date.now()) >>> 0 },
   };
 }

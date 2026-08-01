@@ -118,6 +118,12 @@ export {
   tickTimedEffects,
 } from "./effects";
 export {
+  NEUTRAL_TUNING,
+  combatTuning,
+  tunedDamage,
+  tuningFor,
+} from "./tuning";
+export {
   COMBAT_ACTION_KINDS,
   abilityPreviews,
   actionAvailabilities,
@@ -125,6 +131,7 @@ export {
   attackPreview,
   movePreview,
   outcomesFor,
+  previewFocusId,
   type AbilityPreview,
   type ActionAvailability,
   type ActionBlockReason,
@@ -138,6 +145,7 @@ export {
 export {
   TELEGRAPH_REASONS,
   TELEGRAPH_ROLES,
+  assistedHoverTile,
   resolveTelegraphTiles,
   telegraphField,
   telegraphHover,
@@ -177,6 +185,7 @@ export {
   type CombatEvent,
   type CombatState,
   type CombatStatus,
+  type CombatTuning,
   type CombatWeapon,
   type Combatant,
   type CombatantKind,

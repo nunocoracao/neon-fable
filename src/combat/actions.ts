@@ -33,6 +33,7 @@ import {
   requireCombatant,
 } from "./state";
 import { closeSurgeTurn, openSurgeTurn } from "./surge";
+import { tunedDamage } from "./tuning";
 import {
   CombatError,
   type ChargedAction,
@@ -234,7 +235,17 @@ function doAttack(state: CombatState, targetId: string): CombatState {
   );
   const roll = nextFloat(state.rng);
   const hit = roll.value < chance;
-  const damage = hit ? attackDamage(actor.weapon, attackStat, target.armor) : 0;
+  // The roll decides whether it lands; the fight's tuning decides what
+  // it weighs. In that order, always — which is why a preset cannot
+  // move a single draw (see ./tuning.ts).
+  const damage = hit
+    ? tunedDamage(
+        state,
+        actor,
+        target,
+        attackDamage(actor.weapon, attackStat, target.armor),
+      )
+    : 0;
 
   let next: CombatState = { ...state, rng: roll.state, actionUsed: true };
   const blow = hit
@@ -435,7 +446,9 @@ function doUseAbility(
   // else standing under it. Resolved by the same function the telegraph
   // tinted the tiles with, so the blast catches exactly what was shown.
   for (const caught of abilityImpact(state, actor, ability, target)) {
-    const { damage, stunTurns } = abilityHit(ability.effect, caught.armor);
+    const hit = abilityHit(ability.effect, caught.armor);
+    const damage = tunedDamage(state, actor, caught, hit.damage);
+    const { stunTurns } = hit;
     const blow = damageBody(next, caught.id, damage, stunTurns);
     // One event per body: the log, the floating figures, and the hit
     // reactions all read a blast as the several blows it is.
@@ -512,7 +525,9 @@ function releaseCharge(
   // effect archetype, the floating figure, and the hit reaction all come
   // off these entries, so a released charge needs no second UI path.
   for (const body of caught) {
-    const { damage, stunTurns } = abilityHit(ability.effect, body.armor);
+    const hit = abilityHit(ability.effect, body.armor);
+    const damage = tunedDamage(state, actor, body, hit.damage);
+    const { stunTurns } = hit;
     const blow = damageBody(next, body.id, damage, stunTurns);
     next = pushEvents(
       blow.state,
