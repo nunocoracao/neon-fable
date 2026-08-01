@@ -1,4 +1,4 @@
-import { audio } from "../audio";
+import { audio, musicScene } from "../audio";
 import {
   LORE_PAYOFF,
   LORE_SHARDS,
@@ -42,7 +42,7 @@ export function createCodexScreen(options: {
 
   return {
     mount(root: HTMLElement): void {
-      audio.setMusicContext("menu");
+      audio.setMusicScene(musicScene("menu"));
       container = document.createElement("div");
       container.className = "nf-screen";
 

@@ -1,4 +1,4 @@
-import { audio, type VolumeChannel } from "../audio";
+import { audio, musicScene, type VolumeChannel } from "../audio";
 import { ASSISTS } from "../data/assists";
 import { DIFFICULTIES, requireDifficulty } from "../data/difficulty";
 import type { AssistId } from "../data/assists";
@@ -530,7 +530,7 @@ export function createSettingsScreen(options: { onBack(): void }): Screen {
 
   return {
     mount(root: HTMLElement): void {
-      audio.setMusicContext("menu");
+      audio.setMusicScene(musicScene("menu"));
       container = document.createElement("div");
       container.className = "nf-screen";
       // No run to change from the main menu: the rows set what the

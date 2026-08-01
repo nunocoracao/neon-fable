@@ -1,4 +1,4 @@
-import { audio } from "../audio";
+import { audio, musicScene, themeForMap } from "../audio";
 import {
   HUB_MAP_ID,
   LORE_SHARDS,
@@ -40,6 +40,7 @@ import {
   ENTRY_SPAWN_ID,
   createIsoScene,
   createPixelArtSprites,
+  resolveDayPhase,
   spawnPoint,
   type DayPhaseId,
   type Interactable,
@@ -253,6 +254,18 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   // ./district.ts for the order the three layers land in.
   const { map, newsStrips } = resolveDistrict(session.state, mapId);
 
+  /**
+   * Puts the score where the player is. Called on mount and again
+   * whenever a story beat moves the hour, because the hour is one of the
+   * three things the score reads — the other two being the district and
+   * whether anyone is shooting.
+   */
+  function playDistrictMusic(): void {
+    audio.setMusicScene(
+      musicScene(themeForMap(map), "explore", resolveDayPhase(map, storyPhase)),
+    );
+  }
+
   function refreshHud(): void {
     if (!hudStatus) return;
     const { player, credits } = session.state;
@@ -372,6 +385,8 @@ export function createGameScreen(options: GameScreenOptions): Screen {
           if (!node.dayPhase || node.dayPhase === storyPhase) return;
           storyPhase = node.dayPhase;
           scene?.setDayPhase(storyPhase);
+          // The hour moved: the same theme, filtered and paced for it.
+          playDistrictMusic();
         },
         onCombat(encounterId, resumeNodeId) {
           closeOverlay();
@@ -1055,7 +1070,10 @@ export function createGameScreen(options: GameScreenOptions): Screen {
 
       // Map transition (and post-combat return): record location + autosave.
       enterMap(session, mapId);
-      audio.setMusicContext("hub");
+      // The district's own theme, at the hour the district is playing
+      // at. A map transition remounts this screen, so crossing into
+      // another district crossfades the score with it.
+      playDistrictMusic();
 
       // Mounted first so every panel, the HUD, and the minimap sit over
       // the chatter rather than under it.

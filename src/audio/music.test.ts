@@ -1,106 +1,119 @@
 import { describe, expect, it } from "vitest";
-import {
-  MUSIC_CONTEXT_IDS,
-  MUSIC_PATTERNS,
-  collectDue,
-  createSequencer,
-} from "./music";
+import type { MusicLayerPattern, MusicPhaseParams } from "../data/music";
+import { collectDue, createSequencer, layerGrid, voiceSpec } from "./music";
 
-describe("music patterns", () => {
-  it("defines a pattern for every context", () => {
-    for (const id of MUSIC_CONTEXT_IDS) {
-      const pattern = MUSIC_PATTERNS[id];
-      expect(pattern, id).toBeDefined();
-      expect(pattern.id, id).toBe(id);
-      expect(pattern.stepSeconds, id).toBeGreaterThan(0);
-      expect(pattern.stepCount, id).toBeGreaterThan(0);
-      expect(pattern.notes.length, id).toBeGreaterThan(0);
-    }
+const NEUTRAL: MusicPhaseParams = {
+  tempoScale: 1,
+  filterScale: 1,
+  gainScale: 1,
+};
+
+/** Two bars of four steps: a downbeat, an offbeat, and a held note. */
+const pattern: MusicLayerPattern = {
+  stepsPerBar: 4,
+  bars: 2,
+  notes: [
+    { step: 0, freq: 110, steps: 4, gain: 0.2, wave: "sine", filterFreq: 800 },
+    { step: 2, freq: 220, steps: 1, gain: 0.1, wave: "triangle", filterFreq: 1600 },
+    { step: 5, freq: 330, steps: 1, gain: 0.1, wave: "square", filterFreq: 1600 },
+  ],
+};
+
+function spec(secondsPerBar = 2, params: MusicPhaseParams = NEUTRAL) {
+  return voiceSpec("theme:night:base", pattern, secondsPerBar, params);
+}
+
+describe("layerGrid", () => {
+  it("divides the bar by the layer's own resolution", () => {
+    expect(layerGrid(pattern, 2, 1)).toEqual({ stepSeconds: 0.5, stepCount: 8 });
   });
 
-  it("keeps every note inside the loop with sane values", () => {
-    for (const id of MUSIC_CONTEXT_IDS) {
-      const pattern = MUSIC_PATTERNS[id];
-      for (const note of pattern.notes) {
-        expect(note.step, id).toBeGreaterThanOrEqual(0);
-        expect(note.step, id).toBeLessThan(pattern.stepCount);
-        expect(Number.isInteger(note.step), id).toBe(true);
-        expect(note.steps, id).toBeGreaterThanOrEqual(1);
-        expect(note.freq, id).toBeGreaterThan(0);
-        expect(note.gain, id).toBeGreaterThan(0);
-        expect(note.gain, id).toBeLessThanOrEqual(1);
-      }
-    }
+  it("puts layers of different resolutions on the same bar lines", () => {
+    const fast: MusicLayerPattern = { ...pattern, stepsPerBar: 16, bars: 1 };
+    const slow = layerGrid(pattern, 3.2, 1);
+    const drive = layerGrid(fast, 3.2, 1);
+    expect(slow.stepSeconds * slow.stepCount).toBeCloseTo(3.2 * 2);
+    expect(drive.stepSeconds * drive.stepCount).toBeCloseTo(3.2);
+    // Both loops are whole numbers of the same bar.
+    expect((slow.stepSeconds * slow.stepCount) % 3.2).toBeCloseTo(0);
+  });
+
+  it("scales the whole grid by the hour's tempo", () => {
+    const slower = layerGrid(pattern, 2, 1.5);
+    expect(slower.stepSeconds).toBeCloseTo(0.75);
+    expect(slower.stepCount).toBe(8);
   });
 });
 
 describe("sequencer", () => {
   it("starts at step 0 at the given time", () => {
-    const state = createSequencer("combat", 12.5);
-    expect(state).toEqual({ patternId: "combat", step: 0, nextStepTime: 12.5 });
+    expect(createSequencer(12.5)).toEqual({ step: 0, nextStepTime: 12.5 });
   });
 
   it("emits nothing before the next step time", () => {
-    const state = createSequencer("combat", 10);
-    const result = collectDue(state, 9.99);
+    const state = createSequencer(10);
+    const result = collectDue(spec(), state, 9.99);
     expect(result.notes).toEqual([]);
     expect(result.state).toEqual(state);
   });
 
-  it("steps deterministically with correct absolute times", () => {
-    const pattern = MUSIC_PATTERNS.combat;
+  it("resolves steps to absolute times, deterministically", () => {
+    const voice = spec();
     const start = 100;
-    const state = createSequencer("combat", start);
-    // Horizon just past step 4 → emits steps 0..4.
-    const until = start + pattern.stepSeconds * 4 + 0.001;
-    const result = collectDue(state, until);
+    const state = createSequencer(start);
+    // Horizon just past step 2 → emits steps 0..2.
+    const result = collectDue(voice, state, start + 0.5 * 2 + 0.001);
 
-    expect(result.state.step).toBe(5);
-    expect(result.state.nextStepTime).toBeCloseTo(
-      start + pattern.stepSeconds * 5,
-    );
-    const expected = pattern.notes
-      .filter((note) => note.step <= 4)
-      .map((note) => ({
-        time: start + note.step * pattern.stepSeconds,
-        freq: note.freq,
-        duration: note.steps * pattern.stepSeconds,
-        gain: note.gain,
-        wave: note.wave,
-        ...(note.filterFreq !== undefined ? { filterFreq: note.filterFreq } : {}),
-      }));
-    expect(result.notes).toHaveLength(expected.length);
-    for (const note of expected) {
-      expect(result.notes).toContainEqual(note);
-    }
+    expect(result.state.step).toBe(3);
+    expect(result.state.nextStepTime).toBeCloseTo(start + 1.5);
+    expect(result.notes).toEqual([
+      {
+        layer: "theme:night:base",
+        time: 100,
+        freq: 110,
+        duration: 2,
+        gain: 0.2,
+        wave: "sine",
+        filterFreq: 800,
+      },
+      {
+        layer: "theme:night:base",
+        time: 101,
+        freq: 220,
+        duration: 0.5,
+        gain: 0.1,
+        wave: "triangle",
+        filterFreq: 1600,
+      },
+    ]);
     // Same inputs, same outputs.
-    expect(collectDue(state, until)).toEqual(result);
+    expect(collectDue(voice, state, start + 1.001)).toEqual(result);
   });
 
   it("wraps around the loop", () => {
-    const pattern = MUSIC_PATTERNS.combat;
-    const state = createSequencer("combat", 0);
-    const oneLoopAndOne = pattern.stepSeconds * (pattern.stepCount + 1) + 0.001;
-    const result = collectDue(state, oneLoopAndOne);
+    const voice = spec();
+    const loop = voice.grid.stepSeconds * voice.grid.stepCount;
+    const result = collectDue(voice, createSequencer(0), loop + 0.5 + 0.001);
     expect(result.state.step).toBe(2);
-    // Step 0 notes appear twice: once per loop pass.
-    const loop = pattern.stepSeconds * pattern.stepCount;
-    const step0Count = pattern.notes.filter((n) => n.step === 0).length;
-    const emittedAtStep0 = result.notes.filter((n) => {
-      const offset = n.time % loop;
-      return Math.min(offset, loop - offset) < 1e-6;
-    });
-    expect(emittedAtStep0).toHaveLength(step0Count * 2);
+    // The downbeat has come round a second time.
+    const downbeats = result.notes.filter((n) => n.freq === 110);
+    expect(downbeats.map((n) => n.time)).toEqual([0, loop]);
   });
 
-  it("advances every pattern through a full loop without error", () => {
-    for (const id of MUSIC_CONTEXT_IDS) {
-      const pattern = MUSIC_PATTERNS[id];
-      const state = createSequencer(id, 0);
-      const horizon = pattern.stepSeconds * pattern.stepCount - 0.001;
-      const result = collectDue(state, horizon);
-      expect(result.state.step, id).toBe(0);
-      expect(result.notes.length, id).toBeGreaterThan(0);
+  it("carries the day phase's colouring into every note", () => {
+    const voice = spec(2, { tempoScale: 1, filterScale: 0.5, gainScale: 0.5 });
+    const result = collectDue(voice, createSequencer(0), 0.001);
+    expect(result.notes).toHaveLength(1);
+    expect(result.notes[0]?.gain).toBeCloseTo(0.1);
+    expect(result.notes[0]?.filterFreq).toBeCloseTo(400);
+  });
+
+  it("tags every note with the voice's mixer channel", () => {
+    const voice = voiceSpec("quays:late:tension", pattern, 2, NEUTRAL);
+    const result = collectDue(voice, createSequencer(0), 4);
+    expect(result.notes.length).toBeGreaterThan(0);
+    for (const note of result.notes) {
+      expect(note.layer).toBe("quays:late:tension");
     }
   });
 });

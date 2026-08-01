@@ -453,6 +453,31 @@ export const DAY_PHASES: readonly DayPhaseId[] = ["dusk", "night", "late"];
 /** The phase the art is authored at; what an undeclared map plays under. */
 export const DEFAULT_DAY_PHASE: DayPhaseId = "night";
 
+/**
+ * Which theme of the score a map plays. Declared here beside weather and
+ * the hour because it is the same kind of fact — what this place sounds
+ * and looks like — but the themes themselves are content and live in
+ * src/data/music.ts, which is also where the union is checked for
+ * completeness. The engine that plays them is src/audio.
+ *
+ * Arenas declare one too: a fight keeps the district theme of the place
+ * it started in (src/ui/combatScreen.ts), and the arena's own
+ * declaration is the fallback when there is no such place — a fight
+ * resumed straight off a reload, say.
+ */
+export type MusicThemeId =
+  | "menu"
+  | "hub"
+  | "greywater"
+  | "ventworks"
+  | "spire"
+  | "market"
+  | "quays"
+  | "ending";
+
+/** What a map with nothing declared plays: the hub's theme. */
+export const DEFAULT_MUSIC_THEME: MusicThemeId = "hub";
+
 export interface IsoMap {
   id: string;
   name: string;
@@ -473,6 +498,8 @@ export interface IsoMap {
   weather?: WeatherId;
   /** Hour the map plays at; absent means night. Visual only. */
   dayPhase?: DayPhaseId;
+  /** Theme of the score this place plays; absent means the hub's. */
+  music?: MusicThemeId;
 }
 
 /** A legend entry for authoring maps as compact character rows. */

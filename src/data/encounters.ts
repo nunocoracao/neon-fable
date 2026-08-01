@@ -72,6 +72,17 @@ export interface Encounter {
   rewards: EncounterRewards;
   /** Whether the flee action is allowed; defaults to true. */
   fleeable?: boolean;
+  /**
+   * A named antagonist's fight, rather than a fight with some bodies in
+   * it. Nothing in the combat rules reads this — it is a presentation
+   * fact, and the one thing that reads it is the score, which puts an
+   * extra layer over the district's combat mix for these
+   * (src/audio/score.ts). Kept as an authored field rather than derived
+   * from the roster because "this is the set piece" is a writing
+   * decision: a two-tile chassis is not automatically a boss and a
+   * one-tile antagonist is not automatically not.
+   */
+  boss?: boolean;
 }
 
 export const encounters: Encounter[] = [
@@ -425,6 +436,7 @@ export const encounters: Encounter[] = [
     },
     // A strongroom door does not let you back out of the room.
     fleeable: false,
+    boss: true,
   },
   {
     id: "enc-crown-court",
@@ -438,6 +450,7 @@ export const encounters: Encounter[] = [
       items: [{ itemId: "con-field-kit" }],
     },
     fleeable: false,
+    boss: true,
   },
   {
     id: "enc-crown-auric",
@@ -454,6 +467,7 @@ export const encounters: Encounter[] = [
       items: [{ itemId: "con-trauma-patch", quantity: 2 }],
     },
     fleeable: false,
+    boss: true,
   },
   {
     id: "enc-crown-alone",
@@ -470,6 +484,7 @@ export const encounters: Encounter[] = [
       items: [{ itemId: "con-field-kit" }],
     },
     fleeable: false,
+    boss: true,
   },
 ];
 

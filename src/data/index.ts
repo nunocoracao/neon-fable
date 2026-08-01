@@ -347,6 +347,23 @@ export {
 } from "./economy";
 export { HUB_MAP_ID, getMap, maps, requireMap } from "./maps";
 export {
+  DAY_PHASE_MUSIC,
+  MUSIC_LAYER_ROLES,
+  MUSIC_THEMES,
+  MUSIC_THEME_IDS,
+  SHARED_LAYERS,
+  SHARED_LAYER_ROLES,
+  THEME_LAYER_ROLES,
+  themeLayer,
+  type MusicLayerPattern,
+  type MusicLayerRole,
+  type MusicPhaseParams,
+  type MusicTheme,
+  type PatternNote,
+  type SharedLayerRole,
+  type ThemeLayerRole,
+} from "./music";
+export {
   dressMap,
   mapDressings,
   type InteractableDressing,
