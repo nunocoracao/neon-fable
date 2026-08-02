@@ -2054,6 +2054,30 @@ body::after {
   color: var(--nf-ink-dim);
   background: rgba(18, 18, 31, 0.85);
   border: 2px solid var(--nf-border);
+  max-width: 34rem;
+}
+
+/*
+ * Dev frame-time HUD (?dev only). Opposite corner from the explore
+ * strip, monospace and tabular so the digits stop jittering while the
+ * numbers move, and inert to the pointer — it reports on the scene, it
+ * never stands in front of it.
+ */
+.nf-perf-hud {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  font-family: "Courier New", monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+  color: var(--nf-accent);
+  background: rgba(8, 8, 16, 0.88);
+  border: 2px solid var(--nf-border);
+  pointer-events: none;
 }
 
 /* --- Combat --- */
