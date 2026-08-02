@@ -10,19 +10,29 @@ import {
   SAVE_SLOTS,
   SAVE_THUMBNAIL_MAX_BYTES,
   SaveError,
-  createMemoryStorage,
   deleteSave,
+  hasBackup,
   listSaves,
   loadGame,
   mostRecentSave,
+  readRecovery,
   readSaveSlot,
   readSaveSlots,
   renameSave,
+  restoreBackup,
   sanitizeSaveLabel,
   sanitizeThumbnail,
   saveGame,
+  stashRecovery,
   summarizeRun,
+  takeRecovery,
 } from "./save";
+import {
+  StorageWriteError,
+  createMemoryStorage,
+  type SaveStorage,
+} from "./storage";
+import { createBudgetStorage } from "./testSupport";
 
 /**
  * A verbatim mid-run v6 save state, exactly as the game wrote it before
@@ -691,5 +701,286 @@ describe("renaming a save", () => {
     } catch (error) {
       expect((error as SaveError).code).toBe("corrupt");
     }
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Resilience
+ * ------------------------------------------------------------------ */
+
+const SLOT1 = "neon-fable:save:slot1";
+const SLOT1_BACKUP = "neon-fable:save:slot1:backup";
+
+/** Reads a stored blob back as an object, for tests that tamper. */
+function storedEnvelope(
+  storage: SaveStorage,
+  key = SLOT1,
+): Record<string, unknown> {
+  return JSON.parse(storage.getItem(key)!) as Record<string, unknown>;
+}
+
+function saveErrorFrom(run: () => unknown): SaveError {
+  try {
+    run();
+  } catch (error) {
+    if (error instanceof SaveError) return error;
+    throw error;
+  }
+  throw new Error("expected a SaveError");
+}
+
+describe("save integrity", () => {
+  it("stamps a checksum and loads back what it wrote", () => {
+    const storage = createMemoryStorage();
+    const state = makeState();
+    saveGame(state, "slot1", storage, 1);
+
+    expect(storedEnvelope(storage).checksum).toMatch(/^fnv1a32:[0-9a-f]{8}$/);
+    expect(loadGame("slot1", storage)).toEqual(state);
+  });
+
+  it("refuses a save whose state was edited under its stamp", () => {
+    const storage = createMemoryStorage();
+    saveGame(makeState(), "slot1", storage, 1);
+
+    const envelope = storedEnvelope(storage);
+    (envelope.state as Record<string, unknown>).credits = 9_999_999;
+    storage.setItem(SLOT1, JSON.stringify(envelope));
+
+    const error = saveErrorFrom(() => loadGame("slot1", storage));
+    expect(error.code).toBe("checksum");
+    expect(error.detail).toMatch(/does not match/);
+    expect(readSaveSlot("slot1", storage).status).toBe("unreadable");
+  });
+
+  it("still loads a save written before checksums existed", () => {
+    const storage = createMemoryStorage();
+    saveGame(makeState(), "slot1", storage, 1);
+    const envelope = storedEnvelope(storage);
+    delete envelope.checksum;
+    storage.setItem(SLOT1, JSON.stringify(envelope));
+
+    expect(loadGame("slot1", storage).credits).toBe(makeState().credits);
+  });
+
+  it("does not call a stamp from an algorithm it lacks a mismatch", () => {
+    const storage = createMemoryStorage();
+    saveGame(makeState(), "slot1", storage, 1);
+    const envelope = storedEnvelope(storage);
+    envelope.checksum = "sha512:something-a-later-build-wrote";
+    storage.setItem(SLOT1, JSON.stringify(envelope));
+
+    expect(readSaveSlot("slot1", storage).status).toBe("ready");
+  });
+
+  it("reports a malformed state with the path that is wrong", () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      SLOT1,
+      JSON.stringify({
+        version: GAME_STATE_VERSION,
+        savedAt: 5,
+        state: { ...makeState(), rng: "not an object" },
+      }),
+    );
+    const error = saveErrorFrom(() => loadGame("slot1", storage));
+    expect(error.code).toBe("corrupt");
+    expect(error.detail).toBe("state.rng (expected an object, got a string)");
+  });
+
+  it("leaves a save whose migration fails exactly as it found it", () => {
+    const storage = createMemoryStorage();
+    // A v6 save the right shape all the way down, holding one carried
+    // item that is nothing at all — enough to break the pass that
+    // reconciles fitted parts against the catalog.
+    const blob = JSON.stringify({
+      version: 6,
+      savedAt: 9,
+      state: { ...V6_SAVE_STATE, inventory: { stacks: [null] } },
+    });
+    storage.setItem(SLOT1, blob);
+
+    const error = saveErrorFrom(() => loadGame("slot1", storage));
+    expect(error.code).toBe("migration-failed");
+    expect(error.detail).toBe("normalize");
+    expect(error.message).toMatch(/could not be updated/);
+    // The whole point: the blob a later build might rescue is still
+    // there, byte for byte.
+    expect(storage.getItem(SLOT1)).toBe(blob);
+  });
+});
+
+describe("backups", () => {
+  it("keeps the generation before each overwrite and restores it", () => {
+    const storage = createMemoryStorage();
+    const first = makeState();
+    saveGame(first, "slot1", storage, 1);
+    expect(hasBackup("slot1", storage)).toBe(false);
+
+    const second = { ...first, credits: 4 };
+    saveGame(second, "slot1", storage, 2);
+    expect(hasBackup("slot1", storage)).toBe(true);
+    expect(loadGame("slot1", storage).credits).toBe(4);
+
+    expect(restoreBackup("slot1", storage)).toEqual(first);
+    expect(loadGame("slot1", storage)).toEqual(first);
+  });
+
+  it("offers the backup on the card of a slot that rotted", () => {
+    const storage = createMemoryStorage();
+    saveGame(makeState(), "slot1", storage, 1);
+    saveGame({ ...makeState(), credits: 7 }, "slot1", storage, 2);
+    storage.setItem(SLOT1, "{ not json at all");
+
+    const record = readSaveSlot("slot1", storage);
+    expect(record.status).toBe("unreadable");
+    expect(record.hasBackup).toBe(true);
+    expect(restoreBackup("slot1", storage).credits).toBe(
+      makeState().credits,
+    );
+    expect(readSaveSlot("slot1", storage).status).toBe("ready");
+  });
+
+  it("never backs up a blob that was already broken", () => {
+    const storage = createMemoryStorage();
+    saveGame(makeState(), "slot1", storage, 1);
+    saveGame({ ...makeState(), credits: 3 }, "slot1", storage, 2);
+    const goodBackup = storage.getItem(SLOT1_BACKUP);
+
+    // The slot rots, then is saved over: the good generation must
+    // survive rather than be replaced by the rot.
+    storage.setItem(SLOT1, "{{{");
+    saveGame({ ...makeState(), credits: 5 }, "slot1", storage, 3);
+    expect(storage.getItem(SLOT1_BACKUP)).toBe(goodBackup);
+  });
+
+  it("leaves the slot alone when the backup is unusable too", () => {
+    const storage = createMemoryStorage();
+    saveGame(makeState(), "slot1", storage, 1);
+    storage.setItem(SLOT1_BACKUP, "not a save either");
+    const before = storage.getItem(SLOT1);
+
+    const error = saveErrorFrom(() => restoreBackup("slot1", storage));
+    expect(error.code).toBe("corrupt");
+    expect(storage.getItem(SLOT1)).toBe(before);
+    expect(hasBackup("slot1", storage)).toBe(false);
+  });
+
+  it("reports a slot with no backup rather than inventing one", () => {
+    const storage = createMemoryStorage();
+    expect(hasBackup("slot1", storage)).toBe(false);
+    expect(saveErrorFrom(() => restoreBackup("slot1", storage)).code).toBe(
+      "missing",
+    );
+  });
+
+  it("throws the backup away with the save, so deleting frees the room", () => {
+    const storage = createMemoryStorage();
+    saveGame(makeState(), "slot1", storage, 1);
+    saveGame(makeState(), "slot1", storage, 2);
+    expect(hasBackup("slot1", storage)).toBe(true);
+
+    deleteSave("slot1", storage);
+    expect(storage.getItem(SLOT1)).toBeNull();
+    expect(storage.getItem(SLOT1_BACKUP)).toBeNull();
+  });
+});
+
+describe("when storage is full", () => {
+  it("refuses the save with guidance instead of eating the old one", () => {
+    const storage = createBudgetStorage(0);
+    const written = saveGame(makeState(), "slot1", createMemoryStorage(), 1);
+    expect(written.slot).toBe("slot1");
+
+    let caught: StorageWriteError | null = null;
+    try {
+      saveGame(makeState(), "slot1", storage, 1);
+    } catch (error) {
+      caught = error as StorageWriteError;
+    }
+    expect(caught).toBeInstanceOf(StorageWriteError);
+    expect(caught?.code).toBe("quota");
+    expect(caught?.guidance).toMatch(/Save screen/);
+  });
+
+  it("keeps the last good save loadable after a failed overwrite", () => {
+    const roomy = createMemoryStorage();
+    const first = makeState();
+    saveGame(first, "slot1", roomy, 1);
+    const blob = roomy.getItem(SLOT1)!;
+
+    // A storage with room for that save and nothing more.
+    const storage = createBudgetStorage((SLOT1.length + blob.length) * 2);
+    storage.setItem(SLOT1, blob);
+
+    const bigger = { ...first, flags: { ...first.flags, pad: "x".repeat(5000) } };
+    expect(() => saveGame(bigger, "slot1", storage, 2)).toThrow(
+      StorageWriteError,
+    );
+    expect(loadGame("slot1", storage)).toEqual(first);
+  });
+
+  it("names the biggest slots when there is no room", () => {
+    const roomy = createMemoryStorage();
+    saveGame(makeState(), "slot2", roomy, 1);
+    const blob = roomy.getItem("neon-fable:save:slot2")!;
+
+    const storage = createBudgetStorage(blob.length * 2 + 200);
+    storage.setItem("neon-fable:save:slot2", blob);
+
+    let caught: StorageWriteError | null = null;
+    try {
+      saveGame(makeState(), "slot1", storage, 2);
+    } catch (error) {
+      caught = error as StorageWriteError;
+    }
+    expect(caught?.guidance).toMatch(/Slot 2 \(/);
+  });
+
+  it("writes the save even when there is no room for its backup", () => {
+    const roomy = createMemoryStorage();
+    const first = makeState();
+    saveGame(first, "slot1", roomy, 1);
+    const blob = roomy.getItem(SLOT1)!;
+
+    // Room for the save and a little slack: a second copy of it — the
+    // backup — cannot fit, and neither can the write probe.
+    const storage = createBudgetStorage((SLOT1.length + blob.length) * 2 + 200);
+    storage.setItem(SLOT1, blob);
+
+    const second = { ...first, credits: 11 };
+    expect(() => saveGame(second, "slot1", storage, 2)).not.toThrow();
+    expect(loadGame("slot1", storage).credits).toBe(11);
+    expect(hasBackup("slot1", storage)).toBe(false);
+  });
+});
+
+describe("the recovery stash", () => {
+  it("stashes a run and gives it back once", () => {
+    const storage = createMemoryStorage();
+    const state = makeState();
+    expect(stashRecovery(state, storage, 5)).toBe(true);
+    expect(readRecovery(storage)?.run?.characterName).toBe("Vex");
+
+    expect(takeRecovery(storage)).toEqual(state);
+    expect(readRecovery(storage)).toBeNull();
+  });
+
+  it("stays out of the slot list and the continue candidates", () => {
+    const storage = createMemoryStorage();
+    stashRecovery(makeState(), storage, 9_999_999_999_999);
+    expect(readSaveSlots(storage).map((r) => r.slot)).toEqual([...SAVE_SLOTS]);
+    expect(listSaves(storage)).toEqual([]);
+  });
+
+  it("reports failure rather than throwing out of a crash handler", () => {
+    expect(stashRecovery(makeState(), createBudgetStorage(0), 1)).toBe(false);
+  });
+
+  it("keeps no backup generation of its own", () => {
+    const storage = createMemoryStorage();
+    stashRecovery(makeState(), storage, 1);
+    stashRecovery(makeState(), storage, 2);
+    expect(storage.getItem("neon-fable:save:recovery:backup")).toBeNull();
   });
 });
