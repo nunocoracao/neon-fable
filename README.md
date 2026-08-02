@@ -131,6 +131,18 @@ entry that drops you on the hub map without a character).
   did. After the ending, an epilogue screen tells you
   what became of each faction and ally; a finished save reopens to that
   epilogue.
+- **Settings** — one panel, from the main menu or from the pause menu
+  (`Esc`). **Graphics & Comfort** holds every switch about how the game
+  looks and how much of it moves: the motion master switch (which
+  follows your device by default and can be overridden either way), a
+  colourblind-assist palette for every marked tile and highlight, a
+  larger interface text size, and the individual toggles for the neon
+  glow, weather, the city's set pieces, street chatter, the camera zoom
+  and combat camera, screen shake, and the minimap. Nothing in the
+  section changes what happens or how hard anything hits, everything
+  applies as you pick it, and one control puts the whole section back.
+  Difficulty, the assists, the mixer, and text speed live on the same
+  panel and are left alone by that reset.
 
 ## Layout
 
@@ -253,6 +265,34 @@ plus content from `src/data/`); rendering and DOM code stay thin.
   panels. A mount error shows a crash notice instead of a blank page.
   Missing content ids log `console.error` and degrade (drop the fight,
   fall back to the hub map).
+- **Settings** (`src/settings/`) — device preferences, in their own
+  `localStorage` record, versioned by `SETTINGS_VERSION` and migrated
+  field-tolerantly (old payloads never fail to load; a missing field
+  takes its documented default). The **Graphics & Comfort** section of
+  the panel is described as data in `src/ui/graphicsModel.ts` — groups,
+  labels, plain-language blurbs, and a pure read/write pair per control
+  — and `settingsScreen.ts` renders that description; adding a visual
+  switch is adding a table entry and a field. `GRAPHICS_SETTING_KEYS`
+  is the same list from the record's side, and is what the section's
+  reset control restores. Three of the switches reach past the record:
+  - **Motion** is a three-position preference (`system` / `full` /
+    `reduced`), not a boolean. `reducedMotionActive()` in
+    `src/settings/index.ts` is the *only* selector anything is allowed
+    to ask — canvas loops call it, and the CSS kill switch is driven by
+    the class it resolves to rather than by a media query of its own,
+    so an explicit "full" really is full on a machine set system-wide
+    to reduce. `src/settings/comfort.test.ts` sweeps every source file
+    to keep the selector single.
+  - **Marker colours** is one id resolving to two palettes — the
+    telegraph tint table (`src/iso/telegraphPalette.ts`) and the
+    interactable outline table (`src/iso/affordance.ts`), both keyed by
+    palette id with a fallback. Every mark laid on the ground, in the
+    arena and on the street, takes its colour from those tables, so the
+    colourblind-assist option repaints the whole ground layer and the
+    painting code branches nowhere.
+  - **Interface text** scales the root font size through the
+    `--nf-text-scale` CSS variable; every panel, label, and HUD readout
+    is sized in `rem`, so one variable moves all of them together.
 
 ## Authoring content
 
@@ -504,8 +544,10 @@ crowd, so occlusion needs no special case — the hub's overline runs on
 row `-1` and that alone is what makes it pass behind the north terrace.
 A track row may sit off the grid for exactly that reason. Reduced motion
 withholds the train and the steam (a set piece frozen mid-flight reads as
-a bug) and leaves the drones parked. Nothing here touches walkability,
-routing, or combat, and `maps.test.ts` pins that.
+a bug) and leaves the drones parked; the **Set pieces** setting takes
+them away outright, which is a viaduct with nothing on it rather than a
+train drawn parked. Nothing here touches walkability, routing, or
+combat, and `maps.test.ts` pins that.
 
 Interiors (the Auric Spire's two floors) are authored the same way with
 three conventions of their own, linted in `maps.test.ts`. They never
