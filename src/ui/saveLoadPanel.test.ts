@@ -11,6 +11,7 @@ import {
 } from "../state";
 import { createSaveLoadPanel } from "./saveLoad";
 import { captureSaveExtras, captureSceneThumb, sceneCanvas } from "./saveThumbs";
+import { noteStorageProblem, takeStorageProblem } from "./session";
 import type { OverlayHandle } from "./overlay";
 
 /**
@@ -94,6 +95,8 @@ function type(selector: string, value: string): HTMLInputElement {
 
 beforeEach(() => {
   document.body.innerHTML = "";
+  // The problem channel is module-level, like the storage it reports on.
+  takeStorageProblem();
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
     () => anything() as CanvasRenderingContext2D,
   );
@@ -267,5 +270,108 @@ describe("thumbnail capture", () => {
       extras.thumbnails.portrait === null ||
         extras.thumbnails.portrait.startsWith("data:image/"),
     ).toBe(true);
+  });
+});
+
+describe("recovering a broken slot", () => {
+  /** A slot with a good backup behind a blob that has been ruined. */
+  function slotWithBackup(storage: SaveStorage, ruin: string): void {
+    saveGame(runState("Vex", 1), "slot1", storage, 1000);
+    saveGame(runState("Vex", 2), "slot1", storage, 2000);
+    storage.setItem("neon-fable:save:slot1", ruin);
+  }
+
+  it("offers the backup on a card that cannot be read, and restores it", () => {
+    const storage = createMemoryStorage();
+    slotWithBackup(storage, "{ not json at all");
+    openPanel(storage);
+
+    expect(card(0).textContent).toMatch(/backup from before it was written/);
+    expect(hasButton(card(0), "Restore backup")).toBe(true);
+
+    clickIn(card(0), "Restore backup");
+    expect(document.querySelector(".nf-message")?.textContent).toMatch(
+      /restored from the save before it/,
+    );
+    expect(readSaveSlot("slot1", storage).status).toBe("ready");
+    clickIn(card(0), "Load");
+    expect(loaded?.player.name).toBe("Vex");
+  });
+
+  it("offers it for a save that failed its checksum too", () => {
+    const storage = createMemoryStorage();
+    const good = { ...runState("Vex", 1) };
+    saveGame(good, "slot1", storage, 1000);
+    saveGame({ ...good, credits: 3 }, "slot1", storage, 2000);
+    const envelope = JSON.parse(storage.getItem("neon-fable:save:slot1")!);
+    envelope.state.credits = 99_999;
+    storage.setItem("neon-fable:save:slot1", JSON.stringify(envelope));
+
+    openPanel(storage);
+    expect(card(0).textContent).toMatch(/changed after it was written/);
+    expect(hasButton(card(0), "Restore backup")).toBe(true);
+    // And cannot be renamed, which would restamp it as sound.
+    expect(hasButton(card(0), "Name")).toBe(false);
+  });
+
+  it("does not offer a backup that is not there", () => {
+    const storage = createMemoryStorage();
+    saveGame(runState("Vex", 1), "slot1", storage, 1000);
+    storage.setItem("neon-fable:save:slot1", "{ ruined");
+    openPanel(storage);
+
+    expect(hasButton(card(0), "Restore backup")).toBe(false);
+    expect(card(0).textContent).toMatch(/Everything else is fine/);
+  });
+
+  it("keeps offering the backup after a delete takes the whole slot", () => {
+    const storage = createMemoryStorage();
+    slotWithBackup(storage, "{ ruined");
+    openPanel(storage);
+    clickIn(card(0), "Delete");
+    clickIn(card(0), "Confirm delete");
+
+    expect(card(0).textContent).toMatch(/Empty/);
+    expect(storage.getItem("neon-fable:save:slot1:backup")).toBeNull();
+  });
+});
+
+describe("when storage is full", () => {
+  /** A storage that has run out of room, whatever is asked of it. */
+  function fullStorage(seed: SaveStorage): SaveStorage {
+    return {
+      getItem: (key) => seed.getItem(key),
+      setItem() {
+        const error = new Error("The quota has been exceeded.");
+        error.name = "QuotaExceededError";
+        throw error;
+      },
+      removeItem: (key) => seed.removeItem(key),
+    };
+  }
+
+  it("says what to delete instead of failing quietly", () => {
+    const seed = createMemoryStorage();
+    saveGame(runState("Vex", 1), "slot2", seed, 1000);
+    openPanel(fullStorage(seed));
+
+    clickIn(card(0), "Save");
+    const message = document.querySelector(".nf-message");
+    expect(message?.className).toMatch(/nf-error/);
+    expect(message?.textContent).toMatch(/storage for this game is full/i);
+    expect(message?.textContent).toMatch(/Slot 2/);
+  });
+
+  it("opens with the autosave failure it was told about", () => {
+    const seed = createMemoryStorage();
+    noteStorageProblem("The autosave could not be written. Delete something.");
+    openPanel(seed);
+    expect(document.querySelector(".nf-message")?.textContent).toMatch(
+      /autosave could not be written/,
+    );
+
+    // And says it once: reopening the panel is not a second warning.
+    openPanel(seed);
+    expect(document.querySelector(".nf-message")?.textContent).toBe("");
   });
 });

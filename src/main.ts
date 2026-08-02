@@ -2,7 +2,12 @@ import { audio, installAutoUnlock, installFocusDucking } from "./audio";
 // Importing the settings store applies persisted preferences (reduced
 // motion class, text speed) before the first screen mounts.
 import "./settings";
-import { initScreenRouter, setFallbackScreen, showScreen } from "./ui/screen";
+import {
+  initScreenRouter,
+  installErrorBoundary,
+  setFallbackScreen,
+  showScreen,
+} from "./ui/screen";
 import { createMainMenuScreen } from "./ui/mainMenu";
 
 const uiRoot = document.getElementById("ui-root");
@@ -35,4 +40,8 @@ document.addEventListener(
 
 initScreenRouter(uiRoot);
 setFallbackScreen(createMainMenuScreen);
+// Anything that escapes a handler or a promise lands on the crash
+// screen with the run stashed, rather than on a page that has stopped
+// responding with no explanation.
+installErrorBoundary();
 showScreen(createMainMenuScreen());

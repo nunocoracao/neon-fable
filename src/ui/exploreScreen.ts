@@ -31,6 +31,7 @@ export function createExploreScreen(options: ExploreScreenOptions): Screen {
   let root: HTMLElement | null = null;
 
   return {
+    name: "explore",
     mount(mountRoot: HTMLElement): void {
       root = mountRoot;
       // Let clicks fall through the overlay to the iso canvas.

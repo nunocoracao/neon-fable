@@ -571,6 +571,7 @@ export function createSettingsScreen(options: { onBack(): void }): Screen {
   }
 
   return {
+    name: "settings",
     mount(root: HTMLElement): void {
       audio.setMusicScene(musicScene("menu"));
       container = document.createElement("div");

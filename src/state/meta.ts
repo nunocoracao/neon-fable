@@ -6,6 +6,7 @@ import {
 import type { ChapterEnding } from "../data/endings";
 import type { LoreShard } from "../data/lore";
 import type { LoreState } from "./lore";
+import { writeItem } from "./storage";
 import {
   sectionRank,
   threadVariantIds,
@@ -225,15 +226,30 @@ export function loadMetaProgress(storage: MetaStorage | null): MetaProgress {
   }
 }
 
+/**
+ * Writes the meta-progress record, through the same guarded path the
+ * saves take (src/state/storage.ts) so a write that runs out of room
+ * cannot take the existing codex down with it.
+ *
+ * Still best-effort, and deliberately: this record is what the player
+ * has unlocked across runs, not the run they are in, and no failure to
+ * write it is worth interrupting a game for. Returns whether it landed,
+ * and says so in the console when it did not.
+ */
 export function saveMetaProgress(
   meta: MetaProgress,
   storage: MetaStorage | null,
-): void {
-  if (!storage) return;
+): boolean {
+  if (!storage) return false;
   try {
-    storage.setItem(META_PROGRESS_KEY, serializeMetaProgress(meta));
-  } catch {
-    // Quota or privacy-mode failures lose the codex, never the game.
+    writeItem(storage, META_PROGRESS_KEY, serializeMetaProgress(meta));
+    return true;
+  } catch (error) {
+    console.warn(
+      "Meta-progress could not be written:",
+      error instanceof Error ? error.message : error,
+    );
+    return false;
   }
 }
 

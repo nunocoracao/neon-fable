@@ -1192,6 +1192,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
   // --- Screen lifecycle ------------------------------------------------
 
   return {
+    name: "combat",
     mount(mountRoot: HTMLElement): void {
       root = mountRoot;
       root.style.pointerEvents = "none";

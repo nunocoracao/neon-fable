@@ -41,6 +41,7 @@ export function createCodexScreen(options: {
   }
 
   return {
+    name: "codex",
     mount(root: HTMLElement): void {
       audio.setMusicScene(musicScene("menu"));
       container = document.createElement("div");

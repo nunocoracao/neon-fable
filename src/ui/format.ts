@@ -549,6 +549,8 @@ export function slotDisplayName(slot: SaveSlot): string {
       return "Slot 3";
     case "autosave":
       return "Autosave";
+    case "recovery":
+      return "Recovered run";
   }
 }
 
@@ -560,6 +562,10 @@ export function saveErrorMessage(error: SaveError): string {
       return "That save is corrupted and cannot be loaded.";
     case "version-mismatch":
       return "That save comes from an incompatible game version.";
+    case "checksum":
+      return "That save failed its integrity check — something changed it after it was written.";
+    case "migration-failed":
+      return "That save could not be brought up to date for this version of the game.";
   }
 }
 

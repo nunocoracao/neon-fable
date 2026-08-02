@@ -36,6 +36,7 @@ function record(slot: SlotRecord["slot"], patch: Partial<SlotRecord> = {}): Slot
     thumbnails: { portrait: null, scene: null },
     run: null,
     error: null,
+    hasBackup: false,
     ...patch,
   };
 }
@@ -178,7 +179,7 @@ describe("slots that will not read", () => {
         savedAt: 1_700_000_000_000,
         label: "Night before",
         thumbnails: { portrait: PIXEL_PNG, scene: null },
-        error: { code: "corrupt", message: "malformed" },
+        error: { code: "corrupt", message: "malformed", detail: "" },
       }),
       "game",
     );
@@ -207,7 +208,8 @@ describe("slots that will not read", () => {
 describe("saves with no pictures", () => {
   it("leaves both thumbnails null so the screen draws its placeholder", () => {
     const storage = storageWith((store) => {
-      // A v1 save, written before slot metadata existed at all.
+      // A v6 save, written before slot metadata existed at all: every
+      // field that version had, and not one more.
       store.setItem(
         "neon-fable:save:slot1",
         JSON.stringify({
@@ -215,9 +217,18 @@ describe("saves with no pictures", () => {
           savedAt: 777,
           state: {
             version: 6,
-            player: { name: "Sable", backgroundId: "grid-diver" },
+            player: {
+              name: "Sable",
+              backgroundId: "grid-diver",
+              stats: {},
+              equipment: {},
+            },
             flags: {},
             location: "cinder-plaza",
+            inventory: { stacks: [] },
+            credits: 25,
+            pendingEncounterId: null,
+            rng: { seed: 7 },
           },
         }),
       );
@@ -299,11 +310,31 @@ describe("the delete guard", () => {
     expect(deleteConfirmed(card, "")).toBe(true);
   });
 
+  it("carries the precise fault for whoever reports it", () => {
+    const card = slotCard(
+      record("slot1", {
+        status: "unreadable",
+        error: {
+          code: "corrupt",
+          message: "malformed",
+          detail: "state.player.name (expected a string, got nothing)",
+        },
+      }),
+      "game",
+    );
+    // The friendly line stays friendly; the precise one sits under it.
+    expect(card.notice).toMatch(/could not be read/);
+    expect(card.detail).toBe(
+      "state.player.name (expected a string, got nothing)",
+    );
+    expect(slotCard(record("slot2"), "game").detail).toBe("");
+  });
+
   it("takes a click for a slot too broken to say whose run it was", () => {
     const card = slotCard(
       record("slot1", {
         status: "unreadable",
-        error: { code: "corrupt", message: "malformed" },
+        error: { code: "corrupt", message: "malformed", detail: "" },
       }),
       "game",
     );

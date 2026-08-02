@@ -7,6 +7,8 @@ import {
   loadGame,
   loadMetaProgress,
   mostRecentSave,
+  readRecovery,
+  takeRecovery,
   type GameState,
 } from "../state";
 import { createCharacterCreateScreen } from "./characterCreate";
@@ -19,7 +21,7 @@ import { createGameScreen } from "./gameScreen";
 import { createSaveLoadPanel } from "./saveLoad";
 import type { Screen } from "./screen";
 import { showScreen } from "./screen";
-import { createSession } from "./session";
+import { clearActiveSession, createSession } from "./session";
 import { createSettingsScreen } from "./settingsScreen";
 
 /** Title screen: New Game, Continue, Load Game, and Settings. */
@@ -32,8 +34,14 @@ export function createMainMenuScreen(): Screen {
   }
 
   return {
+    name: "main-menu",
+
     mount(root: HTMLElement): void {
       audio.setMusicScene(musicScene("menu"));
+      // Back at the title, no run is in progress — so a crash from here
+      // stashes nothing rather than re-stashing whatever was last
+      // played and burying the stash the player came here to recover.
+      clearActiveSession();
       container = document.createElement("div");
       container.className = "nf-screen";
 
@@ -95,6 +103,27 @@ export function createMainMenuScreen(): Screen {
         }
       });
 
+      // A run the crash boundary stashed. Offered above Load because a
+      // player who has just been dropped out of the game is looking for
+      // exactly one thing, and it is this.
+      const stashed = readRecovery(window.localStorage);
+      let recover: HTMLButtonElement | null = null;
+      if (stashed?.status === "ready") {
+        recover = document.createElement("button");
+        recover.className = "nf-button";
+        recover.textContent = "Recover Run";
+        recover.addEventListener("click", () => {
+          try {
+            startLoadedGame(takeRecovery(window.localStorage));
+          } catch (error) {
+            errorLine.textContent =
+              error instanceof SaveError
+                ? saveErrorMessage(error)
+                : "The stashed run could not be recovered.";
+          }
+        });
+      }
+
       const load = document.createElement("button");
       load.className = "nf-button";
       load.textContent = "Load Game";
@@ -124,7 +153,9 @@ export function createMainMenuScreen(): Screen {
 
       menu.append(newGame);
       if (newGamePlus) menu.append(newGamePlus);
-      menu.append(cont, load, codex, settings);
+      menu.append(cont);
+      if (recover) menu.append(recover);
+      menu.append(load, codex, settings);
       installListNav(menu);
 
       // Dev route into the iso scene without a character; ?dev only.
@@ -184,6 +215,8 @@ function createLoadScreen(): Screen {
   let container: HTMLElement | null = null;
 
   return {
+    name: "load",
+
     mount(root: HTMLElement): void {
       container = document.createElement("div");
       container.className = "nf-screen";

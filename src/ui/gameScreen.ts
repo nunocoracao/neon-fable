@@ -1033,6 +1033,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   }
 
   return {
+    name: "game",
     mount(mountRoot: HTMLElement): void {
       // A finished playthrough reopens to the epilogue, not a dead hub.
       if (session.state.flags["game-complete"] === true) {
