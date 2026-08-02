@@ -18,6 +18,12 @@
   --nf-font-display: "Courier New", ui-monospace, "SF Mono", Menlo, monospace;
   --nf-font-body: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
+  /* Interface text size. Every panel, label, and HUD readout in this
+     file is sized in rem, so scaling the root font size is the whole of
+     the "larger text" comfort option — the settings store writes this
+     one variable and nothing else changes (see src/settings/index.ts). */
+  --nf-text-scale: 1;
+
   /* Hard-edged "sprite" drop shadow used across panels and chrome. */
   --nf-shadow-hard: 4px 4px 0 rgba(5, 6, 12, 0.65);
   --nf-shadow-inset:
@@ -27,6 +33,10 @@
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  font-size: calc(100% * var(--nf-text-scale));
 }
 
 html,
@@ -2946,6 +2956,20 @@ canvas.nf-action-glyph {
   width: min(30rem, calc(100vw - 3rem));
 }
 
+/* Sub-groups inside a section (Graphics & Comfort has four). Quieter
+   than the h3 above them and set off by a rule, so the grouping reads
+   as grouping rather than as another section starting. */
+.nf-settings h4 {
+  font-family: var(--nf-font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nf-glow-amber);
+  font-size: 0.7rem;
+  margin: 1.1rem 0 0.4rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--nf-border);
+}
+
 .nf-setting-row {
   display: flex;
   align-items: center;
@@ -3100,12 +3124,20 @@ canvas.nf-action-glyph {
 }
 
 /* Reduced motion: honored from the OS preference and from the in-game
-   setting (the settings store mirrors it onto <html> as a class).
-   Zeroing animation-delay too collapses the typewriter to instant. */
+   setting (the settings store mirrors the resolved answer onto <html>
+   as a class). Zeroing animation-delay too collapses the typewriter to
+   instant.
+
+   The media query is skipped under .nf-full-motion, which is the class
+   the store writes when the player has explicitly asked for full motion
+   on a device whose OS asks to reduce it. Without the exclusion that
+   override would be honored by every canvas loop and refused by every
+   CSS animation — a switch that only half works. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  :root:not(.nf-full-motion),
+  :root:not(.nf-full-motion) *,
+  :root:not(.nf-full-motion) *::before,
+  :root:not(.nf-full-motion) *::after {
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;

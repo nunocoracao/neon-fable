@@ -5,26 +5,33 @@ import { DIFFICULTIES, requireDifficulty } from "../data/difficulty";
 import type { AssistId } from "../data/assists";
 import type { DifficultyId } from "../data/difficulty";
 import {
-  clampShakeScale,
-  clampZoom,
+  resetGraphicsSettings,
   settings,
-  SHAKE_SCALES,
   TEXT_SPEEDS,
-  ZOOM_LEVELS,
-  type ShakeScale,
   type TextSpeed,
 } from "../settings";
 import { withAssist, withDifficulty, type RunRules } from "../state";
 import { focusFirst, installListNav } from "./focus";
+import { GRAPHICS_GROUPS, type GraphicsControl } from "./graphicsModel";
 import type { OverlayHandle } from "./overlay";
 import type { Screen } from "./screen";
 
 /**
- * The Settings panel: the audio mixer, text speed and reduced motion,
- * the display switches, the difficulty and assist switches, and the
- * keyboard controls reference — all persisted by the settings store.
- * Built once, used two ways — as a full screen from the main menu and
- * as an in-game overlay from the pause menu.
+ * The Settings panel: the audio mixer, text speed, the Graphics &
+ * Comfort section, the difficulty and assist switches, and the keyboard
+ * controls reference — all persisted by the settings store. Built once,
+ * used two ways — as a full screen from the main menu and as an in-game
+ * overlay from the pause menu.
+ *
+ * ## Graphics & Comfort is a table, not a hand-written section
+ *
+ * Eleven visual switches arrived one v2 task at a time, each with a row
+ * and a paragraph written in place here. They are now described in
+ * src/ui/graphicsModel.ts — groups, labels, blurbs, and the pure
+ * read/write pair per control — and this file renders that description.
+ * Adding a switch is adding a table entry; the section's reset control
+ * restores exactly the fields the table covers, because both read the
+ * same list (GRAPHICS_SETTING_KEYS).
  *
  * ## The mixer strips
  *
@@ -74,14 +81,6 @@ const TEXT_SPEED_LABELS: Record<TextSpeed, string> = {
   instant: "Instant",
   fast: "Fast",
   normal: "Normal",
-};
-
-/** Combat shake amplitudes, said in words rather than multipliers. */
-const SHAKE_SCALE_LABELS: Record<ShakeScale, string> = {
-  0: "Off",
-  0.5: "Light",
-  1: "Standard",
-  1.5: "Strong",
 };
 
 /** Keyboard reference shown in the Controls section. */
@@ -264,6 +263,92 @@ function segmentedRow<T extends string>(
   return settingRow(label, group);
 }
 
+/** A dim paragraph of explanatory copy. */
+function note(text: string): HTMLElement {
+  const el = document.createElement("p");
+  el.className = "nf-dim";
+  el.textContent = text;
+  return el;
+}
+
+/**
+ * The Graphics & Comfort section: every visual switch in the game,
+ * grouped, described, and rendered straight off the table in
+ * ./graphicsModel.ts.
+ *
+ * Every row re-syncs after any of them is touched. Most are
+ * independent, but "reset this section" moves all eleven at once, and a
+ * row still showing what it used to be set to would be lying.
+ */
+function buildGraphicsSection(panel: HTMLElement): void {
+  const heading = document.createElement("h3");
+  heading.textContent = "Graphics & Comfort";
+  panel.append(heading);
+  panel.append(
+    note(
+      "How the game looks and how much of it moves. None of these change " +
+        "what happens, what you are told, or how hard anything hits.",
+    ),
+  );
+
+  const syncs: Array<() => void> = [];
+  const syncAll = (): void => {
+    for (const sync of syncs) sync();
+  };
+
+  function controlRow(control: GraphicsControl): void {
+    const row = segmentedRow(
+      control.label,
+      control.options.map((option) => [option.value, option.label] as const),
+      (value) => control.value(settings.get()) === value,
+      (value) => {
+        settings.update(control.patch(value));
+        syncAll();
+      },
+    );
+    row.dataset.setting = control.id;
+    panel.append(row, note(control.blurb));
+    syncs.push(() => {
+      const chosen = control.value(settings.get());
+      for (const button of row.querySelectorAll<HTMLButtonElement>("button")) {
+        const selected = button.dataset.value === chosen;
+        button.classList.toggle("nf-selected", selected);
+        button.setAttribute("aria-pressed", String(selected));
+      }
+    });
+  }
+
+  for (const group of GRAPHICS_GROUPS) {
+    const groupHeading = document.createElement("h4");
+    groupHeading.textContent = group.title;
+    panel.append(groupHeading);
+    if (group.blurb !== null) panel.append(note(group.blurb));
+    for (const control of group.controls) controlRow(control);
+  }
+
+  const reset = document.createElement("button");
+  reset.className = "nf-button nf-button-small";
+  reset.textContent = "Reset graphics & comfort";
+  reset.dataset.reset = "graphics";
+  reset.addEventListener("click", () => {
+    audio.emit("ui.confirm");
+    // The whole section at once, and nothing outside it: the mixer,
+    // the text speed, the difficulty, and the assists are somebody
+    // else's settings and are left exactly where they were.
+    settings.update(resetGraphicsSettings(settings.get()));
+    syncAll();
+  });
+  panel.append(settingRow("Start over", reset));
+  panel.append(
+    note(
+      "Puts every switch in this section back to how the game shipped. " +
+        "Nothing else on this panel is touched.",
+    ),
+  );
+
+  syncAll();
+}
+
 /**
  * The difficulty rows, plus the assists.
  *
@@ -439,148 +524,7 @@ function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
     ),
   );
 
-  const displayHeading = document.createElement("h3");
-  displayHeading.textContent = "Display";
-  panel.append(
-    displayHeading,
-    segmentedRow(
-      "Camera zoom",
-      ZOOM_LEVELS.map((level) => [String(level), `${level}×`] as const),
-      (value) => String(settings.get().zoom) === value,
-      (value) => settings.update({ zoom: clampZoom(Number(value)) }),
-    ),
-    segmentedRow(
-      "Neon glow",
-      [
-        ["on", "On"],
-        ["off", "Off"],
-      ] as const,
-      (value) => (value === "on") === settings.get().glow,
-      (value) => settings.update({ glow: value === "on" }),
-    ),
-  );
-  const glowNote = document.createElement("p");
-  glowNote.className = "nf-dim";
-  glowNote.textContent =
-    "Neon glow layers soft light from signage, screens, and streetlights " +
-    "over the streets. Turn it off for a flatter, faster picture.";
-  panel.append(glowNote);
-
-  panel.append(
-    segmentedRow(
-      "Weather",
-      [
-        ["on", "On"],
-        ["off", "Off"],
-      ] as const,
-      (value) => (value === "on") === settings.get().weather,
-      (value) => settings.update({ weather: value === "on" }),
-    ),
-  );
-  const weatherNote = document.createElement("p");
-  weatherNote.className = "nf-dim";
-  weatherNote.textContent =
-    "Weather draws rain, puddles, and splashes on the districts that " +
-    "have them. It never changes how the game plays — turn it off for a " +
-    "clearer, cheaper picture. Reduced motion stills the rain on its own.";
-  panel.append(weatherNote);
-
-  panel.append(
-    segmentedRow(
-      "Minimap",
-      [
-        ["on", "Shown"],
-        ["off", "Collapsed"],
-      ] as const,
-      (value) => (value === "on") === settings.get().minimap,
-      (value) => settings.update({ minimap: value === "on" }),
-    ),
-  );
-  const minimapNote = document.createElement("p");
-  minimapNote.className = "nf-dim";
-  minimapNote.textContent =
-    "The minimap shows the whole district, where you stand and face, the " +
-    "ways out, and who is worth walking to. Collapsed it leaves a tab in " +
-    "the corner; M expands it again while exploring.";
-  panel.append(minimapNote);
-
-  panel.append(
-    segmentedRow(
-      "Street chatter",
-      [
-        ["on", "On"],
-        ["off", "Off"],
-      ] as const,
-      (value) => (value === "on") === settings.get().barks,
-      (value) => settings.update({ barks: value === "on" }),
-    ),
-  );
-  const barkNote = document.createElement("p");
-  barkNote.className = "nf-dim";
-  barkNote.textContent =
-    "Passers-by, the people standing on the map, and whoever is walking " +
-    "with you say short unprompted lines over their heads. Nothing said " +
-    "this way matters to the story — off keeps the streets quiet.";
-  panel.append(barkNote);
-
-  const motionHeading = document.createElement("h3");
-  motionHeading.textContent = "Motion";
-  panel.append(
-    motionHeading,
-    segmentedRow(
-      "Screen motion",
-      [
-        ["full", "Full"],
-        ["reduced", "Reduced"],
-      ] as const,
-      (value) => (value === "reduced") === settings.get().reducedMotion,
-      (value) => settings.update({ reducedMotion: value === "reduced" }),
-    ),
-  );
-  const motionNote = document.createElement("p");
-  motionNote.className = "nf-dim";
-  motionNote.textContent =
-    "Reduced motion turns off screen shake, hit flashes, and ambient " +
-    "flicker. Damage numbers and the combat log still tell you everything.";
-  panel.append(motionNote);
-
-  panel.append(
-    segmentedRow(
-      "Combat camera",
-      [
-        ["on", "On"],
-        ["off", "Fixed"],
-      ] as const,
-      (value) => (value === "on") === settings.get().combatFeel,
-      (value) => settings.update({ combatFeel: value === "on" }),
-    ),
-  );
-  const feelNote = document.createElement("p");
-  feelNote.className = "nf-dim";
-  feelNote.textContent =
-    "The combat camera glides to whoever is acting, holds for a few " +
-    "frames when a blow connects, and takes a small knock off the " +
-    "heavy ones. Fixed keeps the arena still. Reduced motion switches " +
-    "all three off on its own.";
-  panel.append(feelNote);
-
-  panel.append(
-    segmentedRow(
-      "Screen shake",
-      SHAKE_SCALES.map(
-        (scale) => [String(scale), SHAKE_SCALE_LABELS[scale]] as const,
-      ),
-      (value) => String(settings.get().shakeScale) === value,
-      (value) =>
-        settings.update({ shakeScale: clampShakeScale(Number(value)) }),
-    ),
-  );
-  const shakeNote = document.createElement("p");
-  shakeNote.className = "nf-dim";
-  shakeNote.textContent =
-    "How hard heavy hits and blasts knock the view. Off stills the " +
-    "shake and leaves the glide and the hit-pause as they are.";
-  panel.append(shakeNote);
+  buildGraphicsSection(panel);
 
   const controlsHeading = document.createElement("h3");
   controlsHeading.textContent = "Controls";
