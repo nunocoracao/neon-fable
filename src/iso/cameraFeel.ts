@@ -47,9 +47,14 @@ import { cameraDistance, lerpCamera, type Camera } from "./camera";
 
 // --- What the player has switched on -----------------------------------
 
-/** The settings fields the feel reads; Settings satisfies it. */
+/**
+ * The settings fields the feel reads; Settings satisfies it. Reduced
+ * motion is deliberately *not* one of them: whether motion is stilled
+ * is a resolved answer rather than a stored field (the player may be
+ * deferring to the device), and it is passed in so this function stays
+ * unable to get it wrong. See reducedMotionActive in src/settings.
+ */
 export interface CombatFeelSettings {
-  readonly reducedMotion: boolean;
   /** The combat-feel master toggle. */
   readonly combatFeel: boolean;
   /** Multiplier on every shake amplitude; 0 stills the shake alone. */
@@ -69,8 +74,11 @@ export interface CombatFeel {
  * combat-feel toggle each switch off all three on their own; the shake
  * scale then stills the shake by itself without touching the other two.
  */
-export function resolveCombatFeel(settings: CombatFeelSettings): CombatFeel {
-  const on = settings.combatFeel === true && settings.reducedMotion !== true;
+export function resolveCombatFeel(
+  settings: CombatFeelSettings,
+  reducedMotion: boolean,
+): CombatFeel {
+  const on = settings.combatFeel === true && reducedMotion !== true;
   const scale = on ? Math.max(0, settings.shakeScale) : 0;
   return {
     focus: on,

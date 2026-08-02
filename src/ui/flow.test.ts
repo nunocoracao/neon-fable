@@ -216,10 +216,8 @@ describe("settings", () => {
 
     // Toggling reduced motion persists and mirrors onto the root element.
     click("Reduced");
-    expect(settings.get().reducedMotion).toBe(true);
-    expect(localStorage.getItem(SETTINGS_KEY)).toMatch(
-      /"reducedMotion":true/,
-    );
+    expect(settings.get().motion).toBe("reduced");
+    expect(localStorage.getItem(SETTINGS_KEY)).toMatch(/"motion":"reduced"/);
     expect(
       document.documentElement.classList.contains("nf-reduced-motion"),
     ).toBe(true);
@@ -231,7 +229,7 @@ describe("settings", () => {
     expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
     // Settings live outside save slots.
     expect(localStorage.getItem("neon-fable:save:autosave")).not.toMatch(
-      /reducedMotion/,
+      /"motion":/,
     );
   });
 
@@ -961,7 +959,7 @@ describe("act 1 chapter flow", () => {
 
   it("reduced motion cuts to the destination instead of fading", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    settings.update({ reducedMotion: true });
+    settings.update({ motion: "reduced" });
     mountAt("a1-ascend", "greywater-steps");
     click("Climb to Cinder Row");
 

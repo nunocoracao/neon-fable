@@ -19,7 +19,7 @@ import {
   type SpriteProvider,
   type TilePoint,
 } from "../iso";
-import { settings } from "../settings";
+import { settings, type Settings } from "../settings";
 import { createNewGame, type GameState } from "../state";
 import { enemySpriteSource } from "./entitySprites";
 
@@ -112,7 +112,7 @@ describe("combat camera feel in a real encounter", () => {
   beforeEach(() => {
     clock = 1000;
     frameCallback = null;
-    settings.update({ reducedMotion: false, combatFeel: true, shakeScale: 1 });
+    settings.update({ motion: "full", combatFeel: true, shakeScale: 1 });
     vi.spyOn(performance, "now").mockImplementation(() => clock);
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
       frameCallback = cb;
@@ -131,7 +131,7 @@ describe("combat camera feel in a real encounter", () => {
   });
 
   afterEach(() => {
-    settings.update({ reducedMotion: false, combatFeel: true, shakeScale: 1 });
+    settings.update({ motion: "full", combatFeel: true, shakeScale: 1 });
     vi.restoreAllMocks();
   });
 
@@ -266,7 +266,11 @@ describe("combat camera feel in a real encounter", () => {
     });
 
     it("leaves the camera alone when the combat feel is switched off", () => {
-      for (const off of [{ combatFeel: false }, { reducedMotion: true }]) {
+      const switches: Partial<Settings>[] = [
+        { combatFeel: false },
+        { motion: "reduced" },
+      ];
+      for (const off of switches) {
         const fight = startFight();
         settings.update(off);
         drawAt(fight, 2000);
@@ -277,7 +281,7 @@ describe("combat camera feel in a real encounter", () => {
           expect(cameraX(fight)).toBe(fixed);
         }
         fight.scene.destroy();
-        settings.update({ combatFeel: true, reducedMotion: false });
+        settings.update({ combatFeel: true, motion: "full" });
       }
     });
 
@@ -449,7 +453,7 @@ describe("combat camera feel in a real encounter", () => {
 
     it("never shakes under reduced motion", () => {
       const fight = startFight();
-      settings.update({ reducedMotion: true });
+      settings.update({ motion: "reduced" });
       drawAt(fight, 2000);
       const base = cameraX(fight);
       fight.scene.hitFx(fight.enemyId, {

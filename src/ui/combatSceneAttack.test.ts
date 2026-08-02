@@ -277,7 +277,7 @@ describe("attack animation in a real encounter", () => {
   });
 
   it("still faces the target under reduced motion, but skips the swing", () => {
-    settings.update({ reducedMotion: true });
+    settings.update({ motion: "reduced" });
     try {
       const fight = startFight("rifle");
       clock = 1500;
@@ -290,7 +290,7 @@ describe("attack animation in a real encounter", () => {
       expect(pose?.attackElapsedMs, "no animation plays").toBeUndefined();
       fight.scene.destroy();
     } finally {
-      settings.update({ reducedMotion: false });
+      settings.update({ motion: "full" });
     }
   });
 });

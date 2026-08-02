@@ -24,11 +24,11 @@ import {
   type ShakeSource,
 } from "./cameraFeel";
 
-const FULL = { reducedMotion: false, combatFeel: true, shakeScale: 1 };
+const FULL = { combatFeel: true, shakeScale: 1 };
 
 describe("resolveCombatFeel", () => {
   it("runs all three when the feel is on and motion is not reduced", () => {
-    expect(resolveCombatFeel(FULL)).toEqual({
+    expect(resolveCombatFeel(FULL, false)).toEqual({
       focus: true,
       hitPause: true,
       shake: true,
@@ -37,7 +37,7 @@ describe("resolveCombatFeel", () => {
   });
 
   it("switches all three off under reduced motion", () => {
-    const feel = resolveCombatFeel({ ...FULL, reducedMotion: true });
+    const feel = resolveCombatFeel(FULL, true);
     expect(feel.focus).toBe(false);
     expect(feel.hitPause).toBe(false);
     expect(feel.shake).toBe(false);
@@ -45,22 +45,24 @@ describe("resolveCombatFeel", () => {
   });
 
   it("switches all three off from the combat feel toggle alone", () => {
-    const feel = resolveCombatFeel({ ...FULL, combatFeel: false });
+    const feel = resolveCombatFeel({ ...FULL, combatFeel: false }, false);
     expect(feel.focus).toBe(false);
     expect(feel.hitPause).toBe(false);
     expect(feel.shake).toBe(false);
   });
 
   it("stills the shake by its own setting, leaving the other two", () => {
-    const feel = resolveCombatFeel({ ...FULL, shakeScale: 0 });
+    const feel = resolveCombatFeel({ ...FULL, shakeScale: 0 }, false);
     expect(feel.shake).toBe(false);
     expect(feel.focus).toBe(true);
     expect(feel.hitPause).toBe(true);
   });
 
   it("carries the scale through and never lets it go negative", () => {
-    expect(resolveCombatFeel({ ...FULL, shakeScale: 1.5 }).shakeScale).toBe(1.5);
-    expect(resolveCombatFeel({ ...FULL, shakeScale: -3 }).shakeScale).toBe(0);
+    expect(resolveCombatFeel({ ...FULL, shakeScale: 1.5 }, false).shakeScale).toBe(
+      1.5,
+    );
+    expect(resolveCombatFeel({ ...FULL, shakeScale: -3 }, false).shakeScale).toBe(0);
   });
 });
 

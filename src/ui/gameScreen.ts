@@ -80,7 +80,7 @@ import {
   takedownLine,
   watchTints,
 } from "./stealthModel";
-import { settings } from "../settings";
+import { reducedMotionActive, settings } from "../settings";
 import { interactPrompt, shardPickupToast } from "./format";
 import { createCodexScreen } from "./codexScreen";
 import { resolveDistrict } from "./district";
@@ -413,7 +413,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
               : undefined;
           transition = runMapTransition({
             destinationName: getMap(targetMapId)?.name ?? targetMapId,
-            reducedMotion: settings.get().reducedMotion,
+            reducedMotion: reducedMotionActive(),
             openDoor: leaving
               ? () => scene?.playOpening(leaving.id) === true
               : undefined,
@@ -561,7 +561,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       "menu",
       createInterludeOverlay({
         interlude: composeInterlude(session.state, interlude),
-        reducedMotion: settings.get().reducedMotion,
+        reducedMotion: reducedMotionActive(),
         onClose: closeOverlay,
       }),
     );

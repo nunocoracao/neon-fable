@@ -184,4 +184,16 @@ describe("outlineColor", () => {
     expect(outlineColor("no-such-palette")).toBe(fallback);
     expect(outlineColor(DEFAULT_OUTLINE_PALETTE)).toBe(fallback);
   });
+
+  it("gives every palette a colour of its own", () => {
+    const colors = Object.values(OUTLINE_COLORS);
+    expect(colors.length).toBeGreaterThan(1);
+    expect(new Set(colors).size).toBe(colors.length);
+    for (const color of colors) expect(color).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  it("answers for the colourblind-assist palette", () => {
+    expect(outlineColor("assist")).toBe(OUTLINE_COLORS.assist);
+    expect(outlineColor("assist")).not.toBe(OUTLINE_COLORS.neon);
+  });
 });

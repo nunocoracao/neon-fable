@@ -165,7 +165,7 @@ describe("shots, swipes, and impacts in a real encounter", () => {
   });
 
   afterEach(() => {
-    settings.update({ reducedMotion: false });
+    settings.update({ motion: "full" });
     vi.restoreAllMocks();
   });
 
@@ -430,7 +430,7 @@ describe("shots, swipes, and impacts in a real encounter", () => {
   });
 
   it("keeps a single held impact marker under reduced motion", () => {
-    settings.update({ reducedMotion: true });
+    settings.update({ motion: "reduced" });
     const fight = startFight("pistol");
     const start = 2000;
     clock = start;

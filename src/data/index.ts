@@ -3,6 +3,26 @@
  * data-defined here — never hard-coded in engine code.
  */
 export {
+  COLOR_MODES,
+  COLOR_MODE_DEFS,
+  DEFAULT_COLOR_MODE,
+  DEFAULT_MOTION_PREFERENCE,
+  DEFAULT_TEXT_SCALE,
+  MOTION_PREFERENCES,
+  MOTION_PREFERENCE_DEFS,
+  TEXT_SCALES,
+  TEXT_SCALE_LABELS,
+  clampColorMode,
+  clampMotionPreference,
+  clampTextScale,
+  requireColorMode,
+  type ColorModeDef,
+  type ColorModeId,
+  type MotionPreference,
+  type MotionPreferenceDef,
+  type TextScale,
+} from "./accessibility";
+export {
   BACKGROUND_APPEARANCE_PRESETS,
   BUILD_OPTIONS,
   BROWS_OPTIONS,

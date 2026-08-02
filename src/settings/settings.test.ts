@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_MIXER, migrateLegacyMixer, LEGACY_AUDIO_KEY } from "../audio/mixer";
+import {
+  COLOR_MODES,
+  DEFAULT_COLOR_MODE,
+  DEFAULT_TEXT_SCALE,
+  MOTION_PREFERENCES,
+  TEXT_SCALES,
+} from "../data/accessibility";
 import { noAssists } from "../data/assists";
 import { DEFAULT_DIFFICULTY_ID } from "../data/difficulty";
 import {
   DEFAULT_SETTINGS,
+  GRAPHICS_SETTING_KEYS,
   SETTINGS_KEY,
   SETTINGS_VERSION,
   SHAKE_SCALES,
@@ -15,11 +23,13 @@ import {
   loadSettings,
   migrateSettings,
   parseSettings,
+  resetGraphicsSettings,
   revealDelayMs,
   saveSettings,
   serializeSettings,
   settingsRules,
   stepZoom,
+  type Settings,
   type SettingsStorage,
 } from "./settings";
 import { createSettingsStore } from "./store";
@@ -47,54 +57,55 @@ describe("clampSettings", () => {
 
   it("keeps valid fields and clamps invalid ones independently", () => {
     expect(
-      clampSettings({ textSpeed: "fast", reducedMotion: "yes", zoom: 1.5 }),
-    ).toEqual({
-      textSpeed: "fast",
-      reducedMotion: false,
-      zoom: 1.5,
-      glow: true,
-      weather: true,
-      minimap: true,
-      combatFeel: true,
-      shakeScale: 1,
-      barks: true,
-      difficulty: DEFAULT_DIFFICULTY_ID,
-      assists: noAssists(),
-      mixer: DEFAULT_MIXER,
-    });
-    expect(
-      clampSettings({ textSpeed: "warp", reducedMotion: true }),
-    ).toEqual({
-      textSpeed: "normal",
-      reducedMotion: true,
-      zoom: 1,
-      glow: true,
-      weather: true,
-      minimap: true,
-      combatFeel: true,
-      shakeScale: 1,
-      barks: true,
-      difficulty: DEFAULT_DIFFICULTY_ID,
-      assists: noAssists(),
-      mixer: DEFAULT_MIXER,
+      clampSettings({ textSpeed: "fast", motion: "sideways", zoom: 1.5 }),
+    ).toEqual({ ...DEFAULT_SETTINGS, textSpeed: "fast", zoom: 1.5 });
+    expect(clampSettings({ textSpeed: "warp", motion: "reduced" })).toEqual({
+      ...DEFAULT_SETTINGS,
+      motion: "reduced",
     });
   });
 
   it("ignores unknown fields", () => {
     expect(clampSettings({ textSpeed: "instant", volume: 3 })).toEqual({
+      ...DEFAULT_SETTINGS,
       textSpeed: "instant",
-      reducedMotion: false,
-      zoom: 1,
-      glow: true,
-      weather: true,
-      minimap: true,
-      combatFeel: true,
-      shakeScale: 1,
-      barks: true,
-      difficulty: DEFAULT_DIFFICULTY_ID,
-      assists: noAssists(),
-      mixer: DEFAULT_MIXER,
     });
+  });
+
+  it("set pieces default on; only an explicit false parks the city", () => {
+    expect(clampSettings({}).setPieces).toBe(true);
+    expect(clampSettings({ setPieces: false }).setPieces).toBe(false);
+    expect(clampSettings({ setPieces: "off" }).setPieces).toBe(true);
+    expect(clampSettings({ setPieces: 0 }).setPieces).toBe(true);
+  });
+
+  it("defers to the device for motion unless told otherwise", () => {
+    expect(clampSettings({}).motion).toBe("system");
+    for (const preference of MOTION_PREFERENCES) {
+      expect(clampSettings({ motion: preference }).motion).toBe(preference);
+    }
+    for (const bad of ["off", true, 1, null]) {
+      expect(clampSettings({ motion: bad }).motion).toBe("system");
+    }
+  });
+
+  it("rejects colour modes and text sizes off their ladders", () => {
+    expect(clampSettings({}).colorMode).toBe(DEFAULT_COLOR_MODE);
+    expect(clampSettings({}).textScale).toBe(DEFAULT_TEXT_SCALE);
+    for (const mode of COLOR_MODES) {
+      expect(clampSettings({ colorMode: mode }).colorMode).toBe(mode);
+    }
+    for (const scale of TEXT_SCALES) {
+      expect(clampSettings({ textScale: scale }).textScale).toBe(scale);
+    }
+    for (const bad of ["huge", 2, 0, null, true]) {
+      expect(clampSettings({ colorMode: bad }).colorMode).toBe(
+        DEFAULT_COLOR_MODE,
+      );
+      expect(clampSettings({ textScale: bad }).textScale).toBe(
+        DEFAULT_TEXT_SCALE,
+      );
+    }
   });
 
   it("glow defaults on; only an explicit false disables it", () => {
@@ -170,16 +181,19 @@ describe("stepZoom", () => {
 
 describe("parse / serialize / migrate", () => {
   it("round-trips through serialize and parse", () => {
-    const settings = {
+    const settings: Settings = {
       textSpeed: "fast",
-      reducedMotion: true,
+      motion: "reduced",
       zoom: 1.5,
       glow: false,
       weather: false,
+      setPieces: false,
       minimap: false,
       combatFeel: false,
       shakeScale: 0.5,
       barks: false,
+      colorMode: "assist",
+      textScale: 1.3,
       difficulty: "blackout",
       assists: {
         "always-preview": true,
@@ -188,7 +202,7 @@ describe("parse / serialize / migrate", () => {
         "breach-rescue": false,
       },
       mixer: DEFAULT_MIXER,
-    } as const;
+    };
     expect(parseSettings(serializeSettings(settings))).toEqual(settings);
   });
 
@@ -209,20 +223,7 @@ describe("parse / serialize / migrate", () => {
   it("migrates unknown or future versions field-tolerantly", () => {
     expect(
       migrateSettings({ version: 99, textSpeed: "instant", extra: true }),
-    ).toEqual({
-      textSpeed: "instant",
-      reducedMotion: false,
-      zoom: 1,
-      glow: true,
-      weather: true,
-      minimap: true,
-      combatFeel: true,
-      shakeScale: 1,
-      barks: true,
-      difficulty: DEFAULT_DIFFICULTY_ID,
-      assists: noAssists(),
-      mixer: DEFAULT_MIXER,
-    });
+    ).toEqual({ ...DEFAULT_SETTINGS, textSpeed: "instant" });
     expect(migrateSettings({ version: "zero" })).toEqual(DEFAULT_SETTINGS);
   });
 
@@ -233,18 +234,9 @@ describe("parse / serialize / migrate", () => {
       reducedMotion: true,
     });
     expect(parseSettings(v1)).toEqual({
+      ...DEFAULT_SETTINGS,
       textSpeed: "fast",
-      reducedMotion: true,
-      zoom: 1,
-      glow: true,
-      weather: true,
-      minimap: true,
-      combatFeel: true,
-      shakeScale: 1,
-      barks: true,
-      difficulty: DEFAULT_DIFFICULTY_ID,
-      assists: noAssists(),
-      mixer: DEFAULT_MIXER,
+      motion: "reduced",
     });
   });
 
@@ -256,18 +248,9 @@ describe("parse / serialize / migrate", () => {
       zoom: 2,
     });
     expect(parseSettings(v2)).toEqual({
+      ...DEFAULT_SETTINGS,
       textSpeed: "fast",
-      reducedMotion: false,
       zoom: 2,
-      glow: true,
-      weather: true,
-      minimap: true,
-      combatFeel: true,
-      shakeScale: 1,
-      barks: true,
-      difficulty: DEFAULT_DIFFICULTY_ID,
-      assists: noAssists(),
-      mixer: DEFAULT_MIXER,
     });
   });
 
@@ -281,18 +264,10 @@ describe("parse / serialize / migrate", () => {
       weather: false,
     });
     expect(parseSettings(v4)).toEqual({
-      textSpeed: "normal",
-      reducedMotion: false,
+      ...DEFAULT_SETTINGS,
       zoom: 1.5,
       glow: false,
       weather: false,
-      minimap: true,
-      combatFeel: true,
-      shakeScale: 1,
-      barks: true,
-      difficulty: DEFAULT_DIFFICULTY_ID,
-      assists: noAssists(),
-      mixer: DEFAULT_MIXER,
     });
   });
 
@@ -309,18 +284,11 @@ describe("parse / serialize / migrate", () => {
       shakeScale: 0,
     });
     expect(parseSettings(v6)).toEqual({
-      textSpeed: "normal",
-      reducedMotion: true,
-      zoom: 1,
-      glow: true,
-      weather: true,
+      ...DEFAULT_SETTINGS,
+      motion: "reduced",
       minimap: false,
       combatFeel: false,
       shakeScale: 0,
-      barks: true,
-      difficulty: DEFAULT_DIFFICULTY_ID,
-      assists: noAssists(),
-      mixer: DEFAULT_MIXER,
     });
   });
 
@@ -335,18 +303,51 @@ describe("parse / serialize / migrate", () => {
       minimap: false,
     });
     expect(parseSettings(v5)).toEqual({
+      ...DEFAULT_SETTINGS,
       textSpeed: "fast",
-      reducedMotion: false,
       zoom: 2,
-      glow: true,
       weather: false,
       minimap: false,
-      combatFeel: true,
-      shakeScale: 1,
-      barks: true,
-      difficulty: DEFAULT_DIFFICULTY_ID,
-      assists: noAssists(),
-      mixer: DEFAULT_MIXER,
+    });
+  });
+
+  it("migrates v9 payloads: an untouched switch still means the device", () => {
+    // The v9 selector was `setting || OS preference`, so `false` never
+    // meant "full motion" — it meant nobody had said. Only the players
+    // who actually turned it on are carried to an explicit override.
+    const untouched = JSON.stringify({
+      version: 9,
+      textSpeed: "fast",
+      reducedMotion: false,
+    });
+    expect(parseSettings(untouched).motion).toBe("system");
+    const asked = JSON.stringify({ version: 9, reducedMotion: true });
+    expect(parseSettings(asked).motion).toBe("reduced");
+  });
+
+  it("migrates v9 payloads to the shipped comfort defaults", () => {
+    const v9 = JSON.stringify({
+      version: 9,
+      textSpeed: "instant",
+      reducedMotion: false,
+      zoom: 2,
+      glow: false,
+      weather: false,
+      minimap: false,
+      combatFeel: false,
+      shakeScale: 0,
+      barks: false,
+    });
+    expect(parseSettings(v9)).toEqual({
+      ...DEFAULT_SETTINGS,
+      textSpeed: "instant",
+      zoom: 2,
+      glow: false,
+      weather: false,
+      minimap: false,
+      combatFeel: false,
+      shakeScale: 0,
+      barks: false,
     });
   });
 });
@@ -359,38 +360,25 @@ describe("load / save", () => {
 
   it("persists under the settings key, separate from save slots", () => {
     const storage = fakeStorage();
-    saveSettings(
-      {
-        textSpeed: "instant",
-        reducedMotion: true,
-        zoom: 2,
-        glow: false,
-        weather: false,
-        minimap: false,
-        combatFeel: false,
-        shakeScale: 1.5,
-        barks: false,
-        difficulty: "drift",
-        assists: noAssists(),
-        mixer: DEFAULT_MIXER,
-      },
-      storage,
-    );
-    expect(Object.keys(storage.data)).toEqual([SETTINGS_KEY]);
-    expect(loadSettings(storage)).toEqual({
+    const stored: Settings = {
+      ...DEFAULT_SETTINGS,
       textSpeed: "instant",
-      reducedMotion: true,
+      motion: "reduced",
       zoom: 2,
       glow: false,
       weather: false,
+      setPieces: false,
       minimap: false,
       combatFeel: false,
       shakeScale: 1.5,
       barks: false,
+      colorMode: "assist",
+      textScale: 1.15,
       difficulty: "drift",
-      assists: noAssists(),
-      mixer: DEFAULT_MIXER,
-    });
+    };
+    saveSettings(stored, storage);
+    expect(Object.keys(storage.data)).toEqual([SETTINGS_KEY]);
+    expect(loadSettings(storage)).toEqual(stored);
   });
 
   it("survives storage that throws", () => {
@@ -429,35 +417,21 @@ describe("settings store", () => {
     const storage = fakeStorage();
     saveSettings(
       {
+        ...DEFAULT_SETTINGS,
         textSpeed: "fast",
-        reducedMotion: true,
+        motion: "reduced",
         zoom: 1.5,
-        glow: true,
-        weather: true,
-        minimap: true,
-        combatFeel: true,
-        shakeScale: 1,
-        barks: true,
         difficulty: "grind",
-        assists: noAssists(),
-        mixer: DEFAULT_MIXER,
       },
       storage,
     );
     const store = createSettingsStore(storage);
     expect(store.get()).toEqual({
+      ...DEFAULT_SETTINGS,
       textSpeed: "fast",
-      reducedMotion: true,
+      motion: "reduced",
       zoom: 1.5,
-      glow: true,
-      weather: true,
-      minimap: true,
-      combatFeel: true,
-      shakeScale: 1,
-      barks: true,
       difficulty: DEFAULT_DIFFICULTY_ID,
-      assists: noAssists(),
-      mixer: DEFAULT_MIXER,
     });
   });
 
@@ -469,26 +443,16 @@ describe("settings store", () => {
 
     store.update({ textSpeed: "instant" });
     expect(store.get()).toEqual({
+      ...DEFAULT_SETTINGS,
       textSpeed: "instant",
-      reducedMotion: false,
-      zoom: 1,
-      glow: true,
-      weather: true,
-      minimap: true,
-      combatFeel: true,
-      shakeScale: 1,
-      barks: true,
-      difficulty: DEFAULT_DIFFICULTY_ID,
-      assists: noAssists(),
-      mixer: DEFAULT_MIXER,
     });
     expect(loadSettings(storage).textSpeed).toBe("instant");
     expect(seen).toEqual(["instant"]);
 
     unsubscribe();
-    store.update({ reducedMotion: true });
+    store.update({ motion: "reduced" });
     expect(seen).toEqual(["instant"]);
-    expect(store.get().reducedMotion).toBe(true);
+    expect(store.get().motion).toBe("reduced");
     // The earlier field survives a partial update.
     expect(store.get().textSpeed).toBe("instant");
   });
@@ -514,14 +478,30 @@ describe("reducedMotionActive", () => {
     },
   });
 
-  it("is on when the in-game setting asks, regardless of the OS", () => {
-    const current = { ...DEFAULT_SETTINGS, reducedMotion: true };
+  it("is on when the player asks for it, regardless of the OS", () => {
+    const current: Settings = { ...DEFAULT_SETTINGS, motion: "reduced" };
     expect(reducedMotionActive(current, os(false))).toBe(true);
     expect(reducedMotionActive(current, null)).toBe(true);
   });
 
-  it("is on when the OS preference asks, even with the setting off", () => {
+  it("defers to the OS preference by default, in both directions", () => {
+    expect(DEFAULT_SETTINGS.motion).toBe("system");
     expect(reducedMotionActive(DEFAULT_SETTINGS, os(true))).toBe(true);
+    expect(reducedMotionActive(DEFAULT_SETTINGS, os(false))).toBe(false);
+  });
+
+  it("lets an explicit full override a device that asks to reduce", () => {
+    const current: Settings = { ...DEFAULT_SETTINGS, motion: "full" };
+    expect(reducedMotionActive(current, os(true))).toBe(false);
+    expect(reducedMotionActive(current, os(false))).toBe(false);
+    // The override is the whole point: it never consults the device.
+    expect(
+      reducedMotionActive(current, {
+        matchMedia: () => {
+          throw new Error("never asked");
+        },
+      }),
+    ).toBe(false);
   });
 
   it("is off when neither asks, or matchMedia is unavailable/broken", () => {
@@ -544,6 +524,75 @@ describe("reducedMotionActive", () => {
  * (see src/state/rules.test.ts); this is the half that persists across
  * runs and across sessions.
  */
+/**
+ * "Reset this section" is the one control on the panel that writes
+ * eleven fields at once, which makes both halves of its promise worth
+ * pinning: everything it covers really goes back, and everything it
+ * does not cover really stays.
+ */
+describe("resetGraphicsSettings", () => {
+  /** Every graphics field moved off its default, and then some. */
+  const fiddled: Settings = {
+    ...DEFAULT_SETTINGS,
+    motion: "reduced",
+    zoom: 2,
+    glow: false,
+    weather: false,
+    setPieces: false,
+    minimap: false,
+    combatFeel: false,
+    shakeScale: 0,
+    barks: false,
+    colorMode: "assist",
+    textScale: 1.3,
+    // Not the section's, and not to be touched by it.
+    textSpeed: "instant",
+    difficulty: "blackout",
+    assists: { ...noAssists(), "bold-telegraphs": true },
+  };
+
+  it("names only fields that exist, with no repeats", () => {
+    expect(new Set(GRAPHICS_SETTING_KEYS).size).toBe(
+      GRAPHICS_SETTING_KEYS.length,
+    );
+    for (const key of GRAPHICS_SETTING_KEYS) {
+      expect(DEFAULT_SETTINGS[key], key).toBeDefined();
+    }
+  });
+
+  it("puts every field it covers back to the shipped default", () => {
+    const reset = resetGraphicsSettings(fiddled);
+    for (const key of GRAPHICS_SETTING_KEYS) {
+      expect(reset[key], key).toEqual(DEFAULT_SETTINGS[key]);
+    }
+  });
+
+  it("leaves everything outside the section exactly where it was", () => {
+    const reset = resetGraphicsSettings(fiddled);
+    expect(reset.textSpeed).toBe("instant");
+    expect(reset.difficulty).toBe("blackout");
+    expect(reset.assists["bold-telegraphs"]).toBe(true);
+    expect(reset.mixer).toEqual(fiddled.mixer);
+  });
+
+  it("is a no-op on settings already at their defaults", () => {
+    expect(resetGraphicsSettings(DEFAULT_SETTINGS)).toEqual(DEFAULT_SETTINGS);
+  });
+
+  it("round-trips through storage: a reset is what loads next time", () => {
+    const storage = fakeStorage();
+    const store = createSettingsStore(storage);
+    store.update(fiddled);
+    expect(loadSettings(storage).colorMode).toBe("assist");
+    store.update(resetGraphicsSettings(store.get()));
+    const reloaded = loadSettings(storage);
+    for (const key of GRAPHICS_SETTING_KEYS) {
+      expect(reloaded[key], key).toEqual(DEFAULT_SETTINGS[key]);
+    }
+    expect(reloaded.textSpeed).toBe("instant");
+  });
+});
+
 describe("the difficulty and assist preference", () => {
   it("defaults to the middle preset with every assist off", () => {
     expect(DEFAULT_SETTINGS.difficulty).toBe(DEFAULT_DIFFICULTY_ID);

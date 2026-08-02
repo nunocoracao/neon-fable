@@ -23,6 +23,8 @@ import { tickerWindow, type TickerDraw } from "./ticker";
 import {
   DEFAULT_TELEGRAPH_PALETTE,
   TELEGRAPH_PAINT_ORDER,
+  highlightColors,
+  markerFill,
   telegraphStyle,
   type TelegraphPaletteId,
   type TelegraphTintId,
@@ -247,8 +249,9 @@ export function renderScene(
   // Splashes land on the ground, under the highlights and every object.
   if (weather) paintSplashes(ctx, sprites, weather, timeMs, scale);
 
+  const palette = view.telegraphPalette ?? DEFAULT_TELEGRAPH_PALETTE;
   // Ground somebody else is holding, under everything that stands on it.
-  paintTints(ctx, view.tints ?? [], view.telegraphPalette ?? DEFAULT_TELEGRAPH_PALETTE);
+  paintTints(ctx, view.tints ?? [], palette);
 
   // Exit affordance: every interactable that leads off the map gets the
   // same lit ring laid in its tile, so a way out reads identically
@@ -265,7 +268,10 @@ export function renderScene(
     );
   }
 
-  // Highlights sit on the ground, under all objects.
+  // Highlights sit on the ground, under all objects. Every colour on
+  // this layer comes out of the same palette as the telegraph tints, so
+  // the colourblind-assist option repaints the whole ground layer.
+  const marks = highlightColors(palette);
   // Pulsing marker under every interactable so points of interest read
   // at a glance without hunting with the cursor.
   const markerAlpha = 0.08 + 0.1 * pulse01(timeMs, 1600);
@@ -273,22 +279,22 @@ export function renderScene(
     drawDiamond(
       ctx,
       interactable,
-      `rgba(240, 180, 41, ${markerAlpha.toFixed(3)})`,
-      "rgba(240, 180, 41, 0.35)",
+      markerFill(marks, markerAlpha),
+      marks.markerOutline,
     );
   }
   for (const step of view.path) {
-    drawDiamond(ctx, step, "rgba(46, 230, 214, 0.18)", null);
+    drawDiamond(ctx, step, marks.pathStep, null);
   }
   if (view.hoverTile) {
     const { x, y } = view.hoverTile;
     const walkable = isWalkable(map, x, y);
     const interactable = map.interactables.some((i) => i.x === x && i.y === y);
     const color = interactable
-      ? "rgba(240, 180, 41, 0.9)"
+      ? marks.hoverInteractable
       : walkable
-        ? "rgba(46, 230, 214, 0.9)"
-        : "rgba(255, 77, 94, 0.7)";
+        ? marks.hoverWalkable
+        : marks.hoverBlocked;
     drawDiamond(ctx, view.hoverTile, null, color);
   }
 

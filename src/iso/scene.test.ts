@@ -7,7 +7,9 @@ import type { EntityPose, Sprite, SpriteProvider } from "./sprites";
 import { DOOR_TIMING, doorCycleMs } from "./transition";
 import { buildMapGrid, type IsoMap } from "./tilemap";
 import type { IsoFocusHint, IsoInteractionEvent } from "./events";
-import { outlineColor } from "./affordance";
+import { HUB_MAP_ID, requireMap } from "../data/maps";
+import { OUTLINE_COLORS, outlineColor } from "./affordance";
+import { collectSetPieces } from "./setpiece";
 
 /**
  * The scene's doorway and arrival behaviour, driven frame by frame
@@ -216,7 +218,7 @@ describe("doorway openings", () => {
   });
 
   it("reduced motion never catches a door part-way open", () => {
-    settings.update({ reducedMotion: true });
+    settings.update({ motion: "reduced" });
     scene = createIsoScene(canvas, {
       map: testMap(),
       spawnId: "player-start",
@@ -408,5 +410,73 @@ describe("arrival", () => {
     const settled = initialCamera(map, { x: 16, y: 16 }, 800, 600, 1);
     const expected = cameraTranslation(settled, 800, 600, 1, 1);
     expect(translates[0]).toEqual([expected.tx, expected.ty]);
+  });
+});
+
+/**
+ * The two Graphics & Comfort switches the exploring scene owns: which
+ * palette its marks are painted from, and whether the city's staged
+ * theatre runs at all. Both are read off the settings once a frame and
+ * handed to the renderer as data — what is under test is that they
+ * actually get that far.
+ */
+describe("the comfort switches reach the scene", () => {
+  it("traces the focused interactable in the chosen palette", () => {
+    for (const [colorMode, expected] of [
+      ["neon", OUTLINE_COLORS.neon],
+      ["assist", OUTLINE_COLORS.assist],
+    ] as const) {
+      settings.update({ colorMode });
+      const outlines: OutlineCall[] = [];
+      scene?.destroy();
+      scene = createIsoScene(canvas, {
+        map: testMap(),
+        spawnId: "player-start",
+        onInteract: () => {},
+        sprites: recordingSprites(calls, outlines),
+        ambient: false,
+      });
+      frame(0);
+      expect(outlines.map((o) => o.color), colorMode).toEqual([expected]);
+    }
+  });
+
+  it("stops collecting set pieces when the city is switched off", () => {
+    const map = requireMap(HUB_MAP_ID);
+    // A moment the district has something staged on it — trains and
+    // drones run on their own clocks, so the moment has to be found
+    // rather than assumed.
+    const busy = [...Array(200).keys()]
+      .map((step) => step * 250)
+      .find(
+        (time) =>
+          collectSetPieces(map, time, { motion: true, rain: false }).length > 0,
+      );
+    expect(busy, "no staged moment in the first 50s of the hub").toBeDefined();
+
+    const draws: string[] = [];
+    const sprites: SpriteProvider = {
+      ...recordingSprites(calls),
+      setPiece: (id: string) => {
+        draws.push(id);
+        return BLANK;
+      },
+    };
+
+    for (const on of [true, false]) {
+      settings.update({ setPieces: on });
+      draws.length = 0;
+      scene?.destroy();
+      scene = createIsoScene(canvas, {
+        map,
+        spawnId: map.spawns[0]!.id,
+        onInteract: () => {},
+        sprites,
+        ambient: false,
+      });
+      frame(busy ?? 0);
+      if (on) expect(draws.length, "switched on").toBeGreaterThan(0);
+      else expect(draws, "switched off").toEqual([]);
+    }
   });
 });
