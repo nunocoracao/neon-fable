@@ -1,4 +1,5 @@
 import { saveGame, type GameState, type SaveStorage } from "../state";
+import { capturePortraitThumb } from "./saveThumbs";
 
 /**
  * A live playthrough: the current GameState plus the storage saves go
@@ -18,8 +19,18 @@ export function createSession(
   return { state, storage };
 }
 
+/**
+ * Writes the autosave slot, with the runner's face on it.
+ *
+ * Deliberately no scene vignette: an autosave fires on the way *into* a
+ * map, when the canvas still holds the map being left, and a picture of
+ * somewhere the save is not is worse than no picture. Manual saves are
+ * taken with the scene on screen and carry both.
+ */
 export function autosave(session: Session): void {
-  saveGame(session.state, "autosave", session.storage);
+  saveGame(session.state, "autosave", session.storage, Date.now(), {
+    thumbnails: { portrait: capturePortraitThumb(session.state), scene: null },
+  });
 }
 
 /** Records arrival on a map and autosaves — the map-transition hook. */
