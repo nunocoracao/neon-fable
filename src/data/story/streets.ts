@@ -3,10 +3,12 @@ import type { StoryArc } from "../../narrative/types";
 /**
  * The street's answers.
  *
- * Every node here belongs to somebody a world condition put on a map
- * (see SCENE_REACTIONS in ../world.ts): the notice-server at the head
- * of a shuttered stall row, the watch Voss posts once the Row is
- * theirs, the clerk holding a charter that did not exist last week.
+ * Almost every node here belongs to somebody a world condition put on a
+ * map (see SCENE_REACTIONS in ../world.ts): the notice-server at the
+ * head of a shuttered stall row, the watch Voss posts once the Row is
+ * theirs, the clerk holding a charter that did not exist last week. The
+ * exception is the plaza's public terminal, which is bolted to the wall
+ * and therefore always there — same doctrine, permanent fixture.
  *
  * They are the city talking about itself, so none of them writes a
  * flag, moves a standing, starts a fight, or opens a door. A player who
@@ -29,6 +31,7 @@ export const streetsArc: StoryArc = {
   // world.test.ts fails if a spawn ever opens a node not on this list.
   entryNodeId: "st-picket",
   entryNodeIds: [
+    "st-plaza-board",
     "st-syndicate-watch",
     "st-court-runner",
     "st-listener",
@@ -41,6 +44,58 @@ export const streetsArc: StoryArc = {
     "st-steps-watch",
   ],
   nodes: [
+    {
+      // The plaza's public terminal (see cinder-plaza in ../maps.ts).
+      // A fixture, not a hook: it is the only interactable on the hub
+      // that belongs to nobody's quest, and it stays exactly that — a
+      // screen you can read on your way past. The Row's actual news
+      // runs on the district's own tickers (src/world/news.ts).
+      id: "st-plaza-board",
+      text:
+        "The public terminal has been kicked, tagged, and repaired often " +
+        "enough that the repairs are the oldest part of it. Civic " +
+        "notices scroll past a cracked corner: tram loop running to " +
+        "holiday timings, storm drain works, a lost-persons list that " +
+        "does not get shorter. Underneath, in the free-posting band, the " +
+        "Row talks to itself in ninety characters at a time.",
+      location: "cinder-row:plaza",
+      choices: [
+        {
+          id: "read-postings",
+          label: "Read the free-posting band.",
+          target: "st-plaza-board-postings",
+        },
+        {
+          id: "leave-board",
+          label: "Let the queue behind you have it.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "st-plaza-board-postings",
+      text:
+        "Room going, dry, no chrome. Rigger wants a second pair of hands " +
+        "and won't say for what. Somebody looking for a grey courier " +
+        "slicker, distinctive, sentimental value. Three separate people " +
+        "advertising the same tram pass. And, pinned to the top by " +
+        "whoever pays to pin things: a reminder that the Meridian Sprawl " +
+        "does not recognise unlicensed work, followed by four hundred " +
+        "lines of unlicensed work.",
+      location: "cinder-row:plaza",
+      choices: [
+        {
+          id: "board-back",
+          label: "Scroll back up.",
+          target: "st-plaza-board",
+        },
+        {
+          id: "board-done",
+          label: "Step away from the screen.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
     {
       id: "st-picket",
       speaker: "Combine Notice-Server",

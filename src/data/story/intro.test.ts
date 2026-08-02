@@ -145,6 +145,110 @@ describe("intro arc gating", () => {
   });
 });
 
+describe("the Filament after the courier job", () => {
+  /** A run that has settled the courier job one of the three ways. */
+  function settled(outcome: string): GameState {
+    const state = makeState("gutter-courier");
+    state.flags["sable-terms"] = "agreed";
+    state.flags["intro-outcome"] = outcome;
+    return state;
+  }
+
+  it("writes an outcome on every way out of the job", () => {
+    let delivered = makeState("gutter-courier");
+    delivered = {
+      ...delivered,
+      inventory: addItem(delivered.inventory, "msc-cracked-spike"),
+    };
+    expect(
+      take(delivered, "finale", "hand-over").state.flags["intro-outcome"],
+    ).toBe("delivered");
+    expect(
+      take(delivered, "finale", "keep-spike").state.flags["intro-outcome"],
+    ).toBe("kept");
+    expect(
+      take(makeState("gutter-courier"), "job-brief", "walk-away").state.flags[
+        "intro-outcome"
+      ],
+    ).toBe("declined");
+  });
+
+  it("closes the door's cover charge and waves a known face through", () => {
+    const door = requireNode(introArc, "filament-door");
+    const fresh = availableChoices(makeState("gutter-courier"), door).map(
+      (p) => p.choice.id,
+    );
+    expect(fresh).toContain("pay-cover");
+    expect(fresh).not.toContain("known-face");
+
+    const after = availableChoices(settled("delivered"), door).map(
+      (p) => p.choice.id,
+    );
+    expect(after).toContain("known-face");
+    // The routes that negotiated entry to a meeting already had are gone,
+    // so the fifteen cannot be charged twice for the same scene.
+    expect(after).not.toContain("pay-cover");
+    expect(after).not.toContain("street-nod");
+    expect(take(settled("kept"), "filament-door", "known-face").nextNodeId).toBe(
+      "bar-floor-after",
+    );
+  });
+
+  it("never seats the player at the job meeting a second time", () => {
+    const barFloor = requireNode(introArc, "bar-floor");
+    const seats = availableChoices(settled("delivered"), barFloor).map(
+      (p) => p.choice.id,
+    );
+    // Even walking in the old way (Brakk's burned hand still takes a
+    // patch) lands in the room as it is now, not on Sable's advance.
+    expect(seats).toEqual(["sit-after"]);
+    expect(take(settled("delivered"), "bar-floor", "sit-after").nextNodeId).toBe(
+      "bar-floor-after",
+    );
+  });
+
+  it("gives each outcome its own table, and the others nobody's", () => {
+    const room = requireNode(introArc, "bar-floor-after");
+    for (const [outcome, choiceId] of [
+      ["delivered", "after-sable-paid"],
+      ["kept", "after-sable-kept"],
+      ["declined", "after-sable-declined"],
+    ] as const) {
+      const ids = availableChoices(settled(outcome), room).map(
+        (p) => p.choice.id,
+      );
+      expect(ids, outcome).toContain(choiceId);
+      expect(ids.filter((id) => id.startsWith("after-sable-")), outcome)
+        .toHaveLength(1);
+      // Always a way back out to the Row, whatever the run did.
+      expect(ids, outcome).toContain("after-leave");
+    }
+  });
+
+  it("pays nothing and records nothing — the bar is a place, not a beat", () => {
+    const afterNodes = [
+      "bar-floor-after",
+      "filament-room",
+      "sable-after-paid",
+      "sable-after-kept",
+      "sable-after-declined",
+    ];
+    for (const nodeId of afterNodes) {
+      const node = requireNode(introArc, nodeId);
+      expect(node.choices.length, nodeId).toBeGreaterThan(0);
+      for (const choice of node.choices) {
+        for (const effect of choice.effects ?? []) {
+          expect(effect.type, `${nodeId}/${choice.id}`).toBe("end");
+        }
+      }
+      // Nowhere in here leads back into the job's own nodes.
+      for (const choice of node.choices) {
+        if (choice.target) expect(afterNodes, choice.id).toContain(choice.target);
+      }
+    }
+  });
+});
+
 describe("intro arc walkthrough", () => {
   it("the terms chosen at the very first node decide the meeting scene", () => {
     const barFloor = requireNode(introArc, "bar-floor");

@@ -13,6 +13,22 @@ describe("findArcByNode", () => {
   });
 });
 
+describe("the hub opens nobody's first scene", () => {
+  it("keeps the run's opening node off the plaza", () => {
+    // The intro's entry is played once, by a new game, from the bolthole
+    // (see ui/characterCreate.ts). A fixture on the plaza that opened it
+    // handed every later act a way to restart the story from the middle
+    // of it — the public terminal used to be exactly that.
+    const hub = requireMap(HUB_MAP_ID);
+    const opens = hub.interactables
+      .map((thing) => thing.interaction)
+      .filter((interaction) => interaction.kind === "dialogue")
+      .map((interaction) => interaction.nodeId);
+    expect(opens).not.toContain(introArc.entryNodeId);
+    expect(opens).toContain("st-plaza-board");
+  });
+});
+
 describe("day-phase staging", () => {
   const staged = storyArcs.flatMap((arc) =>
     arc.nodes

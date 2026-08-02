@@ -7,6 +7,14 @@ import type { StoryArc } from "../../narrative/types";
  *
  * The terms set with Sable at the very first node ("sable-terms") decide
  * which meeting scene plays at the Filament Bar much later in the arc.
+ *
+ * Every way out of the courier job writes "intro-outcome" — "delivered",
+ * "kept", or "declined" — and that flag is what closes the thread behind
+ * the player. The plaza's Filament door opens this arc for as long as the
+ * run lives, so without it the meeting with Sable (and the advance on her
+ * table) could be walked into again every evening. Settled, the door is
+ * just a door: Brakk knows the face, and what is on the other side of it
+ * is a bar rather than a job.
  */
 export const introArc: StoryArc = {
   id: "intro",
@@ -184,20 +192,42 @@ export const introArc: StoryArc = {
       location: "cinder-row:filament-bar",
       choices: [
         {
+          // The courier job is behind you: Brakk says his line to the
+          // whole queue and then waves you past it. The routes that talk
+          // or pay their way in close on the same flag — they were
+          // negotiating entry to a meeting that has already happened.
+          id: "known-face",
+          label: "Let him finish, then walk past him. He's seen you go in before.",
+          target: "bar-floor-after",
+          requirements: [{ type: "flag-set", key: "intro-outcome" }],
+        },
+        {
           id: "corp-talk",
           label: "Quote Auric guest-list policy at him, ninety-first floor cadence.",
           target: "bar-floor",
-          requirements: [{ type: "background", tag: "corp" }],
+          requirements: [
+            { type: "background", tag: "corp" },
+            { type: "flag-unset", key: "intro-outcome" },
+          ],
           effects: [{ type: "set-flag", key: "door-entry", value: "corp" }],
         },
         {
           id: "street-nod",
           label: "Remind him who ran his packages when the underlevels flooded.",
           target: "bar-floor",
-          requirements: [{ type: "background", tag: "street" }],
+          requirements: [
+            { type: "background", tag: "street" },
+            { type: "flag-unset", key: "intro-outcome" },
+          ],
           effects: [{ type: "set-flag", key: "door-entry", value: "street" }],
         },
         {
+          // The one entry line that stays open afterwards, on purpose:
+          // his hand is still burned, and this choice is shown greyed
+          // rather than hidden, so a flag gate on it would print the
+          // flag's own name next to [Requires: Trauma Patch]. Costs a
+          // patch and opens a door that was already open — generosity,
+          // not a trap, since the room behind it is the same either way.
           id: "bribe-patch",
           label: "Offer a trauma patch for that burned hand.",
           target: "bar-floor",
@@ -212,6 +242,7 @@ export const introArc: StoryArc = {
           id: "pay-cover",
           label: "Pay the fifteen.",
           target: "bar-floor",
+          requirements: [{ type: "flag-unset", key: "intro-outcome" }],
           effects: [{ type: "credits", amount: -15 }],
         },
       ],
@@ -223,6 +254,10 @@ export const introArc: StoryArc = {
         "threading between booths. Sable's corner table has one empty chair " +
         "and a line of sight on both exits.",
       location: "cinder-row:filament-bar",
+      // The meeting happens once. Both chairs close on "intro-outcome",
+      // so a player who paid the cover a second time out of habit walks
+      // into the room as it is now rather than into a rerun of the
+      // scene that pays an advance.
       choices: [
         {
           id: "sit-agreed",
@@ -230,6 +265,7 @@ export const introArc: StoryArc = {
           target: "sable-warm",
           requirements: [
             { type: "flag-equals", key: "sable-terms", value: "agreed" },
+            { type: "flag-unset", key: "intro-outcome" },
           ],
         },
         {
@@ -238,7 +274,14 @@ export const introArc: StoryArc = {
           target: "sable-cold",
           requirements: [
             { type: "flag-equals", key: "sable-terms", value: "cold" },
+            { type: "flag-unset", key: "intro-outcome" },
           ],
+        },
+        {
+          id: "sit-after",
+          label: "Find a stool where you can see the door.",
+          target: "bar-floor-after",
+          requirements: [{ type: "flag-set", key: "intro-outcome" }],
         },
       ],
     },
@@ -296,7 +339,10 @@ export const introArc: StoryArc = {
         {
           id: "walk-away",
           label: "Walk away. Rent isn't worth an Auric grudge.",
-          effects: [{ type: "end", endingId: "walked-away" }],
+          effects: [
+            { type: "set-flag", key: "intro-outcome", value: "declined" },
+            { type: "end", endingId: "walked-away" },
+          ],
         },
       ],
     },
@@ -372,6 +418,7 @@ export const introArc: StoryArc = {
             { type: "remove-item", itemId: "msc-cracked-spike" },
             { type: "credits", amount: 200 },
             { type: "set-flag", key: "spike-delivered", value: true },
+            { type: "set-flag", key: "intro-outcome", value: "delivered" },
             { type: "end", endingId: "job-done" },
           ],
         },
@@ -380,8 +427,156 @@ export const introArc: StoryArc = {
           label: "Lie. The spike stays in your jacket — cracked things can be read.",
           effects: [
             { type: "set-flag", key: "kept-spike", value: true },
+            { type: "set-flag", key: "intro-outcome", value: "kept" },
             { type: "end", endingId: "kept-it" },
           ],
+        },
+      ],
+    },
+    // ------------------------------------------------------------------
+    // The Filament afterwards
+    //
+    // Where the plaza's door leads once the courier job is settled. The
+    // job is over, so nothing in here pays, recruits, or records: these
+    // scenes exist so that walking into your local is a thing the game
+    // lets you do, and so the door is not a turnstile back onto a beat
+    // that has already been played. Every route out lands on the Row.
+    // ------------------------------------------------------------------
+    {
+      id: "bar-floor-after",
+      text:
+        "Inside, the Filament is doing what it does on a wet weeknight: " +
+        "low talk, wet coats steaming on the rail, a bartender running " +
+        "the taps and the room at the same time. Nobody looks up. The " +
+        "corner table has a line of sight on both exits, the way it " +
+        "always does.",
+      location: "cinder-row:filament-bar",
+      choices: [
+        {
+          id: "after-sable-paid",
+          label: "Sable's at the corner table. Take the chair.",
+          target: "sable-after-paid",
+          requirements: [
+            { type: "flag-equals", key: "intro-outcome", value: "delivered" },
+          ],
+        },
+        {
+          id: "after-sable-kept",
+          label: "Sable's at the corner table, and hasn't looked up yet.",
+          target: "sable-after-kept",
+          requirements: [
+            { type: "flag-equals", key: "intro-outcome", value: "kept" },
+          ],
+        },
+        {
+          id: "after-sable-declined",
+          label: "The corner table is somebody else's problem tonight.",
+          target: "sable-after-declined",
+          requirements: [
+            { type: "flag-equals", key: "intro-outcome", value: "declined" },
+          ],
+        },
+        {
+          id: "after-room",
+          label: "Buy a drink and let the room talk.",
+          target: "filament-room",
+        },
+        {
+          id: "after-leave",
+          label: "Finish up and get back out to the Row.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "filament-room",
+      text:
+        "Two stools down, a rigger is explaining to nobody that the pumps " +
+        "under Greywater have been running odd hours. Behind her, a " +
+        "salvage crew argues about whose name goes on a claim. The " +
+        "Filament's own lights buzz in their cages, and the door lets in " +
+        "a slab of rain every time it opens. It is, briefly, not a bad " +
+        "place to be nobody in particular.",
+      location: "cinder-row:filament-bar",
+      choices: [
+        {
+          id: "room-back",
+          label: "Turn back to the room.",
+          target: "bar-floor-after",
+        },
+        {
+          id: "room-leave",
+          label: "Leave while the rain's easing.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "sable-after-paid",
+      speaker: "Sable",
+      expression: "smile",
+      text:
+        "\"The professional.\" Sable moves a glass six inches to make room " +
+        "for an elbow that isn't there yet. \"No, I don't have anything " +
+        "for you tonight. When I do, you'll know before the Row does — " +
+        "that's what delivering buys. Sit. Don't work.\"",
+      location: "cinder-row:filament-bar",
+      choices: [
+        {
+          id: "paid-sit",
+          label: "Sit a while, and don't work.",
+          target: "filament-room",
+        },
+        {
+          id: "paid-go",
+          label: "\"Another time.\"",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "sable-after-kept",
+      speaker: "Sable",
+      expression: "grim",
+      text:
+        "\"Sit if you like.\" Sable does not move the glass, and does not " +
+        "look up from whatever is scrolling under their hand. \"Funny " +
+        "thing about the Undercroft. Everything that comes out of it " +
+        "turns up eventually, and it's never where it said it was going.\" " +
+        "A pause exactly long enough. \"Drink's on the house.\"",
+      location: "cinder-row:filament-bar",
+      choices: [
+        {
+          id: "kept-say-nothing",
+          label: "Say nothing. Drink the drink.",
+          target: "filament-room",
+        },
+        {
+          id: "kept-go",
+          label: "Decide you're not thirsty.",
+          effects: [{ type: "end" }],
+        },
+      ],
+    },
+    {
+      id: "sable-after-declined",
+      text:
+        "Two people you don't know are running numbers across the corner " +
+        "table, and the fixer who once had a job with your name on it is " +
+        "not in the room. On the Row that isn't a snub — it's a filing " +
+        "decision. The rest of the bar has no opinion about you at all, " +
+        "which is worth something on a wet night.",
+      location: "cinder-row:filament-bar",
+      choices: [
+        {
+          id: "declined-stay",
+          label: "Take a stool anyway.",
+          target: "filament-room",
+        },
+        {
+          id: "declined-go",
+          label: "Get back out to the Row.",
+          effects: [{ type: "end" }],
         },
       ],
     },

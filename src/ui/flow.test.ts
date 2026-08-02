@@ -882,6 +882,50 @@ describe("inventory overlay", () => {
   });
 });
 
+describe("walking back into the Filament", () => {
+  /**
+   * The plaza's door is wired to the intro's bouncer for the whole run,
+   * so a settled courier job has to close its own scenes behind it —
+   * otherwise the door is a turnstile: cover charged again, Sable's
+   * advance paid again, the same job offered again, forever.
+   */
+  function openDoorOn(flags: Record<string, string>): void {
+    const base = testCharacterState(1);
+    const state: GameState = {
+      ...base,
+      location: "cinder-plaza",
+      flags: { ...base.flags, "sable-terms": "agreed", ...flags },
+    };
+    showScreen(
+      createGameScreen({
+        session: createSession(state),
+        dialogueNodeId: "filament-door",
+      }),
+    );
+  }
+
+  it("charges the cover once, and knows the face afterwards", () => {
+    openDoorOn({});
+    expect(buttonByText("Pay the fifteen")).toBeTruthy();
+
+    openDoorOn({ "intro-outcome": "delivered" });
+    expect(buttonByText("Pay the fifteen")).toBeUndefined();
+    const credits = textOf(".nf-hud-status");
+    click("Let him finish");
+    // Inside is the bar, not the job: no advance, no brief, no charge.
+    expect(textOf(".nf-dialogue-text")).toMatch(/wet weeknight/);
+    expect(buttonByText("Pocket the advance")).toBeUndefined();
+    expect(textOf(".nf-hud-status")).toBe(credits);
+
+    click("Sable's at the corner table");
+    expect(textOf(".nf-dialogue-text")).toMatch(/The professional/);
+    click("\"Another time.\"");
+    // The visit ends on the Row with the panel closed, not on an ending.
+    expect(document.querySelector(".nf-dialogue")).toBeNull();
+    expect(document.querySelector(".nf-chapter-end")).toBeNull();
+  });
+});
+
 describe("act 1 chapter flow", () => {
   /** Mounts the game screen on a mid-chapter state with dialogue open. */
   function mountAt(nodeId: string, location: string): void {

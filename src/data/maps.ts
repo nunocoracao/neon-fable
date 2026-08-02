@@ -193,7 +193,12 @@ const cinderPlaza: IsoMap = {
       y: 4,
       label: "Public terminal",
       spriteId: "terminal",
-      interaction: { kind: "dialogue", nodeId: "start" },
+      // Civic notices and the Row's free-posting band — a screen, not a
+      // doorway. It used to open the intro's first node, which meant
+      // that from Act 1 onward a player could walk up to a terminal in
+      // the plaza and be told they were at home in bed, reading a job
+      // offer they had already finished.
+      interaction: { kind: "dialogue", nodeId: "st-plaza-board" },
     },
     {
       id: "rust-runner",
