@@ -57,6 +57,11 @@ import type {
 import type { MinimapView } from "./minimap";
 import { findPath, findPathToAdjacent } from "./path";
 import {
+  clearRenderCounters,
+  createRenderCounters,
+  type ScenePerfSample,
+} from "./perf";
+import {
   renderScene,
   type OpeningView,
   type RenderView,
@@ -85,6 +90,7 @@ import {
   type DayPhaseId,
   type Interactable,
   type IsoMap,
+  type WeatherId,
 } from "./tilemap";
 
 export interface IsoSceneOptions {
@@ -153,6 +159,21 @@ export interface IsoSceneOptions {
    * src/stealth/) never enters this layer.
    */
   watch?: SceneWatchSource;
+  /**
+   * Weather forced on regardless of what the district declares. Only
+   * the perf scene uses it, to hold rain up over a map that plays
+   * clear; the setting still switches it off, because a measurement
+   * taken with a pass the player can disable should be able to be taken
+   * without it too.
+   */
+  weather?: WeatherId | null;
+  /**
+   * Dev instrumentation: called at the end of every frame with what
+   * that frame cost and what it drew (see ./perf.ts). Passing nothing —
+   * which is every screen in the game — costs the frame nothing: no
+   * counters are allocated and the renderer does no counting.
+   */
+  onPerf?: (sample: ScenePerfSample) => void;
 }
 
 export interface IsoScene {
@@ -189,6 +210,13 @@ export interface IsoScene {
    * stand; nothing is pathed and nothing is triggered on arrival.
    */
   placePlayer(tile: TilePoint): void;
+  /**
+   * Park the camera on a world-screen point, clamped into the map
+   * exactly as a drag-pan is. Dev tooling drives the perf scene's
+   * scripted scroll through it (see src/data/perfScenes.ts); nothing in
+   * the game moves the camera this way.
+   */
+  setCamera(point: Camera): void;
   /** Stop the animation loop and remove all listeners. */
   destroy(): void;
 }
@@ -263,8 +291,10 @@ export function createIsoScene(
    * map) and rebuilt when the player toggles the setting. Null is both
    * "clear skies" and "weather effects off".
    */
+  const forcedWeather = options.weather ?? undefined;
   let weather: WeatherView | null = resolveWeather(map, {
     enabled: settings.get().weather,
+    weather: forcedWeather,
   });
   /**
    * The hour the scene plays at: the map's own unless a story beat has
@@ -690,9 +720,20 @@ export function createIsoScene(
 
   let rafId = 0;
   let lastTime: number | null = null;
+  /**
+   * The counter record the renderer fills in, or null when nobody is
+   * measuring — which is every screen in the game. Allocated once and
+   * zeroed per frame rather than rebuilt, for the same reason the frame
+   * window is a ring buffer.
+   */
+  const counters = options.onPerf ? createRenderCounters() : null;
+
   function frame(time: number): void {
+    const startedAt = counters ? performance.now() : 0;
+    const previousTime = lastTime;
     const dt = lastTime === null ? 0 : Math.min((time - lastTime) / 1000, 0.1);
     lastTime = time;
+    if (counters) clearRenderCounters(counters);
     stepWalk(dt);
     stepFollower(dt);
     resolveFocus();
@@ -795,6 +836,7 @@ export function createIsoScene(
             color: outlineColor(outlinePaletteFor(current)),
           }
         : null,
+      ...(counters ? { counters } : {}),
     };
     renderScene(ctx!, sprites, view);
     if (options.onSpeakers) {
@@ -820,6 +862,17 @@ export function createIsoScene(
       viewportH,
       zoom,
     });
+    if (counters && options.onPerf) {
+      // Two clocks, because they answer different questions: how much
+      // JS this frame owned, and how long it had been since the last
+      // one — which is where a garbage-collection pause shows up, since
+      // it lands between frames rather than inside one.
+      options.onPerf({
+        frameMs: performance.now() - startedAt,
+        deltaMs: previousTime === null ? 0 : time - previousTime,
+        counters,
+      });
+    }
     rafId = requestAnimationFrame(frame);
   }
 
@@ -842,7 +895,10 @@ export function createIsoScene(
     const wanted = next.weather && weather === null;
     const unwanted = !next.weather && weather !== null;
     if (wanted || unwanted) {
-      weather = resolveWeather(map, { enabled: next.weather });
+      weather = resolveWeather(map, {
+        enabled: next.weather,
+        weather: forcedWeather,
+      });
     }
   });
   rafId = requestAnimationFrame(frame);
@@ -878,6 +934,13 @@ export function createIsoScene(
       pendingInteractable = null;
       playerTile = { x: tile.x, y: tile.y };
       playerPos = { x: tile.x, y: tile.y };
+    },
+
+    setCamera(point: Camera): void {
+      camera = clampCamera(point, bounds, viewportW / zoom, viewportH / zoom);
+      // A camera placed on purpose is a settled one: the first measured
+      // resize must not overwrite it with the player's tile.
+      cameraSettled = true;
     },
 
     playOpening(interactableId: string): boolean {

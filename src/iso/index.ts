@@ -42,6 +42,33 @@ export {
 } from "./affordance";
 export { findPath, findPathToAdjacent } from "./path";
 export {
+  CULL_PAD,
+  boxVisible,
+  expandBounds,
+  rectVisible,
+  spriteVisible,
+  tileRowSpan,
+  tileVisible,
+  viewBounds,
+  type RowSpan,
+  type ViewBounds,
+} from "./cull";
+export {
+  FRAME_WINDOW_SIZE,
+  cacheDelta,
+  clearRenderCounters,
+  createFrameWindow,
+  createRenderCounters,
+  culledFraction,
+  percentileIndex,
+  perfHudLines,
+  type CacheDelta,
+  type FrameTimings,
+  type FrameWindow,
+  type RenderCounters,
+  type ScenePerfSample,
+} from "./perf";
+export {
   MAX_AMBIENT_PER_MAP,
   ambientLookSeed,
   ambientSpriteId,

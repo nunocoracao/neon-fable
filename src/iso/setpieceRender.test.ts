@@ -105,9 +105,13 @@ function render(
   const sprites = createPixelArtSprites();
   renderScene(recordingContext(images), sprites, {
     map: hub,
+    // Framed wide enough to hold the whole line, viaduct to viaduct:
+    // the overline crosses well past the edge of a playing viewport, and
+    // where each car lands is the assertion, not whether the camera was
+    // pointed at it (culling is ./cull.ts's business, tested there).
     camera: worldToScreen(7, 6),
-    viewportW: 1280,
-    viewportH: 720,
+    viewportW: 4096,
+    viewportH: 2304,
     hoverTile: null,
     path: [],
     entities: [],

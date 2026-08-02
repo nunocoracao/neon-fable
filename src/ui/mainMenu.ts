@@ -11,7 +11,7 @@ import {
 } from "../state";
 import { createCharacterCreateScreen } from "./characterCreate";
 import { createCodexScreen } from "./codexScreen";
-import { isDevMode, openArtGallery } from "./dev";
+import { isDevMode, openArtGallery, openPerfScene } from "./dev";
 import { createExploreScreen } from "./exploreScreen";
 import { focusFirst, installListNav } from "./focus";
 import { saveErrorMessage } from "./format";
@@ -150,6 +150,16 @@ export function createMainMenuScreen(): Screen {
           void openArtGallery(() => showScreen(createMainMenuScreen()));
         });
         menu.append(gallery);
+
+        // The scripted worst-case frame, with the frame-time HUD over
+        // it: the one scene a performance claim is made against.
+        const perf = document.createElement("button");
+        perf.className = "nf-button";
+        perf.textContent = "Perf Scene (dev)";
+        perf.addEventListener("click", () => {
+          void openPerfScene(() => showScreen(createMainMenuScreen()));
+        });
+        menu.append(perf);
       }
       container.append(title, subtitle, menu, errorLine);
       root.append(container);

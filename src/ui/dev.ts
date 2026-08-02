@@ -19,3 +19,15 @@ export async function openArtGallery(onBack: () => void): Promise<void> {
   const { createArtGalleryScreen } = await import("./artGallery");
   showScreen(createArtGalleryScreen({ onBack }));
 }
+
+/**
+ * Dev route into the scripted performance scene and its frame-time HUD
+ * (see src/data/perfScenes.ts). Its own chunk, like the gallery, so the
+ * measuring gear costs the shipped game nothing; outside ?dev this is a
+ * no-op.
+ */
+export async function openPerfScene(onBack: () => void): Promise<void> {
+  if (!isDevMode()) return;
+  const { createPerfScreen } = await import("./perfScreen");
+  showScreen(createPerfScreen({ onExit: onBack }));
+}

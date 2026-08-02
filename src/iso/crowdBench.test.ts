@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HUB_MAP_ID, maps, requireMap } from "../data/maps";
+import { panRect, perfScene, scrollCircuit } from "../data/perfScenes";
 import { ambientSpriteSource } from "../ui/entitySprites";
 import {
   MAX_AMBIENT_PER_MAP,
@@ -9,7 +10,8 @@ import {
   stepCrowd,
 } from "./ambient";
 import { createPixelArtSprites } from "./art/provider";
-import { mapPixelBounds } from "./camera";
+import { clampCamera, mapPixelBounds, type Camera } from "./camera";
+import { clearRenderCounters, createRenderCounters } from "./perf";
 import { renderScene, type RenderView } from "./render";
 import { collectSetPieces } from "./setpiece";
 import { tileMaterial } from "./tilemap";
@@ -33,6 +35,19 @@ import { resolveWeather } from "./weather";
  */
 const FRAMES = 120;
 const FRAME_BUDGET_MS = 4;
+
+/**
+ * Draw calls a single frame of the scripted worst case may issue. The
+ * millisecond budget above cannot see this — draws are stubbed to
+ * nothing here, and in a browser they are most of what a frame actually
+ * costs — so the count is guarded on its own.
+ *
+ * The scripted circuit peaks around 850 at the widest zoom: roughly 400
+ * rain streaks (screen-space, so they never cull), 250 glow sprites,
+ * 150 ground tiles and the rest objects. The ceiling is headroom for a
+ * district that dresses up further, not a target to fill.
+ */
+const DRAW_CEILING = 1100;
 
 /** Every 2d-context member the ground, highlight, and object passes use. */
 function stubContext(): CanvasRenderingContext2D {
@@ -58,6 +73,12 @@ function stubContext(): CanvasRenderingContext2D {
     closePath: noop,
     fill: noop,
     stroke: noop,
+    setLineDash: noop,
+    measureText: () => ({ width: 40 }),
+    fillText: noop,
+    strokeRect: noop,
+    font: "",
+    textAlign: "left",
     // The glow pass bakes radial gradients; happy-dom has no canvas.
     createRadialGradient: () => ({ addColorStop: noop }),
     arc: noop,
@@ -269,6 +290,108 @@ describe("crowded-scene frame budget", () => {
     // Set-piece bake keys are frame indices, never the clock, so a
     // warmed crossing re-bakes nothing at all.
     expect(sprites.cacheStats().misses - warmed.misses).toBe(0);
+  });
+
+  it("holds the scripted worst-case scene inside budget while it scrolls", () => {
+    // The frame the perf HUD is pointed at (src/data/perfScenes.ts),
+    // benched exactly as the dev screen runs it: the plaza's crowd, rain
+    // forced on over a district that plays clear, the overline crossing,
+    // the glow pass up, and the camera panning its circuit — so the
+    // visible set changes every single frame and the culling is never
+    // measuring a view that stood still.
+    //
+    // Two guards, because they fail for different reasons. The
+    // millisecond figure catches work that grew; DRAW_CEILING catches a
+    // pass that started drawing more, which is what a browser actually
+    // spends its frame on and what no timing here can see.
+    const scene = perfScene("worst-case");
+    const map = requireMap(scene.mapId);
+    const track = map.setPieces?.trains?.[0];
+    expect(track, "the perf scene declares an overline").toBeDefined();
+    if (!track) return;
+    const crossing = (() => {
+      for (let t = 0; t < track.periodMs * 2; t += 50) {
+        if (collectSetPieces(map, t).some((p) => p.spriteId === "train-head")) {
+          return t;
+        }
+      }
+      throw new Error("the overline never crosses");
+    })();
+    const weather = resolveWeather(map, {
+      enabled: true,
+      weather: scene.weather,
+    });
+    const sprites = createPixelArtSprites({ entity: ambientSpriteSource() });
+    const ctx = stubContext();
+    const counters = createRenderCounters();
+    const bounds = mapPixelBounds(map);
+    const viewportW = 1280;
+    const viewportH = 720;
+    const { lo, hi } = panRect(
+      (camera: Camera) =>
+        clampCamera(
+          camera,
+          bounds,
+          viewportW / scene.zoom,
+          viewportH / scene.zoom,
+        ),
+      bounds,
+    );
+    // The circuit has somewhere to go: a scene with nowhere to scroll
+    // would quietly bench a still camera.
+    expect(hi.sx - lo.sx).toBeGreaterThan(0);
+    expect(hi.sy - lo.sy).toBeGreaterThan(0);
+
+    let peakDraws = 0;
+    const runScene = (): void => {
+      let crowd = createCrowd(map);
+      for (let frame = 0; frame < FRAMES; frame++) {
+        const timeMs = crossing + frame * (1000 / 60);
+        crowd = stepCrowd(crowd, map, 1 / 60);
+        clearRenderCounters(counters);
+        renderScene(ctx, sprites, {
+          map,
+          camera: scrollCircuit(
+            lo,
+            hi,
+            frame * (1000 / 60),
+            scene.scrollPxPerS,
+          ),
+          viewportW,
+          viewportH,
+          hoverTile: { x: 5, y: 5 },
+          path: [],
+          entities: [
+            { spriteId: "player", position: { x: 7, y: 6 }, facing: "s", moving: true },
+            ...crowdEntities(crowd),
+          ],
+          timeMs,
+          dpr: 2,
+          zoom: scene.zoom,
+          glowEnabled: true,
+          weather,
+          setPieces: collectSetPieces(map, timeMs, { rain: true }),
+          counters,
+        });
+        peakDraws = Math.max(peakDraws, counters.draws);
+      }
+    };
+
+    runScene();
+    const warmed = sprites.cacheStats();
+    const start = performance.now();
+    runScene();
+    const perFrame = (performance.now() - start) / FRAMES;
+    expect(perFrame, `${perFrame.toFixed(3)}ms per scripted frame`).toBeLessThan(
+      FRAME_BUDGET_MS,
+    );
+    // A scroll must not re-bake: the tiles coming into view are ones the
+    // opening lap already paid for.
+    expect(sprites.cacheStats().misses - warmed.misses).toBe(0);
+    expect(peakDraws, `${peakDraws} draws at peak`).toBeLessThan(DRAW_CEILING);
+    // And the culling was live throughout — a scroll that culled nothing
+    // means the bounds stopped following the camera.
+    expect(counters.groundCulled + counters.glowsCulled).toBeGreaterThan(0);
   });
 
   it("bakes one canvas per look and pose, not per pedestrian", () => {

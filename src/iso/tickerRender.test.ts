@@ -108,9 +108,12 @@ function draw(
   const record = emptyRecord();
   const view: RenderView = {
     map,
-    camera: { sx: bounds.minX + 200, sy: bounds.minY + 200 },
-    viewportW: 960,
-    viewportH: 600,
+    // The whole district framed at once: what is under test here is
+    // geometry, not which half of the map the camera happens to hold,
+    // and a viewport this size puts every tile inside the cull bounds.
+    camera: { sx: (bounds.minX + bounds.maxX) / 2, sy: (bounds.minY + bounds.maxY) / 2 },
+    viewportW: 4096,
+    viewportH: 2304,
     hoverTile: null,
     path: [],
     entities: [],
@@ -241,9 +244,12 @@ describe("the news ticker on the plaza board", () => {
     const record = emptyRecord();
     renderScene(recordingContext(record), createPixelArtSprites(), {
       map,
-      camera: { sx: bounds.minX + 200, sy: bounds.minY + 200 },
-      viewportW: 960,
-      viewportH: 600,
+      camera: {
+        sx: (bounds.minX + bounds.maxX) / 2,
+        sy: (bounds.minY + bounds.maxY) / 2,
+      },
+      viewportW: 4096,
+      viewportH: 2304,
       hoverTile: null,
       path: [],
       entities: [],
