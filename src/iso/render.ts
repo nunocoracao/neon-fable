@@ -4,13 +4,21 @@
  * Stateless — the scene passes everything (including the animation
  * clock) in each frame. Sprites are pixel art: smoothing is disabled and
  * every draw position snaps to whole device pixels so nothing shimmers.
+ *
+ * Every pass is culled against the viewport first (see ./cull.ts): a
+ * district is roughly twice the area the widest zoom shows, so half of
+ * each walk over the map used to end in a draw for pixels nobody could
+ * see. Culling is by the sprite's own box and inclusive at the edges —
+ * the error always falls on the side of drawing.
  */
 import { pulse01, type Facing } from "./animation";
 import { ART_SCALE } from "./art/pixel";
 import { cameraTranslation, snapToPixelGrid, type Camera } from "./camera";
 import { TILE_H, TILE_W, worldToScreen, type TilePoint, type WorldPoint } from "./coords";
+import { spriteVisible, tileRowSpan, tileVisible, viewBounds } from "./cull";
 import { compareDrawables, type Drawable } from "./depth";
-import { collectGlowPlacements } from "./glowPass";
+import { collectGlowPlacements, glowVisible } from "./glowPass";
+import type { RenderCounters } from "./perf";
 import {
   DEFAULT_DAY_PHASE,
   isWalkable,
@@ -163,6 +171,12 @@ export interface RenderView {
   tints?: readonly SceneTint[];
   /** Which telegraph palette the tints are painted from. */
   telegraphPalette?: TelegraphPaletteId;
+  /**
+   * Dev instrumentation: a counter record the frame fills in as it
+   * paints (see ./perf.ts). Absent in the game, which is the point —
+   * measuring costs nothing when nobody is looking.
+   */
+  counters?: RenderCounters;
 }
 
 interface SceneDrawable extends Drawable {
@@ -226,7 +240,9 @@ export function renderScene(
   const weather = view.weather ?? null;
   const focus = view.focus ?? null;
   const setPieces = view.setPieces ?? [];
+  const counters = view.counters;
   const scale = dpr * zoom;
+  const bounds = viewBounds(camera, viewportW, viewportH, zoom);
   ctx.clearRect(0, 0, viewportW / zoom, viewportH / zoom);
   ctx.imageSmoothingEnabled = false;
 
@@ -235,19 +251,34 @@ export function renderScene(
   ctx.translate(tx, ty);
 
   // Ground pass: flat tiles never overlap, so simple row order suffices.
+  // Each row's visible span is solved in closed form rather than tested
+  // tile by tile (see tileRowSpan) — off-screen rows cost one test.
   // Under rain, tiles the weather marked as pooling water swap to their
   // puddle variant — same texture, water added.
   for (let y = 0; y < map.height; y++) {
-    for (let x = 0; x < map.width; x++) {
+    const span = tileRowSpan(bounds, y, map.width);
+    if (!span) {
+      if (counters) counters.groundCulled += map.width;
+      continue;
+    }
+    if (counters) counters.groundCulled += map.width - (span.to - span.from + 1);
+    for (let x = span.from; x <= span.to; x++) {
       const tileId = map.tiles[y]?.[x];
       if (tileId === undefined) continue;
       const wet = weather?.puddles.has(tileKey(x, y)) === true;
       drawSprite(ctx, sprites.tile(tileId, x, y, timeMs, wet), x, y, scale);
+      if (counters) {
+        counters.groundDrawn++;
+        counters.draws++;
+      }
     }
   }
 
   // Splashes land on the ground, under the highlights and every object.
-  if (weather) paintSplashes(ctx, sprites, weather, timeMs, scale);
+  if (weather) {
+    const splashes = paintSplashes(ctx, sprites, weather, timeMs, scale);
+    if (counters) counters.draws += splashes;
+  }
 
   const palette = view.telegraphPalette ?? DEFAULT_TELEGRAPH_PALETTE;
   // Ground somebody else is holding, under everything that stands on it.
@@ -259,13 +290,10 @@ export function renderScene(
   // drawn as the marker itself skip it rather than double-painting.
   for (const exit of map.interactables) {
     if (!exit.exit || exit.spriteId === "exit") continue;
-    drawSprite(
-      ctx,
-      sprites.interactable("exit", exit.x, exit.y, timeMs),
-      exit.x,
-      exit.y,
-      scale,
-    );
+    const ring = sprites.interactable("exit", exit.x, exit.y, timeMs);
+    if (!spriteVisible(bounds, ring, exit.x, exit.y)) continue;
+    drawSprite(ctx, ring, exit.x, exit.y, scale);
+    if (counters) counters.draws++;
   }
 
   // Highlights sit on the ground, under all objects. Every colour on
@@ -276,6 +304,7 @@ export function renderScene(
   // at a glance without hunting with the cursor.
   const markerAlpha = 0.08 + 0.1 * pulse01(timeMs, 1600);
   for (const interactable of map.interactables) {
+    if (!tileVisible(bounds, interactable.x, interactable.y)) continue;
     drawDiamond(
       ctx,
       interactable,
@@ -284,6 +313,7 @@ export function renderScene(
     );
   }
   for (const step of view.path) {
+    if (!tileVisible(bounds, step.x, step.y)) continue;
     drawDiamond(ctx, step, marks.pathStep, null);
   }
   if (view.hoverTile) {
@@ -298,18 +328,44 @@ export function renderScene(
     drawDiamond(ctx, view.hoverTile, null, color);
   }
 
-  // Object pass: props, interactables, and entities depth-sorted together.
-  const drawables: SceneDrawable[] = [
-    ...map.props.map((p) => ({
-      x: p.x,
-      y: p.y,
-      layer: "object" as const,
-      sprite: sprites.prop(p.propId, p.x, p.y, timeMs),
-    })),
-    ...map.interactables.map((i) => ({
+  // Object pass: props, interactables, and entities depth-sorted
+  // together. Built by appending rather than by concatenating five
+  // mapped arrays — the offscreen half never enters the list at all, so
+  // the sort is over what is actually on screen.
+  const drawables: SceneDrawable[] = [];
+  /** The focused drawable, kept as it is appended so the name chip
+   * needs no second search over the list. */
+  let focused: SceneDrawable | null = null;
+  const keep = (drawable: SceneDrawable): boolean => {
+    const visible = spriteVisible(
+      bounds,
+      drawable.sprite,
+      drawable.x,
+      drawable.y,
+      drawable.offsetX ?? 0,
+      drawable.offsetY ?? 0,
+    );
+    if (!visible) {
+      if (counters) counters.objectsCulled++;
+      return false;
+    }
+    drawables.push(drawable);
+    return true;
+  };
+
+  for (const prop of map.props) {
+    keep({
+      x: prop.x,
+      y: prop.y,
+      layer: "object",
+      sprite: sprites.prop(prop.propId, prop.x, prop.y, timeMs),
+    });
+  }
+  for (const i of map.interactables) {
+    const drawable: SceneDrawable = {
       x: i.x,
       y: i.y,
-      layer: "object" as const,
+      layer: "object",
       sprite: sprites.interactable(
         i.spriteId,
         i.x,
@@ -323,32 +379,39 @@ export function renderScene(
         focus?.interactableId === i.id
           ? sprites.interactableSilhouette(i.spriteId, i.x, i.y, timeMs, focus.color)
           : undefined,
-    })),
-    ...view.entities.map((e) => ({
+    };
+    if (keep(drawable) && drawable.outline) focused = drawable;
+  }
+  for (const e of view.entities) {
+    keep({
       x: e.position.x,
       y: e.position.y,
-      layer: "object" as const,
+      layer: "object",
       sprite: sprites.entity(e.spriteId, {
         facing: e.facing,
         moving: e.moving,
         timeMs,
       }),
-    })),
-    // Set pieces join the same sort as everything else: an overline on
-    // a row behind the tenements passes behind them because its row is
-    // behind theirs, not because anything here knows what a train is.
-    ...setPieces.map((piece) => ({
+    });
+  }
+  // Set pieces join the same sort as everything else: an overline on a
+  // row behind the tenements passes behind them because its row is
+  // behind theirs, not because anything here knows what a train is.
+  for (const piece of setPieces) {
+    keep({
       x: piece.x,
       y: piece.y,
-      layer: "object" as const,
+      layer: "object",
       sprite: sprites.setPiece(piece.spriteId, piece.frame),
       offsetX: piece.offsetX * ART_SCALE,
       offsetY: piece.offsetY * ART_SCALE,
-    })),
-    // Appended last, so a screen ties with the prop it is mounted on
-    // and — the sort being stable — lands on top of it.
-    ...tickerDrawables(sprites, view.tickers ?? []),
-  ];
+    });
+  }
+  // Appended last, so a screen ties with the prop it is mounted on and —
+  // the sort being stable — lands on top of it.
+  for (const ticker of tickerDrawables(sprites, view.tickers ?? [])) {
+    keep(ticker);
+  }
   drawables.sort(compareDrawables);
   const outlineAlpha =
     OUTLINE_ALPHA_MAX -
@@ -373,6 +436,10 @@ export function renderScene(
       d.offsetY ?? 0,
       d.clip,
     );
+    if (counters) {
+      counters.objectsDrawn++;
+      counters.draws++;
+    }
   }
 
   // Glow pass: emissive light from neon, screens, and their water
@@ -387,7 +454,16 @@ export function renderScene(
     if (glows.length > 0) {
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
+      // Culled last, at the draw rather than at the source: what an
+      // off-screen glow costs is one box test against a placement that
+      // already exists, and what it saves is an additive fill over a
+      // sprite the size of the light itself — much the most expensive
+      // draw in the frame.
       for (const glow of glows) {
+        if (!glowVisible(bounds, glow)) {
+          if (counters) counters.glowsCulled++;
+          continue;
+        }
         const sprite = sprites.glow(glow.color, glow.radius);
         const { sx, sy } = worldToScreen(glow.x, glow.y);
         ctx.globalAlpha = glow.alpha;
@@ -396,6 +472,10 @@ export function renderScene(
           snapToPixelGrid(sx + glow.offsetX - sprite.anchorX, scale),
           snapToPixelGrid(sy + glow.offsetY - sprite.anchorY, scale),
         );
+        if (counters) {
+          counters.glowsDrawn++;
+          counters.draws++;
+        }
       }
       ctx.restore();
     }
@@ -403,13 +483,12 @@ export function renderScene(
 
   // The name chip rides over everything in the world, glow included:
   // it is a caption on the scene, not a lamp in it.
-  if (focus) {
+  if (focus && focused) {
     // The outlined drawable is the focused one, and its sprite's anchor
     // is what says how tall the thing being named stands.
-    const drawn = drawables.find((d) => d.outline !== undefined);
     const tile = map.interactables.find((i) => i.id === focus.interactableId);
-    if (drawn && tile) {
-      drawLabelChip(ctx, drawn.sprite, tile, focus.label, focus.color);
+    if (tile) {
+      drawLabelChip(ctx, focused.sprite, tile, focus.label, focus.color);
     }
   }
 
@@ -418,7 +497,7 @@ export function renderScene(
   // Rain falls in front of the camera, not on the world: the curtain is
   // screen-space, so it is drawn after the camera translation is undone.
   if (weather) {
-    paintRainStreaks(
+    const streaks = paintRainStreaks(
       ctx,
       sprites,
       weather,
@@ -427,6 +506,7 @@ export function renderScene(
       viewportH / zoom,
       scale,
     );
+    if (counters) counters.draws += streaks;
   }
 }
 

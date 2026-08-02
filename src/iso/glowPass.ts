@@ -11,6 +11,8 @@ import { INTERACTABLE_ART } from "./art/interactables";
 import { ART_SCALE } from "./art/pixel";
 import { PROP_ART } from "./art/props";
 import { TILE_ART } from "./art/tiles";
+import { worldToScreen } from "./coords";
+import { boxVisible, type ViewBounds } from "./cull";
 import { glowIntensityScale } from "./dayPhase";
 import { DEFAULT_DAY_PHASE, type DayPhaseId, type IsoMap } from "./tilemap";
 import { shimmerFactor, tileKey } from "./weather";
@@ -93,14 +95,18 @@ function toPlacement(
  * tiles (canal water, and puddles while it rains) — a pre-authored
  * accent, not a lighting model. Under rain every reflection also
  * shimmers, on the same machinery: the alpha is just modulated per tile.
+ *
+ * Appends into the caller's array rather than returning one: a busy
+ * rainy street runs this once per lit object per frame, and a scratch
+ * array per call was pure garbage.
  */
-function reflectionsOf(
+function pushReflections(
+  into: GlowPlacement[],
   map: IsoMap,
   glow: GlowPlacement,
   timeMs: number,
   weather: WeatherGlow | null,
-): GlowPlacement[] {
-  const reflections: GlowPlacement[] = [];
+): void {
   for (let dy = -REFLECTION_RANGE; dy <= REFLECTION_RANGE; dy++) {
     for (let dx = -REFLECTION_RANGE; dx <= REFLECTION_RANGE; dx++) {
       const tx = glow.x + dx;
@@ -112,7 +118,7 @@ function reflectionsOf(
       const factor = REFLECTION_ALPHA[Math.max(Math.abs(dx), Math.abs(dy))];
       if (!factor) continue;
       const shimmer = weather ? shimmerFactor(tx, ty, timeMs) : 1;
-      reflections.push({
+      into.push({
         x: tx,
         y: ty,
         offsetX: 0,
@@ -123,7 +129,19 @@ function reflectionsOf(
       });
     }
   }
-  return reflections;
+}
+
+/**
+ * Whether a placed glow's baked sprite touches the view. The bake is a
+ * square of side 2·radius art pixels centered on the placement (see
+ * bakeGlow), so this is the sprite's exact box — the renderer skips the
+ * additive draw for everything that fails it, which on a lit street is
+ * most of the map.
+ */
+export function glowVisible(bounds: ViewBounds, glow: GlowPlacement): boolean {
+  const { sx, sy } = worldToScreen(glow.x, glow.y);
+  const half = glow.radius * ART_SCALE;
+  return boxVisible(bounds, sx + glow.offsetX, sy + glow.offsetY, half, half);
 }
 
 /**
@@ -159,7 +177,12 @@ export function collectGlowPlacements(
     for (let x = 0; x < map.width; x++) {
       const id = map.tiles[y]?.[x];
       if (id === undefined) continue;
-      for (const source of TILE_ART[id].glow ?? []) {
+      // Read the list rather than defaulting it: most ground is unlit,
+      // and `?? []` handed the collector a fresh empty array per tile
+      // per frame for nothing.
+      const glows = TILE_ART[id].glow;
+      if (!glows) continue;
+      for (const source of glows) {
         placements.push(toPlacement(source, x, y, intensity));
       }
     }
@@ -184,17 +207,18 @@ export function collectGlowPlacements(
 
   for (const interactable of map.interactables) {
     if (interactable.spriteId === "npc") continue;
-    const art = INTERACTABLE_ART[interactable.spriteId];
-    for (const source of art.glow ?? []) {
+    const glows = INTERACTABLE_ART[interactable.spriteId].glow;
+    if (!glows) continue;
+    for (const source of glows) {
       objectGlows.push(
         toPlacement(source, interactable.x, interactable.y, intensity),
       );
     }
   }
 
-  placements.push(...objectGlows);
+  for (const glow of objectGlows) placements.push(glow);
   for (const glow of objectGlows) {
-    placements.push(...reflectionsOf(map, glow, timeMs, weather));
+    pushReflections(placements, map, glow, timeMs, weather);
   }
   return placements;
 }
