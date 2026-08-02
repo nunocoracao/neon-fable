@@ -310,6 +310,26 @@ describe("the delete guard", () => {
     expect(deleteConfirmed(card, "")).toBe(true);
   });
 
+  it("carries the precise fault for whoever reports it", () => {
+    const card = slotCard(
+      record("slot1", {
+        status: "unreadable",
+        error: {
+          code: "corrupt",
+          message: "malformed",
+          detail: "state.player.name (expected a string, got nothing)",
+        },
+      }),
+      "game",
+    );
+    // The friendly line stays friendly; the precise one sits under it.
+    expect(card.notice).toMatch(/could not be read/);
+    expect(card.detail).toBe(
+      "state.player.name (expected a string, got nothing)",
+    );
+    expect(slotCard(record("slot2"), "game").detail).toBe("");
+  });
+
   it("takes a click for a slot too broken to say whose run it was", () => {
     const card = slotCard(
       record("slot1", {

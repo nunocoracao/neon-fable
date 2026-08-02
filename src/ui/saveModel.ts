@@ -53,6 +53,12 @@ export interface SlotCard {
   scene: string | null;
   /** Gentle one-liner for a slot that failed validation. */
   notice: string | null;
+  /**
+   * The precise part, for a player who is reporting it: the field that
+   * failed and what it should have been, or the migration step that
+   * could not be completed. "" when there is nothing more to say.
+   */
+  detail: string;
   canSave: boolean;
   canLoad: boolean;
   canRename: boolean;
@@ -101,6 +107,7 @@ export function slotCard(record: SlotRecord, mode: SaveMode): SlotCard {
     portrait: record.thumbnails.portrait,
     scene: record.thumbnails.scene,
     notice: noticeFor(record),
+    detail: record.error?.detail ?? "",
     canSave,
     canLoad: readable,
     // A save this build cannot read can still be named — the label

@@ -34,6 +34,18 @@ export interface SaveStorage {
   removeItem(key: string): void;
 }
 
+/**
+ * What the guarded write path needs, which is slightly less: the
+ * smaller records beside the saves (the codex, the settings) carry
+ * storage handles that were never given a remove. Those lose the
+ * scratch-key probe and keep everything else.
+ */
+export interface WritableStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem?(key: string): void;
+}
+
 export function createMemoryStorage(): SaveStorage {
   const data = new Map<string, string>();
   return {
@@ -155,25 +167,32 @@ export interface WriteOptions {
  * this size is the real key touched.
  */
 export function writeItem(
-  storage: SaveStorage,
+  storage: WritableStorage,
   key: string,
   value: string,
   options: WriteOptions = {},
 ): void {
   const scratch = scratchKey(key);
   const previous = safeRead(storage, key);
+  // Probing costs a key that has to be cleaned up afterwards, so a
+  // storage with no remove does not get probed — it would leave a
+  // second copy of the payload behind forever, which is worse than the
+  // failure the probe is there to catch.
+  const canProbe = typeof storage.removeItem === "function";
 
   // A scratch key left behind by a crashed write is pure cost; clear it
   // before asking for room.
   safeRemove(storage, scratch);
 
   let probeError: unknown = null;
-  try {
-    storage.setItem(scratch, value);
-  } catch (error) {
-    probeError = error;
-  } finally {
-    safeRemove(storage, scratch);
+  if (canProbe) {
+    try {
+      storage.setItem(scratch, value);
+    } catch (error) {
+      probeError = error;
+    } finally {
+      safeRemove(storage, scratch);
+    }
   }
 
   // A storage that refuses a write for a reason other than room, with
@@ -204,7 +223,7 @@ export function writeItem(
 }
 
 /** Removes a key, and the scratch key that shadows it. Never throws. */
-export function removeItem(storage: SaveStorage, key: string): void {
+export function removeItem(storage: WritableStorage, key: string): void {
   safeRemove(storage, scratchKey(key));
   safeRemove(storage, key);
 }
@@ -239,12 +258,12 @@ function unavailable(key: string, error: unknown): StorageWriteError {
 }
 
 function restore(
-  storage: SaveStorage,
+  storage: WritableStorage,
   key: string,
   previous: string | null,
 ): void {
   try {
-    if (previous === null) storage.removeItem(key);
+    if (previous === null) storage.removeItem?.(key);
     else storage.setItem(key, previous);
   } catch {
     // Nothing left to try. The throw the caller is about to receive is
@@ -252,7 +271,7 @@ function restore(
   }
 }
 
-function safeRead(storage: SaveStorage, key: string): string | null {
+function safeRead(storage: WritableStorage, key: string): string | null {
   try {
     return storage.getItem(key);
   } catch {
@@ -260,9 +279,9 @@ function safeRead(storage: SaveStorage, key: string): string | null {
   }
 }
 
-function safeRemove(storage: SaveStorage, key: string): void {
+function safeRemove(storage: WritableStorage, key: string): void {
   try {
-    storage.removeItem(key);
+    storage.removeItem?.(key);
   } catch {
     // A storage that will not delete is a storage that will not write
     // either; the write path reports that.

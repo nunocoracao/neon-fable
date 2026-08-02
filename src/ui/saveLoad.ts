@@ -189,6 +189,16 @@ export function createSaveLoadPanel(
       info.append(notice);
     }
 
+    // The exact fault, small and grey under the friendly line. Nobody
+    // has to read it; the one player who files an issue about this
+    // should not have to open a console to find it.
+    if (card.detail) {
+      const detail = document.createElement("p");
+      detail.className = "nf-save-detail";
+      detail.textContent = card.detail;
+      info.append(detail);
+    }
+
     if (renaming === card.slot) info.append(renameField(card));
     if (pendingDelete === card.slot && card.deleteGuard === "type-name") {
       info.append(deleteField(card));

@@ -3488,3 +3488,12 @@ canvas.nf-action-glyph {
   gap: 0.5rem;
   margin-top: 0.75rem;
 }
+
+/* The exact fault under a broken slot's friendly line: present for the
+   player who is reporting it, quiet enough for the one who is not. */
+.nf-save-detail {
+  margin: 0.2rem 0 0;
+  font-size: 0.7rem;
+  color: var(--nf-ink-dim);
+  word-break: break-word;
+}
