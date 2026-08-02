@@ -2,10 +2,12 @@ import { audio } from "../audio";
 import type { Interlude } from "../narrative";
 import {
   SaveError,
+  StorageWriteError,
   deleteSave,
   loadGame,
   readSaveSlots,
   renameSave,
+  restoreBackup,
   saveGame,
   type GameState,
   type SaveSlot,
@@ -22,7 +24,7 @@ import {
   type SlotCard,
 } from "./saveModel";
 import { captureSaveExtras, sceneCanvas } from "./saveThumbs";
-import type { Session } from "./session";
+import { takeStorageProblem, type Session } from "./session";
 
 /**
  * Save/load slot cards. In "game" mode the three manual slots accept
@@ -71,8 +73,12 @@ export function createSaveLoadPanel(
   panel.className = "nf-panel nf-saves";
   el.append(panel);
 
-  let message = "";
-  let messageIsError = false;
+  // An autosave that could not be written had nowhere to say so; this
+  // is the first screen where "delete something" is actionable, so it
+  // opens with the bad news rather than waiting to be asked.
+  const pendingProblem = takeStorageProblem();
+  let message = pendingProblem ?? "";
+  let messageIsError = pendingProblem !== null;
   /** Slot whose delete is armed, and what has been typed to confirm it. */
   let pendingDelete: SaveSlot | null = null;
   let deleteTyped = "";
@@ -323,17 +329,21 @@ export function createSaveLoadPanel(
         slotButton("Save", () => {
           const session = options.session;
           if (!session) return;
-          // Both pictures are taken now, from what is on screen now.
-          // Either can come back empty and the save is written anyway.
-          saveGame(
-            session.state,
-            card.slot,
-            storage,
-            Date.now(),
-            captureSaveExtras(session.state, sceneCanvas()),
-          );
-          audio.emit("ui.save");
-          setMessage(`Saved to ${card.slotName}.`, false);
+          try {
+            // Both pictures are taken now, from what is on screen now.
+            // Either can come back empty and the save is written anyway.
+            saveGame(
+              session.state,
+              card.slot,
+              storage,
+              Date.now(),
+              captureSaveExtras(session.state, sceneCanvas()),
+            );
+            audio.emit("ui.save");
+            setMessage(`Saved to ${card.slotName}.`, false);
+          } catch (error) {
+            setMessage(errorText(error), true);
+          }
           resetInteractions();
           render();
         }),
@@ -361,6 +371,26 @@ export function createSaveLoadPanel(
           resetInteractions();
           renaming = card.slot;
           renameDraft = card.label;
+          render();
+        }),
+      );
+    }
+
+    // The one thing a broken card can offer that is not deletion.
+    if (card.canRestoreBackup) {
+      actions.append(
+        slotButton("Restore backup", () => {
+          try {
+            restoreBackup(card.slot, storage);
+            audio.emit("ui.load");
+            setMessage(
+              `${card.slotName} restored from the save before it.`,
+              false,
+            );
+          } catch (error) {
+            setMessage(errorText(error), true);
+          }
+          resetInteractions();
           render();
         }),
       );
@@ -472,11 +502,17 @@ export function createSaveLoadPanel(
 }
 
 /**
- * The line to show for a failed save operation. A SaveError is expected
- * and gets friendly copy; anything else is a bug in this build and is
- * rethrown to the screen boundary rather than swallowed into a toast.
+ * The line to show for a failed save operation.
+ *
+ * A SaveError is about this save and gets friendly copy. A
+ * StorageWriteError is about the browser and gets its own sentence,
+ * which already names what to delete — the player is one screen away
+ * from being able to act on it, which is the whole reason it is worth
+ * saying here. Anything else is a bug in this build and is rethrown to
+ * the screen boundary rather than swallowed into a toast.
  */
 function errorText(error: unknown): string {
   if (error instanceof SaveError) return saveErrorMessage(error);
+  if (error instanceof StorageWriteError) return error.guidance;
   throw error;
 }

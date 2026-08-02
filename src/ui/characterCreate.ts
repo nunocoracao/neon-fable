@@ -1145,6 +1145,7 @@ export function createCharacterCreateScreen(
   }
 
   return {
+    name: "character-create",
     mount(root: HTMLElement): void {
       container = document.createElement("div");
       container.className = "nf-screen";

@@ -3418,3 +3418,73 @@ canvas.nf-action-glyph {
   padding-left: 1.1rem;
   color: var(--nf-glow-amber);
 }
+
+/* --- Crash screen ---
+   The one screen that has to render when nothing else would. Styled
+   from the same tokens as every other panel, and deliberately calm:
+   red borders and warning glyphs make a recoverable error look like
+   lost progress. */
+
+.nf-crash-panel {
+  max-width: min(48rem, calc(100vw - 3rem));
+}
+
+.nf-crash-headline {
+  font-family: var(--nf-font-display);
+  color: var(--nf-glow-amber);
+  border-left: 3px solid var(--nf-glow-amber);
+  padding-left: 0.6rem;
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+  word-break: break-word;
+}
+
+.nf-crash-facts {
+  display: grid;
+  grid-template-columns: minmax(6rem, max-content) 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0.75rem 0;
+  font-size: 0.8rem;
+}
+
+.nf-crash-facts dt {
+  color: var(--nf-ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.nf-crash-facts dd {
+  margin: 0;
+  color: var(--nf-ink);
+  word-break: break-word;
+}
+
+.nf-crash-include {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--nf-ink-dim);
+  margin: 0.5rem 0;
+  cursor: pointer;
+}
+
+.nf-crash-report {
+  width: 100%;
+  background: var(--nf-bg-deep);
+  color: var(--nf-ink-dim);
+  border: 2px solid var(--nf-border);
+  font-family: var(--nf-font-body);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  padding: 0.5rem;
+  resize: vertical;
+  white-space: pre;
+}
+
+.nf-crash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
