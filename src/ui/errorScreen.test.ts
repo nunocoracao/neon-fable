@@ -293,3 +293,18 @@ describe("reportCrash", () => {
     expect(reportText()).toMatch(/where: inventory/);
   });
 });
+
+describe("leaving the title screen behind", () => {
+  it("stashes nothing for a crash with no run in progress", () => {
+    const storage = createMemoryStorage();
+    createSession(playerState(), storage);
+    // Walking back to the title ends the run as far as the stash is
+    // concerned — otherwise a crash on the menu would bury the stash
+    // the player came there to recover.
+    showScreen(createMainMenuScreen());
+    showScreen(thrower);
+
+    expect(readRecovery(storage)).toBeNull();
+    expect(reportText()).toMatch(/recovery stash: not written/);
+  });
+});

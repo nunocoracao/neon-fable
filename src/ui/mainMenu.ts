@@ -21,7 +21,7 @@ import { createGameScreen } from "./gameScreen";
 import { createSaveLoadPanel } from "./saveLoad";
 import type { Screen } from "./screen";
 import { showScreen } from "./screen";
-import { createSession } from "./session";
+import { clearActiveSession, createSession } from "./session";
 import { createSettingsScreen } from "./settingsScreen";
 
 /** Title screen: New Game, Continue, Load Game, and Settings. */
@@ -38,6 +38,10 @@ export function createMainMenuScreen(): Screen {
 
     mount(root: HTMLElement): void {
       audio.setMusicScene(musicScene("menu"));
+      // Back at the title, no run is in progress — so a crash from here
+      // stashes nothing rather than re-stashing whatever was last
+      // played and burying the stash the player came here to recover.
+      clearActiveSession();
       container = document.createElement("div");
       container.className = "nf-screen";
 
