@@ -193,7 +193,13 @@ export function buildErrorReport(
         ? "written — the run can be picked up from the main menu"
         : "not written",
     },
-    ...summarizeStateForReport(context.state),
+    // Every value the state contributed is scrubbed on the way in: an
+    // id is normally a tame little string, and normally is not a
+    // guarantee when a save can be hand-edited.
+    ...summarizeStateForReport(context.state).map((fact) => ({
+      label: fact.label,
+      value: sanitizeDiagnosticText(fact.value, 200),
+    })),
   ];
   if (context.userAgent) {
     facts.push({
