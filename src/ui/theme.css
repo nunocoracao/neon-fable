@@ -1859,7 +1859,9 @@ body::after {
 /* --- Save / load --- */
 
 .nf-saves {
-  width: min(40rem, calc(100vw - 3rem));
+  width: min(46rem, calc(100vw - 3rem));
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
 }
 
 .nf-save-row {
@@ -1869,6 +1871,85 @@ body::after {
   gap: 1rem;
   padding: 0.6rem 0;
   border-bottom: 1px solid var(--nf-border);
+}
+
+/* A slot card: art, then everything the save says, then the buttons. */
+.nf-save-card {
+  align-items: flex-start;
+  padding: 0.75rem 0;
+}
+
+.nf-save-card .nf-save-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.nf-save-card .nf-save-actions {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 14rem;
+}
+
+/* The vignette frame: scene behind, face in front, hard pixel edges. */
+.nf-save-art {
+  position: relative;
+  flex: 0 0 auto;
+  width: 6rem;
+  height: 4.5rem;
+  background: var(--nf-bg-deep);
+  border: 2px solid var(--nf-border);
+  box-shadow: var(--nf-shadow-inset);
+  overflow: hidden;
+}
+
+.nf-save-scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+  opacity: 0.65;
+}
+
+.nf-save-portrait {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 3.5rem;
+  height: 3.5rem;
+  image-rendering: pixelated;
+  filter: drop-shadow(2px 2px 0 rgba(5, 6, 12, 0.8));
+}
+
+/*
+ * The stand-in for a save written before thumbnails existed: a
+ * head-and-shoulders silhouette drawn in CSS, dim enough to read as
+ * "no picture" rather than as somebody in shadow.
+ */
+.nf-save-silhouette {
+  background:
+    radial-gradient(
+      circle at 50% 34%,
+      var(--nf-border) 0 22%,
+      transparent 23%
+    ),
+    radial-gradient(
+      ellipse 46% 34% at 50% 104%,
+      var(--nf-border) 0 60%,
+      transparent 61%
+    );
+  filter: none;
+}
+
+.nf-save-card-empty .nf-save-art {
+  opacity: 0.45;
+}
+
+.nf-save-card-broken .nf-save-art {
+  border-color: var(--nf-danger);
 }
 
 /* The "Previously" replay line: part of the list, but not a slot. */
@@ -1889,9 +1970,48 @@ body::after {
   font-size: 0.85rem;
 }
 
+.nf-save-slot-tag,
+.nf-save-badge {
+  margin-left: 0.5rem;
+  padding: 0 0.35rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  border: 1px solid var(--nf-border);
+  color: var(--nf-ink-dim);
+}
+
+.nf-save-badge {
+  border-color: var(--nf-glow-magenta);
+  color: var(--nf-glow-magenta);
+}
+
 .nf-save-meta {
   font-size: 0.8rem;
   color: var(--nf-ink-dim);
+}
+
+.nf-save-footnote {
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+/* A slot that failed validation says so here, quietly. */
+.nf-save-notice {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: var(--nf-glow-amber);
+}
+
+/* Inline rename / typed-delete field, inside the card's info column. */
+.nf-save-edit {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.nf-save-inline-error:empty {
+  display: none;
 }
 
 .nf-save-actions {

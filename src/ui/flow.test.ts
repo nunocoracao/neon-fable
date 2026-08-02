@@ -1427,9 +1427,12 @@ describe("save/load", () => {
     expect(document.querySelector(".nf-system-menu")).toBeTruthy();
     click("Save / Load");
 
-    // Save to Slot 1 -> metadata row appears.
+    // Save to Slot 1 -> the card fills in with who, where, and when.
     document.querySelectorAll(".nf-save-row")[0]?.querySelector("button")?.click();
-    expect(textOf(".nf-save-meta")).toMatch(/Vex — Cinder Row Plaza — \d{4}-/);
+    const slot1 = textOf(".nf-save-card");
+    expect(slot1).toMatch(/Vex — Gutter Courier/);
+    expect(slot1).toMatch(/Cinder Row Plaza/);
+    expect(slot1).toMatch(/\d{4}-\d{2}-\d{2}/);
 
     // Delete requires a confirm click.
     click("Delete");

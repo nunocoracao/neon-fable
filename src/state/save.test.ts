@@ -177,8 +177,19 @@ describe("save system", () => {
       {
         slot: "slot2",
         savedAt: 5000,
-        characterName: "Vex",
-        location: "hub:market",
+        label: "",
+        thumbnails: { portrait: null, scene: null },
+        run: {
+          characterName: "Vex",
+          backgroundId: "gutter-courier",
+          location: "hub:market",
+          act: 1,
+          difficulty: "grind",
+          difficultyChanged: false,
+          newGamePlus: false,
+          shardsFound: 0,
+          victories: 0,
+        },
       },
     ]);
   });

@@ -187,7 +187,8 @@ describe("mid-chapter save/load", () => {
     click("Save / Load");
     // First row is Slot 1; its first button is Save.
     document.querySelectorAll(".nf-save-row")[0]?.querySelector("button")?.click();
-    expect(textOf(".nf-save-meta")).toMatch(/Vex — Greywater Steps/);
+    expect(textOf(".nf-save-card")).toMatch(/Vex/);
+    expect(textOf(".nf-save-card")).toMatch(/Greywater Steps/);
 
     click("Load");
     expect(document.querySelector(".nf-saves")).toBeNull();
