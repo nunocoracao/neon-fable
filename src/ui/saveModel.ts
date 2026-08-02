@@ -57,6 +57,11 @@ export interface SlotCard {
   canLoad: boolean;
   canRename: boolean;
   canDelete: boolean;
+  /**
+   * True when this slot is unreadable *and* the generation before it
+   * survived. The one button on a broken card that is not "delete".
+   */
+  canRestoreBackup: boolean;
   deleteGuard: DeleteGuard;
   /** The word a type-name delete wants back; "" when it wants none. */
   confirmWord: string;
@@ -99,10 +104,14 @@ export function slotCard(record: SlotRecord, mode: SaveMode): SlotCard {
     canSave,
     canLoad: readable,
     // A save this build cannot read can still be named — the label
-    // lives beside the state, not in it — but only if the file parsed
-    // at all. Nothing can be written into broken JSON.
-    canRename: occupied && (readable || record.error?.code !== "corrupt"),
+    // lives beside the state, not in it — but only for a save that is
+    // intact and merely from elsewhere. Nothing can be written into
+    // broken JSON, and restamping a save that failed its checksum would
+    // turn a corrupt file into one that looks fine.
+    canRename:
+      occupied && (readable || record.error?.code === "version-mismatch"),
     canDelete: occupied,
+    canRestoreBackup: record.status === "unreadable" && record.hasBackup,
     deleteGuard: deleteGuardFor(record),
     confirmWord: confirmWordFor(record),
   };
@@ -177,7 +186,15 @@ function noticeFor(record: SlotRecord): string | null {
     case "version-mismatch":
       return "Saved by a different version of the game — it cannot be loaded here.";
     case "corrupt":
-      return "This save could not be read. Everything else is fine.";
+      return record.hasBackup
+        ? "This save could not be read. The backup from before it was written is still here."
+        : "This save could not be read. Everything else is fine.";
+    case "checksum":
+      return record.hasBackup
+        ? "This save changed after it was written and cannot be trusted. The backup from before it was written is still here."
+        : "This save changed after it was written and cannot be trusted.";
+    case "migration-failed":
+      return "This save could not be updated for this version of the game. It has been left exactly as it was.";
     case "missing":
       return null;
   }

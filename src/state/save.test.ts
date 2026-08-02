@@ -567,6 +567,7 @@ describe("reading every slot", () => {
       thumbnails: thumbs(null, null),
       run: null,
       error: null,
+      hasBackup: false,
     });
   });
 
