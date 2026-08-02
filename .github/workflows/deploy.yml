@@ -28,7 +28,12 @@ jobs:
       - run: npm ci
       # The build type-checks (tsc --noEmit) before it bundles, and the
       # suite covers the game logic; neither is worth publishing past.
-      - run: npm test
+      #
+      # The compose+bake micro-benchmark is left out on purpose: it
+      # asserts a wall-clock budget, which a shared runner cannot hold
+      # to. It stays a local guard (`npm test` runs it) rather than a
+      # deploy gate that fails on how busy the machine was.
+      - run: npx vitest run --exclude '**/node_modules/**' --exclude '**/bakeBench.test.ts'
       - run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
