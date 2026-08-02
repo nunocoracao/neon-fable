@@ -1,10 +1,19 @@
 /**
- * Player-facing game settings: dialogue text speed, reduced motion, the
- * display switches, the difficulty preference — and, since the mixer
+ * Player-facing game settings: dialogue text speed, the Graphics &
+ * Comfort switches, the difficulty preference — and, since the mixer
  * grew four buses, the mixer. Persisted to localStorage separately from
  * save slots (device preference, not game state). Pure functions over a
  * plain object; the storage interface is injectable so tests run against
  * an in-memory fake.
+ *
+ * ## Motion is a preference, not a switch
+ *
+ * `motion` has three positions, and the middle one — the default —
+ * means "ask the device". Nothing outside this directory is allowed to
+ * read it and decide for itself: the answer is `reducedMotionActive()`
+ * in ./index.ts, and ./comfort.test.ts sweeps the sources to keep it
+ * that way. The v9 boolean it replaced had the same three states
+ * really, with the third one hidden inside every caller.
  *
  * ## The mixer used to live somewhere else
  *
@@ -34,6 +43,17 @@
  * remembers.
  */
 
+import {
+  clampColorMode,
+  clampMotionPreference,
+  clampTextScale,
+  DEFAULT_COLOR_MODE,
+  DEFAULT_MOTION_PREFERENCE,
+  DEFAULT_TEXT_SCALE,
+  type ColorModeId,
+  type MotionPreference,
+  type TextScale,
+} from "../data/accessibility";
 import {
   clampMixer,
   DEFAULT_MIXER,
@@ -71,12 +91,26 @@ export type ShakeScale = (typeof SHAKE_SCALES)[number];
 
 export interface Settings {
   textSpeed: TextSpeed;
-  reducedMotion: boolean;
+  /**
+   * The motion master switch: defer to the device, or override it in
+   * either direction. Nothing reads this field to decide whether to
+   * animate — that question is `reducedMotionActive()` in ./index.ts,
+   * which is the one selector every animated system is required to go
+   * through (pinned by src/settings/comfort.test.ts).
+   */
+  motion: MotionPreference;
   zoom: ZoomLevel;
   /** The additive neon glow pass in the iso scene. */
   glow: boolean;
   /** Weather effects (rain streaks, puddles, splashes) in the iso scene. */
   weather: boolean;
+  /**
+   * The staged pieces of theatre a district runs on its own clock:
+   * trains crossing the viaduct, drones on their routes, steam vents.
+   * Off leaves the streets standing still — the maps are unchanged and
+   * nothing walkable moves.
+   */
+  setPieces: boolean;
   /** The corner minimap while exploring; collapsed leaves its tab. */
   minimap: boolean;
   /**
@@ -93,6 +127,18 @@ export interface Settings {
    * the street and costs nothing (see src/data/barks.ts).
    */
   barks: boolean;
+  /**
+   * Which colour palette the marked ground is painted from: the city's
+   * own, or the colourblind-assist one. A pair of palette ids and
+   * nothing else — see src/data/accessibility.ts.
+   */
+  colorMode: ColorModeId;
+  /**
+   * Multiplier on the root font size, and so on every panel, label, and
+   * HUD readout sized in `rem` against it. Applied as a CSS variable
+   * (see applyTextScale in ./index.ts).
+   */
+  textScale: TextScale;
   /**
    * The difficulty preset a new run starts on — the last one chosen,
    * in the wizard or in this panel. Not what the current run is being
@@ -111,14 +157,17 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   textSpeed: "normal",
-  reducedMotion: false,
+  motion: DEFAULT_MOTION_PREFERENCE,
   zoom: 1,
   glow: true,
   weather: true,
+  setPieces: true,
   minimap: true,
   combatFeel: true,
   shakeScale: 1,
   barks: true,
+  colorMode: DEFAULT_COLOR_MODE,
+  textScale: DEFAULT_TEXT_SCALE,
   difficulty: DEFAULT_DIFFICULTY_ID,
   assists: noAssists(),
   mixer: DEFAULT_MIXER,
@@ -127,7 +176,44 @@ export const DEFAULT_SETTINGS: Settings = {
 export const SETTINGS_KEY = "neon-fable:settings";
 
 /** Bump when the Settings shape changes; migrateSettings routes on it. */
-export const SETTINGS_VERSION = 9;
+export const SETTINGS_VERSION = 10;
+
+/**
+ * The fields the Graphics & Comfort section owns — everything about how
+ * the game looks and how much it moves, and nothing about how it plays.
+ * The section's "reset" control restores exactly these, which is the
+ * one place the list has to be written down (see resetGraphicsSettings
+ * and src/ui/graphicsModel.ts, whose rows are pinned against it).
+ */
+export const GRAPHICS_SETTING_KEYS = [
+  "motion",
+  "zoom",
+  "glow",
+  "weather",
+  "setPieces",
+  "minimap",
+  "combatFeel",
+  "shakeScale",
+  "barks",
+  "colorMode",
+  "textScale",
+] as const satisfies readonly (keyof Settings)[];
+
+export type GraphicsSettingKey = (typeof GRAPHICS_SETTING_KEYS)[number];
+
+/**
+ * The same settings with every Graphics & Comfort field back at its
+ * default and everything else — text speed, the mixer, difficulty, the
+ * assists — left exactly where the player put it. Pure: the panel hands
+ * the result to the store, which is what persists and notifies.
+ */
+export function resetGraphicsSettings(current: Settings): Settings {
+  const reset: Partial<Settings> = {};
+  for (const key of GRAPHICS_SETTING_KEYS) {
+    (reset as Record<string, unknown>)[key] = DEFAULT_SETTINGS[key];
+  }
+  return clampSettings({ ...current, ...reset });
+}
 
 /** Coerces any value onto the zoom-level ladder; off-ladder → default. */
 export function clampZoom(value: unknown): ZoomLevel {
@@ -174,18 +260,30 @@ export function clampSettings(value: unknown): Settings {
     : DEFAULT_SETTINGS.textSpeed;
   return {
     textSpeed,
-    reducedMotion: record.reducedMotion === true,
+    // A v9 payload has a reducedMotion boolean and no motion field. Its
+    // `false` is not "full motion" — the old selector was `setting ||
+    // OS preference`, so an untouched switch already meant "follow the
+    // device", which is what "system" means here. Only the players who
+    // actually turned it on are carried to an explicit override.
+    motion: clampMotionPreference(
+      record.motion ?? (record.reducedMotion === true ? "reduced" : undefined),
+    ),
     zoom: clampZoom(record.zoom),
-    // Glow, weather, the minimap, the combat camera, and the street's
-    // chatter default on: older payloads without the fields keep every
-    // pass, the HUD corner, a camera that answers a fight, and a city
-    // that talks.
+    // Glow, weather, the set pieces, the minimap, the combat camera, and
+    // the street's chatter default on: older payloads without the fields
+    // keep every pass, a city that runs, the HUD corner, a camera that
+    // answers a fight, and streets that talk.
     glow: record.glow !== false,
     weather: record.weather !== false,
+    setPieces: record.setPieces !== false,
     minimap: record.minimap !== false,
     combatFeel: record.combatFeel !== false,
     shakeScale: clampShakeScale(record.shakeScale),
     barks: record.barks !== false,
+    // Both default to the plainest answer: the game's own colours, and
+    // text at the size the panels were laid out for.
+    colorMode: clampColorMode(record.colorMode),
+    textScale: clampTextScale(record.textScale),
     // Difficulty and the assists are the other way round from the
     // flags above: a payload that does not mention them is a player
     // who has never chosen, and the documented default is the middle
@@ -207,9 +305,11 @@ export function clampSettings(value: unknown): Settings {
  * v1 payloads simply lack zoom, v2 payloads lack glow, v3 payloads lack
  * weather, v4 payloads lack minimap, v5 payloads lack the combat camera
  * fields, v6 payloads lack barks, v7 payloads lack the difficulty
- * preference and the assist switches, v8 payloads lack the mixer, and
- * each gets its default; unknown or future versions degrade to defaults
- * per field instead of crashing.
+ * preference and the assist switches, v8 payloads lack the mixer, v9
+ * payloads carry a reducedMotion boolean where the motion preference
+ * now is (and lack the set-piece switch, the colour mode, and the text
+ * size), and each gets its default; unknown or future versions degrade
+ * to defaults per field instead of crashing.
  *
  * The v8 mixer is the one field whose default is not the end of the
  * story: the value it *should* have is in another record entirely, and
