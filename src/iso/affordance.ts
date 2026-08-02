@@ -111,22 +111,24 @@ function focused(
 }
 
 /**
- * Outline colors keyed by the accessibility palette in force. The
- * amber default is the same hue as the resting marker already laid
- * under every interactable, so the outline reads as that marker
- * brightening rather than as a new color arriving.
+ * Outline colors keyed by the accessibility palette in force. Each is
+ * the same hue as the resting marker that palette already lays under
+ * every interactable (see TELEGRAPH_HIGHLIGHTS in ./telegraphPalette.ts),
+ * so the outline reads as that marker brightening rather than as a new
+ * color arriving.
  *
- * Data seam for the later colorblind-friendly option: that task adds
- * entries here and passes the chosen palette id down; nothing else in
- * the renderer needs to know a palette exists.
+ * The colorblind-assist option is the consumer this table was left for:
+ * it picks an id here and nothing else in the renderer needs to know a
+ * palette exists (see src/data/accessibility.ts).
  */
 export const OUTLINE_COLORS = {
-  default: "#ffd873",
+  neon: "#ffd873",
+  assist: "#ffe89a",
 } as const;
 
 export type OutlinePaletteId = keyof typeof OUTLINE_COLORS;
 
-export const DEFAULT_OUTLINE_PALETTE: OutlinePaletteId = "default";
+export const DEFAULT_OUTLINE_PALETTE: OutlinePaletteId = "neon";
 
 /** The outline color for a palette; unknown or absent falls back. */
 export function outlineColor(palette?: string | null): string {

@@ -1,14 +1,21 @@
 /**
- * How the combat grid's telegraph tiles are painted. Presentation only:
- * the engine decides which tiles are tinted and why (see
- * src/combat/telegraph.ts); this decides what that looks like.
+ * How the combat grid's telegraph tiles — and every other coloured mark
+ * laid on the ground — are painted. Presentation only: the engine
+ * decides which tiles are tinted and why (see src/combat/telegraph.ts);
+ * this decides what that looks like.
  *
  * Two things are deliberate here. First, no tint carries its meaning by
  * hue alone — fill weight, outline weight, and dash pattern separate
  * every pair of tints, so the grid still reads with the colours pulled
  * out from under it. Second, the palette is a *table*, keyed by id: the
- * accessibility pass adds an entry and points a setting at it without
- * touching a line of painting code.
+ * colourblind-assist option picks an id (see src/data/accessibility.ts)
+ * and nothing in the painting code branches on it.
+ *
+ * That second point is why the plain highlights are in here too — the
+ * hover diamond, the walk preview, the pulse under an interactable, the
+ * ring under whoever is acting. They were literals scattered through
+ * two renderers, which meant an accessibility palette could only ever
+ * recolour half of what the player is looking at.
  */
 
 /** The tile roles the combat scene knows how to paint. */
@@ -242,3 +249,90 @@ export const TELEGRAPH_PATH_LINE: Record<
     dash: [3, 8],
   },
 };
+
+// --- The plain highlights ----------------------------------------------
+
+/**
+ * Every ground mark that is not a telegraph tint: what the cursor is
+ * over, where a walk would go, what is worth walking to, and which
+ * tiles the acting body is standing on. Same table shape and the same
+ * fallback as the tints, so one palette id recolours the whole ground
+ * layer rather than the combat half of it.
+ */
+export interface HighlightColors {
+  /** Cursor diamond while exploring, by what the tile under it is. */
+  hoverInteractable: string;
+  hoverWalkable: string;
+  hoverBlocked: string;
+  /** Cursor diamond on the combat grid, where every tile is a tile. */
+  hoverCombat: string;
+  /** Resting pulse laid under every interactable; alpha is animated. */
+  marker: string;
+  markerOutline: string;
+  /** Tiles a queued walk will cross, while exploring. */
+  pathStep: string;
+  /** Ring under the tiles the acting combatant occupies. */
+  footprint: string;
+}
+
+/**
+ * The city's own marks: amber for a thing worth reaching, cyan for
+ * ground and for whoever is acting, red for a wall.
+ */
+const NEON_HIGHLIGHTS: HighlightColors = {
+  hoverInteractable: "rgba(240, 180, 41, 0.9)",
+  hoverWalkable: "rgba(46, 230, 214, 0.9)",
+  hoverBlocked: "rgba(255, 77, 94, 0.7)",
+  hoverCombat: "rgba(232, 230, 240, 0.6)",
+  marker: "rgba(240, 180, 41, ALPHA)",
+  markerOutline: "rgba(240, 180, 41, 0.35)",
+  pathStep: "rgba(46, 230, 214, 0.18)",
+  footprint: "rgba(46, 230, 214, 0.9)",
+};
+
+/**
+ * The same marks on the blue/yellow axis the assist palette is built
+ * on, with the one red pulled out to white — red against cyan is the
+ * pair a protan eye loses first, and a wall is the mark it is least
+ * affordable to misread. Luminance separates the three hover states as
+ * well as hue does: yellow brightest, blue mid, white hottest.
+ */
+const HIGH_CONTRAST_HIGHLIGHTS: HighlightColors = {
+  hoverInteractable: "rgba(255, 214, 92, 1)",
+  hoverWalkable: "rgba(120, 180, 255, 0.95)",
+  hoverBlocked: "rgba(255, 255, 255, 0.95)",
+  hoverCombat: "rgba(255, 255, 255, 0.85)",
+  marker: "rgba(255, 214, 92, ALPHA)",
+  markerOutline: "rgba(255, 214, 92, 0.55)",
+  pathStep: "rgba(120, 180, 255, 0.3)",
+  footprint: "rgba(150, 200, 255, 0.95)",
+};
+
+export const TELEGRAPH_HIGHLIGHTS: Record<
+  TelegraphPaletteId,
+  HighlightColors
+> = {
+  neon: NEON_HIGHLIGHTS,
+  "high-contrast": HIGH_CONTRAST_HIGHLIGHTS,
+};
+
+/** The highlight table for a palette; unknown ids fall back. */
+export function highlightColors(
+  palette: TelegraphPaletteId = DEFAULT_TELEGRAPH_PALETTE,
+): HighlightColors {
+  return (
+    TELEGRAPH_HIGHLIGHTS[palette] ??
+    TELEGRAPH_HIGHLIGHTS[DEFAULT_TELEGRAPH_PALETTE]
+  );
+}
+
+/**
+ * The interactable pulse at a given alpha. The marker colour is stored
+ * with an ALPHA placeholder rather than as a base hue plus a separate
+ * alpha field, so a palette can say "this mark is drawn like *this*" in
+ * one string and the renderer keeps doing nothing but substituting the
+ * one value it animates.
+ */
+export function markerFill(colors: HighlightColors, alpha: number): string {
+  return colors.marker.replace("ALPHA", alpha.toFixed(3));
+}

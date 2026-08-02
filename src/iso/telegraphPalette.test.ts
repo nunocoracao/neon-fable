@@ -4,9 +4,12 @@ import {
   TELEGRAPH_PAINT_ORDER,
   TELEGRAPH_PALETTES,
   TELEGRAPH_PALETTE_IDS,
+  TELEGRAPH_HIGHLIGHTS,
   TELEGRAPH_PATH_LINE,
   TELEGRAPH_TINT_IDS,
   boostTelegraphStyle,
+  highlightColors,
+  markerFill,
   telegraphStyle,
   type TelegraphPaletteId,
   type TelegraphStyle,
@@ -213,3 +216,73 @@ const NAMED_STYLE: TelegraphStyle = {
   lineWidth: 1,
   dash: [],
 };
+
+/**
+ * The plain highlights — the cursor, the walk preview, the pulse under
+ * an interactable, the ring under whoever is acting. They are in the
+ * palette table for one reason: a colourblind-assist option that
+ * recoloured the telegraphs and left these alone would leave the player
+ * reading two colour languages at once on the same patch of ground.
+ */
+describe("highlight colours", () => {
+  const MARKS = [
+    "hoverInteractable",
+    "hoverWalkable",
+    "hoverBlocked",
+    "hoverCombat",
+    "marker",
+    "markerOutline",
+    "pathStep",
+    "footprint",
+  ] as const;
+
+  it("answers for every mark in every palette", () => {
+    for (const palette of TELEGRAPH_PALETTE_IDS) {
+      const colors = highlightColors(palette);
+      for (const mark of MARKS) {
+        expect(colors[mark], `${palette}/${mark}`).toMatch(/^rgba?\(/);
+      }
+    }
+  });
+
+  it("falls back on a palette it has never heard of", () => {
+    expect(highlightColors("sepia" as TelegraphPaletteId)).toEqual(
+      TELEGRAPH_HIGHLIGHTS[DEFAULT_TELEGRAPH_PALETTE],
+    );
+    expect(highlightColors()).toEqual(
+      TELEGRAPH_HIGHLIGHTS[DEFAULT_TELEGRAPH_PALETTE],
+    );
+  });
+
+  it("really does repaint every mark under the assist palette", () => {
+    // Not one of them may be shared with the default palette: a mark
+    // that stayed put is a mark the option does not cover.
+    const neon = highlightColors("neon");
+    const assist = highlightColors("high-contrast");
+    for (const mark of MARKS) {
+      expect(assist[mark], mark).not.toBe(neon[mark]);
+    }
+  });
+
+  it("keeps the three hover states apart within a palette", () => {
+    for (const palette of TELEGRAPH_PALETTE_IDS) {
+      const { hoverInteractable, hoverWalkable, hoverBlocked } =
+        highlightColors(palette);
+      expect(
+        new Set([hoverInteractable, hoverWalkable, hoverBlocked]).size,
+        palette,
+      ).toBe(3);
+    }
+  });
+
+  it("substitutes the animated alpha into the interactable pulse", () => {
+    for (const palette of TELEGRAPH_PALETTE_IDS) {
+      const colors = highlightColors(palette);
+      expect(colors.marker, palette).toContain("ALPHA");
+      const painted = markerFill(colors, 0.125);
+      expect(painted, palette).not.toContain("ALPHA");
+      expect(painted, palette).toContain("0.125");
+      expect(painted, palette).toMatch(/^rgba\([^)]+\)$/);
+    }
+  });
+});

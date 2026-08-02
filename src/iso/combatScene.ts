@@ -26,7 +26,11 @@ import {
   impactEvent,
   isRangedAttack,
 } from "../audio";
-import { settings, type ZoomLevel } from "../settings";
+import {
+  reducedMotionActive,
+  settings,
+  type ZoomLevel,
+} from "../settings";
 import {
   ABILITY_FX,
   abilityCastMs,
@@ -134,6 +138,7 @@ import {
   DEFAULT_TELEGRAPH_PALETTE,
   TELEGRAPH_PAINT_ORDER,
   TELEGRAPH_PATH_LINE,
+  highlightColors,
   telegraphStyle,
   type TelegraphPaletteId,
   type TelegraphTintId,
@@ -646,11 +651,11 @@ export function createCombatScene(
   /** The reframing in flight, or null when the camera is settled. */
   let glide: CameraGlide | null = null;
   /** Which of the three camera effects the player has left switched on. */
-  let feel: CombatFeel = resolveCombatFeel(settings.get());
+  let feel: CombatFeel = resolveCombatFeel(settings.get(), reducedMotionActive());
 
   /** Follows the feel settings mid-fight, like the weather toggle. */
   function syncFeel(): void {
-    feel = resolveCombatFeel(settings.get());
+    feel = resolveCombatFeel(settings.get(), reducedMotionActive());
   }
 
   /** The scene clock right now: raw time, less every pause served. */
@@ -980,7 +985,7 @@ export function createCombatScene(
    * flinch rather than racing it; reduced motion fades instead.
    */
   function killEntity(entity: EntityView, now: number): void {
-    if (settings.get().reducedMotion) {
+    if (reducedMotionActive()) {
       entity.fadeStart = now;
       cues.at("combat.death.collapse", now);
       return;
@@ -1242,7 +1247,7 @@ export function createCombatScene(
   function drawStatusMarkers(entity: EntityView, now: number): void {
     const families = entity.statuses ?? [];
     if (families.length === 0) return;
-    const reduced = settings.get().reducedMotion;
+    const reduced = reducedMotionActive();
     const { sx, sy } = worldToScreen(standPoint(entity).x, standPoint(entity).y);
     // Clear of the health bar, which is itself clear of the sprite —
     // so a chassis wears its marks over its own shoulders.
@@ -1274,7 +1279,7 @@ export function createCombatScene(
    * Finished readouts drop out; nothing here persists.
    */
   function drawPopups(now: number): void {
-    const reduced = settings.get().reducedMotion;
+    const reduced = reducedMotionActive();
     for (let i = popups.length - 1; i >= 0; i--) {
       const popup = popups[i];
       if (!popup) continue;
@@ -1308,7 +1313,7 @@ export function createCombatScene(
     const pose = {
       facing: entity.facing,
       moving: entity.queue.length > 0,
-      timeMs: settings.get().reducedMotion ? 0 : now,
+      timeMs: reducedMotionActive() ? 0 : now,
       attackElapsedMs: attackElapsed(entity, now),
       reaction: reacting,
       // A declared wind-up is a stance held for the whole turn: it
@@ -1391,7 +1396,7 @@ export function createCombatScene(
 
     // Ground pass. Reduced motion freezes the ambient clock so neon
     // flicker, water shimmer, and the rain go still.
-    const tileTime = settings.get().reducedMotion ? 0 : now;
+    const tileTime = reducedMotionActive() ? 0 : now;
     syncWeather();
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
@@ -1412,13 +1417,17 @@ export function createCombatScene(
     // Telegraphs sit on the ground under everything that stands on it.
     drawTelegraph();
     drawPathLine();
+    // Cursor and acting-body rings come out of the same palette as the
+    // telegraphs, so the colourblind-assist option moves every mark on
+    // the ground rather than most of them.
+    const marks = highlightColors(telegraphPalette);
     if (highlights.hover) {
-      drawDiamond(highlights.hover, null, "rgba(232, 230, 240, 0.6)");
+      drawDiamond(highlights.hover, null, marks.hoverCombat);
     }
     for (const entity of entities.values()) {
       if (entity.alive && entity.active) {
         for (const tile of footprintTiles(entity)) {
-          drawDiamond(tile, null, "rgba(46, 230, 214, 0.9)");
+          drawDiamond(tile, null, marks.footprint);
         }
       }
     }
@@ -1522,7 +1531,7 @@ export function createCombatScene(
           entities.set(incoming.id, view);
           // Already down when the scene first saw it (a fight re-entered
           // mid-battle): skip the fall and lay the heap out directly.
-          if (!incoming.alive && !settings.get().reducedMotion) {
+          if (!incoming.alive && !reducedMotionActive()) {
             const at = now();
             const style = view.deathStyle ?? DEFAULT_DEATH_STYLE;
             queueReaction(view, style, at, {
@@ -1583,7 +1592,7 @@ export function createCombatScene(
       // Reduced motion: face the target and let the whole exchange
       // resolve on the spot — no swing, no travel, no delayed beats.
       // One held impact frame stays, so a hit is still visibly a hit.
-      if (settings.get().reducedMotion) {
+      if (reducedMotionActive()) {
         spawnImpact(attacker, target, attackClass, hit, at, true);
         if (!hit) cues.at("combat.attack.miss", at);
         return 0;
@@ -1616,7 +1625,7 @@ export function createCombatScene(
         .filter((entity): entity is EntityView => entity !== undefined);
       if (targets.length === 0) return 0;
       const at = now();
-      const reducedMotion = settings.get().reducedMotion;
+      const reducedMotion = reducedMotionActive();
       const attackClass = classOf(caster);
       // A cast thrown at somebody turns the caster toward them and runs
       // its weapon's swing; an aura is the caster lighting up where it
@@ -1695,7 +1704,7 @@ export function createCombatScene(
       );
       // Reduced motion: no flash, no shake, no recoil — floating
       // numbers and the combat log still report every hit.
-      if (settings.get().reducedMotion) return;
+      if (reducedMotionActive()) return;
       entity.awayX = awayFrom(entity, options.attackerId);
       const scheduled = queueReaction(
         entity,
