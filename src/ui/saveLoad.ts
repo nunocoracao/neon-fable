@@ -444,6 +444,21 @@ export function createSaveLoadPanel(
       row.append(info, actions);
       panel.append(row);
     }
+
+    // The panel redraws whole, so a field that just opened has to be
+    // handed the caret again — otherwise asking for a name would put
+    // focus nowhere and the keyboard player would be stranded.
+    focusOpenField();
+  }
+
+  function focusOpenField(): void {
+    const id = renaming
+      ? `nf-save-rename-${renaming}`
+      : pendingDelete
+        ? `nf-save-confirm-${pendingDelete}`
+        : null;
+    if (!id) return;
+    panel.querySelector<HTMLInputElement>(`#${id}`)?.focus();
   }
 
   render();
