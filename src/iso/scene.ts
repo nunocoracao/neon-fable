@@ -4,7 +4,14 @@
  * callback — this layer never imports narrative or combat code.
  */
 import { audio } from "../audio";
-import { settings, stepZoom, type ZoomLevel } from "../settings";
+import {
+  outlinePaletteFor,
+  reducedMotionActive,
+  settings,
+  stepZoom,
+  telegraphPaletteFor,
+  type ZoomLevel,
+} from "../settings";
 import {
   focusInteractable,
   outlineColor,
@@ -689,18 +696,23 @@ export function createIsoScene(
     stepWalk(dt);
     stepFollower(dt);
     resolveFocus();
-    const reducedMotion = settings.get().reducedMotion;
+    const current = settings.get();
+    const reducedMotion = reducedMotionActive(current);
     // Reduced motion stills the crowd along with the rest of the
     // ambient clock: the player's own movement is the only motion the
     // scene keeps, since that one is the player's own doing.
     crowd = stepCrowd(crowd, map, reducedMotion ? 0 : dt);
     // The set pieces ride the same frozen clock as everything else, and
     // reduced motion additionally withholds the ones that would read as
-    // broken held still (see collectSetPieces).
-    const setPieces = collectSetPieces(map, reducedMotion ? 0 : time, {
-      motion: !reducedMotion,
-      rain: weather?.id === "rain",
-    });
+    // broken held still (see collectSetPieces). Switched off outright
+    // they are simply not collected: a train that is not crossing is
+    // not a train drawn parked, it is a viaduct with nothing on it.
+    const setPieces = current.setPieces
+      ? collectSetPieces(map, reducedMotion ? 0 : time, {
+          motion: !reducedMotion,
+          rain: weather?.id === "rain",
+        })
+      : [];
     // Reduced motion parks each screen on its first headline rather
     // than freezing the scroll at t = 0, which would leave every board
     // showing a line that has not entered the window yet.
@@ -761,7 +773,11 @@ export function createIsoScene(
       timeMs: reducedMotion ? 0 : time,
       dpr: window.devicePixelRatio || 1,
       zoom,
-      glowEnabled: settings.get().glow,
+      glowEnabled: current.glow,
+      // One palette id for every mark on the ground — the vision cones
+      // of anyone watching, the walk preview, the cursor, the pulse
+      // under an interactable (see ./telegraphPalette.ts).
+      telegraphPalette: telegraphPaletteFor(current),
       // Rain rides the same frozen clock: reduced motion leaves the
       // streaks hanging still and the puddles in place, so the map
       // still reads as wet without anything moving.
@@ -769,14 +785,14 @@ export function createIsoScene(
       dayPhase,
       setPieces,
       opening: stepOpening(time, reducedMotion),
-      // The outline color is a value, not a branch: the later
-      // colorblind-friendly setting picks a palette id here and nothing
-      // downstream changes (see ./affordance.ts).
+      // The outline color is a value, not a branch: the colorblind
+      // option picks a palette id here and nothing downstream changes
+      // (see ./affordance.ts).
       focus: focus
         ? {
             interactableId: focus.interactable.id,
             label: focus.interactable.label,
-            color: outlineColor(),
+            color: outlineColor(outlinePaletteFor(current)),
           }
         : null,
     };

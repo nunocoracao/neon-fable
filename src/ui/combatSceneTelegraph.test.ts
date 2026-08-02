@@ -8,6 +8,8 @@ import {
   telegraphStyle,
   worldToScreen,
   type CombatScene,
+  highlightColors,
+  type TelegraphPaletteId,
   type TelegraphTintId,
   type TilePoint,
 } from "../iso";
@@ -143,12 +145,16 @@ describe("telegraph painting", () => {
     frameCallback?.(1000);
   }
 
-  function mount(telegraphBoost = false): CombatScene {
+  function mount(
+    telegraphBoost = false,
+    telegraphPalette: TelegraphPaletteId = "neon",
+  ): CombatScene {
     const canvas = document.createElement("canvas");
     document.body.append(canvas);
     return createCombatScene(canvas, {
       map: requireMap(ARENA),
       telegraphBoost,
+      telegraphPalette,
       onTileClick: () => {},
       onTileHover: () => {},
     });
@@ -174,6 +180,55 @@ describe("telegraph painting", () => {
     scene = null;
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  /**
+   * The colourblind-assist palette reaching the paint. The table's own
+   * tests pin what each palette *is* (see telegraphPalette.test.ts);
+   * what is asserted here is that a scene told which one to use really
+   * paints from it — tints and plain highlights alike, since a ground
+   * layer half-recoloured is worse than one not recoloured at all.
+   */
+  it("paints tints and highlights from the palette it was given", () => {
+    scene!.destroy();
+    scene = mount(false, "high-contrast");
+    scene.setHighlights({
+      tiles: [
+        { x: 1, y: 1, tint: "reach" },
+        { x: 2, y: 1, tint: "impact" },
+      ],
+      hover: { x: 4, y: 4 },
+    });
+    paintFrame();
+
+    for (const tint of ["reach", "impact"] as const) {
+      const assist = telegraphStyle(tint, "high-contrast");
+      const neon = telegraphStyle(tint, "neon");
+      expect(assist.fill, tint).not.toBe(neon.fill);
+      const painted = batches(ops).find((batch) =>
+        batch.fills.some((f) => f.style === assist.fill),
+      );
+      expect(painted, tint).toBeDefined();
+      expect(painted?.strokes[0]?.style, tint).toBe(assist.stroke);
+      // ...and nothing anywhere in the frame is still painted the
+      // default palette's colour for that tint.
+      expect(ops.some((op) => "style" in op && op.style === neon.fill)).toBe(
+        false,
+      );
+    }
+
+    // The cursor diamond is not a telegraph tint, and moves anyway.
+    const marks = highlightColors("high-contrast");
+    expect(
+      ops.some((op) => op.kind === "stroke" && op.style === marks.hoverCombat),
+    ).toBe(true);
+    expect(
+      ops.some(
+        (op) =>
+          op.kind === "stroke" &&
+          op.style === highlightColors("neon").hoverCombat,
+      ),
+    ).toBe(false);
   });
 
   it("draws a whole tint in one batch, whatever it costs in tiles", () => {

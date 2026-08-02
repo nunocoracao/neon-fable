@@ -137,7 +137,7 @@ describe("floating readouts in a real encounter", () => {
   });
 
   afterEach(() => {
-    settings.update({ reducedMotion: false, zoom: 1 });
+    settings.update({ motion: "full", zoom: 1 });
     vi.restoreAllMocks();
   });
 
@@ -312,7 +312,7 @@ describe("floating readouts in a real encounter", () => {
   });
 
   it("fades in place under reduced motion, and still says what happened", () => {
-    settings.update({ reducedMotion: true });
+    settings.update({ motion: "reduced" });
     const fight = startFight();
     const start = 2000;
     clock = start;

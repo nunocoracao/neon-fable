@@ -91,6 +91,7 @@ import {
   portraitCanvas,
 } from "./portraits";
 import type { DayPhaseId, IsoMap, TilePoint } from "../iso";
+import { settings, telegraphPaletteFor } from "../settings";
 import { SaveError, assistOn, loadGame, type GameState } from "../state";
 import { focusFirst, installListNav } from "./focus";
 import {
@@ -1262,9 +1263,11 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         weather: getMap(session.state.location)?.weather,
         dayPhase:
           options.dayPhase ?? getMap(session.state.location)?.dayPhase,
-        // How loudly the marked ground is painted. Read once, here,
-        // like the palette: there is no way into Settings from inside a
-        // fight, so a switch flipped between fights is the next fight's.
+        // Which palette the marked ground is painted from, and how
+        // loudly. Both read once, here: there is no way into Settings
+        // from inside a fight, so a switch flipped between fights is
+        // the next fight's.
+        telegraphPalette: telegraphPaletteFor(settings.get()),
         telegraphBoost: assistOn(session.state.rules, "bold-telegraphs"),
         onTileClick,
         onTileHover,

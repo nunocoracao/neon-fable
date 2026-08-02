@@ -117,7 +117,7 @@ describe("hit reactions and deaths in a real encounter", () => {
   });
 
   afterEach(() => {
-    settings.update({ reducedMotion: false, combatFeel: true });
+    settings.update({ motion: "full", combatFeel: true });
     vi.restoreAllMocks();
   });
 
@@ -350,7 +350,7 @@ describe("hit reactions and deaths in a real encounter", () => {
   });
 
   it("under reduced motion, takes hits without a recoil and fades the dead away", () => {
-    settings.update({ reducedMotion: true });
+    settings.update({ motion: "reduced" });
     const fight = startFight();
     clock = 2000;
     fight.scene.hitFx(fight.agent.id, { attackerId: fight.player.id });

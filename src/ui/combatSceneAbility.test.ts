@@ -135,7 +135,7 @@ describe("ability effects in a real encounter", () => {
   });
 
   afterEach(() => {
-    settings.update({ reducedMotion: false });
+    settings.update({ motion: "full" });
     vi.restoreAllMocks();
   });
 
@@ -297,7 +297,7 @@ describe("ability effects in a real encounter", () => {
       });
 
       it("holds one marker and nothing else under reduced motion", () => {
-        settings.update({ reducedMotion: true });
+        settings.update({ motion: "reduced" });
         const fight = startFight();
         const selfCast = spec.form === "aura";
         const targetId = selfCast ? fight.playerId : fight.enemyIds[0] ?? "";
@@ -404,7 +404,7 @@ describe("status markers over a fighter", () => {
   });
 
   afterEach(() => {
-    settings.update({ reducedMotion: false });
+    settings.update({ motion: "full" });
     vi.restoreAllMocks();
   });
 
@@ -503,7 +503,7 @@ describe("status markers over a fighter", () => {
   });
 
   it("holds the mark still under reduced motion", () => {
-    settings.update({ reducedMotion: true });
+    settings.update({ motion: "reduced" });
     const fight = markedFight();
     fight.push(["empowered"]);
     const frames = new Set(

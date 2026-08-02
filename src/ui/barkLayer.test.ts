@@ -58,7 +58,7 @@ function chipTexts(handle: BarkLayerHandle): string[] {
 }
 
 afterEach(() => {
-  settings.update({ barks: true, reducedMotion: false });
+  settings.update({ barks: true, motion: "full" });
 });
 
 describe("bark layer", () => {
