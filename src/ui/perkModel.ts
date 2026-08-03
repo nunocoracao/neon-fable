@@ -10,6 +10,7 @@ import {
 } from "../character";
 import type { CredMilestone } from "../data/advancement";
 import type { Perk, PerkDomain } from "../data/perks";
+import { t } from "./strings";
 
 /**
  * Pure selector behind the perk overlay and the perk section of the
@@ -91,11 +92,11 @@ function headlineFor(
   exhausted: boolean,
 ): string {
   if (picks > 0 && milestone) return milestone.blurb;
-  if (exhausted) return "You are everything the street has to teach.";
+  if (exhausted) return t("perk.headline.exhausted");
   if (next) {
-    return `${next.remaining} more cred and the Sprawl wants a word.`;
+    return t("perk.headline.next", { remaining: next.remaining });
   }
-  return "The city knows exactly who you are.";
+  return t("perk.headline.known");
 }
 
 export function perkPanel(state: AdvancementView): PerkPanelView {
@@ -129,12 +130,15 @@ export function perkPanel(state: AdvancementView): PerkPanelView {
 /** "Street cred 14 · Counted" — the one-line status a panel header shows. */
 export function credLabel(view: PerkPanelView): string {
   return view.milestone
-    ? `Street cred ${view.cred} · ${view.milestone.label}`
-    : `Street cred ${view.cred}`;
+    ? t("perk.cred.milestone", {
+        cred: view.cred,
+        milestone: view.milestone.label,
+      })
+    : t("perk.cred.plain", { cred: view.cred });
 }
 
 /** "1 perk pick waiting" / "" — the nudge, worded for a count. */
 export function pickLabel(picks: number): string {
   if (picks <= 0) return "";
-  return picks === 1 ? "1 perk pick waiting" : `${picks} perk picks waiting`;
+  return picks === 1 ? t("perk.picks.one") : t("perk.picks.many", { picks });
 }

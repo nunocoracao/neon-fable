@@ -57,6 +57,7 @@ export const STRINGS = {
    * Common — words shared by more screens than any one of them owns
    * -------------------------------------------------------------- */
   "common.back": "Back",
+  "common.closeEsc": "Close [Esc]",
 
   /* -------------------------------------------------------------- *
    * Main menu
@@ -166,6 +167,56 @@ export const STRINGS = {
    * -------------------------------------------------------------- */
   "breach.lattice": "Signal lattice",
   "breach.help": "Arrows to move, Enter to route. [U] back up, [W] pull out.",
+
+  /* -------------------------------------------------------------- *
+   * Advancement overlay
+   * -------------------------------------------------------------- */
+  "advance.title": "Advancement",
+  "advance.unspent": "Unspent: {points}",
+  "advance.chapter.granted": "{label} · +{points}",
+  "advance.chapter.pending": "{label} · not yet complete",
+  "advance.nextMilestone": "{label} at {cred} cred",
+  "advance.allMilestones": "Every milestone reached",
+  "advance.perks": "Perks",
+  "advance.noPerks": "None yet. Street cred milestones are what grant them.",
+  "advance.raiseStat": "Raise a stat ({cost} each)",
+  "advance.raise": "Raise",
+  "advance.atCap": "At cap",
+  "advance.unlockAbility": "Unlock an ability",
+  "advance.abilityCost": "Ability · {cost}",
+  "advance.unlock": "Unlock",
+  "advance.unlocked": "Unlocked",
+
+  /* -------------------------------------------------------------- *
+   * Perks — the pick screen and the cred readouts it shares
+   * -------------------------------------------------------------- */
+  "perk.title": "Perks",
+  "perk.taken": "Yours",
+  "perk.take": "Take",
+  "perk.confirm": "Confirm — this is permanent",
+  "perk.confirmPrompt": "{name} is a permanent choice. Confirm to take it.",
+  "perk.next": "Next: {label} at {cred}",
+  "perk.noCredYet": "Nothing the city has noticed yet.",
+  "perk.cred.plain": "Street cred {cred}",
+  "perk.cred.milestone": "Street cred {cred} · {milestone}",
+  "perk.picks.none": "No pick waiting",
+  "perk.picks.one": "1 perk pick waiting",
+  "perk.picks.many": "{picks} perk picks waiting",
+  "perk.headline.exhausted": "You are everything the street has to teach.",
+  "perk.headline.next": "{remaining} more cred and the Sprawl wants a word.",
+  "perk.headline.known": "The city knows exactly who you are.",
+
+  /* -------------------------------------------------------------- *
+   * Crew overlay
+   * -------------------------------------------------------------- */
+  "party.title": "Crew",
+  "party.hp": "HP {hp}/{max}",
+  "party.waiting": "{name} has something to say.",
+  "party.withYou": "With you",
+  "party.standDown": "Stand down",
+  "party.takeAlong": "Take along",
+  "party.empty": "Nobody has thrown in with you yet.",
+  "party.note": "One of them walks with you at a time. Swap between jobs.",
 } as const;
 
 export type StringTable = typeof STRINGS;
