@@ -28,6 +28,7 @@ import {
 import { installRovingGrid } from "./focus";
 import type { OverlayHandle } from "./overlay";
 import type { Session } from "./session";
+import { t } from "./strings";
 
 /**
  * Breach, on screen: a briefing, a lattice, and a report.
@@ -293,7 +294,7 @@ export function createBreachOverlay(
     board.className = "nf-breach-grid";
     board.style.setProperty("--nf-breach-columns", `${model.columns}`);
     board.setAttribute("role", "grid");
-    board.setAttribute("aria-label", "Signal lattice");
+    board.setAttribute("aria-label", t("breach.lattice"));
     for (const cell of model.cells) board.append(renderCell(cell));
     panel.append(board);
 
@@ -308,8 +309,7 @@ export function createBreachOverlay(
 
     const line = document.createElement("p");
     line.className = messageIsError ? "nf-message nf-error" : "nf-message";
-    line.textContent =
-      message || "Arrows to move, Enter to route. [U] back up, [W] pull out.";
+    line.textContent = message || t("breach.help");
     panel.append(line);
 
     const menu = document.createElement("div");

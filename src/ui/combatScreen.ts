@@ -112,6 +112,7 @@ import { createMainMenuScreen } from "./mainMenu";
 import { createSaveLoadPanel } from "./saveLoad";
 import { showScreen, type Screen } from "./screen";
 import { autosave, type Session } from "./session";
+import { t } from "./strings";
 
 /**
  * The playable combat screen: arena scene on the background canvas, an
@@ -1094,7 +1095,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       // game screen it returns to is already playing exactly this.
       audio.setMusicMode("explore");
       audio.emit("combat.outcome.victory");
-      const { panel } = outcomePanel("Victory");
+      const { panel } = outcomePanel(t("combat.end.victory"));
       const rewards = getEncounter(encounterId)?.rewards;
       const list = document.createElement("div");
       list.className = "nf-reward-list";
@@ -1134,19 +1135,22 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         }
         panel.append(wounds);
       }
-      panel.append(panelButton("Continue", () => backToGame(resumeNodeId)));
+      panel.append(
+        panelButton(t("combat.end.continue"), () => backToGame(resumeNodeId)),
+      );
       focusFirst(panel);
       return;
     }
 
     if (combat.status === "fled") {
-      const { panel } = outcomePanel("Clean Break");
+      const { panel } = outcomePanel(t("combat.end.fled"));
       const note = document.createElement("p");
       note.className = "nf-dim";
-      note.textContent =
-        "You break contact and melt back into Cinder Row. Word of it will " +
-        "travel.";
-      panel.append(note, panelButton("Return", () => backToGame(null)));
+      note.textContent = t("combat.end.fledNote");
+      panel.append(
+        note,
+        panelButton(t("combat.end.return"), () => backToGame(null)),
+      );
       focusFirst(panel);
       return;
     }
@@ -1160,17 +1164,16 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
   /** Separate from showOutcome so closing the save list can re-show it
    * without resolving the combat a second time. */
   function showDefeatPanel(): void {
-    const { panel } = outcomePanel("Flatlined");
+    const { panel } = outcomePanel(t("combat.end.defeat"));
     const note = document.createElement("p");
     note.className = "nf-dim";
-    note.textContent =
-      "The Sprawl goes dark. Load a save to pick the thread back up.";
+    note.textContent = t("combat.end.defeatNote");
     const message = document.createElement("p");
     message.className = "nf-message nf-error";
     const menu = document.createElement("div");
     menu.className = "nf-menu";
     menu.append(
-      panelButton("Load Autosave", () => {
+      panelButton(t("combat.end.loadAutosave"), () => {
         try {
           session.state = loadGame("autosave", session.storage);
           showScreen(createGameScreen({ session }));
@@ -1178,10 +1181,10 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
           message.textContent =
             error instanceof SaveError
               ? saveErrorMessage(error)
-              : "Could not load the autosave.";
+              : t("combat.end.autosaveError");
         }
       }),
-      panelButton("Load Game", () => {
+      panelButton(t("combat.end.loadGame"), () => {
         if (!overlayEl) return;
         overlayEl.replaceChildren();
         const savesPanel = createSaveLoadPanel({
@@ -1195,7 +1198,9 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         });
         overlayEl.append(savesPanel.el);
       }),
-      panelButton("Main Menu", () => showScreen(createMainMenuScreen())),
+      panelButton(t("combat.end.mainMenu"), () =>
+        showScreen(createMainMenuScreen()),
+      ),
     );
     panel.append(note, message, menu);
     focusFirst(panel);

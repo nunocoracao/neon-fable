@@ -32,7 +32,10 @@
  * `t()` is typed against the table: an unknown key is a compile error,
  * and a string with `{placeholders}` demands exactly those parameters.
  * Keys are hierarchical and dot-separated, grouped by the screen or
- * overlay that renders them (`save.slot.empty`, `combat.action.flee`).
+ * overlay that renders them (`save.slot.empty`, `combat.end.victory`).
+ * The dotted shape is shared with the audio event ids in
+ * `src/data/sfx.ts`, so a new group checks there for a name clash — two
+ * meanings behind one string is a bug waiting on a careless grep.
  *
  * One rule about writing entries: **every value is a single string
  * literal**. Splitting a long line with `+` widens its inferred type
@@ -40,9 +43,9 @@
  * can see — the parameters would silently stop being checked. Long
  * lines are the price; `strings.test.ts` enforces it.
  *
- * A lint-style sweep (`strings.lint.test.ts`) walks `src/ui` looking for
- * string literals assigned into DOM sinks, so a new hard-coded caption
- * fails the suite rather than quietly shipping.
+ * A lint-style sweep (`stringLint.ts`, run by `stringLint.test.ts`)
+ * walks `src/ui` looking for words written into DOM sinks, so a new
+ * hard-coded caption fails the suite rather than quietly shipping.
  */
 
 /* ------------------------------------------------------------------ *
@@ -114,6 +117,55 @@ export const STRINGS = {
   "epilogue.ngPlus":
     "New Game+ is open from the main menu — a fresh run with a small legacy carry-over.",
   "epilogue.returnToMenu": "Return to Main Menu",
+
+  /* -------------------------------------------------------------- *
+   * The game screen: HUD, system menu, chapter-end panel
+   * -------------------------------------------------------------- */
+  "game.paused": "Paused",
+  "game.chapterComplete": "Chapter complete",
+  "game.chapter.keepExploring": "Keep Exploring",
+  "game.chapter.mainMenu": "Main Menu",
+  "game.chapter.spendPoints": "Spend Advancement Points",
+  "game.chapter.choosePerk": "Choose a Perk",
+  "game.menu.resume": "Resume",
+  "game.menu.saveLoad": "Save / Load",
+  "game.menu.codex": "Codex",
+  "game.menu.settings": "Settings",
+  "game.menu.quit": "Quit to Main Menu",
+  "game.hud.inventory": "Inventory [I]",
+  "game.hud.crew": "Crew [C]",
+  "game.hud.advance": "Advance [P]",
+  "game.hud.saves": "Saves",
+  "game.hud.menu": "Menu [Esc]",
+
+  /* -------------------------------------------------------------- *
+   * Combat: how a fight ends
+   * -------------------------------------------------------------- */
+  "combat.end.victory": "Victory",
+  "combat.end.continue": "Continue",
+  "combat.end.fled": "Clean Break",
+  "combat.end.fledNote":
+    "You break contact and melt back into Cinder Row. Word of it will travel.",
+  "combat.end.return": "Return",
+  "combat.end.defeat": "Flatlined",
+  "combat.end.defeatNote":
+    "The Sprawl goes dark. Load a save to pick the thread back up.",
+  "combat.end.loadAutosave": "Load Autosave",
+  "combat.end.autosaveError": "Could not load the autosave.",
+  "combat.end.loadGame": "Load Game",
+  "combat.end.mainMenu": "Main Menu",
+
+  /* -------------------------------------------------------------- *
+   * Appearance picker and its live preview
+   * -------------------------------------------------------------- */
+  "appearance.categories": "Appearance category",
+  "appearance.preview.keys": "Q/E rotate · W walk · +/− zoom",
+
+  /* -------------------------------------------------------------- *
+   * Breach minigame
+   * -------------------------------------------------------------- */
+  "breach.lattice": "Signal lattice",
+  "breach.help": "Arrows to move, Enter to route. [U] back up, [W] pull out.",
 } as const;
 
 export type StringTable = typeof STRINGS;

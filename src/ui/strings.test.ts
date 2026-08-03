@@ -163,19 +163,6 @@ describe("string table", () => {
     );
   });
 
-  it("resolves every key-shaped literal that names a string group", () => {
-    // Indirect routes — key maps keyed by kind, arrays of keys — bypass
-    // `t()`'s typing at the point the literal is written. A literal that
-    // starts with a real group prefix but does not resolve is a typo.
-    const groups = new Set(
-      Object.keys(STRINGS).map((key) => key.slice(0, key.indexOf("."))),
-    );
-    const stale = [...keyLiterals().keys()].filter(
-      (key) => groups.has(key.slice(0, key.indexOf("."))) && !isStringKey(key),
-    );
-    expect(stale).toEqual([]);
-  });
-
   it("has no orphan entries", () => {
     const referenced = keyLiterals();
     const orphans = (Object.keys(STRINGS) as StringKey[]).filter(

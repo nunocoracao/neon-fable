@@ -41,6 +41,7 @@ import {
   toggleMotion,
   type PreviewState,
 } from "./previewState";
+import { t } from "./strings";
 
 /**
  * Byte budget for baked preview frames. A 64×96-at-2x bake holds
@@ -160,7 +161,7 @@ export function createAppearancePreview(
 
   const hint = document.createElement("p");
   hint.className = "nf-dim nf-preview-hint";
-  hint.textContent = "Q/E rotate · W walk · +/− zoom";
+  hint.textContent = t("appearance.preview.keys");
 
   el.append(stage);
   if (!options.showcase) el.append(controls, hint);
