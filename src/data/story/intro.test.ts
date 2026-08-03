@@ -10,6 +10,7 @@ import {
 import { buyFromVendor, vendorShelf } from "../../economy";
 import { createNewGame, type GameState } from "../../state";
 import { introArc } from "./intro";
+import { itemValue } from "../economy";
 
 function makeState(backgroundId: string): GameState {
   return createNewGame({ character: fixtureCharacter({ backgroundId }), seed: 1 });
@@ -81,7 +82,7 @@ describe("intro arc gating", () => {
     const rich = { ...state, credits: 500 };
     const bought = buyFromVendor(rich, "wet-market-back", "buy-rail-spitter");
     expect(hasItem(bought.state.inventory, "wpn-rail-spitter")).toBe(true);
-    expect(bought.state.credits).toBe(500 - 320);
+    expect(bought.state.credits).toBe(500 - itemValue("wpn-rail-spitter"));
   });
 
   it("opens the back shelf as a counter rather than a list of buys", () => {

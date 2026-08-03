@@ -19,6 +19,7 @@ import {
 } from "./combatTestSupport";
 import { initScreenRouter, showScreen } from "./screen";
 import { createSession, type Session } from "./session";
+import { requireEncounter } from "../data/encounters";
 
 /**
  * Drives the combat screen in happy-dom: fights are scripted against the
@@ -480,7 +481,9 @@ describe("victory", () => {
 
     // Victory overlay lists the encounter rewards.
     expect(textOf(".nf-combat-outcome")).toMatch(/Victory/);
-    expect(textOf(".nf-reward-list")).toMatch(/\+30 cr/);
+    expect(textOf(".nf-reward-list")).toContain(
+      `+${requireEncounter("enc-rustyard-ambush").rewards.credits} cr`,
+    );
     expect(textOf(".nf-reward-list")).toMatch(/Surge Stim/);
     expect(logText()).toMatch(/goes down/);
 
@@ -489,7 +492,9 @@ describe("victory", () => {
     expect(textOf(".nf-hud-status")).toMatch(/Cinder Row Plaza/);
     expect(session.state.flags["combat:enc-rustyard-ambush"]).toBe("victory");
     expect(session.state.pendingEncounterId).toBeNull();
-    expect(session.state.credits).toBe(25 + 30);
+    expect(session.state.credits).toBe(
+      25 + requireEncounter("enc-rustyard-ambush").rewards.credits,
+    );
     expect(countItem(session.state.inventory, "con-surge-stim")).toBe(1);
     if (won.fight.kinds.has("item")) {
       expect(countItem(session.state.inventory, "con-trauma-patch")).toBeLessThan(2);

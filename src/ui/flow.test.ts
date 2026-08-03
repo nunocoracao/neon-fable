@@ -28,6 +28,7 @@ import { createGameScreen } from "./gameScreen";
 import { initScreenRouter, showScreen } from "./screen";
 import { createMainMenuScreen } from "./mainMenu";
 import { createSession } from "./session";
+import { requireEncounter } from "../data/encounters";
 
 /**
  * Integration test of the DOM screens: drives the real UI (main menu ->
@@ -807,12 +808,14 @@ describe("dialogue overlay", () => {
       vi.runAllTimers();
     }
 
-    // Victory overlay, then dialogue resumes at the post-combat node;
-    // rewards paid (75 + 40).
+    // Victory overlay, then dialogue resumes at the post-combat node,
+    // with the scout's own payout folded in.
     expect(textOf(".nf-combat-outcome")).toMatch(/Victory/);
     click("Continue");
     expect(textOf(".nf-dialogue-text")).toMatch(/junction box/);
-    expect(textOf(".nf-hud-status")).toMatch(/115 cr/);
+    expect(textOf(".nf-hud-status")).toContain(
+      `${75 + requireEncounter("enc-auric-scout").rewards.credits} cr`,
+    );
 
     // Finish the thread: end marker closes dialogue and toasts the ending.
     click("Head back to the Filament");
@@ -821,7 +824,9 @@ describe("dialogue overlay", () => {
     // A thread with no chapter panel behind it closes on a sentence,
     // never on the content id that named it.
     expect(textOf(".nf-toast")).toMatch(/That thread is closed/);
-    expect(textOf(".nf-hud-status")).toMatch(/315 cr/);
+    expect(textOf(".nf-hud-status")).toContain(
+      `${75 + requireEncounter("enc-auric-scout").rewards.credits + 200} cr`,
+    );
   });
 });
 

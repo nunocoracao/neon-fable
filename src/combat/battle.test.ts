@@ -10,6 +10,7 @@ import { combatResultFlag, resolveCombat } from "./outcome";
 import { createCombat } from "./setup";
 import { activeCombatant, isAlive, livingEnemies } from "./state";
 import type { CombatState, GridPosition } from "./types";
+import { requireEncounter } from "../data/encounters";
 
 /**
  * A deterministic player policy: attack the nearest living enemy when in
@@ -119,7 +120,9 @@ describe("a full scripted battle", () => {
       combat.status,
     );
     if (combat.status === "victory") {
-      expect(after.credits).toBe(game.credits + 30);
+      expect(after.credits).toBe(
+        game.credits + requireEncounter("enc-rustyard-ambush").rewards.credits,
+      );
     }
     expect(after.player.hp).toBeGreaterThanOrEqual(1);
   });
