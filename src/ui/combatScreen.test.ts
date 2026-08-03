@@ -9,6 +9,7 @@ import { clampCamera, mapPixelBounds, worldToScreen } from "../iso";
 import { worldToViewport } from "../iso/camera";
 import { noAssists, type AssistId } from "../data/assists";
 import { createNewGame, type GameState } from "../state";
+import { DEFAULT_SETTINGS, settings } from "../settings";
 import { createCombatScreen } from "./combatScreen";
 import { createGameScreen } from "./gameScreen";
 import {
@@ -149,6 +150,9 @@ beforeEach(() => {
   vi.stubGlobal("requestAnimationFrame", () => 0);
   vi.stubGlobal("cancelAnimationFrame", () => {});
   localStorage.clear();
+  // The settings store is a module singleton; reset it between tests so
+  // the hints switch (and everything else) starts where it ships.
+  settings.update({ ...DEFAULT_SETTINGS });
   initScreenRouter(document.getElementById("ui-root")!);
 });
 
@@ -350,7 +354,8 @@ describe("action bar", () => {
     pressKey("4");
     expect(textOf(".nf-combat-hint")).toMatch(/Click a highlighted tile/);
     pressKey("Escape");
-    expect(textOf(".nf-combat-hint")).toMatch(/Choose an action/);
+    // Back to the idle line — which, with nothing in reach, says so.
+    expect(textOf(".nf-combat-hint")).toMatch(/Nothing in reach/);
 
     // 6 is End Turn, and it goes through the engine like the button.
     expect(textOf(".nf-combat-status")).toMatch(/Steps left 3/);
@@ -366,7 +371,7 @@ describe("action bar", () => {
     // 1 is Attack, and nothing is in reach — pressing it changes nothing.
     expect(actionButton("attack").disabled).toBe(true);
     pressKey("1");
-    expect(textOf(".nf-combat-hint")).toMatch(/Choose an action/);
+    expect(textOf(".nf-combat-hint")).toMatch(/Nothing in reach/);
   });
 
   it("locks the bar with one reason while the enemy phase plays", () => {
@@ -900,4 +905,61 @@ describe("display assists", () => {
     );
   });
 
+});
+
+/**
+ * The action-bar tour: the first fight of a run teaches the bar, one
+ * concept at a time and no more than its budget, and never repeats a
+ * line the run has already been given.
+ */
+describe("the action-bar tour", () => {
+  function chipId(): string | null {
+    return (
+      document.querySelector<HTMLElement>(".nf-hint-chip")?.dataset.hint ?? null
+    );
+  }
+
+  it("opens the first fight with the bar explained, once", () => {
+    const session = createSession(courierState(1));
+    mountCombat(session, "enc-rustyard-ambush");
+    expect(chipId()).toBe("hint-combat-attack");
+    expect(session.state.flags["hint:hint-combat-attack"]).toBe(true);
+    // One chip, whatever else is on screen.
+    expect(document.querySelectorAll(".nf-hint-chip")).toHaveLength(1);
+  });
+
+  it("rations the tour: one fight spends its budget and no more", () => {
+    const session = createSession(courierState(1));
+    mountCombat(session, "enc-rustyard-ambush");
+    const shown: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const id = chipId();
+      if (id && !shown.includes(id)) shown.push(id);
+      document.querySelector<HTMLButtonElement>(".nf-hint-dismiss")?.click();
+      // Re-entering idle is what offers the next one.
+      pressKey("4");
+      pressKey("Escape");
+    }
+    expect(shown).toEqual(["hint-combat-attack", "hint-combat-move"]);
+  });
+
+  it("picks the tour up where it stopped in the next fight", () => {
+    const session = createSession(courierState(1));
+    mountCombat(session, "enc-rustyard-ambush");
+    for (let i = 0; i < 4; i++) {
+      document.querySelector<HTMLButtonElement>(".nf-hint-dismiss")?.click();
+      pressKey("4");
+      pressKey("Escape");
+    }
+    mountCombat(session, "enc-rustyard-ambush");
+    expect(chipId()).toBe("hint-combat-end");
+  });
+
+  it("says nothing at all with the setting off", () => {
+    settings.update({ hints: false });
+    const session = createSession(courierState(1));
+    mountCombat(session, "enc-rustyard-ambush");
+    expect(chipId()).toBeNull();
+    expect(session.state.flags["hint:hint-combat-attack"]).toBeUndefined();
+  });
 });

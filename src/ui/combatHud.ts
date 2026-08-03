@@ -283,6 +283,32 @@ export function blockReasonText(reason: ActionBlockReason): string {
 }
 
 /**
+ * The line under the status row while no action is open — the one
+ * sentence a player who is not hovering anything will read.
+ *
+ * "Choose an action" is true and useless on the turn that matters most:
+ * the first turn of the first fight opens with Attack, Ability and Item
+ * all greyed out, and the only explanation is in a tooltip that a
+ * keyboard player never sees. So when the primary action is blocked for
+ * a reason the player can *do* something about, the line names it and
+ * names the way out. Anything else falls back to the neutral prompt.
+ */
+export function idleHintText(state: CombatState): string {
+  const attack = actionAvailability(state, "attack");
+  if (attack.available) return "Choose an action.";
+  switch (attack.reason) {
+    case "out-of-range":
+      return "Nothing in reach — Move closer, then Attack.";
+    case "action-used":
+      return "This turn's action is spent. Move, or End Turn.";
+    case "no-targets":
+      return "Nothing left to fight.";
+    default:
+      return "Choose an action.";
+  }
+}
+
+/**
  * What an available action would do, in the engine's own figures. Kept
  * short — this is a hover, not a manual — and always concrete: a number
  * the player can compare against the target card beside it.

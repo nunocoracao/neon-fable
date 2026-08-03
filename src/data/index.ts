@@ -78,6 +78,15 @@ export {
   type BarkTrigger,
 } from "./barks";
 export {
+  COMBAT_HINT_BUDGET,
+  WIZARD_STEP_HELP,
+  getHint,
+  hints,
+  hintsFor,
+  type Hint,
+  type HintTrigger,
+} from "./hints";
+export {
   ASSIST_DAMAGE_FLOOR,
   ASSIST_IDS,
   ASSISTS,

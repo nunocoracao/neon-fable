@@ -9,7 +9,7 @@ import {
 } from "../settings";
 import { focusables } from "./focus";
 import { GRAPHICS_CONTROLS, GRAPHICS_GROUPS } from "./graphicsModel";
-import { createSettingsOverlay } from "./settingsScreen";
+import { createSettingsOverlay, type HintsHandle } from "./settingsScreen";
 import type { OverlayHandle } from "./overlay";
 
 /**
@@ -25,8 +25,8 @@ import type { OverlayHandle } from "./overlay";
 
 let overlay: OverlayHandle | null = null;
 
-function mount(): void {
-  overlay = createSettingsOverlay({ onClose: () => {} });
+function mount(hints?: HintsHandle | null): void {
+  overlay = createSettingsOverlay({ onClose: () => {}, hints });
   document.body.append(overlay.el);
 }
 
@@ -202,5 +202,72 @@ describe("the Graphics & Comfort section", () => {
     option("glow", "off").click();
     expect(option("glow", "off").getAttribute("aria-pressed")).toBe("true");
     expect(option("glow", "on").getAttribute("aria-pressed")).toBe("false");
+  });
+});
+
+/**
+ * Guidance: the one switch that decides whether the game teaches itself,
+ * and the control that lets a run be taught again. The rules behind both
+ * are in src/narrative/hints.test.ts and src/ui/hintLayer.test.ts; what
+ * is under test here is that the panel really drives them.
+ */
+describe("the Guidance section", () => {
+  it("starts on, and writes and persists both positions", () => {
+    mount();
+    expect(selected("hints")).toBe("on");
+
+    option("hints", "off").click();
+    expect(settings.get().hints).toBe(false);
+    expect(selected("hints")).toBe("off");
+    expect(localStorage.getItem(SETTINGS_KEY)).toContain('"hints":false');
+
+    option("hints", "on").click();
+    expect(settings.get().hints).toBe(true);
+    expect(localStorage.getItem(SETTINGS_KEY)).toContain('"hints":true');
+  });
+
+  it("is left alone by the graphics section's reset", () => {
+    settings.update({ hints: false });
+    mount();
+    document
+      .querySelector<HTMLButtonElement>('[data-reset="graphics"]')!
+      .click();
+    // Graphics went home; guidance is somebody else's setting.
+    expect(settings.get().glow).toBe(DEFAULT_SETTINGS.glow);
+    expect(settings.get().hints).toBe(false);
+    expect(GRAPHICS_SETTING_KEYS).not.toContain("hints");
+  });
+
+  it("resets a run's hints through the handle it was given", () => {
+    let seen = 3;
+    let resets = 0;
+    mount({
+      seen: () => seen,
+      reset: () => {
+        resets += 1;
+        seen = 0;
+      },
+    });
+    const reset = document.querySelector<HTMLButtonElement>(
+      '[data-reset="hints"]',
+    )!;
+    expect(reset.disabled).toBe(false);
+    reset.click();
+    expect(resets).toBe(1);
+    // The panel says so afterwards rather than still claiming three.
+    expect(document.querySelector(".nf-settings")?.textContent).toContain(
+      "0 hints shown so far",
+    );
+  });
+
+  it("offers no reset from the main menu, and says why", () => {
+    mount(null);
+    const reset = document.querySelector<HTMLButtonElement>(
+      '[data-reset="hints"]',
+    )!;
+    expect(reset.disabled).toBe(true);
+    expect(document.querySelector(".nf-settings")?.textContent).toContain(
+      "only be replayed from inside a game",
+    );
   });
 });

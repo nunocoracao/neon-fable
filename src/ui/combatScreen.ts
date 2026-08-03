@@ -60,6 +60,7 @@ import {
 import {
   actionForHotkey,
   actionButtons,
+  idleHintText,
   initiativeChips,
   staticSurgeWarning,
   targetCard,
@@ -93,6 +94,8 @@ import {
 import type { DayPhaseId, IsoMap, TilePoint } from "../iso";
 import { settings, telegraphPaletteFor } from "../settings";
 import { SaveError, assistOn, loadGame, type GameState } from "../state";
+import { COMBAT_HINT_BUDGET } from "../narrative/hints";
+import { createHintLayer, type HintLayerHandle } from "./hintLayer";
 import { focusFirst, installListNav } from "./focus";
 import {
   combatEventText,
@@ -102,6 +105,7 @@ import {
   injuryLine,
   percentLabel,
   saveErrorMessage,
+  stepsLabel,
 } from "./format";
 import { createGameScreen } from "./gameScreen";
 import { createMainMenuScreen } from "./mainMenu";
@@ -212,6 +216,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
   let hintEl: HTMLElement | null = null;
   let selectionEl: HTMLElement | null = null;
   let overlayEl: HTMLElement | null = null;
+  let hintLayer: HintLayerHandle | null = null;
   let rail: HudView<InitiativeRailModel> | null = null;
   let actionBar: HudView<readonly ActionButton[]> | null = null;
   let targetCardView: HudView<TargetCard | null> | null = null;
@@ -427,11 +432,15 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     }
     switch (mode.kind) {
       case "idle":
-        setHint("Choose an action.");
+        setHint(idleHintText(combat));
+        // A turn the player can actually spend is the moment the bar is
+        // worth explaining; the budget spreads the tour over fights.
+        hintLayer?.cue("combat-turn");
+        if (abilityOptions(combat).length > 0) hintLayer?.cue("combat-ability");
         return;
       case "move":
         setHint(
-          `Click a highlighted tile to move (${combat.moveRemaining} steps ` +
+          `Click a highlighted tile to move (${stepsLabel(combat.moveRemaining)} ` +
             "left) — or use the arrow keys. Esc cancels.",
         );
         return;
@@ -1029,6 +1038,9 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     panel: HTMLElement;
   } {
     overlayEl?.remove();
+    // Nothing left to teach once the fight is decided, and a chip under
+    // a result panel is a chip nobody reads.
+    hintLayer?.setPaused(true);
     const overlay = document.createElement("div");
     overlay.className = "nf-overlay nf-overlay-center";
     const panel = document.createElement("div");
@@ -1310,6 +1322,18 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       bottomBar.append(statusEl, hintEl, selectionEl, actionBar.el);
       root.append(bottomBar);
 
+      // The action-bar tour, rationed: this fight may spend
+      // COMBAT_HINT_BUDGET chips and the rest wait for the next one.
+      // Which have been shown is the run's, so it outlives the fight.
+      hintLayer = createHintLayer({
+        flags: () => session.state.flags,
+        onSeen: (flags) => {
+          session.state = { ...session.state, flags };
+        },
+        limit: COMBAT_HINT_BUDGET,
+      });
+      root.append(hintLayer.el);
+
       window.addEventListener("keydown", onKeyDown);
 
       sync();
@@ -1331,6 +1355,8 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       targetCardView?.el.remove();
       telegraphChipView?.el.remove();
       overlayEl?.remove();
+      hintLayer?.destroy();
+      hintLayer = null;
       topBar = null;
       logEl = null;
       bottomBar = null;
