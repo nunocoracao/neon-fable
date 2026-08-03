@@ -18,7 +18,7 @@ import { createAppearancePicker } from "./appearancePicker";
 import { createAppearancePreview } from "./appearancePreview";
 import { dyeCounterModel } from "./dyeModel";
 import { focusFirst } from "./focus";
-import type { OverlayHandle } from "./overlay";
+import { createOverlayRoot, type OverlayHandle } from "./overlay";
 import type { Session } from "./session";
 import { t } from "./strings";
 
@@ -53,8 +53,7 @@ export function createStylistOverlay(
   const original = session.state.player.appearance;
   let draft: Appearance = { ...original };
 
-  const el = document.createElement("div");
-  el.className = "nf-overlay nf-overlay-center";
+  const el = createOverlayRoot(t("stylist.title"));
 
   const panel = document.createElement("div");
   panel.className = "nf-panel nf-stylist";

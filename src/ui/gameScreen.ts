@@ -83,7 +83,7 @@ import {
   watchTints,
 } from "./stealthModel";
 import { reducedMotionActive, settings } from "../settings";
-import { interactPrompt, shardPickupToast } from "./format";
+import { interactPrompt, shardPickupToast, thingCountLabel } from "./format";
 import { createCodexScreen } from "./codexScreen";
 import { createControlsOverlay } from "./controlsScreen";
 import { resolveDistrict } from "./district";
@@ -93,6 +93,7 @@ import { playerSpriteSource } from "./playerSprite";
 import { createAdvancementOverlay } from "./advancementOverlay";
 import { createPerkOverlay } from "./perkOverlay";
 import { pickLabel } from "./perkModel";
+import { createAnnouncer, type Announcer } from "./announce";
 import { createBarkLayer, type BarkLayerHandle } from "./barkLayer";
 import { createHintLayer, type HintLayerHandle } from "./hintLayer";
 import { createBreachOverlay } from "./breachOverlay";
@@ -105,7 +106,7 @@ import { focusFirst, installListNav } from "./focus";
 import { createMainMenuScreen } from "./mainMenu";
 import { createMinimap, type MinimapHandle } from "./minimap";
 import { createPartyOverlay } from "./partyOverlay";
-import type { OverlayHandle } from "./overlay";
+import { createOverlayRoot, type OverlayHandle } from "./overlay";
 import { createSaveLoadPanel } from "./saveLoad";
 import { createStylistOverlay } from "./stylistOverlay";
 import { createVendorOverlay } from "./vendorOverlay";
@@ -209,6 +210,14 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   let toast: HTMLElement | null = null;
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let promptEl: HTMLElement | null = null;
+  /**
+   * The street's narrator. The map is a canvas, so what it offers has
+   * to be said in words as well as drawn: where the player has just
+   * arrived and what is on it, what the pick or the cursor has landed
+   * on and how far off it is, and whether they are crouched. Events,
+   * never pixels.
+   */
+  let narrator: Announcer | null = null;
   let minimap: MinimapHandle | null = null;
   let barkLayer: BarkLayerHandle | null = null;
   let hintLayer: HintLayerHandle | null = null;
@@ -332,6 +341,17 @@ export function createGameScreen(options: GameScreenOptions): Screen {
    * wording.
    */
   function showFocusHint(hint: IsoFocusHint | null): void {
+    // Said before the prompt is written, because the prompt goes quiet
+    // for anything out of reach that leads nowhere — and "the kiosk,
+    // four tiles away" is the one thing a player who cannot see the
+    // outline needs from it.
+    if (hint) {
+      narrator?.say(
+        hint.inRange
+          ? t("narrate.focus.inReach", { label: hint.label })
+          : t("narrate.focus", { label: hint.label, distance: hint.distance }),
+      );
+    }
     focusPromptText = hint
       ? interactPrompt({
           label: hint.label,
@@ -584,8 +604,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   }
 
   function openChapterEnd(ending: ChapterEnding): void {
-    const el = document.createElement("div");
-    el.className = "nf-overlay nf-overlay-center";
+    const el = createOverlayRoot(t("game.chapterComplete"));
     const panel = document.createElement("div");
     panel.className = "nf-panel nf-chapter-end";
     const kicker = document.createElement("div");
@@ -919,6 +938,12 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     stealthRun = toggleCrouch(stealthRun);
     scene?.setCrouched(stealthRun.crouched);
     audio.emit("ui.click");
+    // A crouch changes nothing on screen but the pace and a HUD chip,
+    // so it is said: it is the whole of the player's answer to being
+    // watched, and it must not be a state you can only see.
+    narrator?.say(
+      stealthRun.crouched ? t("narrate.crouched") : t("narrate.standing"),
+    );
     refreshHud();
   }
 
@@ -1044,8 +1069,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   }
 
   function openSystemMenu(): void {
-    const el = document.createElement("div");
-    el.className = "nf-overlay nf-overlay-center";
+    const el = createOverlayRoot(t("menu.pause.label"));
     const panel = document.createElement("div");
     panel.className = "nf-panel nf-system-menu";
     const title = document.createElement("h2");
@@ -1251,7 +1275,14 @@ export function createGameScreen(options: GameScreenOptions): Screen {
 
       promptEl = document.createElement("div");
       promptEl.className = "nf-interact-prompt";
+      // The offer changes without focus moving — walking up to a door
+      // is not a DOM event — so the line announces itself.
+      promptEl.setAttribute("role", "status");
+      promptEl.setAttribute("aria-live", "polite");
       root.append(promptEl);
+
+      narrator = createAnnouncer({ label: "explore.narrator.label" });
+      root.append(narrator.el);
 
       // Whether anybody is standing between the player and the far side
       // of this map. Resolved once, here, off the run: a zone whose
@@ -1328,6 +1359,17 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       // the weather it arrives under, and the state the player walked
       // in in. Cues wait for somebody able to answer them and lapse if
       // nobody is (walking alone, all three go unsaid).
+      // What arriving somewhere is, in words: where you are, and how
+      // much of it you can act on. A canvas says neither.
+      narrator?.say(
+        map.interactables.length === 0
+          ? t("narrate.arrived.alone", { map: map.name })
+          : t("narrate.arrived", {
+              map: map.name,
+              things: thingCountLabel(map.interactables.length),
+            }),
+      );
+
       barkLayer.cue("arrive");
       if (map.weather === "rain") barkLayer.cue("weather");
       if (isWounded(session.state)) barkLayer.cue("wounded");
@@ -1389,6 +1431,8 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       overlayLayer?.remove();
       toast?.remove();
       promptEl?.remove();
+      narrator?.destroy();
+      narrator = null;
       hud = null;
       hudStatus = null;
       advanceButton = null;

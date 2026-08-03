@@ -264,6 +264,8 @@ describe("focus hints", () => {
         interaction: { kind: "dialogue", nodeId: "n1" },
         reason: "nearby",
         inRange: true,
+        // How far off, in words the shell's narrator can say out loud.
+        distance: 1,
         exitMapId: "elsewhere",
       },
     ]);

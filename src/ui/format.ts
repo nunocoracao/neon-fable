@@ -810,6 +810,13 @@ export function hintCountLabel(amount: number): string {
     : t("count.hint.many", { amount });
 }
 
+/** "1 thing", "4 things" — what a map has on it worth walking to. */
+export function thingCountLabel(amount: number): string {
+  return amount === 1
+    ? t("count.thing.one", { amount })
+    : t("count.thing.many", { amount });
+}
+
 /** A chance in [0, 1] as a whole percentage, e.g. "65%". */
 export function percentLabel(chance: number): string {
   return `${Math.round(chance * 100)}%`;
@@ -974,6 +981,37 @@ export function combatEventText(
         case "fled":
           return t("log.end.fled");
       }
+  }
+}
+
+/**
+ * What the *arena* says about an event, for the live region that
+ * narrates the canvas.
+ *
+ * The log and the narrator read the same stream and deliberately say
+ * different halves of it. The log skips turn markers and moves because
+ * the initiative strip and the animation carry them — which is true for
+ * eyes and false for everything else, so those two are exactly what the
+ * narrator adds. Anything with a log line already has its words, and is
+ * left to the log's own live region rather than said twice.
+ *
+ * Null means "nothing to narrate", which is most events.
+ */
+export function combatSceneNarration(
+  event: CombatEvent,
+  nameOf: CombatantNameLookup,
+): string | null {
+  switch (event.type) {
+    case "turn-started":
+      return t("narrate.turn", { name: nameOf(event.combatantId) });
+    case "moved":
+      return t("narrate.moved", {
+        name: nameOf(event.combatantId),
+        x: event.to.x,
+        y: event.to.y,
+      });
+    default:
+      return null;
   }
 }
 

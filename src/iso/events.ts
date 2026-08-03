@@ -53,6 +53,11 @@ export interface IsoFocusHint {
   reason: FocusReason;
   /** Whether the player can trigger it from where they stand. */
   inRange: boolean;
+  /**
+   * Manhattan tiles between the player and it. The outline says this
+   * with a picture; the shell's narrator has to say it in words.
+   */
+  distance: number;
   /** Destination map id, on interactables that lead off the map. */
   exitMapId?: string;
 }

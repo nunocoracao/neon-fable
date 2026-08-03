@@ -51,6 +51,7 @@ import { applyNewGamePlus, createNewGame } from "../state";
 import { DIFFICULTIES, requireDifficulty } from "../data/difficulty";
 import type { DifficultyId } from "../data/difficulty";
 import { settings, settingsRules } from "../settings";
+import { createAnnouncer, type Announcer } from "./announce";
 import { createAppearancePicker } from "./appearancePicker";
 import {
   createAppearancePreview,
@@ -135,7 +136,7 @@ export function createCharacterCreateScreen(
   let nextButton: HTMLButtonElement | null = null;
   let exitConfirm: HTMLElement | null = null;
   /** Visually hidden polite live region announcing selection changes. */
-  let liveRegion: HTMLElement | null = null;
+  let liveRegion: Announcer | null = null;
 
   const ngPlus = options.ngPlus ?? null;
   /**
@@ -221,15 +222,9 @@ export function createCharacterCreateScreen(
     }
   }
 
-  /**
-   * Polite screen-reader announcement ("Hair Style: Mohawk"). Repeats
-   * of the same text get a trailing no-break space so live regions see
-   * a change and re-announce.
-   */
+  /** Polite screen-reader announcement ("Hair Style: Mohawk"). */
   function announce(text: string): void {
-    if (!liveRegion) return;
-    liveRegion.textContent =
-      liveRegion.textContent === text ? `${text} ` : text;
+    liveRegion?.say(text);
   }
 
   /**
@@ -265,8 +260,11 @@ export function createCharacterCreateScreen(
     renderStep();
     renderChrome();
     announce(
-      `Step ${WIZARD_STEPS.indexOf(wizard.step) + 1} of ` +
-        `${WIZARD_STEPS.length}: ${WIZARD_STEP_LABELS[wizard.step]}`,
+      t("create.step.announce", {
+        index: WIZARD_STEPS.indexOf(wizard.step) + 1,
+        total: WIZARD_STEPS.length,
+        label: WIZARD_STEP_LABELS[wizard.step],
+      }),
     );
     if (stepBody) focusFirst(stepBody);
   }
@@ -1069,6 +1067,9 @@ export function createCharacterCreateScreen(
     if (exitConfirm) return;
     exitConfirm = document.createElement("div");
     exitConfirm.className = "nf-overlay nf-overlay-center";
+    exitConfirm.setAttribute("role", "dialog");
+    exitConfirm.setAttribute("aria-modal", "true");
+    exitConfirm.setAttribute("aria-label", t("create.abandon.title"));
     const panel = document.createElement("div");
     panel.className = "nf-panel nf-wizard-confirm";
     const title = document.createElement("h2");
@@ -1210,10 +1211,7 @@ export function createCharacterCreateScreen(
       stepHelp = document.createElement("p");
       stepHelp.className = "nf-dim nf-wizard-help";
 
-      liveRegion = document.createElement("div");
-      liveRegion.className = "nf-sr-only";
-      liveRegion.setAttribute("role", "status");
-      liveRegion.setAttribute("aria-live", "polite");
+      liveRegion = createAnnouncer({ label: "create.live.label" });
 
       stepBody = document.createElement("div");
       stepBody.className = "nf-wizard-body";
@@ -1240,7 +1238,7 @@ export function createCharacterCreateScreen(
       });
       nav.append(backButton, navHint, nextButton);
 
-      panel.append(header, progressEl, stepHelp, liveRegion, stepBody, nav);
+      panel.append(header, progressEl, stepHelp, liveRegion.el, stepBody, nav);
       container.append(panel);
       root.append(container);
 

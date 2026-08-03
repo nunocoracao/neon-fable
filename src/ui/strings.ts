@@ -498,6 +498,8 @@ export const STRINGS = {
    * Character creation. Backgrounds, appearance options and their
    * blurbs are content; the wizard around them is not.
    * -------------------------------------------------------------- */
+  "create.live.label": "Creation status",
+  "create.step.announce": "Step {index} of {total}: {label}",
   "create.title": "New Runner",
   "create.title.ngPlus": "New Runner — New Game+",
   "create.menu": "Menu",
@@ -782,6 +784,37 @@ export const STRINGS = {
   "log.end.victory": "All hostiles are down.",
   "log.end.defeat": "You collapse. The fight is over.",
   "log.end.fled": "You are clear of the fight.",
+
+  /* -------------------------------------------------------------- *
+   * Narration — what the canvas says out loud.
+   *
+   * The district and the arena are pixels; a screen reader gets these
+   * instead. They narrate *events*, never pixels: whose turn it is,
+   * what moved where, what is in focus and how far off. Anything the
+   * log already says in words is left to the log.
+   * -------------------------------------------------------------- */
+  "dialogue.label": "Conversation",
+  "breach.label": "Breach",
+  "perks.label": "Perks",
+  "save.label": "Save and load",
+  "vendor.label": "Counter",
+  "workbench.label": "Workbench",
+  "menu.pause.label": "Pause menu",
+  "interlude.label": "Previously",
+  "dialogue.spoken": "{speaker}: {line}",
+  "combat.log.label": "Combat log",
+  "combat.narrator.label": "Arena",
+  "explore.narrator.label": "The street",
+  "narrate.turn": "{name}'s turn.",
+  "narrate.moved": "{name} moves to column {x}, row {y}.",
+  "narrate.arrived": "{map}. {things} within reach of you.",
+  "narrate.arrived.alone": "{map}. Nothing here to use.",
+  "narrate.focus": "{label}, {distance} tiles away.",
+  "narrate.focus.inReach": "{label}, within reach.",
+  "narrate.crouched": "Crouched.",
+  "narrate.standing": "Standing.",
+  "count.thing.one": "{amount} thing",
+  "count.thing.many": "{amount} things",
 
   /* -------------------------------------------------------------- *
    * Combat HUD: the action bar, why a button is off, and what the

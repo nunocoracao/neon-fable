@@ -10,6 +10,7 @@ import { worldToViewport } from "../iso/camera";
 import { noAssists, type AssistId } from "../data/assists";
 import { createNewGame, type GameState } from "../state";
 import { DEFAULT_SETTINGS, settings } from "../settings";
+import { announcedText } from "./announce";
 import { createCombatScreen } from "./combatScreen";
 import { createGameScreen } from "./gameScreen";
 import {
@@ -203,6 +204,29 @@ describe("combat screen setup", () => {
     expect(textOf(".nf-combat-status")).toMatch(/Steps left 2/);
     pressKey("ArrowLeft");
     expect(textOf(".nf-combat-status")).toMatch(/Steps left 1/);
+  });
+
+  it("reads the fight out loud from the same events the log renders", () => {
+    const session = createSession(courierState(1));
+    mountCombat(session, "enc-rustyard-ambush");
+
+    // The log is a log, and announces the lines it renders.
+    const log = document.querySelector(".nf-combat-log");
+    expect(log?.getAttribute("role")).toBe("log");
+    expect(log?.getAttribute("aria-live")).toBe("polite");
+
+    // The arena's narrator carries what the log deliberately leaves to
+    // the initiative strip and the animation: whose turn it is, and
+    // where a body went. Vex opens the fight, so that is the first
+    // thing said.
+    const narrator = [
+      ...document.querySelectorAll<HTMLElement>("[aria-live]"),
+    ].find((el) => el.classList.contains("nf-sr-only"));
+    expect(narrator).toBeDefined();
+    expect(announcedText(narrator!)).toBe("Vex's turn.");
+
+    pressKey("ArrowUp");
+    expect(announcedText(narrator!)).toMatch(/Vex moves to column \d+, row \d+\./);
   });
 });
 

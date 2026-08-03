@@ -37,6 +37,9 @@ export function createInterludeOverlay(
 
   const el = document.createElement("div");
   el.className = "nf-overlay nf-overlay-center nf-interlude";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-modal", "true");
+  el.setAttribute("aria-label", t("interlude.label"));
 
   const backdrop = document.createElement("div");
   backdrop.className =

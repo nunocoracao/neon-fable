@@ -693,14 +693,15 @@ export function createIsoScene(
     const same =
       next?.interactableId === focusHintSent?.interactableId &&
       next?.reason === focusHintSent?.reason &&
-      next?.inRange === focusHintSent?.inRange;
+      next?.inRange === focusHintSent?.inRange &&
+      next?.distance === focusHintSent?.distance;
     if (same) return;
     focusHintSent = next;
     options.onFocus?.(next);
   }
 
   function focusHint(target: FocusedInteractable): IsoFocusHint {
-    const { interactable, reason, inRange } = target;
+    const { interactable, reason, inRange, distance } = target;
     return {
       interactableId: interactable.id,
       label: interactable.label,
@@ -708,6 +709,7 @@ export function createIsoScene(
       interaction: interactable.interaction,
       reason,
       inRange,
+      distance,
       exitMapId: interactable.exit?.mapId,
     };
   }

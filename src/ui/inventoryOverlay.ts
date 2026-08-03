@@ -30,7 +30,7 @@ import {
   slotLabel,
   uninstallWarning,
 } from "./format";
-import type { OverlayHandle } from "./overlay";
+import { createOverlayRoot, type OverlayHandle } from "./overlay";
 import { flickeringPortraitCanvas, portraitCanvas } from "./portraits";
 import type { Session } from "./session";
 import {
@@ -63,8 +63,7 @@ export function createInventoryOverlay(
 ): OverlayHandle {
   const { session } = options;
 
-  const el = document.createElement("div");
-  el.className = "nf-overlay nf-overlay-center";
+  const el = createOverlayRoot(t("inventory.title"));
 
   const panel = document.createElement("div");
   panel.className = "nf-panel nf-inventory";

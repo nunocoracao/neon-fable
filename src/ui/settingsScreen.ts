@@ -15,7 +15,7 @@ import { withAssist, withDifficulty, type RunRules } from "../state";
 import { focusFirst, installListNav } from "./focus";
 import { createControlsScreen } from "./controlsScreen";
 import { GRAPHICS_GROUPS, type GraphicsControl } from "./graphicsModel";
-import type { OverlayHandle } from "./overlay";
+import { createOverlayRoot, type OverlayHandle } from "./overlay";
 import { showScreen, type Screen } from "./screen";
 import { t } from "./strings";
 
@@ -611,8 +611,7 @@ function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
 export function createSettingsOverlay(
   options: SettingsPanelOptions,
 ): OverlayHandle {
-  const el = document.createElement("div");
-  el.className = "nf-overlay nf-overlay-center";
+  const el = createOverlayRoot(t("settings.title"));
   el.append(buildSettingsPanel(options));
   return { el, destroy: () => el.remove() };
 }

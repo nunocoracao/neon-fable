@@ -26,7 +26,7 @@ import {
   type BreachCell,
 } from "./breachModel";
 import { installRovingGrid } from "./focus";
-import type { OverlayHandle } from "./overlay";
+import { createOverlayRoot, type OverlayHandle } from "./overlay";
 import type { Session } from "./session";
 import { t } from "./strings";
 
@@ -64,8 +64,7 @@ export function createBreachOverlay(
   const { session } = options;
   const context = requireBreachContext(options.contextId);
 
-  const el = document.createElement("div");
-  el.className = "nf-overlay nf-overlay-center";
+  const el = createOverlayRoot(t("breach.label"));
   const panel = document.createElement("div");
   panel.className = "nf-panel nf-breach";
   el.append(panel);

@@ -17,7 +17,7 @@
 import { audio, musicScene } from "../audio";
 import { CONTROL_GROUPS } from "./controlsModel";
 import { focusFirst, installListNav } from "./focus";
-import type { OverlayHandle } from "./overlay";
+import { createOverlayRoot, type OverlayHandle } from "./overlay";
 import type { Screen } from "./screen";
 import { plain, t } from "./strings";
 
@@ -77,8 +77,7 @@ export function buildControlsPanel(onBack: () => void): HTMLElement {
 export function createControlsOverlay(options: {
   onClose(): void;
 }): OverlayHandle {
-  const el = document.createElement("div");
-  el.className = "nf-overlay nf-overlay-center";
+  const el = createOverlayRoot(t("controls.title"));
   el.append(buildControlsPanel(options.onClose));
   return { el, destroy: () => el.remove() };
 }
