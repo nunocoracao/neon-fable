@@ -11,7 +11,7 @@ import {
   hasOpeningArt,
   openingFrames,
 } from "./interactables";
-import { PALETTE, TRANSPARENT } from "./palette";
+import { HALF_STEPS, PALETTE, SHADOW, TRANSPARENT } from "./palette";
 import {
   ART_SCALE,
   DIAMOND_WIDTHS,
@@ -21,6 +21,7 @@ import {
   type PixelGrid,
 } from "./pixel";
 import { densityOf, inArtPixels, type ArtDensity } from "./density";
+import { refinedAt } from "./detail";
 import { PROP_ART, isoBox, isoSlab } from "./props";
 import { SETPIECE_ART } from "./setpieces";
 import { TILE_ART, puddleGrid } from "./tiles";
@@ -355,6 +356,68 @@ describe("prop art", () => {
       expect(art.frames.length).toBeGreaterThanOrEqual(2);
       expect(art.frames[art.frames.length - 1]).not.toEqual(art.frames[0]);
     }
+  });
+});
+
+describe("the mooring post, authored at density 2", () => {
+  const art = PROP_ART["mooring-post"];
+
+  it("declares the density its grid is actually drawn at", () => {
+    expect(densityOf(art)).toBe(2);
+    const grid = art.frames[0] ?? [];
+    expect(grid.length).toBe(46);
+    expect(grid[0]?.length).toBe(40);
+    expect(gridErrors(grid, densityOf(art))).toEqual([]);
+  });
+
+  it("stands exactly where the 1x post stood", () => {
+    // 20x23 with ground contact at (10, 20), redrawn: the same object,
+    // the same footprint, the same point on the tile.
+    const density = densityOf(art);
+    const grid = art.frames[0] ?? [];
+    expect(inArtPixels(grid[0]?.length ?? 0, density)).toBe(20);
+    expect(inArtPixels(grid.length, density)).toBe(23);
+    expect(inArtPixels(art.anchorX, density)).toBe(10);
+    expect(inArtPixels(art.anchorY, density)).toBe(20);
+  });
+
+  it("is still grounded, and still fits under the tile in front of it", () => {
+    const grid = art.frames[0] ?? [];
+    expect(grid.join("").includes(SHADOW)).toBe(true);
+    const below = inArtPixels(grid.length - 1 - art.anchorY, densityOf(art));
+    expect(below).toBeLessThanOrEqual(16);
+  });
+
+  it("skips the doubling pass and bakes to the size it always did", () => {
+    const grid = art.frames[0] ?? [];
+    const painted = refinedAt(grid, densityOf(art));
+    // Already at the detail resolution: the pass has nothing to derive.
+    expect(painted.length).toBe(grid.length);
+    expect(painted[0]?.length).toBe(grid[0]?.length);
+    // And that is the same canvas a 20x23 grid at 1x has always made.
+    expect(painted.length).toBe(23 * ART_SCALE);
+    expect(painted[0]?.length).toBe(20 * ART_SCALE);
+  });
+
+  it("spends the extra pixels on shades the 1x ramp did not have", () => {
+    const authored = (art.frames[0] ?? []).join("");
+    const halfSteps = HALF_STEPS.map((step) => step.char).filter((ch) =>
+      authored.includes(ch),
+    );
+    // The chrome cylinder and the concrete pad both turn through more
+    // shades than their ramps have steps — which is what v3 is for.
+    expect(halfSteps).toEqual(expect.arrayContaining(["[", "]", "(", ")"]));
+  });
+
+  it("turns through more shades than the 1x post could hold", () => {
+    const shades = new Set(
+      [...refinedAt(art.frames[0] ?? [], densityOf(art)).join("")].filter(
+        (ch) => ch !== TRANSPARENT,
+      ),
+    );
+    // The 20x23 post was drawn in eleven: chrome 6/7/9, the T cap, rust
+    // a/b/c, concrete Q/R/S, and the outline.
+    expect(shades.size).toBeGreaterThan(11);
   });
 });
 

@@ -18,7 +18,8 @@
  * file exists to catch.
  */
 import { describe, expect, it } from "vitest";
-import { refined } from "./detail";
+import { refinedAt } from "./detail";
+import { densityOf } from "./density";
 import { buildGallerySections } from "./gallery";
 import { PALETTE, TRANSPARENT } from "./palette";
 import type { PixelGrid } from "./pixel";
@@ -69,7 +70,9 @@ function foldGrid(hash: number, grid: PixelGrid): number {
  */
 const PINNED: Readonly<Record<string, string>> = {
   tiles: "c04e13e1",
-  props: "35cb2f0b",
+  // Moved once, deliberately: the mooring post was re-authored at
+  // density 2 (see ./props.ts). Every other section held.
+  props: "ba22d052",
   interactables: "bbe5d896",
   setpieces: "8179e454",
   cast: "75ee9bda",
@@ -93,7 +96,12 @@ describe("existing art bakes byte-identically", () => {
       let hash = 0x811c9dc5;
       for (const entry of section.entries) {
         hash = Math.imul(hash ^ hashText(entry.id), 0x01000193) >>> 0;
-        for (const frame of entry.frames) hash = foldGrid(hash, refined(frame));
+        // Through the pass the entry's own density calls for, so this
+        // hashes what the bake paints rather than what 1x art would.
+        const density = densityOf(entry);
+        for (const frame of entry.frames) {
+          hash = foldGrid(hash, refinedAt(frame, density));
+        }
       }
       digests[section.id] = hash.toString(16).padStart(8, "0");
     }
