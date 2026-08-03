@@ -131,9 +131,61 @@ export const CONTROL_GROUPS: readonly ControlGroup[] = [
         what: "controls.zoom.what",
       },
       {
+        id: "photo",
+        keys: "controls.photo.keys",
+        what: "controls.photo.what",
+      },
+      {
         id: "pointer",
         keys: "controls.pointer.keys",
         what: "controls.pointer.what",
+      },
+    ],
+  },
+  {
+    id: "photo",
+    title: "controls.group.photo",
+    blurb: "controls.group.photo.blurb",
+    bindings: [
+      {
+        id: "photoPan",
+        keys: "controls.photoPan.keys",
+        what: "controls.photoPan.what",
+      },
+      {
+        id: "photoZoom",
+        keys: "controls.photoZoom.keys",
+        what: "controls.photoZoom.what",
+      },
+      {
+        id: "photoHour",
+        keys: "controls.photoHour.keys",
+        what: "controls.photoHour.what",
+      },
+      {
+        id: "photoRain",
+        keys: "controls.photoRain.keys",
+        what: "controls.photoRain.what",
+      },
+      {
+        id: "photoPeople",
+        keys: "controls.photoPeople.keys",
+        what: "controls.photoPeople.what",
+      },
+      {
+        id: "photoResolution",
+        keys: "controls.photoResolution.keys",
+        what: "controls.photoResolution.what",
+      },
+      {
+        id: "photoCapture",
+        keys: "controls.photoCapture.keys",
+        what: "controls.photoCapture.what",
+      },
+      {
+        id: "photoLeave",
+        keys: "controls.photoLeave.keys",
+        what: "controls.photoLeave.what",
       },
     ],
   },

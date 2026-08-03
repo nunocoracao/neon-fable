@@ -151,6 +151,30 @@ export const STRINGS = {
   "game.hud.menu": "Menu [Esc]",
 
   /* -------------------------------------------------------------- *
+   * Photo mode — the district, held still and framed
+   * -------------------------------------------------------------- */
+  "photo.title": "Photo Mode",
+  "photo.hints":
+    "Arrows or WASD pan · + and − zoom · [ and ] change the hour · R rain · H people · 2 double resolution · Enter takes the shot · Esc leaves",
+  "photo.zoom": "{zoom}×",
+  "photo.zoomOut": "Zoom out [−]",
+  "photo.zoomIn": "Zoom in [+]",
+  "photo.hour": "Hour: {phase}",
+  "photo.phase.dusk": "Dusk",
+  "photo.phase.night": "Night",
+  "photo.phase.late": "Small hours",
+  "photo.weather.on": "Rain: on [R]",
+  "photo.weather.off": "Rain: off [R]",
+  "photo.people.shown": "People: in frame [H]",
+  "photo.people.hidden": "People: out of frame [H]",
+  "photo.supersample.off": "Resolution: screen [2]",
+  "photo.supersample.on": "Resolution: double [2]",
+  "photo.capture": "Take the shot [Enter]",
+  "photo.exit": "Leave [Esc]",
+  "photo.saved": "Saved {file}",
+  "photo.saveFailed": "This browser would not save the shot.",
+
+  /* -------------------------------------------------------------- *
    * Combat: how a fight ends
    * -------------------------------------------------------------- */
   "combat.end.victory": "Victory",
@@ -447,8 +471,30 @@ export const STRINGS = {
   "controls.takedown.what": "Take down a guard · lunge past a gap",
   "controls.zoom.keys": "+ / − / wheel",
   "controls.zoom.what": "Zoom the camera",
+  "controls.photo.keys": "V",
+  "controls.photo.what": "Enter photo mode — the street held still, ready to frame",
   "controls.pointer.keys": "Click / drag",
   "controls.pointer.what": "Move and interact · pan the camera",
+
+  "controls.group.photo": "In photo mode",
+  "controls.group.photo.blurb":
+    "The district is held still and the HUD is off screen. Nothing here touches the run: the hour, the rain, and the zoom are the shot's alone, and leaving puts the street back exactly as it was.",
+  "controls.photoPan.keys": "Arrows / WASD / drag",
+  "controls.photoPan.what": "Move the camera anywhere inside the district",
+  "controls.photoZoom.keys": "+ / − / wheel",
+  "controls.photoZoom.what": "Zoom, including one level deeper than the game plays at",
+  "controls.photoHour.keys": "] / [",
+  "controls.photoHour.what": "Stage the shot at another hour",
+  "controls.photoRain.keys": "R",
+  "controls.photoRain.what": "Rain in the shot, or none",
+  "controls.photoPeople.keys": "H",
+  "controls.photoPeople.what": "Leave every figure out, for the city on its own",
+  "controls.photoResolution.keys": "2",
+  "controls.photoResolution.what": "Capture at double the screen's resolution",
+  "controls.photoCapture.keys": "Enter",
+  "controls.photoCapture.what": "Take the shot and save it as a PNG",
+  "controls.photoLeave.keys": "Esc",
+  "controls.photoLeave.what": "Leave photo mode, back to exactly where you were",
 
   "controls.group.dialogue": "In a conversation",
   "controls.choice.keys": "1–9",
