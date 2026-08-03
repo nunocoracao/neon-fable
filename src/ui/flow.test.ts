@@ -197,7 +197,12 @@ describe("settings", () => {
     const instant = buttonByText("Instant");
     expect(instant?.classList.contains("nf-selected")).toBe(true);
     expect(instant?.getAttribute("aria-pressed")).toBe("true");
-    expect(document.querySelector(".nf-controls-row")).toBeTruthy();
+    // Settings carries a door to the key map rather than a copy of it,
+    // and it opens onto the reference and comes back.
+    click("Full controls reference");
+    expect(document.querySelector(".nf-controls-list")).toBeTruthy();
+    click("Back");
+    expect(buttonByText("Full controls reference")).toBeTruthy();
     click("Back");
   });
 

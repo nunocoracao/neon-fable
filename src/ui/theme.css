@@ -3221,6 +3221,39 @@ canvas.nf-action-glyph {
   color: var(--nf-ink-dim);
 }
 
+/* The full reference: a definition list, so a screen reader walks it as
+   "keys — what they do" pairs rather than as a wall of cells. Laid out
+   as a two-column grid, which is what the row flexbox above was
+   approximating one row at a time. */
+.nf-controls {
+  max-width: 46rem;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.nf-controls-list {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  gap: 0 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.nf-controls-list dt {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--nf-border);
+}
+
+.nf-controls-list dd {
+  margin: 0;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--nf-border);
+  font-size: 0.8rem;
+}
+
+.nf-controls-list .nf-kbd {
+  width: auto;
+}
+
 /* --- Keyboard focus --- */
 
 .nf-button:focus-visible,

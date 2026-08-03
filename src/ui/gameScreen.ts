@@ -85,6 +85,7 @@ import {
 import { reducedMotionActive, settings } from "../settings";
 import { interactPrompt, shardPickupToast } from "./format";
 import { createCodexScreen } from "./codexScreen";
+import { createControlsOverlay } from "./controlsScreen";
 import { resolveDistrict } from "./district";
 import { runMapTransition, type MapTransitionHandle } from "./mapTransition";
 import { npcSpriteSource, sceneSpriteSource } from "./entitySprites";
@@ -143,6 +144,7 @@ type OverlayKind =
   | "settings"
   | "stylist"
   | "workbench"
+  | "controls"
   | "vendor";
 
 /** Flag marking that this playthrough's ending is already in meta-progress. */
@@ -1010,6 +1012,13 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       "settings",
       createSettingsOverlay({
         onClose: openSystemMenu,
+        // The key map over the map, rather than a screen change: a
+        // player checking which key crouches has not left the street.
+        onControls: () =>
+          openOverlay(
+            "controls",
+            createControlsOverlay({ onClose: openSettings }),
+          ),
         rules: {
           get: () => session.state.rules,
           set: (next) => {
