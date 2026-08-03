@@ -8,7 +8,6 @@ import {
   ENHANCEMENT_SLOTS,
   MOD_SOCKET_KINDS,
   type Item,
-  type ItemEffect,
 } from "../../inventory/items";
 import type { Requirement } from "../types";
 import {
@@ -52,23 +51,21 @@ export interface GateWorld {
   standingCeiling: Readonly<Record<FactionId, number>>;
 }
 
-/** Positive stat mods an item's effects carry. */
-function statMods(effects: readonly ItemEffect[] | undefined): Partial<Record<StatKey, number>> {
-  const mods: Partial<Record<StatKey, number>> = {};
-  for (const effect of effects ?? []) {
-    if (effect.type === "stat-mod" && effect.amount > 0) {
-      mods[effect.stat] = Math.max(mods[effect.stat] ?? 0, effect.amount);
-    }
-  }
-  return mods;
-}
-
-/** The best mod of one stat among a set of items. */
+/**
+ * The best one stat is moved by any item in a pool. A consumable's
+ * effects are a different vocabulary and a dye has none at all, so
+ * neither can carry a mod a gate would ever read.
+ */
 function bestMod(pool: readonly Item[], stat: StatKey): number {
   let best = 0;
   for (const item of pool) {
-    const effects = "effects" in item ? (item.effects as ItemEffect[]) : undefined;
-    best = Math.max(best, statMods(effects)[stat] ?? 0);
+    if (item.kind === "consumable" || item.kind === "dye") continue;
+    if (!("effects" in item)) continue;
+    for (const effect of item.effects) {
+      if (effect.type === "stat-mod" && effect.stat === stat) {
+        best = Math.max(best, effect.amount);
+      }
+    }
   }
   return best;
 }
