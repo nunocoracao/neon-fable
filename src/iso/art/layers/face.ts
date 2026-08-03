@@ -68,6 +68,20 @@ export const EXPRESSION_IDS = ["neutral", "smile", "grim", "shocked"] as const;
 export type ExpressionId = (typeof EXPRESSION_IDS)[number];
 export type FaceLayerId = (typeof FACE_PART_IDS)[keyof typeof FACE_PART_IDS][number];
 
+/**
+ * Rows/cols (inclusive) face pixels may occupy: the head box interior,
+ * inset one pixel from the skull's own `0` outline on every side. A
+ * face part that reached the outline would erase the silhouette it is
+ * drawn inside; one that reached past it would float off the head on
+ * the frames the bob moves the skull.
+ */
+export const FACE_REGION = {
+  top: BODY_FRAME.head.top + 1,
+  bottom: BODY_FRAME.head.bottom - 1,
+  left: BODY_FRAME.head.left + 1,
+  right: BODY_FRAME.head.right - 1,
+} as const;
+
 const WIDTH = BODY_FRAME.width;
 const gap = (n: number): string => ".".repeat(n);
 const row = (left: number, body: string): string =>
