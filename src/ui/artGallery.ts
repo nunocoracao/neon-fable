@@ -15,6 +15,7 @@ import { bakeSprite } from "../iso/art/pixel";
 import type { Sprite } from "../iso/sprites";
 import { focusFirst } from "./focus";
 import type { Screen } from "./screen";
+import { t } from "./strings";
 
 interface ArtGalleryOptions {
   onBack: () => void;
@@ -85,18 +86,18 @@ export function createArtGalleryScreen(options: ArtGalleryOptions): Screen {
 
       const back = document.createElement("button");
       back.className = "nf-button nf-button-small";
-      back.textContent = "Back";
+      back.textContent = t("common.back");
       back.addEventListener("click", options.onBack);
 
       const title = document.createElement("h2");
       title.className = "nf-gallery-title";
-      title.textContent = "Art Gallery";
+      title.textContent = t("gallery.title");
 
       const filter = document.createElement("input");
       filter.className = "nf-input nf-gallery-filter";
       filter.type = "search";
-      filter.placeholder = "Filter by id…";
-      filter.setAttribute("aria-label", "Filter art by id");
+      filter.placeholder = t("gallery.filter.placeholder");
+      filter.setAttribute("aria-label", t("gallery.filter.label"));
 
       header.append(back, title, filter);
       container.append(header);
@@ -108,7 +109,10 @@ export function createArtGalleryScreen(options: ArtGalleryOptions): Screen {
         sectionEl.className = "nf-gallery-section";
         const heading = document.createElement("h3");
         heading.className = "nf-gallery-section-title";
-        heading.textContent = `${section.title} (${section.entries.length})`;
+        heading.textContent = t("gallery.section", {
+          title: section.title,
+          count: section.entries.length,
+        });
         const grid = document.createElement("div");
         grid.className = "nf-gallery-grid";
         const cells = section.entries.map(createCell);

@@ -47,6 +47,8 @@ export const STRINGS = {
   /* -------------------------------------------------------------- *
    * Common — words shared by more screens than any one of them owns
    * -------------------------------------------------------------- */
+  "common.back": "Back",
+
   /* -------------------------------------------------------------- *
    * Main menu
    * -------------------------------------------------------------- */
@@ -64,6 +66,18 @@ export const STRINGS = {
   "menu.dev.explore": "Explore (dev)",
   "menu.dev.gallery": "Art Gallery (dev)",
   "menu.dev.perf": "Perf Scene (dev)",
+
+  /* -------------------------------------------------------------- *
+   * Explore, art gallery and perf scene — the dev-only routes
+   * -------------------------------------------------------------- */
+  "explore.help": "Click a tile to move. Drag to pan.",
+  "explore.hour": "Hour: {phase}",
+  "gallery.title": "Art Gallery",
+  "gallery.filter.placeholder": "Filter by id…",
+  "gallery.filter.label": "Filter art by id",
+  "gallery.section": "{title} ({count})",
+  "perf.scroll.on": "Scroll: on",
+  "perf.scroll.off": "Scroll: off",
 } as const;
 
 export type StringTable = typeof STRINGS;
