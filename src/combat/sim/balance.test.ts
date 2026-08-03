@@ -265,7 +265,9 @@ describe("the presets mean what they say", () => {
 /**
  * Mods, perks and stims measured the only honest way: the same build
  * with them and without them, over the fights it would actually be
- * carrying them into.
+ * carrying them into. Everything else — the weapon, the coat, the
+ * implants, the patches — is identical on both sides, so the gap is
+ * these three systems and nothing else.
  */
 function optionalSystemsSweep(): { kitted: number; bare: number } {
   const encounterIds = encounterBalance
@@ -413,13 +415,13 @@ describe("the sweep report", () => {
           .join("\n"),
       ),
       section(
-        "Optional systems (late tier, solo, kitted vs bare)",
+        "Optional systems (late tier, solo; same gear and chrome either way)",
         (() => {
           const { kitted, bare } = optionalSystemsSweep();
           return (
-            `kitted (mods + perks + stims)  ${(kitted * 100).toFixed(0)}%\n` +
-            `bare   (weapon and coat only)  ${(bare * 100).toFixed(0)}%\n` +
-            `edge                           ${((kitted - bare) * 100).toFixed(0)} points`
+            `kitted (fitted parts, perks, stims)  ${(kitted * 100).toFixed(0)}%\n` +
+            `bare   (none of the three)           ${(bare * 100).toFixed(0)}%\n` +
+            `edge                                 ${((kitted - bare) * 100).toFixed(0)} points`
           );
         })(),
       ),
