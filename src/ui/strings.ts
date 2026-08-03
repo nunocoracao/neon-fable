@@ -22,6 +22,14 @@
  * wrapper is chrome and belongs here; `{item}` arrives from the data
  * file.
  *
+ * **Diagnostics stay put too.** `console.error` text, `throw` messages,
+ * and the crash report `errorReport.ts` assembles are written for
+ * whoever is debugging, not for whoever is playing. The report is on
+ * screen, but its audience is an issue tracker: a translated field name
+ * makes a bug harder to triage and easier to misread, so it stays in
+ * English beside the code that produces it. The crash *screen* around
+ * it — the heading, the ledes, the buttons — is chrome and is here.
+ *
  * ## Using it
  *
  * ```ts
@@ -181,6 +189,8 @@ export const STRINGS = {
   "advance.nextMilestone": "{label} at {cred} cred",
   "advance.allMilestones": "Every milestone reached",
   "advance.perks": "Perks",
+  "advance.viewPerks": "View Perks",
+  "advance.choosePerk": "Choose a Perk — {picks}",
   "advance.noPerks": "None yet. Street cred milestones are what grant them.",
   "advance.raiseStat": "Raise a stat ({cost} each)",
   "advance.raise": "Raise",

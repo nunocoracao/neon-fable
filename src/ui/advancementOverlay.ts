@@ -156,7 +156,9 @@ export function createAdvancementOverlay(
     section.append(grid);
 
     const open = actionButton(
-      view.picks > 0 ? `Choose a Perk — ${pickLabel(view.picks)}` : "View Perks",
+      view.picks > 0
+        ? t("advance.choosePerk", { picks: pickLabel(view.picks) })
+        : t("advance.viewPerks"),
       options.onOpenPerks,
     );
     if (view.picks > 0) open.classList.add("nf-button-attention");
