@@ -686,6 +686,11 @@ export function stepsLabel(amount: number): string {
   return `${amount} ${amount === 1 ? "step" : "steps"}`;
 }
 
+/** How many hints a run has been shown, for the settings row. */
+export function hintCountLabel(amount: number): string {
+  return `${amount} ${amount === 1 ? "hint" : "hints"}`;
+}
+
 /** A chance in [0, 1] as a whole percentage, e.g. "65%". */
 export function percentLabel(chance: number): string {
   return `${Math.round(chance * 100)}%`;

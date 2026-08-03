@@ -148,6 +148,18 @@ export interface Settings {
   /** The assist switches a new run starts with. Same story. */
   assists: AssistState;
   /**
+   * Contextual hints: the one-line chips that name a system the first
+   * time the player is standing in front of it (see
+   * src/narrative/hints.ts). Off suppresses every one of them without
+   * forgetting which have already been shown — turning it back on picks
+   * up where the run left off rather than replaying the first hour.
+   *
+   * A device preference and not a run fact, unlike which hints have
+   * been *seen*: whether you want to be taught is about you, which
+   * hints you have already read is about the playthrough.
+   */
+  hints: boolean;
+  /**
    * Fader positions, mutes, and the focus-ducking switch for the four
    * audio buses. The audio bus reads and writes this through a
    * MixerStore; see the file header.
@@ -170,13 +182,14 @@ export const DEFAULT_SETTINGS: Settings = {
   textScale: DEFAULT_TEXT_SCALE,
   difficulty: DEFAULT_DIFFICULTY_ID,
   assists: noAssists(),
+  hints: true,
   mixer: DEFAULT_MIXER,
 };
 
 export const SETTINGS_KEY = "neon-fable:settings";
 
 /** Bump when the Settings shape changes; migrateSettings routes on it. */
-export const SETTINGS_VERSION = 10;
+export const SETTINGS_VERSION = 11;
 
 /**
  * The fields the Graphics & Comfort section owns — everything about how
@@ -292,6 +305,11 @@ export function clampSettings(value: unknown): Settings {
     // number nobody can see (see clampDifficultyId / clampAssists).
     difficulty: clampDifficultyId(record.difficulty),
     assists: clampAssists(record.assists),
+    // Guidance defaults on, like every other switch whose absence means
+    // "this install predates the feature": a returning player who has
+    // already been taught keeps their hint flags either way, so the
+    // worst an upgrade can do is offer a chip for something new.
+    hints: record.hints !== false,
     // A payload with no mixer is either a v8 install (whose mixer is in
     // the old record, adopted by loadSettings) or a fresh one. Either
     // way the answer here is the documented defaults.
@@ -308,7 +326,7 @@ export function clampSettings(value: unknown): Settings {
  * preference and the assist switches, v8 payloads lack the mixer, v9
  * payloads carry a reducedMotion boolean where the motion preference
  * now is (and lack the set-piece switch, the colour mode, and the text
- * size), and each gets its default; unknown or future versions degrade
+ * size), v10 payloads lack the hints switch, and each gets its default; unknown or future versions degrade
  * to defaults per field instead of crashing.
  *
  * The v8 mixer is the one field whose default is not the end of the

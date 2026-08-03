@@ -195,6 +195,7 @@ describe("parse / serialize / migrate", () => {
       colorMode: "assist",
       textScale: 1.3,
       difficulty: "blackout",
+      hints: false,
       assists: {
         "always-preview": true,
         "damage-floor": false,

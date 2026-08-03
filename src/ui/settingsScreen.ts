@@ -10,6 +10,7 @@ import {
   TEXT_SPEEDS,
   type TextSpeed,
 } from "../settings";
+import { hintCountLabel } from "./format";
 import { withAssist, withDifficulty, type RunRules } from "../state";
 import { focusFirst, installListNav } from "./focus";
 import { GRAPHICS_GROUPS, type GraphicsControl } from "./graphicsModel";
@@ -71,10 +72,25 @@ export interface RunRulesHandle {
   set(next: RunRules): void;
 }
 
+/**
+ * A handle onto the run's hint memory. Which hints have been shown is
+ * recorded in the save (see src/narrative/hints.ts), so replaying them
+ * needs a run to write to — the main menu has none, and the row says
+ * that rather than offering a button that would do nothing.
+ */
+export interface HintsHandle {
+  /** How many hints this run has already been shown. */
+  seen(): number;
+  /** Forgets all of them; the run then teaches itself again. */
+  reset(): void;
+}
+
 export interface SettingsPanelOptions {
   onClose(): void;
   /** The run being played, when there is one. */
   rules?: RunRulesHandle | null;
+  /** The run's hint memory, when the panel is opened over one. */
+  hints?: HintsHandle | null;
 }
 
 const TEXT_SPEED_LABELS: Record<TextSpeed, string> = {
@@ -498,6 +514,69 @@ function buildRulesSection(
   }
 }
 
+/**
+ * Guidance: the contextual-hint switch, and the control that lets a run
+ * be taught from scratch again.
+ *
+ * The two are deliberately not the same thing. The switch is a device
+ * preference — whether *you* want to be taught — and turning it off
+ * forgets nothing, so turning it back on picks the run up where it was
+ * rather than replaying the first half hour. The reset is a fact about
+ * the *run*, which is why it needs a handle onto one.
+ */
+function buildHintsSection(
+  panel: HTMLElement,
+  run: HintsHandle | null,
+): void {
+  const heading = document.createElement("h3");
+  heading.textContent = "Guidance";
+  panel.append(heading);
+
+  const hintRow = segmentedRow(
+    "Contextual hints",
+    [
+      ["on", "On"],
+      ["off", "Off"],
+    ] as const,
+    (value) => (value === "on") === settings.get().hints,
+    (value) => settings.update({ hints: value === "on" }),
+  );
+  hintRow.dataset.setting = "hints";
+  panel.append(
+    hintRow,
+    note(
+      "One line the first time a system comes up — walking, the action " +
+        "bar, a wound, a counter. Each appears once and is dismissed on " +
+        "the spot. Off silences every one of them and forgets none, so " +
+        "switching back on carries on where you left off.",
+    ),
+  );
+
+  const replay = document.createElement("button");
+  replay.className = "nf-button nf-button-small";
+  replay.textContent = "Reset hints";
+  replay.dataset.reset = "hints";
+  replay.disabled = run === null;
+  const seenNote = document.createElement("p");
+  seenNote.className = "nf-dim";
+  const syncSeen = (): void => {
+    seenNote.textContent =
+      run === null
+        ? "This run's hints are recorded in its save, so they can only be " +
+          "replayed from inside a game."
+        : `${hintCountLabel(run.seen())} shown so far. Resetting makes this ` +
+          "run teach itself again from the next street you stand on.";
+  };
+  replay.addEventListener("click", () => {
+    if (!run) return;
+    audio.emit("ui.confirm");
+    run.reset();
+    syncSeen();
+  });
+  syncSeen();
+  panel.append(settingRow("Start over", replay), seenNote);
+}
+
 function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
   const { onClose } = options;
   const run = options.rules ?? null;
@@ -523,6 +602,8 @@ function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
       (speed) => settings.update({ textSpeed: speed }),
     ),
   );
+
+  buildHintsSection(panel, options.hints ?? null);
 
   buildGraphicsSection(panel);
 
