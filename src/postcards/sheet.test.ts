@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { decodePng, digest, encodePng } from "./png";
 import {
+  cellLabel,
   MAX_CELLS_PER_SHEET,
   paginate,
   renderSheet,
@@ -143,5 +144,32 @@ describe("the sweep", () => {
         for (const frame of cell.frames) expect(frame.length).toBeGreaterThan(0);
       }
     }
+  });
+});
+
+describe("cells drawn at the finer density", () => {
+  const coarse: SheetCell = { id: "post", frames: [["44", "44"]] };
+  const dense: SheetCell = {
+    id: "post",
+    frames: [["4444", "4444", "4444", "4444"]],
+    density: 2,
+  };
+
+  it("lands at the same size as the 1x art beside it", () => {
+    const size = (cell: SheetCell) =>
+      sheetSize({ name: "s", title: "T", cells: [cell] });
+    expect(size(dense)).toEqual(size(coarse));
+  });
+
+  it("says which cells have moved and leaves the rest unlabelled", () => {
+    expect(cellLabel(coarse)).toBe("post");
+    expect(cellLabel(dense)).toBe("post [d2]");
+  });
+
+  it("never drops pixels to make a cell fit", () => {
+    // A sheet rendered at 1 art pixel per sheet pixel cannot halve again.
+    const tiny = sheetSize({ name: "s", title: "T", cells: [dense], scale: 1 });
+    expect(tiny.width).toBeGreaterThan(0);
+    expect(tiny.height).toBeGreaterThan(0);
   });
 });

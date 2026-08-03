@@ -17,6 +17,11 @@
  * Pure: a sheet spec goes in, a framebuffer comes out. Nothing here
  * knows what a file is.
  */
+import {
+  DEFAULT_DENSITY,
+  densityOf,
+  type ArtDensity,
+} from "../iso/art/density";
 import type { PixelGrid } from "../iso/art/pixel";
 import { drawText, textHeight, textWidth } from "./canvas2d";
 import {
@@ -33,6 +38,14 @@ import {
 export interface SheetCell {
   readonly id: string;
   readonly frames: readonly PixelGrid[];
+  /**
+   * What the frames were authored at (see ../iso/art/density.ts).
+   * Absent means 1x. A finer cell draws at a proportionally smaller
+   * scale, so it comes out the size its neighbours do — which is the
+   * only way to judge whether the extra pixels bought anything — and
+   * says so in its label.
+   */
+  readonly density?: ArtDensity;
 }
 
 /** A page of cells, ready to render. */
@@ -74,18 +87,36 @@ export const MAX_CELLS_PER_SHEET = 120;
 /** Art pixels per sheet pixel when a spec does not say. */
 export const DEFAULT_SHEET_SCALE = 2;
 
+/**
+ * Sheet pixels per authored pixel for a cell. The sheet's scale is in
+ * 1x art pixels, so art drawn at density 2 draws at half of it and lands
+ * at the same size — never below 1, which would drop pixels the whole
+ * exercise exists to show.
+ */
+function cellScale(cell: SheetCell, scale: number): number {
+  return Math.max(1, Math.round(scale / densityOf(cell)));
+}
+
 /** The strip width a cell's frames cover, at a scale. */
 function stripWidth(cell: SheetCell, scale: number): number {
   if (cell.frames.length === 0) return 0;
+  const at = cellScale(cell, scale);
   const frames = cell.frames.reduce(
-    (sum, frame) => sum + gridWidth(frame, scale),
+    (sum, frame) => sum + gridWidth(frame, at),
     0,
   );
   return frames + FRAME_GAP * (cell.frames.length - 1);
 }
 
 function stripHeight(cell: SheetCell, scale: number): number {
-  return cell.frames.reduce((tall, frame) => Math.max(tall, gridHeight(frame, scale)), 0);
+  const at = cellScale(cell, scale);
+  return cell.frames.reduce((tall, frame) => Math.max(tall, gridHeight(frame, at)), 0);
+}
+
+/** What a cell is labelled: its id, plus its density when it has moved. */
+export function cellLabel(cell: SheetCell): string {
+  const density = densityOf(cell);
+  return density > DEFAULT_DENSITY ? `${cell.id} [d${density}]` : cell.id;
 }
 
 /**
@@ -157,7 +188,8 @@ function measure(spec: SheetSpec): Metrics {
   const cellW = Math.max(artW, 176) + CELL_PAD * 2;
   const labelWidth = cellW - CELL_PAD * 2;
   const labelLines = spec.cells.reduce(
-    (most, cell) => Math.max(most, wrapLabel(cell.id, labelWidth, LABEL_SCALE).length),
+    (most, cell) =>
+      Math.max(most, wrapLabel(cellLabel(cell), labelWidth, LABEL_SCALE).length),
     1,
   );
   const labelH = labelLines * (textHeight(LABEL_SCALE) + 2);
@@ -256,12 +288,13 @@ export function renderSheet(spec: SheetSpec): Framebuffer {
     checkerboard(fb, artLeft, artTop, artWidth, metrics.artH + metrics.indexH);
 
     let frameX = artLeft;
+    const scale = cellScale(cell, metrics.scale);
     cell.frames.forEach((frame, frameIndex) => {
-      const w = gridWidth(frame, metrics.scale);
-      const h = gridHeight(frame, metrics.scale);
+      const w = gridWidth(frame, scale);
+      const h = gridHeight(frame, scale);
       // Frames sit on a common floor, so a walk cycle's bob shows as
       // bob rather than as every frame being re-centred.
-      drawGrid(fb, frame, frameX, artTop + (metrics.artH - h), metrics.scale);
+      drawGrid(fb, frame, frameX, artTop + (metrics.artH - h), scale);
       if (metrics.indexH > 0) {
         // Numbers get their own band under the art rather than sharing
         // its last rows, so a short frame is never mistaken for a digit.
@@ -277,7 +310,7 @@ export function renderSheet(spec: SheetSpec): Framebuffer {
       frameX += w + FRAME_GAP;
     });
 
-    const lines = wrapLabel(cell.id, artWidth, LABEL_SCALE);
+    const lines = wrapLabel(cellLabel(cell), artWidth, LABEL_SCALE);
     lines.forEach((line, lineIndex) => {
       drawText(
         fb,
