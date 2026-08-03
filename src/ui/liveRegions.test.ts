@@ -150,7 +150,6 @@ describe("the arena narrates the events the log leaves out", () => {
           targetId: "enemy",
           hit: true,
           damage: 4,
-          crit: false,
         },
         nameOf,
       ),

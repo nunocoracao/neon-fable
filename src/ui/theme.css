@@ -1,17 +1,34 @@
 /* Neon Fable — pixel-art theme: hard edges, stepped shadows, no blur. */
 
 :root {
-  /* Palette (mirrors the sprite palette in src/iso/art/palette.ts) */
+  /* Palette — close kin of the sprite palette in src/iso/art/palette.ts,
+     with two deliberate departures the accessibility pass made. The
+     ratios are asserted in src/ui/theme.test.ts against the pairs in
+     src/ui/contrast.ts; nothing here may be nudged without that test
+     agreeing.
+
+     - Magenta is a shade lighter than the sprite accent (#e63e8f).
+       As chrome it is set as *text* — faction band names, meter labels
+       — and on a raised card the sprite value lands at 4.43:1, just
+       under AA. A sprite is a picture and answers to no ratio; a word
+       is a word.
+     - The border is much lighter than it was (#2a2a44). It is the
+       2px frame every panel and control is drawn with, which is
+       exactly what WCAG 1.4.11 means by the boundary of a component:
+       at 1.3:1 it was a frame nobody could find. The hairline
+       *dividers* between rows are decorative and keep the old quiet
+       value, as --nf-rule. */
   --nf-bg-deep: #0a0a12;
   --nf-bg-panel: #12121f;
   --nf-bg-raised: #1a1a2e;
   --nf-ink: #e8e6f0;
   --nf-ink-dim: #8a86a3;
   --nf-glow-cyan: #2ee6d6;
-  --nf-glow-magenta: #e63e8f;
+  --nf-glow-magenta: #ec5c9e;
   --nf-glow-amber: #f0b429;
   --nf-danger: #ff4d5e;
-  --nf-border: #2a2a44;
+  --nf-border: #646496;
+  --nf-rule: #2a2a44;
   --nf-outline: #05060c;
 
   /* Type: chunky monospace reads as pixel UI while staying legible. */
@@ -1067,7 +1084,7 @@ body::after {
 }
 
 .nf-review-section {
-  border-top: 1px solid var(--nf-border);
+  border-top: 1px solid var(--nf-rule);
   padding: 0.4rem 0 0.6rem;
 }
 
@@ -1420,16 +1437,25 @@ body::after {
   width: 100%;
 }
 
-/* Same chunky LED segments as the load meter, carried up the band
-   ladder by colour rather than by a second shape. */
+/* The same chunky LED segments as the load meter, and the band ladder
+   is carried by *two* things at once: the colour warms, and the
+   segments break up.
+
+   The second one is the accessibility pass paying a debt this rule used
+   to admit to in its own comment ("carried up the band ladder by colour
+   rather than by a second shape"). Quiet is long steady bars; loud
+   chops them in half; screaming shatters them into a fine dash. Read
+   with the colour stripped out, the three are still three different
+   bars — which is the whole test of whether information is carried by
+   colour alone. The band's name is on the row in words as well. */
 .nf-static-fill {
   height: 100%;
   background: repeating-linear-gradient(
     to right,
     var(--nf-glow-cyan) 0,
-    var(--nf-glow-cyan) 6px,
-    var(--nf-outline) 6px,
-    var(--nf-outline) 8px
+    var(--nf-glow-cyan) 10px,
+    var(--nf-outline) 10px,
+    var(--nf-outline) 12px
   );
   transition: width 150ms steps(4, end);
 }
@@ -1438,9 +1464,9 @@ body::after {
   background: repeating-linear-gradient(
     to right,
     var(--nf-glow-amber) 0,
-    var(--nf-glow-amber) 6px,
-    var(--nf-outline) 6px,
-    var(--nf-outline) 8px
+    var(--nf-glow-amber) 5px,
+    var(--nf-outline) 5px,
+    var(--nf-outline) 7px
   );
 }
 
@@ -1448,9 +1474,9 @@ body::after {
   background: repeating-linear-gradient(
     to right,
     var(--nf-danger) 0,
-    var(--nf-danger) 6px,
-    var(--nf-outline) 6px,
-    var(--nf-outline) 8px
+    var(--nf-danger) 2px,
+    var(--nf-outline) 2px,
+    var(--nf-outline) 4px
   );
 }
 
@@ -1515,7 +1541,7 @@ body::after {
   gap: 0.2rem;
   margin: 0.75rem 0 0;
   padding-top: 0.6rem;
-  border-top: 1px solid var(--nf-border);
+  border-top: 1px solid var(--nf-rule);
 }
 
 .nf-injury-heading {
@@ -1575,7 +1601,7 @@ body::after {
   flex-direction: column;
   gap: 0.3rem;
   padding: 0.5rem 0;
-  border-bottom: 1px solid var(--nf-border);
+  border-bottom: 1px solid var(--nf-rule);
 }
 
 .nf-faction-row .nf-item-name {
@@ -1672,7 +1698,7 @@ body::after {
   align-items: center;
   gap: 0.5rem;
   padding: 0.3rem 0;
-  border-bottom: 1px solid var(--nf-border);
+  border-bottom: 1px solid var(--nf-rule);
 }
 
 .nf-slot-label {
@@ -1968,7 +1994,7 @@ body::after {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.6rem 0;
-  border-bottom: 1px solid var(--nf-border);
+  border-bottom: 1px solid var(--nf-rule);
 }
 
 /* A slot card: art, then everything the save says, then the buttons. */
@@ -2031,12 +2057,12 @@ body::after {
   background:
     radial-gradient(
       circle at 50% 34%,
-      var(--nf-border) 0 22%,
+      var(--nf-rule) 0 22%,
       transparent 23%
     ),
     radial-gradient(
       ellipse 46% 34% at 50% 104%,
-      var(--nf-border) 0 60%,
+      var(--nf-rule) 0 60%,
       transparent 61%
     );
   filter: none;
@@ -2054,7 +2080,7 @@ body::after {
 .nf-save-previously {
   border-bottom: none;
   margin-top: 0.4rem;
-  border-top: 1px solid var(--nf-border);
+  border-top: 1px solid var(--nf-rule);
 }
 
 .nf-save-previously .nf-save-slot {
@@ -2074,7 +2100,7 @@ body::after {
   padding: 0 0.35rem;
   font-size: 0.65rem;
   letter-spacing: 0.12em;
-  border: 1px solid var(--nf-border);
+  border: 1px solid var(--nf-rule);
   color: var(--nf-ink-dim);
 }
 
@@ -2249,7 +2275,7 @@ body::after {
   width: 32px;
   height: 32px;
   border: none;
-  outline: 1px solid var(--nf-border);
+  outline: 1px solid var(--nf-rule);
 }
 
 /* How many turns off this combatant is; "NOW" for whoever is up. */
@@ -2263,7 +2289,7 @@ body::after {
   letter-spacing: 0.05em;
   color: var(--nf-ink-dim);
   background: var(--nf-bg-deep);
-  border: 1px solid var(--nf-border);
+  border: 1px solid var(--nf-rule);
 }
 
 .nf-init-statuses {
@@ -2285,7 +2311,7 @@ body::after {
   width: 100%;
   height: 4px;
   background: var(--nf-outline);
-  border: 1px solid var(--nf-border);
+  border: 1px solid var(--nf-rule);
 }
 
 .nf-init-hp-fill {
@@ -2385,7 +2411,7 @@ body::after {
   padding: 1px;
   line-height: 0;
   background: rgba(5, 6, 12, 0.85);
-  border: 1px solid var(--nf-border);
+  border: 1px solid var(--nf-rule);
 }
 
 canvas.nf-status-glyph {
@@ -2595,7 +2621,7 @@ canvas.nf-action-glyph {
 .nf-target-hp {
   height: 6px;
   background: var(--nf-outline);
-  border: 1px solid var(--nf-border);
+  border: 1px solid var(--nf-rule);
 }
 
 .nf-target-hp-fill {
@@ -3079,7 +3105,7 @@ canvas.nf-action-glyph {
   font-size: 0.7rem;
   margin: 1.1rem 0 0.4rem;
   padding-top: 0.6rem;
-  border-top: 1px solid var(--nf-border);
+  border-top: 1px solid var(--nf-rule);
 }
 
 .nf-setting-row {
@@ -3087,7 +3113,7 @@ canvas.nf-action-glyph {
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem 0;
-  border-bottom: 1px solid var(--nf-border);
+  border-bottom: 1px solid var(--nf-rule);
 }
 
 .nf-setting-label {
@@ -3132,7 +3158,7 @@ canvas.nf-action-glyph {
 .nf-mixer-blurb {
   margin: 0 0 0.6rem 0;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--nf-border);
+  border-bottom: 1px solid var(--nf-rule);
   font-size: 0.75rem;
 }
 
@@ -3204,7 +3230,7 @@ canvas.nf-action-glyph {
   align-items: baseline;
   gap: 0.75rem;
   padding: 0.35rem 0;
-  border-bottom: 1px solid var(--nf-border);
+  border-bottom: 1px solid var(--nf-rule);
   font-size: 0.8rem;
 }
 
@@ -3240,13 +3266,13 @@ canvas.nf-action-glyph {
 
 .nf-controls-list dt {
   padding: 0.35rem 0;
-  border-bottom: 1px solid var(--nf-border);
+  border-bottom: 1px solid var(--nf-rule);
 }
 
 .nf-controls-list dd {
   margin: 0;
   padding: 0.35rem 0;
-  border-bottom: 1px solid var(--nf-border);
+  border-bottom: 1px solid var(--nf-rule);
   font-size: 0.8rem;
 }
 
@@ -3254,7 +3280,15 @@ canvas.nf-action-glyph {
   width: auto;
 }
 
-/* --- Keyboard focus --- */
+/* --- Keyboard focus ---
+
+   Every control the keyboard can land on is listed here, and
+   src/ui/theme.test.ts sweeps the UI sources to prove it: a class put
+   on a <button> or an <input> with no ring in this block fails the
+   suite. That sweep is why the list is long and flat rather than
+   clever — it is meant to be greppable, one line per control. The two
+   controls with rings of their own (the hint dismiss, the breach cell)
+   are excluded there by carrying their own :focus-visible rule. */
 
 .nf-button:focus-visible,
 .nf-choice:focus-visible,
@@ -3263,6 +3297,14 @@ canvas.nf-action-glyph {
 .nf-swatch:focus-visible,
 .nf-wizard-step:focus-visible,
 .nf-input:focus-visible,
+.nf-appearance-tab:focus-visible,
+.nf-dye-tin:focus-visible,
+.nf-dye-strip:focus-visible,
+.nf-explore-back:focus-visible,
+.nf-gallery-filter:focus-visible,
+.nf-lock:focus-visible,
+.nf-minimap-tab:focus-visible,
+.nf-review-edit:focus-visible,
 .nf-setting-row input[type="range"]:focus-visible {
   outline: 2px solid var(--nf-glow-cyan);
   outline-offset: 2px;
@@ -3340,7 +3382,7 @@ canvas.nf-action-glyph {
   text-transform: uppercase;
   font-size: 0.85rem;
   margin: 1.25rem 0 0.5rem;
-  border-bottom: 1px solid var(--nf-border);
+  border-bottom: 1px solid var(--nf-rule);
   padding-bottom: 0.25rem;
 }
 
@@ -3361,7 +3403,7 @@ canvas.nf-action-glyph {
 
 .nf-gallery-canvas {
   image-rendering: pixelated;
-  border: 1px solid var(--nf-border);
+  border: 1px solid var(--nf-rule);
   background: repeating-conic-gradient(#1c2030 0% 25%, #12151f 0% 50%) 0 0 /
     16px 16px;
 }
