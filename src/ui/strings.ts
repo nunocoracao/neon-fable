@@ -261,6 +261,34 @@ export const STRINGS = {
   "inventory.standing": "Standing",
   "inventory.carried": "Carried",
   "inventory.nothingCarried": "Nothing carried.",
+
+  /* -------------------------------------------------------------- *
+   * Save / load panel
+   * -------------------------------------------------------------- */
+  "save.title.game": "Save / Load",
+  "save.title.load": "Load Game",
+  "save.slot.empty": "Empty",
+  "save.cancel": "Cancel",
+  "save.previously": "Previously",
+  "save.replay": "Replay",
+  "save.action.save": "Save",
+  "save.action.saved": "Saved to {slot}.",
+  "save.action.load": "Load",
+  "save.action.name": "Name",
+  "save.action.rename": "Rename",
+  "save.action.delete": "Delete",
+  "save.action.restoreBackup": "Restore backup",
+  "save.action.restored": "{slot} restored from the save before it.",
+  "save.rename.label": "Name this save",
+  "save.rename.placeholder": "Before the Undercroft",
+  "save.rename.commit": "Save name",
+  "save.rename.done": "{slot} is now \"{name}\".",
+  "save.rename.cleared": "{slot} label cleared.",
+  "save.delete.confirm": "Confirm delete",
+  "save.delete.done": "{slot} deleted.",
+  "save.delete.prompt": "Delete {slot}? This cannot be undone.",
+  "save.delete.needsName": "Deleting {slot} needs the runner's name typed back.",
+  "save.delete.typePrompt": "Type \"{word}\" to delete this run",
 } as const;
 
 export type StringTable = typeof STRINGS;

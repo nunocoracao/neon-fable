@@ -25,6 +25,7 @@ import {
 } from "./saveModel";
 import { captureSaveExtras, sceneCanvas } from "./saveThumbs";
 import { takeStorageProblem, type Session } from "./session";
+import { t } from "./strings";
 
 /**
  * Save/load slot cards. In "game" mode the three manual slots accept
@@ -159,7 +160,7 @@ export function createSaveLoadPanel(
     if (card.status === "empty") {
       const empty = document.createElement("div");
       empty.className = "nf-save-meta";
-      empty.textContent = "Empty";
+      empty.textContent = t("save.slot.empty");
       info.append(empty);
       return info;
     }
@@ -218,13 +219,13 @@ export function createSaveLoadPanel(
     const label = document.createElement("label");
     label.className = "nf-field-label";
     label.htmlFor = `nf-save-rename-${card.slot}`;
-    label.textContent = "Name this save";
+    label.textContent = t("save.rename.label");
 
     const input = document.createElement("input");
     input.id = `nf-save-rename-${card.slot}`;
     input.className = "nf-input";
     input.maxLength = SAVE_LABEL_MAX_LENGTH;
-    input.placeholder = "Before the Undercroft";
+    input.placeholder = t("save.rename.placeholder");
     input.value = renameDraft;
 
     const error = document.createElement("p");
@@ -240,8 +241,8 @@ export function createSaveLoadPanel(
         const stored = renameSave(card.slot, storage, renameDraft);
         setMessage(
           stored.length > 0
-            ? `${card.slotName} is now "${stored}".`
-            : `${card.slotName} label cleared.`,
+            ? t("save.rename.done", { slot: card.slotName, name: stored })
+            : t("save.rename.cleared", { slot: card.slotName }),
           false,
         );
       } catch (saveError) {
@@ -265,8 +266,8 @@ export function createSaveLoadPanel(
     const actions = document.createElement("div");
     actions.className = "nf-save-actions";
     actions.append(
-      slotButton("Save name", commit),
-      slotButton("Cancel", () => {
+      slotButton(t("save.rename.commit"), commit),
+      slotButton(t("save.cancel"), () => {
         resetInteractions();
         render();
       }),
@@ -284,14 +285,14 @@ export function createSaveLoadPanel(
     const label = document.createElement("label");
     label.className = "nf-field-label";
     label.htmlFor = `nf-save-confirm-${card.slot}`;
-    label.textContent = `Type "${card.confirmWord}" to delete this run`;
+    label.textContent = t("save.delete.typePrompt", { word: card.confirmWord });
 
     const input = document.createElement("input");
     input.id = `nf-save-confirm-${card.slot}`;
     input.className = "nf-input";
     input.value = deleteTyped;
 
-    const confirm = slotButton("Confirm delete", () => {
+    const confirm = slotButton(t("save.delete.confirm"), () => {
       if (!deleteConfirmed(card, deleteTyped)) return;
       removeSlot(card);
     });
@@ -313,7 +314,7 @@ export function createSaveLoadPanel(
     actions.className = "nf-save-actions";
     actions.append(
       confirm,
-      slotButton("Cancel", () => {
+      slotButton(t("save.cancel"), () => {
         resetInteractions();
         render();
       }),
@@ -325,7 +326,7 @@ export function createSaveLoadPanel(
 
   function removeSlot(card: SlotCard): void {
     deleteSave(card.slot, storage);
-    setMessage(`${card.slotName} deleted.`, false);
+    setMessage(t("save.delete.done", { slot: card.slotName }), false);
     resetInteractions();
     render();
   }
@@ -336,7 +337,7 @@ export function createSaveLoadPanel(
 
     if (card.canSave) {
       actions.append(
-        slotButton("Save", () => {
+        slotButton(t("save.action.save"), () => {
           const session = options.session;
           if (!session) return;
           try {
@@ -350,7 +351,7 @@ export function createSaveLoadPanel(
               captureSaveExtras(session.state, sceneCanvas()),
             );
             audio.emit("ui.save");
-            setMessage(`Saved to ${card.slotName}.`, false);
+            setMessage(t("save.action.saved", { slot: card.slotName }), false);
           } catch (error) {
             setMessage(errorText(error), true);
           }
@@ -362,7 +363,7 @@ export function createSaveLoadPanel(
 
     if (card.canLoad) {
       actions.append(
-        slotButton("Load", () => {
+        slotButton(t("save.action.load"), () => {
           try {
             const state = loadGame(card.slot, storage);
             audio.emit("ui.load");
@@ -377,24 +378,27 @@ export function createSaveLoadPanel(
 
     if (card.canRename && renaming !== card.slot) {
       actions.append(
-        slotButton(card.label.length > 0 ? "Rename" : "Name", () => {
-          resetInteractions();
-          renaming = card.slot;
-          renameDraft = card.label;
-          render();
-        }),
+        slotButton(
+          card.label.length > 0 ? t("save.action.rename") : t("save.action.name"),
+          () => {
+            resetInteractions();
+            renaming = card.slot;
+            renameDraft = card.label;
+            render();
+          },
+        ),
       );
     }
 
     // The one thing a broken card can offer that is not deletion.
     if (card.canRestoreBackup) {
       actions.append(
-        slotButton("Restore backup", () => {
+        slotButton(t("save.action.restoreBackup"), () => {
           try {
             restoreBackup(card.slot, storage);
             audio.emit("ui.load");
             setMessage(
-              `${card.slotName} restored from the save before it.`,
+              t("save.action.restored", { slot: card.slotName }),
               false,
             );
           } catch (error) {
@@ -408,18 +412,20 @@ export function createSaveLoadPanel(
 
     if (card.canDelete) {
       if (pendingDelete === card.slot && card.deleteGuard === "click") {
-        const confirm = slotButton("Confirm delete", () => removeSlot(card));
+        const confirm = slotButton(t("save.delete.confirm"), () =>
+          removeSlot(card),
+        );
         confirm.classList.add("nf-button-danger");
         actions.append(confirm);
       } else if (pendingDelete !== card.slot) {
         actions.append(
-          slotButton("Delete", () => {
+          slotButton(t("save.action.delete"), () => {
             resetInteractions();
             pendingDelete = card.slot;
             setMessage(
               card.deleteGuard === "type-name"
-                ? `Deleting ${card.slotName} needs the runner's name typed back.`
-                : `Delete ${card.slotName}? This cannot be undone.`,
+                ? t("save.delete.needsName", { slot: card.slotName })
+                : t("save.delete.prompt", { slot: card.slotName }),
               false,
             );
             render();
@@ -446,10 +452,12 @@ export function createSaveLoadPanel(
     const header = document.createElement("div");
     header.className = "nf-panel-header";
     const title = document.createElement("h2");
-    title.textContent = options.mode === "game" ? "Save / Load" : "Load Game";
+    title.textContent =
+      options.mode === "game" ? t("save.title.game") : t("save.title.load");
     const close = document.createElement("button");
     close.className = "nf-button nf-button-small";
-    close.textContent = options.mode === "game" ? "Close [Esc]" : "Back";
+    close.textContent =
+      options.mode === "game" ? t("common.closeEsc") : t("common.back");
     close.addEventListener("click", options.onClose);
     header.append(title, close);
     panel.append(header);
@@ -471,7 +479,7 @@ export function createSaveLoadPanel(
       info.className = "nf-save-info";
       const name = document.createElement("div");
       name.className = "nf-save-slot";
-      name.textContent = "Previously";
+      name.textContent = t("save.previously");
       const meta = document.createElement("div");
       meta.className = "nf-save-meta";
       meta.textContent = previously.title;
@@ -479,7 +487,7 @@ export function createSaveLoadPanel(
       const actions = document.createElement("div");
       actions.className = "nf-save-actions";
       actions.append(
-        slotButton("Replay", () => options.onReplayInterlude?.(previously)),
+        slotButton(t("save.replay"), () => options.onReplayInterlude?.(previously)),
       );
       row.append(info, actions);
       panel.append(row);
