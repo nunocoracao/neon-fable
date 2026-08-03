@@ -145,11 +145,18 @@ export const STATIC_FLICKER_PERIOD_MS = 1300;
  * milliseconds, non-overlapping and ascending. The doubled cut near the
  * top of the cycle is what makes it read as interference rather than as
  * a blink — a single evenly-spaced flash reads as a heartbeat.
+ *
+ * There were four of them, and the accessibility pass took one out. Two
+ * doubled pairs inside a 1300ms cycle put four tears inside the first
+ * second of it, and WCAG 2.3.1 allows three — a line that is about
+ * seizures rather than taste, so the interference gives up a cut and
+ * keeps its character. What is left is the doubled pair that makes it
+ * read as interference, and one lone cut late in the cycle: three, and
+ * ./flash.test.ts holds it there.
  */
 const STATIC_FLICKER_CUTS: readonly (readonly [number, number, number])[] = [
   [0, 70, 1],
   [110, 165, 2],
-  [620, 670, 2],
   [700, 745, 1],
 ];
 

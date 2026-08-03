@@ -5,6 +5,8 @@
  * (attack lunge, hit shake, defeat dissolve). No wall-clock reads —
  * callers pass milliseconds in, so everything here is unit-testable.
  */
+import { MIN_FLASH_GAP_MS } from "./flash";
+
 
 /** Iso-space facing: n is up-right on screen, e down-right, s down-left, w up-left. */
 export type Facing = "n" | "e" | "s" | "w";
@@ -93,11 +95,31 @@ export function tilePhaseMs(x: number, y: number, frameMs: number): number {
 /**
  * Neon flicker: mostly on, with brief deterministic dropouts. Each seed
  * gets its own pattern; the same (time, seed) always agrees.
+ *
+ * ## The dropouts are rationed, and that is the point
+ *
+ * This used to roll the dice once per 90ms slot, which made the
+ * dropouts short and lively and let them land back to back: measured
+ * across seeds, the worst sign on the street flashed six times a
+ * second, twice the WCAG 2.3.1 ceiling. A sign flashing at seizure
+ * rates is not a style, and it is not something a player can be
+ * expected to notice and switch off.
+ *
+ * So the roll moved to a guard window (MIN_FLASH_GAP_MS) and the
+ * dropout takes the first slot of a window that carries one. The
+ * dropout is the same length it always was; what changed is that two
+ * cannot crowd each other. Three windows fit in a second, so three
+ * flashes is the arithmetic maximum, whatever the seed — proved in
+ * ./flash.test.ts rather than hoped for.
  */
 export function flickerOn(timeMs: number, seed = 0, slotMs = 90): boolean {
   if (slotMs <= 0) return true;
-  const slot = Math.floor(Math.max(0, timeMs) / slotMs);
-  return hash2(slot, seed) % 23 > 2;
+  const t = Math.max(0, timeMs);
+  const window = Math.floor(t / MIN_FLASH_GAP_MS);
+  // Roughly a third of windows carry a dropout — about one a second,
+  // which is the pace the old per-slot roll averaged out to anyway.
+  if (hash2(window, seed) % 3 !== 0) return true;
+  return t - window * MIN_FLASH_GAP_MS >= Math.min(slotMs, MIN_FLASH_GAP_MS);
 }
 
 /**
