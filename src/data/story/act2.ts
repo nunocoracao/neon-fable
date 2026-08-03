@@ -1504,6 +1504,26 @@ export const act2Arc: StoryArc = {
           requirements: [{ type: "stat", stat: "tech", value: 8 }],
           ifUnavailable: "disabled",
         },
+        {
+          // The empty-handed runner's door, and the exact complement of
+          // the three patron routes above: no spool pulled from the
+          // wreck, nobody's name to sign with, no ghost in the wire.
+          // What is left is the physical governor bank and a pair of
+          // hands — slower, louder, and the same severance in the end.
+          //
+          // Without it the lone approach can arrive at the climax of
+          // its own act with nothing available: breach-lone asks for no
+          // ally, "Leave the wreck" leaves the spool behind, and a
+          // runner under Tech 8 then faces five doors and no key.
+          id: "sever-hand",
+          label: "No spool, no patron. Walk the gallery and throw the bars by hand.",
+          target: "a2-end-severance",
+          requirements: [
+            { type: "flag-not-equals", key: "ally-voss", value: true },
+            { type: "flag-not-equals", key: "ally-cistern-court", value: true },
+            { type: "flag-not-equals", key: "hex-exchange", value: true },
+          ],
+        },
       ],
     },
     // ------------------------------------------------------------------
