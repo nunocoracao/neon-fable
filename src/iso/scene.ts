@@ -13,6 +13,7 @@ import {
   type ZoomLevel,
 } from "../settings";
 import {
+  cycleInteractable,
   focusInteractable,
   outlineColor,
   type FocusedInteractable,
@@ -174,6 +175,13 @@ export interface IsoSceneOptions {
    * counters are allocated and the renderer does no counting.
    */
   onPerf?: (sample: ScenePerfSample) => void;
+  /**
+   * Whether the scene should answer the keyboard at all. The shell says
+   * no while a panel is open, because the scene listens on the window
+   * and a step taken behind an inventory screen is a step nobody asked
+   * for. Defaults to yes.
+   */
+  keyboardEnabled?: () => boolean;
 }
 
 export interface IsoScene {
@@ -236,6 +244,28 @@ const PAN_THRESHOLD = 5;
 /** Keys that trigger whatever the scene has in focus. */
 const INTERACT_KEYS = new Set(["Enter", "e", "E"]);
 
+/**
+ * Tile steps for the keys that walk the player, in world tile
+ * coordinates (+x is east on the diamond, +y south). Both the arrow
+ * cluster and WASD are here: the arrows are what a keyboard player
+ * reaches for first, and WASD is what a hand already resting over the
+ * stealth keys can use without moving.
+ *
+ * This is the whole of keyboard exploration, and it exists because
+ * without it the map could only be crossed by clicking it — the one
+ * activity in the game with no keyboard route through it.
+ */
+const STEP_KEYS: Readonly<Record<string, TilePoint>> = {
+  ArrowUp: { x: 0, y: -1 },
+  ArrowDown: { x: 0, y: 1 },
+  ArrowLeft: { x: -1, y: 0 },
+  ArrowRight: { x: 1, y: 0 },
+  w: { x: 0, y: -1 },
+  s: { x: 0, y: 1 },
+  a: { x: -1, y: 0 },
+  d: { x: 1, y: 0 },
+};
+
 export function createIsoScene(
   canvas: HTMLCanvasElement,
   options: IsoSceneOptions,
@@ -279,6 +309,14 @@ export function createIsoScene(
   let opening: { target: Interactable; startedAt: number | null } | null = null;
   /** The interactable being offered this frame; see ./affordance.ts. */
   let focus: FocusedInteractable | null = null;
+  /**
+   * The interactable the keyboard has picked, if any. It is the cursor
+   * a player without a pointer aims with: [ and ] walk it round the
+   * map, it outranks hover and reach in resolveFocus, and Enter acts on
+   * it — walking there first when it is out of reach. Cleared by moving
+   * (the pick was about where you were) and by acting on it.
+   */
+  let pickedId: string | null = null;
   /** Last focus reported to the shell, so the prompt only changes on change. */
   let focusHintSent: IsoFocusHint | null = null;
   /** Crouch-walking: slower on the ground, and quieter in the rules. */
@@ -396,6 +434,8 @@ export function createIsoScene(
   }
 
   function handleClick(cssX: number, cssY: number): void {
+    // A pointer in play answers the question the keyboard's pick asked.
+    pickedId = null;
     const tile = pickTile(cssX, cssY);
     const interactable = interactableAt(map, tile.x, tile.y);
     if (interactable) {
@@ -479,17 +519,107 @@ export function createIsoScene(
     applyZoom(stepZoom(zoom, event.deltaY < 0 ? 1 : -1));
   }
 
+  /**
+   * Whether a key press belongs to the map rather than to a control the
+   * player is standing on. The scene listens on the window — that is how
+   * a canvas with no focus of its own hears anything — so a press aimed
+   * at the HUD's own buttons has to be handed back, or Enter on "Crew"
+   * would open the panel *and* try to open a door.
+   */
+  function keyIsOurs(event: KeyboardEvent): boolean {
+    if (options.keyboardEnabled?.() === false) return false;
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return true;
+    if (target === canvas || target === document.body) return true;
+    return !target.matches(
+      "button, input, select, textarea, a[href], [tabindex]",
+    );
+  }
+
   function onKeyDown(event: KeyboardEvent): void {
+    if (!keyIsOurs(event)) return;
     if (event.key === "+" || event.key === "=") {
       applyZoom(stepZoom(zoom, 1));
-    } else if (event.key === "-" || event.key === "_") {
+      return;
+    }
+    if (event.key === "-" || event.key === "_") {
       applyZoom(stepZoom(zoom, -1));
-    } else if (INTERACT_KEYS.has(event.key)) {
+      return;
+    }
+    // The keyboard's cursor: [ and ] walk it round everything the map
+    // offers, nearest first, and it survives until it is spent or the
+    // player moves off the ground the ordering was taken from.
+    if (event.key === "[" || event.key === "]") {
+      event.preventDefault();
+      const next = cycleInteractable(
+        map,
+        routeOrigin(),
+        pickedId,
+        event.key === "]" ? 1 : -1,
+      );
+      pickedId = next?.id ?? null;
+      resolveFocus();
+      return;
+    }
+    if (event.key === "Escape" && pickedId !== null) {
+      // Dropping the pick is the keyboard's "look away"; the shell's
+      // own Escape (the pause menu) only sees it when nothing is picked.
+      event.preventDefault();
+      event.stopPropagation();
+      pickedId = null;
+      resolveFocus();
+      return;
+    }
+    const step = STEP_KEYS[event.key.length === 1 ? event.key.toLowerCase() : event.key];
+    if (step) {
+      event.preventDefault();
+      stepPlayer(step);
+      return;
+    }
+    if (INTERACT_KEYS.has(event.key)) {
       // Whatever is outlined is what the key acts on, so the prompt and
       // the keystroke can never disagree. The shell decides whether it
       // is listening — an open overlay drops the interaction there.
+      event.preventDefault();
       interactWithFocus();
     }
+  }
+
+  /**
+   * One keyboard step. A tile away is a walk, not a teleport: it goes
+   * through the same path routing a click does, so nothing gets to
+   * cross a wall that a click could not, and an interactable stepped
+   * into is walked up to and triggered exactly as a click on it is.
+   */
+  function stepPlayer(delta: TilePoint): void {
+    const from = routeOrigin();
+    const to = { x: from.x + delta.x, y: from.y + delta.y };
+    // Moving is answering a different question than the pick asked.
+    pickedId = null;
+    const interactable = interactableAt(map, to.x, to.y);
+    if (interactable) {
+      if (walkQueue.length === 0 && tileDistance(playerTile, to) === 1) {
+        onInteract({
+          interactableId: interactable.id,
+          interaction: interactable.interaction,
+        });
+        return;
+      }
+      const path = findPathToAdjacent(map, from, to);
+      if (path) {
+        pendingInteractable = interactable;
+        startWalk(path);
+      }
+      return;
+    }
+    if (!isWalkable(map, to.x, to.y)) {
+      // Nothing to walk onto, but the step still says which way you
+      // meant to look — turning on the spot is a move a player can see.
+      playerFacing = facingFromDelta(delta.x, delta.y) ?? playerFacing;
+      return;
+    }
+    pendingInteractable = null;
+    startWalk([from, to]);
   }
 
   /**
@@ -558,7 +688,7 @@ export function createIsoScene(
    * so neither can ever end up here.
    */
   function resolveFocus(): void {
-    focus = focusInteractable(map, { playerTile, hoverTile });
+    focus = focusInteractable(map, { playerTile, hoverTile, pickedId });
     const next = focus ? focusHint(focus) : null;
     const same =
       next?.interactableId === focusHintSent?.interactableId &&
@@ -670,12 +800,27 @@ export function createIsoScene(
 
   /** Trigger whatever is in focus, if it is close enough to reach. */
   function interactWithFocus(): void {
-    if (walkQueue.length > 0 || !focus?.inRange) return;
+    if (!focus) return;
     const { interactable } = focus;
-    onInteract({
-      interactableId: interactable.id,
-      interaction: interactable.interaction,
-    });
+    if (focus.inRange && walkQueue.length === 0) {
+      pickedId = null;
+      onInteract({
+        interactableId: interactable.id,
+        interaction: interactable.interaction,
+      });
+      return;
+    }
+    // Out of reach, and picked on purpose: the keyboard's answer to
+    // clicking something across the plaza — walk there, then act. Only
+    // a deliberate pick does this; standing near one thing and pressing
+    // Enter is not a request to cross the map.
+    if (focus.reason !== "picked") return;
+    const path = findPathToAdjacent(map, routeOrigin(), interactable);
+    if (!path) return;
+    pickedId = null;
+    pendingInteractable = interactable;
+    startWalk(path);
+    resolveFocus();
   }
 
   /**

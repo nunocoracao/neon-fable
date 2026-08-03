@@ -699,19 +699,32 @@ export interface InteractPromptInput {
   kind: MapInteraction["kind"];
   /** Whether it can be triggered from where the player stands. */
   inRange: boolean;
+  /**
+   * Whether the keyboard picked this rather than the cursor finding it.
+   * A pick is a request, so an out-of-reach one is offered as a walk;
+   * a thing merely hovered over is not.
+   */
+  picked?: boolean;
   /** Resolved destination name, on interactables that lead off the map. */
   destination?: string;
 }
 
 /**
  * The bottom-screen line for whatever is in focus: an offer to act on
- * it once in reach ("Enter — talk to Vesper"), and until then just
+ * it once in reach ("Enter — talk to Vesper"), an offer to walk there
+ * when the keyboard picked it from across the map, and otherwise just
  * where a way out would lead. Pointing at something out of reach that
  * goes nowhere says nothing — the floating chip already names it.
  */
 export function interactPrompt(hint: InteractPromptInput): string | null {
   const destination = hint.destination ? ` → ${hint.destination}` : "";
   if (!hint.inRange) {
+    if (hint.picked === true) {
+      return t("interact.walkTo", {
+        key: INTERACT_KEY_LABEL,
+        name: `${interactName(hint.label)}${destination}`,
+      });
+    }
     return hint.destination ? `${hint.label}${destination}` : null;
   }
   const verb = interactVerb(hint.spriteId, hint.kind);

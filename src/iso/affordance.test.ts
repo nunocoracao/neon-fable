@@ -3,6 +3,7 @@ import {
   DEFAULT_OUTLINE_PALETTE,
   INTERACT_RANGE,
   OUTLINE_COLORS,
+  cycleInteractable,
   focusInteractable,
   interactablesInRange,
   nearestInteractable,
@@ -195,5 +196,63 @@ describe("outlineColor", () => {
   it("answers for the colourblind-assist palette", () => {
     expect(outlineColor("assist")).toBe(OUTLINE_COLORS.assist);
     expect(outlineColor("assist")).not.toBe(OUTLINE_COLORS.neon);
+  });
+});
+
+describe("cycleInteractable", () => {
+  const map = mapWith([
+    thing("far", 9, 9),
+    thing("near", 1, 0),
+    thing("middle", 4, 0),
+  ]);
+  const here = { x: 0, y: 0 };
+
+  it("starts at the nearest thing going forwards and the furthest going back", () => {
+    expect(cycleInteractable(map, here, null, 1)?.id).toBe("near");
+    expect(cycleInteractable(map, here, null, -1)?.id).toBe("far");
+  });
+
+  it("walks the whole map in distance order, wrapping at both ends", () => {
+    expect(cycleInteractable(map, here, "near", 1)?.id).toBe("middle");
+    expect(cycleInteractable(map, here, "middle", 1)?.id).toBe("far");
+    expect(cycleInteractable(map, here, "far", 1)?.id).toBe("near");
+    expect(cycleInteractable(map, here, "near", -1)?.id).toBe("far");
+  });
+
+  it("re-orders around wherever the player is standing", () => {
+    const corner = { x: 9, y: 9 };
+    expect(cycleInteractable(map, corner, null, 1)?.id).toBe("far");
+  });
+
+  it("treats an id the map does not hold as no pick at all", () => {
+    expect(cycleInteractable(map, here, "left-behind", 1)?.id).toBe("near");
+  });
+
+  it("has nothing to offer on a map with nothing on it", () => {
+    expect(cycleInteractable(mapWith([]), here, null, 1)).toBeNull();
+  });
+});
+
+describe("focusInteractable with a keyboard pick", () => {
+  const map = mapWith([thing("beside-you", 0, 1), thing("across", 9, 9)]);
+
+  it("lets the pick outrank both the cursor and arm's reach", () => {
+    const focus = focusInteractable(map, {
+      playerTile: { x: 0, y: 0 },
+      hoverTile: { x: 0, y: 1 },
+      pickedId: "across",
+    });
+    expect(focus?.interactable.id).toBe("across");
+    expect(focus?.reason).toBe("picked");
+    expect(focus?.inRange).toBe(false);
+  });
+
+  it("falls back the moment the pick names something not on the map", () => {
+    const focus = focusInteractable(map, {
+      playerTile: { x: 0, y: 0 },
+      pickedId: "gone",
+    });
+    expect(focus?.interactable.id).toBe("beside-you");
+    expect(focus?.reason).toBe("nearby");
   });
 });

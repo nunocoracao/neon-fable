@@ -323,6 +323,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
           spriteId: hint.spriteId,
           kind: hint.interaction.kind,
           inRange: hint.inRange,
+          picked: hint.reason === "picked",
           destination: hint.exitMapId
             ? getMap(hint.exitMapId)?.name
             : undefined,
@@ -1248,6 +1249,10 @@ export function createGameScreen(options: GameScreenOptions): Screen {
           entity: sceneSpriteSource(),
         }),
         onFocus: showFocusHint,
+        // The map answers the keyboard only when nothing is open over
+        // it: a step taken behind an inventory panel is a step nobody
+        // asked for, and the panel's own arrows are the panel's.
+        keyboardEnabled: () => overlay === null,
         // Whoever is watching this map tonight; null on every map that
         // has nobody on it, which is most of them.
         watch: watchFrame,

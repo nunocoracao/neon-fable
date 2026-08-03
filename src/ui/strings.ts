@@ -670,6 +670,7 @@ export const STRINGS = {
    * The interact prompt, and shards
    * -------------------------------------------------------------- */
   "interact.key": "Enter",
+  "interact.walkTo": "{key} — walk to {name}",
   "interact.verb.talk": "talk to",
   "interact.verb.open": "open",
   "interact.verb.use": "use",
