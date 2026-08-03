@@ -112,6 +112,7 @@ import { createMainMenuScreen } from "./mainMenu";
 import { createSaveLoadPanel } from "./saveLoad";
 import { showScreen, type Screen } from "./screen";
 import { autosave, type Session } from "./session";
+import { t } from "./strings";
 
 /**
  * The playable combat screen: arena scene on the background canvas, an
@@ -314,10 +315,12 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       acting.kind === "ally"
         ? `${nameOf(acting.id)} — HP ${Math.max(0, acting.hp)}/${acting.maxHp}`
         : `HP ${Math.max(0, acting.hp)}/${acting.maxHp}`,
-      `Steps left ${combat.moveRemaining}`,
-      combat.actionUsed ? "Action spent" : "Action ready",
+      t("combat.status.steps", { steps: combat.moveRemaining }),
+      combat.actionUsed
+        ? t("combat.status.actionSpent")
+        : t("combat.status.actionReady"),
     ];
-    if (busy) parts.push("Enemy turn…");
+    if (busy) parts.push(t("combat.status.enemyTurn"));
     for (const text of parts) {
       const span = document.createElement("span");
       span.textContent = text;
@@ -427,7 +430,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     if (!selectionEl || !combat) return;
     selectionEl.replaceChildren();
     if (!playerCanAct()) {
-      setHint(combat.status === "active" ? "" : "The fight is over.");
+      setHint(combat.status === "active" ? "" : t("combat.blocked.over"));
       return;
     }
     switch (mode.kind) {
@@ -440,12 +443,13 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         return;
       case "move":
         setHint(
-          `Click a highlighted tile to move (${stepsLabel(combat.moveRemaining)} ` +
-            "left) — or use the arrow keys. Esc cancels.",
+          t("combat.select.move", {
+            steps: stepsLabel(combat.moveRemaining),
+          }),
         );
         return;
       case "attack": {
-        setHint("Select a target. Esc cancels.");
+        setHint(t("combat.select.target"));
         for (const option of attackOptions(combat)) {
           selectionEl.append(
             selectionButton(
@@ -463,7 +467,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         const abilities = abilityOptions(combat);
         const selectedId = mode.abilityId;
         if (selectedId === null) {
-          setHint("Select an ability. Esc cancels.");
+          setHint(t("combat.select.ability"));
           for (const option of abilities) {
             const ability = getAbility(option.abilityId);
             const name = ability?.name ?? option.abilityId;
@@ -492,9 +496,12 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
           return;
         }
         const selected = abilities.find((o) => o.abilityId === selectedId);
-        setHint("Select a target. Esc cancels.");
+        setHint(t("combat.select.target"));
         for (const target of selected?.targets ?? []) {
-          const stun = target.stunTurns > 0 ? ` · stuns ${target.stunTurns}` : "";
+          const stun =
+            target.stunTurns > 0
+              ? t("combat.tip.ability.stun", { turns: target.stunTurns })
+              : "";
           selectionEl.append(
             selectionButton(
               `${nameOf(target.targetId)} — ${target.damage} dmg${stun}`,
@@ -512,7 +519,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         return;
       }
       case "item": {
-        setHint("Select an item. Esc cancels.");
+        setHint(t("combat.select.item"));
         for (const option of itemOptions(combat)) {
           const item = getItem(option.itemId);
           // The preview on the button is the outcome the engine is
@@ -1094,7 +1101,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       // game screen it returns to is already playing exactly this.
       audio.setMusicMode("explore");
       audio.emit("combat.outcome.victory");
-      const { panel } = outcomePanel("Victory");
+      const { panel } = outcomePanel(t("combat.end.victory"));
       const rewards = getEncounter(encounterId)?.rewards;
       const list = document.createElement("div");
       list.className = "nf-reward-list";
@@ -1106,7 +1113,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
           return quantity > 1 ? `${name} ×${quantity}` : name;
         }),
       ];
-      for (const text of lines.length > 0 ? lines : ["No spoils this time."]) {
+      for (const text of lines.length > 0 ? lines : [t("combat.noSpoils")]) {
         const line = document.createElement("div");
         line.className = "nf-reward-line";
         line.textContent = text;
@@ -1121,7 +1128,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         wounds.append(
           Object.assign(document.createElement("div"), {
             className: "nf-injury-heading",
-            textContent: "You did not walk away clean.",
+            textContent: t("combat.wounded"),
           }),
         );
         // What the win cost, heard as well as read.
@@ -1134,19 +1141,22 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         }
         panel.append(wounds);
       }
-      panel.append(panelButton("Continue", () => backToGame(resumeNodeId)));
+      panel.append(
+        panelButton(t("combat.end.continue"), () => backToGame(resumeNodeId)),
+      );
       focusFirst(panel);
       return;
     }
 
     if (combat.status === "fled") {
-      const { panel } = outcomePanel("Clean Break");
+      const { panel } = outcomePanel(t("combat.end.fled"));
       const note = document.createElement("p");
       note.className = "nf-dim";
-      note.textContent =
-        "You break contact and melt back into Cinder Row. Word of it will " +
-        "travel.";
-      panel.append(note, panelButton("Return", () => backToGame(null)));
+      note.textContent = t("combat.end.fledNote");
+      panel.append(
+        note,
+        panelButton(t("combat.end.return"), () => backToGame(null)),
+      );
       focusFirst(panel);
       return;
     }
@@ -1160,17 +1170,16 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
   /** Separate from showOutcome so closing the save list can re-show it
    * without resolving the combat a second time. */
   function showDefeatPanel(): void {
-    const { panel } = outcomePanel("Flatlined");
+    const { panel } = outcomePanel(t("combat.end.defeat"));
     const note = document.createElement("p");
     note.className = "nf-dim";
-    note.textContent =
-      "The Sprawl goes dark. Load a save to pick the thread back up.";
+    note.textContent = t("combat.end.defeatNote");
     const message = document.createElement("p");
     message.className = "nf-message nf-error";
     const menu = document.createElement("div");
     menu.className = "nf-menu";
     menu.append(
-      panelButton("Load Autosave", () => {
+      panelButton(t("combat.end.loadAutosave"), () => {
         try {
           session.state = loadGame("autosave", session.storage);
           showScreen(createGameScreen({ session }));
@@ -1178,10 +1187,10 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
           message.textContent =
             error instanceof SaveError
               ? saveErrorMessage(error)
-              : "Could not load the autosave.";
+              : t("combat.end.autosaveError");
         }
       }),
-      panelButton("Load Game", () => {
+      panelButton(t("combat.end.loadGame"), () => {
         if (!overlayEl) return;
         overlayEl.replaceChildren();
         const savesPanel = createSaveLoadPanel({
@@ -1195,7 +1204,9 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         });
         overlayEl.append(savesPanel.el);
       }),
-      panelButton("Main Menu", () => showScreen(createMainMenuScreen())),
+      panelButton(t("combat.end.mainMenu"), () =>
+        showScreen(createMainMenuScreen()),
+      ),
     );
     panel.append(note, message, menu);
     focusFirst(panel);

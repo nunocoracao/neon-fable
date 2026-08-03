@@ -41,6 +41,7 @@ import {
   toggleMotion,
   type PreviewState,
 } from "./previewState";
+import { t } from "./strings";
 
 /**
  * Byte budget for baked preview frames. A 64×96-at-2x bake holds
@@ -147,20 +148,24 @@ export function createAppearancePreview(
     return button;
   }
 
-  const rotateLeft = controlButton("◀", "Rotate left (Q)", () => rotate(-1));
-  const rotateRight = controlButton("▶", "Rotate right (E)", () => rotate(1));
-  const walkToggle = controlButton("Walk", "Toggle walk animation (W)", () =>
+  const rotateLeft = controlButton("◀", t("preview.rotateLeft"), () =>
+    rotate(-1),
+  );
+  const rotateRight = controlButton("▶", t("preview.rotateRight"), () =>
+    rotate(1),
+  );
+  const walkToggle = controlButton(t("preview.walk"), t("preview.walkToggle"), () =>
     toggle(),
   );
-  const zoomOut = controlButton("−", "Zoom out (−)", () => zoom(-1));
-  const zoomIn = controlButton("+", "Zoom in (+)", () => zoom(1));
+  const zoomOut = controlButton("−", t("preview.zoomOut"), () => zoom(-1));
+  const zoomIn = controlButton("+", t("preview.zoomIn"), () => zoom(1));
   const readout = document.createElement("span");
   readout.className = "nf-preview-readout";
   controls.append(rotateLeft, rotateRight, walkToggle, zoomOut, zoomIn, readout);
 
   const hint = document.createElement("p");
   hint.className = "nf-dim nf-preview-hint";
-  hint.textContent = "Q/E rotate · W walk · +/− zoom";
+  hint.textContent = t("appearance.preview.keys");
 
   el.append(stage);
   if (!options.showcase) el.append(controls, hint);

@@ -36,6 +36,7 @@ import {
 } from "../narrative/hints";
 import { settings } from "../settings";
 import type { FlagMap } from "../state/flags";
+import { t } from "./strings";
 
 export interface HintLayerOptions {
   /** The run's flags, read for "already shown" and written on show. */
@@ -119,7 +120,7 @@ export function createHintLayer(options: HintLayerOptions): HintLayerHandle {
     close.className = "nf-hint-dismiss";
     close.type = "button";
     close.textContent = "×";
-    close.setAttribute("aria-label", `Dismiss hint: ${hint.title}`);
+    close.setAttribute("aria-label", t("hint.dismiss", { title: hint.title }));
     close.addEventListener("click", () => {
       audio.emit("ui.cancel");
       takeDown();

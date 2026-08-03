@@ -9,6 +9,7 @@ import {
 import { STAT_KEYS } from "../character";
 import { getAppearanceOption, getBackground, getItem } from "../data";
 import { formatBonuses, statLabel } from "./format";
+import { t } from "./strings";
 
 /**
  * Pure selector behind the wizard's review step: everything the
@@ -20,16 +21,16 @@ import { formatBonuses, statLabel } from "./format";
 
 /** Section labels for appearance fields, shared with the wizard screen. */
 export const APPEARANCE_LABELS: Record<AppearanceField, string> = {
-  skinTone: "Skin tone",
-  build: "Build",
-  hairStyle: "Hair",
-  hairColor: "Hair color",
-  eyes: "Eyes",
-  eyeColor: "Eye color",
-  brows: "Brows",
-  mouth: "Mouth",
-  faceDetail: "Face detail",
-  headwear: "Headwear",
+  skinTone: t("appearance.field.skinTone"),
+  build: t("appearance.field.build"),
+  hairStyle: t("appearance.field.hairStyle"),
+  hairColor: t("appearance.field.hairColor"),
+  eyes: t("appearance.field.eyes"),
+  eyeColor: t("appearance.field.eyeColor"),
+  brows: t("appearance.field.brows"),
+  mouth: t("appearance.field.mouth"),
+  faceDetail: t("appearance.field.faceDetail"),
+  headwear: t("appearance.field.headwear"),
 };
 
 /** One worded line of the appearance summary, e.g. Hair: "Locs — Raven". */
@@ -112,7 +113,7 @@ export function reviewModel(
 
   const legacyPick = draft.legacyItemId
     ? (getItem(draft.legacyItemId)?.name ?? draft.legacyItemId)
-    : "Travel light";
+    : t("create.legacy.travelLight");
 
   return {
     name: draft.name.trim(),
@@ -136,13 +137,11 @@ export function reviewModel(
       ? {
           pick: legacyPick,
           line:
-            `${legacyPick} · +${ngPlus.bonusPoints} bonus point-buy points` +
-            (ngPlus.legacyAppearance
-              ? " · last runner's look carried over"
-              : ""),
-          excludes:
-            "Perks stay with the runner who earned them — street cred is " +
-            "a reputation, and nobody inherits one.",
+            t("create.legacy.line", {
+              pick: legacyPick,
+              points: ngPlus.bonusPoints,
+            }) + (ngPlus.legacyAppearance ? t("create.legacy.lookCarried") : ""),
+          excludes: t("create.legacy.excludes"),
         }
       : null,
   };

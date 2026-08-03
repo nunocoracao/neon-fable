@@ -4,6 +4,7 @@ import {
   type DiagnosticReport,
 } from "./errorReport";
 import type { Screen } from "./screen";
+import { t } from "./strings";
 
 /**
  * The screen a crash lands on.
@@ -54,8 +55,8 @@ export function createErrorScreen(options: ErrorScreenOptions): Screen {
       attempt = Promise.reject(error);
     }
     void attempt.then(
-      () => setStatus("Report copied."),
-      () => setStatus("Could not reach the clipboard — select the text and copy it."),
+      () => setStatus(t("crash.status.copied")),
+      () => setStatus(t("crash.status.copyFailed")),
     );
   }
 
@@ -77,16 +78,13 @@ export function createErrorScreen(options: ErrorScreenOptions): Screen {
 
       const title = document.createElement("h2");
       // The words the rest of the game has always used for this.
-      title.textContent = "Something glitched";
+      title.textContent = t("crash.title");
 
       const lede = document.createElement("p");
       lede.className = "nf-dim";
       lede.textContent = options.context.stashed
-        ? "The game hit an error it could not carry on from. The run you " +
-          "were in has been stashed — pick it up from the main menu."
-        : "The game hit an error it could not carry on from. Your last " +
-          "save is untouched; head back to the main menu to pick the " +
-          "thread up.";
+        ? t("crash.lede.stashed")
+        : t("crash.lede.clean");
 
       const headline = document.createElement("p");
       headline.className = "nf-crash-headline";
@@ -110,7 +108,7 @@ export function createErrorScreen(options: ErrorScreenOptions): Screen {
       box.readOnly = true;
       box.rows = 10;
       box.value = report.text;
-      box.setAttribute("aria-label", "Diagnostic report");
+      box.setAttribute("aria-label", t("crash.report.label"));
 
       const includeRow = document.createElement("label");
       includeRow.className = "nf-crash-include";
@@ -123,13 +121,12 @@ export function createErrorScreen(options: ErrorScreenOptions): Screen {
         box.value = report.text;
         setStatus(
           includeSaveData
-            ? "The whole save is in the report now."
-            : "The report is back to a summary of the run.",
+            ? t("crash.status.saveIncluded")
+            : t("crash.status.saveOmitted"),
         );
       });
       const includeText = document.createElement("span");
-      includeText.textContent =
-        "Include save data (adds the whole run to the report)";
+      includeText.textContent = t("crash.includeSave");
       includeRow.append(include, includeText);
 
       const statusLine = document.createElement("p");
@@ -141,21 +138,21 @@ export function createErrorScreen(options: ErrorScreenOptions): Screen {
 
       const copyButton = document.createElement("button");
       copyButton.className = "nf-button";
-      copyButton.textContent = "Copy report";
+      copyButton.textContent = t("crash.copy");
       copyButton.addEventListener("click", copy);
       actions.append(copyButton);
 
       if (options.onMenu) {
         const menu = document.createElement("button");
         menu.className = "nf-button";
-        menu.textContent = "Main Menu";
+        menu.textContent = t("crash.mainMenu");
         menu.addEventListener("click", options.onMenu);
         actions.append(menu);
       }
 
       const reload = document.createElement("button");
       reload.className = "nf-button";
-      reload.textContent = "Reload";
+      reload.textContent = t("crash.reload");
       reload.addEventListener("click", () => {
         if (options.onReload) options.onReload();
         else window.location.reload();

@@ -16,6 +16,7 @@ import { focusFirst, installListNav } from "./focus";
 import { GRAPHICS_GROUPS, type GraphicsControl } from "./graphicsModel";
 import type { OverlayHandle } from "./overlay";
 import type { Screen } from "./screen";
+import { plain, t, type PlainKey } from "./strings";
 
 /**
  * The Settings panel: the audio mixer, text speed, the Graphics &
@@ -100,20 +101,20 @@ const TEXT_SPEED_LABELS: Record<TextSpeed, string> = {
 };
 
 /** Keyboard reference shown in the Controls section. */
-const CONTROLS: ReadonlyArray<[keys: string, what: string]> = [
-  ["Arrows / Tab", "Move focus through menus, choices, and items"],
-  ["Enter / Space", "Confirm the focused control"],
-  ["Esc", "Back out of a panel · pause the game"],
-  ["1–9", "Pick a dialogue choice by number"],
-  ["I", "Open or close the inventory"],
-  ["P", "Open or close advancement"],
-  ["M", "Expand or collapse the minimap"],
-  ["X", "Crouch-walk, where somebody is watching"],
-  ["F", "Take down a guard · lunge past a gap"],
-  ["Arrows in combat", "Step across the grid while moving"],
-  ["Tab in combat", "Cycle the action buttons"],
-  ["Click / drag", "Move and interact · pan the camera"],
-  ["Wheel / + −", "Zoom the camera while exploring"],
+const CONTROLS: ReadonlyArray<[keys: PlainKey, what: PlainKey]> = [
+  ["settings.controls.focus.keys", "settings.controls.focus.what"],
+  ["settings.controls.confirm.keys", "settings.controls.confirm.what"],
+  ["settings.controls.back.keys", "settings.controls.back.what"],
+  ["settings.controls.choice.keys", "settings.controls.choice.what"],
+  ["settings.controls.inventory.keys", "settings.controls.inventory.what"],
+  ["settings.controls.advance.keys", "settings.controls.advance.what"],
+  ["settings.controls.minimap.keys", "settings.controls.minimap.what"],
+  ["settings.controls.crouch.keys", "settings.controls.crouch.what"],
+  ["settings.controls.takedown.keys", "settings.controls.takedown.what"],
+  ["settings.controls.step.keys", "settings.controls.step.what"],
+  ["settings.controls.cycle.keys", "settings.controls.cycle.what"],
+  ["settings.controls.pointer.keys", "settings.controls.pointer.what"],
+  ["settings.controls.zoom.keys", "settings.controls.zoom.what"],
 ];
 
 function settingRow(label: string, ...controls: HTMLElement[]): HTMLElement {
@@ -141,7 +142,7 @@ function mixerStrip(bus: MixBusDef): {
   slider.min = "0";
   slider.max = "100";
   slider.step = "1";
-  slider.setAttribute("aria-label", `${bus.label} volume`);
+  slider.setAttribute("aria-label", t("settings.audio.volume", { bus: bus.label }));
   slider.dataset.bus = bus.id;
 
   const readout = document.createElement("span");
@@ -156,9 +157,9 @@ function mixerStrip(bus: MixBusDef): {
 
   const tone = document.createElement("button");
   tone.className = "nf-button nf-button-small";
-  tone.textContent = "Test";
+  tone.textContent = t("settings.audio.test");
   tone.dataset.tone = bus.id;
-  tone.setAttribute("aria-label", `Play a test tone on ${bus.label}`);
+  tone.setAttribute("aria-label", t("settings.audio.testLabel", { bus: bus.label }));
 
   function sync(): void {
     const mixer = audio.getMixer();
@@ -172,11 +173,13 @@ function mixerStrip(bus: MixBusDef): {
     readout.textContent = text;
 
     const muted = mixer.mutes[bus.id] === true;
-    mute.textContent = muted ? "Unmute" : "Mute";
+    mute.textContent = muted ? t("settings.audio.unmute") : t("settings.audio.mute");
     mute.setAttribute("aria-pressed", String(muted));
     mute.setAttribute(
       "aria-label",
-      `${muted ? "Unmute" : "Mute"} ${bus.label}`,
+      muted
+        ? t("settings.audio.unmuteLabel", { bus: bus.label })
+        : t("settings.audio.muteLabel", { bus: bus.label }),
     );
     mute.classList.toggle("nf-selected", muted);
     // Nothing to calibrate against on a bus that cannot be heard —
@@ -207,7 +210,7 @@ function mixerStrip(bus: MixBusDef): {
  */
 function buildMixerSection(panel: HTMLElement): void {
   const heading = document.createElement("h3");
-  heading.textContent = "Audio";
+  heading.textContent = t("settings.audio");
   panel.append(heading);
 
   const strips = MIX_BUSES.map(mixerStrip);
@@ -223,10 +226,10 @@ function buildMixerSection(panel: HTMLElement): void {
 
   panel.append(
     segmentedRow(
-      "When you look away",
+      t("settings.audio.duck"),
       [
-        ["on", "Quiet down"],
-        ["off", "Keep playing"],
+        ["on", t("settings.audio.duck.quiet")],
+        ["off", t("settings.audio.duck.keep")],
       ] as const,
       (value) => (value === "on") === audio.getMixer().duckOnBlur,
       (value) => {
@@ -237,10 +240,7 @@ function buildMixerSection(panel: HTMLElement): void {
   );
   const duckNote = document.createElement("p");
   duckNote.className = "nf-dim";
-  duckNote.textContent =
-    "Clicking away turns the game down; switching to another tab stops " +
-    "it altogether, and it picks up where it was when you come back. " +
-    "Keep playing if you run it on a second screen.";
+  duckNote.textContent = t("settings.audio.duck.note");
   panel.append(duckNote);
 }
 
@@ -298,13 +298,10 @@ function note(text: string): HTMLElement {
  */
 function buildGraphicsSection(panel: HTMLElement): void {
   const heading = document.createElement("h3");
-  heading.textContent = "Graphics & Comfort";
+  heading.textContent = t("settings.graphics");
   panel.append(heading);
   panel.append(
-    note(
-      "How the game looks and how much of it moves. None of these change " +
-        "what happens, what you are told, or how hard anything hits.",
-    ),
+    note(t("settings.graphics.note")),
   );
 
   const syncs: Array<() => void> = [];
@@ -344,7 +341,7 @@ function buildGraphicsSection(panel: HTMLElement): void {
 
   const reset = document.createElement("button");
   reset.className = "nf-button nf-button-small";
-  reset.textContent = "Reset graphics & comfort";
+  reset.textContent = t("settings.graphics.reset");
   reset.dataset.reset = "graphics";
   reset.addEventListener("click", () => {
     audio.emit("ui.confirm");
@@ -354,13 +351,8 @@ function buildGraphicsSection(panel: HTMLElement): void {
     settings.update(resetGraphicsSettings(settings.get()));
     syncAll();
   });
-  panel.append(settingRow("Start over", reset));
-  panel.append(
-    note(
-      "Puts every switch in this section back to how the game shipped. " +
-        "Nothing else on this panel is touched.",
-    ),
-  );
+  panel.append(settingRow(t("settings.startOver"), reset));
+  panel.append(note(t("settings.graphics.reset.note")));
 
   syncAll();
 }
@@ -377,7 +369,7 @@ function buildRulesSection(
   run: RunRulesHandle | null,
 ): void {
   const heading = document.createElement("h3");
-  heading.textContent = "Difficulty";
+  heading.textContent = t("settings.difficulty");
   panel.append(heading);
 
   /** The preset in force: the run's, or the preference outside one. */
@@ -421,12 +413,12 @@ function buildRulesSection(
     confirmRow.replaceChildren();
     const question = document.createElement("span");
     question.className = "nf-setting-label";
-    question.textContent =
-      `Switch this run to ${preset.label}? It takes effect at once, and ` +
-      "the save will record that the difficulty was changed.";
+    question.textContent = t("settings.difficulty.confirm", {
+      preset: preset.label,
+    });
     const yes = document.createElement("button");
     yes.className = "nf-button nf-button-small";
-    yes.textContent = `Switch to ${preset.label}`;
+    yes.textContent = t("settings.difficulty.switch", { preset: preset.label });
     yes.dataset.confirm = id;
     yes.addEventListener("click", () => {
       audio.emit("ui.confirm");
@@ -434,7 +426,7 @@ function buildRulesSection(
     });
     const no = document.createElement("button");
     no.className = "nf-button nf-button-small";
-    no.textContent = "Keep playing";
+    no.textContent = t("settings.difficulty.keep");
     no.addEventListener("click", () => {
       audio.emit("ui.cancel");
       confirmRow.hidden = true;
@@ -446,7 +438,7 @@ function buildRulesSection(
   }
 
   const difficultyRow = segmentedRow(
-    run ? "This run" : "New runs start on",
+    run ? t("settings.difficulty.thisRun") : t("settings.difficulty.newRuns"),
     DIFFICULTIES.map((entry) => [entry.id, entry.label] as const),
     (id) => currentDifficulty() === id,
     askDifficulty,
@@ -471,22 +463,18 @@ function buildRulesSection(
   if (run?.get().difficultyChanged === true) {
     const changed = document.createElement("p");
     changed.className = "nf-dim";
-    changed.textContent =
-      "This run has had its difficulty changed. Nothing is locked out by " +
-      "that — the save simply says so.";
+    changed.textContent = t("settings.difficulty.changed");
     panel.append(changed);
   }
 
   const assistHeading = document.createElement("h3");
-  assistHeading.textContent = "Assists";
+  assistHeading.textContent = t("settings.assists");
   panel.append(assistHeading);
   const assistNote = document.createElement("p");
   assistNote.className = "nf-dim";
   assistNote.textContent = run
-    ? "Independent of difficulty, and of each other. Every one of them " +
-      "takes effect immediately and none of them changes a die roll."
-    : "Independent of difficulty, and of each other. These are what a " +
-      "new run will start with.";
+    ? t("settings.assists.noteInRun")
+    : t("settings.assists.noteOutOfRun");
   panel.append(assistNote);
 
   for (const assist of ASSISTS) {
@@ -494,8 +482,8 @@ function buildRulesSection(
       segmentedRow(
         assist.label,
         [
-          ["on", "On"],
-          ["off", "Off"],
+          ["on", t("settings.on")],
+          ["off", t("settings.off")],
         ] as const,
         (value) => (value === "on") === assistIsOn(assist.id),
         (value) => {
@@ -529,14 +517,14 @@ function buildHintsSection(
   run: HintsHandle | null,
 ): void {
   const heading = document.createElement("h3");
-  heading.textContent = "Guidance";
+  heading.textContent = t("settings.guidance");
   panel.append(heading);
 
   const hintRow = segmentedRow(
-    "Contextual hints",
+    t("settings.guidance.hints"),
     [
-      ["on", "On"],
-      ["off", "Off"],
+      ["on", t("settings.on")],
+      ["off", t("settings.off")],
     ] as const,
     (value) => (value === "on") === settings.get().hints,
     (value) => settings.update({ hints: value === "on" }),
@@ -544,17 +532,12 @@ function buildHintsSection(
   hintRow.dataset.setting = "hints";
   panel.append(
     hintRow,
-    note(
-      "One line the first time a system comes up — walking, the action " +
-        "bar, a wound, a counter. Each appears once and is dismissed on " +
-        "the spot. Off silences every one of them and forgets none, so " +
-        "switching back on carries on where you left off.",
-    ),
+    note(t("settings.guidance.note")),
   );
 
   const replay = document.createElement("button");
   replay.className = "nf-button nf-button-small";
-  replay.textContent = "Reset hints";
+  replay.textContent = t("settings.guidance.reset");
   replay.dataset.reset = "hints";
   replay.disabled = run === null;
   const seenNote = document.createElement("p");
@@ -562,10 +545,8 @@ function buildHintsSection(
   const syncSeen = (): void => {
     seenNote.textContent =
       run === null
-        ? "This run's hints are recorded in its save, so they can only be " +
-          "replayed from inside a game."
-        : `${hintCountLabel(run.seen())} shown so far. Resetting makes this ` +
-          "run teach itself again from the next street you stand on.";
+        ? t("settings.guidance.reset.noRun")
+        : t("settings.guidance.reset.note", { seen: hintCountLabel(run.seen()) });
   };
   replay.addEventListener("click", () => {
     if (!run) return;
@@ -574,7 +555,7 @@ function buildHintsSection(
     syncSeen();
   });
   syncSeen();
-  panel.append(settingRow("Start over", replay), seenNote);
+  panel.append(settingRow(t("settings.startOver"), replay), seenNote);
 }
 
 function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
@@ -584,7 +565,7 @@ function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
   panel.className = "nf-panel nf-settings";
 
   const title = document.createElement("h2");
-  title.textContent = "Settings";
+  title.textContent = t("settings.title");
   panel.append(title);
 
   buildRulesSection(panel, run);
@@ -592,11 +573,11 @@ function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
   buildMixerSection(panel);
 
   const textHeading = document.createElement("h3");
-  textHeading.textContent = "Text";
+  textHeading.textContent = t("settings.text");
   panel.append(
     textHeading,
     segmentedRow(
-      "Text speed",
+      t("settings.text.speed"),
       TEXT_SPEEDS.map((speed) => [speed, TEXT_SPEED_LABELS[speed]] as const),
       (speed) => settings.get().textSpeed === speed,
       (speed) => settings.update({ textSpeed: speed }),
@@ -608,24 +589,24 @@ function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
   buildGraphicsSection(panel);
 
   const controlsHeading = document.createElement("h3");
-  controlsHeading.textContent = "Controls";
+  controlsHeading.textContent = t("settings.controls");
   panel.append(controlsHeading);
   for (const [keys, what] of CONTROLS) {
     const row = document.createElement("div");
     row.className = "nf-controls-row";
     const kbd = document.createElement("span");
     kbd.className = "nf-kbd";
-    kbd.textContent = keys;
+    kbd.textContent = plain(keys);
     const desc = document.createElement("span");
     desc.className = "nf-controls-desc";
-    desc.textContent = what;
+    desc.textContent = plain(what);
     row.append(kbd, desc);
     panel.append(row);
   }
 
   const back = document.createElement("button");
   back.className = "nf-button";
-  back.textContent = "Back";
+  back.textContent = t("common.back");
   back.addEventListener("click", onClose);
   panel.append(back);
 

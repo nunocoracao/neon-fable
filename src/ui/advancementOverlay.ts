@@ -13,6 +13,7 @@ import { pointsLabel, statLabel } from "./format";
 import { credLabel, perkPanel, pickLabel } from "./perkModel";
 import type { OverlayHandle } from "./overlay";
 import type { Session } from "./session";
+import { t } from "./strings";
 
 /**
  * Advancement panel: review chapter-earned points and spend them on
@@ -77,14 +78,19 @@ export function createAdvancementOverlay(
     status.className = "nf-inventory-status";
     const available = document.createElement("span");
     available.className = "nf-advancement-available";
-    available.textContent = `Unspent: ${pointsLabel(availablePoints(session.state))}`;
+    available.textContent = t("advance.unspent", {
+      points: pointsLabel(availablePoints(session.state)),
+    });
     status.append(available);
     for (const grant of chapterGrants) {
       const chapter = document.createElement("span");
       chapter.className = session.state.flags[grant.flag] ? "" : "nf-dim";
       chapter.textContent = session.state.flags[grant.flag]
-        ? `${grant.label} · +${pointsLabel(grant.points)}`
-        : `${grant.label} · not yet complete`;
+        ? t("advance.chapter.granted", {
+            label: grant.label,
+            points: pointsLabel(grant.points),
+          })
+        : t("advance.chapter.pending", { label: grant.label });
       status.append(chapter);
     }
     container.append(status);
@@ -101,8 +107,11 @@ export function createAdvancementOverlay(
     const next = document.createElement("span");
     next.className = "nf-dim";
     next.textContent = view.next
-      ? `${view.next.label} at ${view.next.cred} cred`
-      : "Every milestone reached";
+      ? t("advance.nextMilestone", {
+          label: view.next.label,
+          cred: view.next.cred,
+        })
+      : t("advance.allMilestones");
     street.append(next);
     container.append(street);
   }
@@ -117,7 +126,7 @@ export function createAdvancementOverlay(
     const section = document.createElement("div");
     section.className = "nf-inventory-section nf-perk-section";
     const heading = document.createElement("h3");
-    heading.textContent = "Perks";
+    heading.textContent = t("advance.perks");
     section.append(heading);
 
     const grid = document.createElement("div");
@@ -125,8 +134,7 @@ export function createAdvancementOverlay(
     if (view.taken.length === 0) {
       const empty = document.createElement("p");
       empty.className = "nf-dim";
-      empty.textContent =
-        "None yet. Street cred milestones are what grant them.";
+      empty.textContent = t("advance.noPerks");
       grid.append(empty);
     }
     for (const perk of view.taken) {
@@ -148,7 +156,9 @@ export function createAdvancementOverlay(
     section.append(grid);
 
     const open = actionButton(
-      view.picks > 0 ? `Choose a Perk — ${pickLabel(view.picks)}` : "View Perks",
+      view.picks > 0
+        ? t("advance.choosePerk", { picks: pickLabel(view.picks) })
+        : t("advance.viewPerks"),
       options.onOpenPerks,
     );
     if (view.picks > 0) open.classList.add("nf-button-attention");
@@ -161,7 +171,9 @@ export function createAdvancementOverlay(
     const section = document.createElement("div");
     section.className = "nf-inventory-section";
     const heading = document.createElement("h3");
-    heading.textContent = `Raise a stat (${pointsLabel(STAT_RAISE_COST)} each)`;
+    heading.textContent = t("advance.raiseStat", {
+      cost: pointsLabel(STAT_RAISE_COST),
+    });
     section.append(heading);
 
     for (const stat of STAT_KEYS) {
@@ -177,11 +189,11 @@ export function createAdvancementOverlay(
       if (player.stats[stat] >= STAT_HARD_CAP) {
         const cap = document.createElement("span");
         cap.className = "nf-dim";
-        cap.textContent = "At cap";
+        cap.textContent = t("advance.atCap");
         row.append(cap);
       } else {
         row.append(
-          actionButton("Raise", () =>
+          actionButton(t("advance.raise"), () =>
             apply(() => raiseStat(session.state, stat)),
           ),
         );
@@ -196,7 +208,7 @@ export function createAdvancementOverlay(
     const section = document.createElement("div");
     section.className = "nf-inventory-section";
     const heading = document.createElement("h3");
-    heading.textContent = "Unlock an ability";
+    heading.textContent = t("advance.unlockAbility");
     section.append(heading);
 
     const grid = document.createElement("div");
@@ -215,7 +227,9 @@ export function createAdvancementOverlay(
       name.textContent = ability.name;
       const cost = document.createElement("div");
       cost.className = "nf-item-summary";
-      cost.textContent = `Ability · ${pointsLabel(entry.cost)}`;
+      cost.textContent = t("advance.abilityCost", {
+        cost: pointsLabel(entry.cost),
+      });
       const description = document.createElement("div");
       description.className = "nf-item-effects";
       description.textContent = ability.description;
@@ -224,11 +238,11 @@ export function createAdvancementOverlay(
       if (player.advancement.abilityIds.includes(entry.abilityId)) {
         const unlocked = document.createElement("div");
         unlocked.className = "nf-dim";
-        unlocked.textContent = "Unlocked";
+        unlocked.textContent = t("advance.unlocked");
         card.append(unlocked);
       } else {
         card.append(
-          actionButton("Unlock", () =>
+          actionButton(t("advance.unlock"), () =>
             apply(() => unlockAbility(session.state, entry.abilityId)),
           ),
         );
@@ -245,10 +259,10 @@ export function createAdvancementOverlay(
     const header = document.createElement("div");
     header.className = "nf-panel-header";
     const title = document.createElement("h2");
-    title.textContent = "Advancement";
+    title.textContent = t("advance.title");
     const close = document.createElement("button");
     close.className = "nf-button nf-button-small";
-    close.textContent = "Close [Esc]";
+    close.textContent = t("common.closeEsc");
     close.addEventListener("click", options.onClose);
     header.append(title, close);
     panel.append(header);

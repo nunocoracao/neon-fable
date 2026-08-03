@@ -1,3 +1,4 @@
+import { modEffectLabel, signedNumber, socketLabel, socketsLabel } from "./format";
 import { getAbility } from "../data/abilities";
 import { getItem } from "../data/items";
 import {
@@ -15,7 +16,8 @@ import {
   type WeaponRef,
   type Workbench,
 } from "../inventory";
-import { modEffectLabel, signedNumber, socketLabel } from "./format";
+
+import { t } from "./strings";
 
 /**
  * The bench screen, as data. Pure over a `Workbench` — no DOM, no
@@ -84,15 +86,15 @@ export interface WorkbenchModel {
 function fieldLabel(field: ProfileDelta["field"]): string {
   switch (field) {
     case "damage":
-      return "damage";
+      return t("bench.field.damage");
     case "accuracy":
-      return "accuracy";
+      return t("bench.field.accuracy");
     case "armorPierce":
-      return "armor pierce";
+      return t("bench.field.pierce");
     case "rangeBonus":
-      return "range";
+      return t("bench.field.range");
     case "critShare":
-      return "crit threshold";
+      return t("bench.field.crit");
   }
 }
 
@@ -131,9 +133,12 @@ export function weaponSummary(weapon: BenchWeapon): string {
 /** "2 sockets · 1 filled", or what a weapon with none is worth saying. */
 export function socketLine(weapon: BenchWeapon): string {
   const total = weaponSockets(weapon.item).length;
-  if (total === 0) return "No mod sockets";
+  if (total === 0) return t("socket.none");
   const filled = weapon.mods.filter((id) => id != null).length;
-  return `${total} socket${total === 1 ? "" : "s"} · ${filled} filled`;
+  return t("bench.socketLine", {
+    sockets: socketsLabel(total),
+    filled,
+  });
 }
 
 /**
@@ -156,7 +161,10 @@ export function workbenchModel(
   const weapons: WeaponRow[] = rack.map((weapon) => ({
     ref: weapon.ref,
     name: weapon.item.name,
-    place: weapon.ref.where === "equipped" ? "In hand" : "Carried",
+    place:
+      weapon.ref.where === "equipped"
+        ? t("bench.place.equipped")
+        : t("bench.place.carried"),
     summary: weaponSummary(weapon),
     socketLine: socketLine(weapon),
     selected: selected !== null && sameWeapon(weapon.ref, selected.ref),

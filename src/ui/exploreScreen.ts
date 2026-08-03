@@ -16,6 +16,7 @@ import {
 import { requireMap } from "../data";
 import { npcSpriteSource, sceneSpriteSource } from "./entitySprites";
 import type { Screen } from "./screen";
+import { t } from "./strings";
 
 export interface ExploreScreenOptions {
   mapId: string;
@@ -47,12 +48,12 @@ export function createExploreScreen(options: ExploreScreenOptions): Screen {
 
       const back = document.createElement("button");
       back.className = "nf-button nf-explore-back";
-      back.textContent = "Back";
+      back.textContent = t("common.back");
       back.addEventListener("click", onExit);
 
       const readout = document.createElement("p");
       readout.className = "nf-explore-readout";
-      readout.textContent = "Click a tile to move. Drag to pan.";
+      readout.textContent = t("explore.help");
 
       const map = requireMap(mapId);
 
@@ -63,7 +64,7 @@ export function createExploreScreen(options: ExploreScreenOptions): Screen {
       const hour = document.createElement("button");
       hour.className = "nf-button nf-button-small";
       const labelHour = (): void => {
-        hour.textContent = `Hour: ${phase}`;
+        hour.textContent = t("explore.hour", { phase });
       };
       labelHour();
       hour.addEventListener("click", () => {

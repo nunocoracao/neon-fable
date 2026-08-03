@@ -11,6 +11,7 @@
 import type { SceneEntity, SceneTint } from "../iso";
 import type { Detection, GuardView, LungeOffer, TakedownOffer } from "../stealth";
 import { earshotOnlyTiles, watchedTiles } from "../stealth";
+import { t } from "./strings";
 
 /** The key that takes whichever quiet option is under the player's feet. */
 export const STEALTH_ACTION_KEY = "f";
@@ -82,20 +83,20 @@ export function stealthRefusal(
   lunge: LungeOffer,
 ): string | null {
   if (!takedown.ok && takedown.reason === "spent") {
-    return "No second chance at that — not with these hands.";
+    return t("stealth.refusal.spent");
   }
   if (!takedown.ok && takedown.reason === "aware") {
-    return "They are looking straight at you.";
+    return t("stealth.refusal.aware");
   }
   if (!lunge.ok && lunge.reason === "too-slow") {
-    return "You are not quick enough for that gap.";
+    return t("stealth.refusal.tooSlow");
   }
   return null;
 }
 
 /** The line the shell shows when a takedown lands. */
 export function takedownLine(guard: GuardView): string {
-  return `${sentenceCase(guard.name)} goes down quietly.`;
+  return t("stealth.takedown", { name: sentenceCase(guard.name) });
 }
 
 /**
@@ -105,7 +106,7 @@ export function takedownLine(guard: GuardView): string {
  * they made.
  */
 export function spottedLine(detection: Detection): string {
-  const heard = detection.sense === "sound" ? "A boot on the plate. " : "";
+  const heard = detection.sense === "sound" ? t("stealth.heard") : "";
   return `${heard}${detection.bark}`;
 }
 

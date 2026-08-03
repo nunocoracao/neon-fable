@@ -43,6 +43,7 @@ import { ART_SCALE, bakeSprite, spriteBytes } from "../iso/art/pixel";
 import { createSpriteCache } from "../iso/art/spriteCache";
 import type { Sprite } from "../iso/sprites";
 import { portraitCanvas } from "./portraits";
+import { t } from "./strings";
 
 /**
  * Byte budget for baked full-body mini canvases. A 64×96-at-2x bake
@@ -117,7 +118,7 @@ export function createAppearancePicker(
   const tabsRow = document.createElement("div");
   tabsRow.className = "nf-appearance-tabs";
   tabsRow.setAttribute("role", "tablist");
-  tabsRow.setAttribute("aria-label", "Appearance category");
+  tabsRow.setAttribute("aria-label", t("appearance.categories"));
 
   const caption = document.createElement("p");
   caption.className = "nf-thumb-caption";

@@ -37,6 +37,7 @@ import { bandCrossings, type StandingChange } from "../narrative/standing";
 import type { Requirement } from "../narrative/types";
 import { bandFor, thresholdValue } from "../state/reputation";
 import type { SaveError, SaveSlot } from "../state/save";
+import { plain, t, type PlainKey } from "./strings";
 
 /**
  * Pure presentation helpers for the DOM screens: requirement labels,
@@ -73,13 +74,13 @@ export function companionName(companionId: string): string {
  * bondScene thresholds in src/data/companions.ts).
  */
 export function loyaltyLabel(loyalty: number): string {
-  if (loyalty >= 7) return "Sworn to you";
-  if (loyalty >= 4) return "Loyal";
-  if (loyalty >= 2) return "Warm";
-  if (loyalty >= 0) return "Professional";
-  if (loyalty >= -3) return "Wary";
-  if (loyalty >= -6) return "Cold";
-  return "Done with you";
+  if (loyalty >= 7) return t("loyalty.sworn");
+  if (loyalty >= 4) return t("loyalty.loyal");
+  if (loyalty >= 2) return t("loyalty.warm");
+  if (loyalty >= 0) return t("loyalty.professional");
+  if (loyalty >= -3) return t("loyalty.wary");
+  if (loyalty >= -6) return t("loyalty.cold");
+  return t("loyalty.done");
 }
 
 /** What a choice just cost — or earned — with the people who saw it. */
@@ -87,7 +88,9 @@ export function loyaltyNote(changes: readonly LoyaltyChange[]): string {
   return changes
     .map(
       ({ companionId, delta }) =>
-        `${companionName(companionId)} ${delta > 0 ? "approves" : "disapproves"}`,
+        delta > 0
+          ? t("loyalty.approves", { name: companionName(companionId) })
+          : t("loyalty.disapproves", { name: companionName(companionId) }),
     )
     .join(" · ");
 }
@@ -106,7 +109,10 @@ export function standingNote(changes: readonly StandingChange[]): string {
   return bandCrossings(changes)
     .map(
       (change) =>
-        `${factionName(change.factionId)}: ${bandFor(change.to).label}`,
+        t("standing.note", {
+          faction: factionName(change.factionId),
+          band: bandFor(change.to).label,
+        }),
     )
     .join(" · ");
 }
@@ -118,48 +124,66 @@ export function requirementLabel(
 ): string {
   switch (requirement.type) {
     case "stat":
-      return `[${statLabel(requirement.stat)} ${requirement.value}]`;
+      return t("req.stat", {
+        stat: statLabel(requirement.stat),
+        value: requirement.value,
+      });
     case "background":
-      return `[Background: ${requirement.tag}]`;
+      return t("req.background", { tag: requirement.tag });
     case "static":
       // Named in the same word the character screen shows, so a locked
       // door can be read straight off your own Static meter.
       return requirement.mode === "at-most"
-        ? `[Static: ${staticBandLabel(requirement.band)} at most]`
-        : `[Static: ${staticBandLabel(requirement.band)}+]`;
+        ? t("req.static.atMost", { band: staticBandLabel(requirement.band) })
+        : t("req.static.atLeast", { band: staticBandLabel(requirement.band) });
     case "item": {
       const name = lookupItem(requirement.itemId)?.name ?? requirement.itemId;
       const quantity = requirement.quantity ?? 1;
       return quantity > 1
-        ? `[Requires: ${quantity}× ${name}]`
-        : `[Requires: ${name}]`;
+        ? t("req.item.many", { quantity, name })
+        : t("req.item", { name });
     }
     case "enhancement": {
       const name = lookupItem(requirement.itemId)?.name ?? requirement.itemId;
-      return `[Installed: ${name}]`;
+      return t("req.enhancement", { name });
     }
     case "flag-equals":
-      return `[${requirement.key}: ${String(requirement.value)}]`;
+      return t("req.flag.equals", {
+        key: requirement.key,
+        value: String(requirement.value),
+      });
     case "flag-not-equals":
-      return `[${requirement.key}: not ${String(requirement.value)}]`;
+      return t("req.flag.notEquals", {
+        key: requirement.key,
+        value: String(requirement.value),
+      });
     case "flag-at-least":
-      return `[${requirement.key} ${requirement.value}+]`;
+      return t("req.flag.atLeast", {
+        key: requirement.key,
+        value: requirement.value,
+      });
     case "flag-set":
-      return `[${requirement.key}: settled]`;
+      return t("req.flag.set", { key: requirement.key });
     case "flag-unset":
-      return `[${requirement.key}: unsettled]`;
+      return t("req.flag.unset", { key: requirement.key });
     case "credits":
-      return `[${requirement.value} cr]`;
+      return t("req.credits", { value: requirement.value });
     case "companion":
       return requirement.status === "recruited"
-        ? `[Knows: ${companionName(requirement.companionId)}]`
-        : `[With: ${companionName(requirement.companionId)}]`;
+        ? t("req.companion.knows", {
+            name: companionName(requirement.companionId),
+          })
+        : t("req.companion.with", {
+            name: companionName(requirement.companionId),
+          });
     case "loyalty":
       // Where somebody stands is their business: the label names the
       // person and the direction, never the number behind the curtain.
       return requirement.mode === "at-most"
-        ? `[${companionName(requirement.companionId)} has had enough]`
-        : `[${companionName(requirement.companionId)} trusts you]`;
+        ? t("req.loyalty.low", { name: companionName(requirement.companionId) })
+        : t("req.loyalty.high", {
+            name: companionName(requirement.companionId),
+          });
     case "injury": {
       // Named, when the gate names one, in the same word the character
       // screen uses — a greyed clinic line has to say which wound it is
@@ -170,25 +194,33 @@ export function requirementLabel(
           : `${companionName(requirement.companionId)} `;
       const what =
         requirement.injuryId == null
-          ? "hurt"
+          ? t("req.injury.any")
           : (getInjury(requirement.injuryId)?.name ?? requirement.injuryId);
-      return `[${who}${what}]`;
+      return t("req.injury", { who, what });
     }
     case "reputation": {
       // Named in the same word the character screen shows, so a player
       // can read a locked door against their own standing.
       const band = bandFor(thresholdValue(requirement.value));
       return requirement.mode === "at-most"
-        ? `[${factionName(requirement.factionId)}: ${band.label} at best]`
-        : `[${factionName(requirement.factionId)}: ${band.label}+]`;
+        ? t("req.reputation.atMost", {
+            faction: factionName(requirement.factionId),
+            band: band.label,
+          })
+        : t("req.reputation.atLeast", {
+            faction: factionName(requirement.factionId),
+            band: band.label,
+          });
     }
     case "dominant-faction":
       // A comparison, not a threshold: the label says whose city it
       // reads as, because that is the sentence the player can check
       // against the three rows on their own character screen.
       return requirement.factionId === "none"
-        ? "[No power stands above the others]"
-        : `[${factionName(requirement.factionId)}: your strongest tie]`;
+        ? t("req.dominant.none")
+        : t("req.dominant", {
+            faction: factionName(requirement.factionId),
+          });
   }
 }
 
@@ -205,12 +237,16 @@ export function pointBuyErrorMessage(error: PointBuyError): string {
   switch (error.code) {
     case "out-of-range":
       return error.stat
-        ? `${statLabel(error.stat)} must be between ${STAT_MIN} and ${STAT_MAX}`
-        : `Stats must be between ${STAT_MIN} and ${STAT_MAX}`;
+        ? t("pointBuy.range.stat", {
+            stat: statLabel(error.stat),
+            min: STAT_MIN,
+            max: STAT_MAX,
+          })
+        : t("pointBuy.range", { min: STAT_MIN, max: STAT_MAX });
     case "overspent":
-      return "Allocation spends more points than the pool holds";
+      return t("pointBuy.overspent");
     case "underspent":
-      return "Spend all remaining points before confirming";
+      return t("pointBuy.underspent");
   }
 }
 
@@ -227,33 +263,43 @@ export function formatBonuses(
 export function itemSummary(item: Item): string {
   switch (item.kind) {
     case "weapon": {
-      const range = item.rangeType === "melee" ? "Melee" : "Ranged";
+      const range =
+        item.rangeType === "melee" ? t("item.melee") : t("item.ranged");
       const requirement = item.requirement
-        ? ` · needs ${statLabel(item.requirement.stat)} ${item.requirement.value}`
+        ? t("item.weapon.needs", {
+            stat: statLabel(item.requirement.stat),
+            value: item.requirement.value,
+          })
         : "";
-      return `${range} weapon · ${item.damage} dmg${requirement}`;
+      return t("item.weapon", {
+        range,
+        damage: item.damage,
+        requirement,
+      });
     }
     case "outfit":
-      return `Outfit · armor ${item.armor}`;
+      return t("item.outfit", { armor: item.armor });
     case "consumable":
-      return (
-        `${consumableKindLabel(item.consumableKind)} · ` +
-        `${consumableEffectText(item)} · ${contextLabel(item.contexts)}`
-      );
+      return t("item.consumable", {
+        kind: consumableKindLabel(item.consumableKind),
+        effect: consumableEffectText(item),
+        context: contextLabel(item.contexts),
+      });
     case "enhancement":
       // Both costs on one line, and the dampener says which way it
       // pulls: a shelf label that only quoted neural load would price
       // half the decision.
-      return (
-        `Cyberware · ${slotLabel(item.slot)} · ${item.neuralCost} neural ` +
-        `load · ${signedNumber(item.staticLoad)} Static`
-      );
+      return t("item.enhancement", {
+        slot: slotLabel(item.slot),
+        load: item.neuralCost,
+        static: signedNumber(item.staticLoad),
+      });
     case "mod":
-      return `Weapon mod · ${socketLabel(item.socket)} socket`;
+      return t("item.mod", { socket: socketLabel(item.socket) });
     case "dye":
-      return `Outfit dye · ${dyeChannelSummary(item.colors)}`;
+      return t("item.dye", { colors: dyeChannelSummary(item.colors) });
     case "misc":
-      return "Item";
+      return t("item.misc");
   }
 }
 
@@ -261,13 +307,13 @@ export function itemSummary(item: Item): string {
 export function consumableKindLabel(kind: ConsumableKind): string {
   switch (kind) {
     case "stim":
-      return "Stim";
+      return t("item.kind.stim");
     case "food":
-      return "Street food";
+      return t("item.kind.food");
     case "kit":
-      return "Field kit";
+      return t("item.kind.kit");
     case "oddity":
-      return "Oddity";
+      return t("item.kind.oddity");
   }
 }
 
@@ -277,24 +323,28 @@ export function contextLabel(
 ): string {
   const inFight = contexts.includes("combat");
   const outside = contexts.includes("exploration");
-  if (inFight && outside) return "either side of a fight";
-  if (inFight) return "in a fight";
-  if (outside) return "out of combat";
-  return "nowhere";
+  if (inFight && outside) return t("item.context.either");
+  if (inFight) return t("item.context.combat");
+  if (outside) return t("item.context.exploration");
+  return t("item.context.none");
 }
 
 /** "+2 Reflexes for 3 turns, then −1 for 2" — one timed effect, in full. */
 export function timedEffectText(effect: TimedEffect): string {
-  const lift =
-    `${signedNumber(effect.amount)} ${statLabel(effect.stat)} for ` +
-    `${effect.turns} turn${effect.turns === 1 ? "" : "s"}`;
+  const lift = t("effect.timed", {
+    amount: signedNumber(effect.amount),
+    stat: statLabel(effect.stat),
+    turns: turnsLabel(effect.turns),
+  });
   if (!effect.after) return lift;
   // The crash is never hidden behind the lift: an after-cost the label
   // did not name would be a price the player only learns by paying it.
-  return (
-    `${lift}, then ${signedNumber(effect.after.amount)} ` +
-    `${statLabel(effect.after.stat)} for ${effect.after.turns}`
-  );
+  return t("effect.timed.after", {
+    lift,
+    amount: signedNumber(effect.after.amount),
+    stat: statLabel(effect.after.stat),
+    turns: effect.after.turns,
+  });
 }
 
 /**
@@ -306,18 +356,18 @@ export function consumableEffectText(item: ConsumableItem): string {
   const parts = item.effects.map((effect) => {
     switch (effect.type) {
       case "heal":
-        return `heals ${effect.amount} HP`;
+        return t("effect.heal", { amount: effect.amount });
       case "boost":
         return timedEffectText(effect.boost);
       case "ready-boost":
-        return `next fight: ${timedEffectText(effect.boost)}`;
+        return t("effect.readied", { effect: timedEffectText(effect.boost) });
       case "treat-injury":
-        return "closes an injury";
+        return t("effect.treatInjury");
       case "settle":
-        return "settles the chrome, clears the crash";
+        return t("effect.settle");
     }
   });
-  return parts.length > 0 ? parts.join(" · ") : "does nothing";
+  return parts.length > 0 ? parts.join(" · ") : t("effect.none");
 }
 
 /**
@@ -328,14 +378,14 @@ export function consumableEffectText(item: ConsumableItem): string {
  */
 export function consumableOutcomeText(outcome: ConsumableOutcome): string {
   const parts: string[] = [];
-  if (outcome.heal > 0) parts.push(`+${outcome.heal} HP`);
+  if (outcome.heal > 0) parts.push(t("outcome.heal", { amount: outcome.heal }));
   for (const boost of outcome.boosts) parts.push(timedEffectText(boost));
   for (const boost of outcome.readied) {
-    parts.push(`next fight: ${timedEffectText(boost)}`);
+    parts.push(t("effect.readied", { effect: timedEffectText(boost) }));
   }
-  if (outcome.treatsInjury) parts.push("closes the injury");
-  if (outcome.settles) parts.push("settles the chrome");
-  return parts.length > 0 ? parts.join(" · ") : "no effect right now";
+  if (outcome.treatsInjury) parts.push(t("outcome.treatsInjury"));
+  if (outcome.settles) parts.push(t("outcome.settles"));
+  return parts.length > 0 ? parts.join(" · ") : t("outcome.none");
 }
 
 /**
@@ -346,45 +396,49 @@ export function consumableOutcomeText(outcome: ConsumableOutcome): string {
 export function materialLabel(material: MaterialName): string {
   switch (material) {
     case "concrete":
-      return "grey";
+      return t("material.concrete");
     case "brushedChrome":
-      return "chrome";
+      return t("material.chrome");
     case "glass":
-      return "pale";
+      return t("material.glass");
     case "darkFabric":
-      return "black";
+      return t("material.dark");
     case "hazardAmber":
-      return "amber";
+      return t("material.amber");
     case "hologramBlue":
-      return "blue";
+      return t("material.blue");
     case "neonCyan":
-      return "cyan";
+      return t("material.cyan");
   }
 }
 
 /** "black cloth · amber trim" — the channels a tin actually repaints. */
 export function dyeChannelSummary(colors: OutfitDye): string {
   const parts: string[] = [];
-  if (colors.primary) parts.push(`${materialLabel(colors.primary)} cloth`);
-  if (colors.accent) parts.push(`${materialLabel(colors.accent)} trim`);
-  return parts.length > 0 ? parts.join(" · ") : "no color";
+  if (colors.primary) {
+    parts.push(t("dye.cloth", { color: materialLabel(colors.primary) }));
+  }
+  if (colors.accent) {
+    parts.push(t("dye.trim", { color: materialLabel(colors.accent) }));
+  }
+  return parts.length > 0 ? parts.join(" · ") : t("dye.none");
 }
 
 /** "Barrel", "Core", "Grip" — a mod socket, for a bench row's heading. */
 export function socketLabel(socket: ModSocketKind): string {
   switch (socket) {
     case "barrel":
-      return "Barrel";
+      return t("socket.barrel");
     case "core":
-      return "Core";
+      return t("socket.core");
     case "grip":
-      return "Grip";
+      return t("socket.grip");
   }
 }
 
 /** "1 barrel, 1 core" — the sockets a weapon offers, or "no sockets". */
 export function socketSummary(sockets: readonly ModSocketKind[]): string {
-  if (sockets.length === 0) return "No mod sockets";
+  if (sockets.length === 0) return t("socket.none");
   return sockets.map(socketLabel).join(" · ");
 }
 
@@ -408,21 +462,26 @@ export function modEffectLabel(
 ): string {
   switch (effect.type) {
     case "stat-mod":
-      return `${signedNumber(effect.amount)} ${statLabel(effect.stat)}`;
+      return t("mod.stat", {
+        amount: signedNumber(effect.amount),
+        stat: statLabel(effect.stat),
+      });
     case "grant-ability":
-      return `Grants ${lookupAbility(effect.abilityId)?.name ?? effect.abilityId}`;
+      return t("mod.grantAbility", {
+        ability: lookupAbility(effect.abilityId)?.name ?? effect.abilityId,
+      });
     case "unlock-dialogue":
-      return `Unlocks "${effect.tag}" dialogue`;
+      return t("mod.unlockDialogue", { tag: effect.tag });
     case "weapon-damage":
-      return `${signedNumber(effect.amount)} damage`;
+      return t("mod.damage", { amount: signedNumber(effect.amount) });
     case "armor-pierce":
-      return `${signedNumber(effect.amount)} armor pierce`;
+      return t("mod.pierce", { amount: signedNumber(effect.amount) });
     case "accuracy":
-      return `${signedNumber(effect.amount)} accuracy`;
+      return t("mod.accuracy", { amount: signedNumber(effect.amount) });
     case "weapon-range":
-      return `${signedNumber(effect.amount)} range`;
+      return t("mod.range", { amount: signedNumber(effect.amount) });
     case "crit-share":
-      return effect.amount < 0 ? "Crits land sooner" : "Crits land later";
+      return effect.amount < 0 ? t("mod.crit.sooner") : t("mod.crit.later");
   }
 }
 
@@ -435,7 +494,10 @@ export function staticBandLabel(band: StaticBand): string {
 
 /** "Static 6 — Loud": the meter's own caption. */
 export function staticLine(reading: StaticReading): string {
-  return `Static ${reading.level} — ${reading.def.label}`;
+  return t("static.line", {
+    level: reading.level,
+    band: reading.def.label,
+  });
 }
 
 /**
@@ -448,13 +510,15 @@ export function staticEffectNotes(reading: StaticReading): string[] {
     reading.def.effects;
   const notes: string[] = [];
   if (coolPenalty > 0) {
-    notes.push(`${signedNumber(-coolPenalty)} Cool in conversation`);
+    notes.push(t("static.cool", { amount: signedNumber(-coolPenalty) }));
   }
-  if (chromeAffinity) notes.push("Opens chrome-affinity talk");
+  if (chromeAffinity) notes.push(t("static.affinity"));
   if (initiativePenalty > 0) {
-    notes.push(`${signedNumber(-initiativePenalty)} initiative`);
+    notes.push(
+      t("static.initiative", { amount: signedNumber(-initiativePenalty) }),
+    );
   }
-  if (surge) notes.push("Static surge, once a fight");
+  if (surge) notes.push(t("static.surge"));
   return notes;
 }
 
@@ -467,9 +531,14 @@ export function staticEffectNotes(reading: StaticReading): string[] {
 export function staticProjection(shift: StaticShift): string {
   const move =
     shift.delta === 0
-      ? "No change to Static"
-      : `${signedNumber(shift.delta)} Static → ${shift.to.level}`;
-  return shift.bandChanges ? `${move} · ${shift.to.def.label}` : move;
+      ? t("static.noChange")
+      : t("static.shift", {
+          delta: signedNumber(shift.delta),
+          level: shift.to.level,
+        });
+  return shift.bandChanges
+    ? t("static.shift.band", { move, band: shift.to.def.label })
+    : move;
 }
 
 /* --- Injuries ---------------------------------------------------------
@@ -503,8 +572,8 @@ export function injuryRecoveryNote(
 ): string | null {
   if (!injuryDef(carried) || !carried) return null;
   return carried.scenesLeft === 1
-    ? "Closes after your next move across the city."
-    : `Closes after ${carried.scenesLeft} more moves across the city.`;
+    ? t("injury.closesNext")
+    : t("injury.closesIn", { scenes: carried.scenesLeft });
 }
 
 /** The whole wound on one line, for a chip title or a log. */
@@ -513,7 +582,10 @@ export function injuryLine(
 ): string | null {
   const name = injuryName(carried);
   if (name === null) return null;
-  return `${name} — ${injuryEffectText(carried)}`;
+  return t("injury.line", {
+    name,
+    effect: injuryEffectText(carried) ?? "",
+  });
 }
 
 /** What a clinic charges to close it now; null when there is nothing to pay for. */
@@ -521,20 +593,20 @@ export function injuryFeeLabel(
   carried: CarriedInjury | null | undefined,
 ): string | null {
   const def = injuryDef(carried);
-  return def ? `${def.treatCost} cr` : null;
+  return def ? t("counter.credits", { credits: def.treatCost }) : null;
 }
 
 /** Trade-off warning shown before confirming a cyberware extraction. */
 export function uninstallWarning(item: EnhancementItem): string {
   const trauma = item.neuralCost * UNINSTALL_TRAUMA_PER_LOAD;
-  return `Extraction destroys the ${item.name} and deals ${trauma} HP of trauma.`;
+  return t("inventory.extractionCost", { name: item.name, trauma });
 }
 
 export function characterNameError(name: string): string | null {
   const trimmed = name.trim();
-  if (trimmed.length === 0) return "Enter a name";
+  if (trimmed.length === 0) return t("create.name.required");
   if (trimmed.length > NAME_MAX_LENGTH) {
-    return `Names cap at ${NAME_MAX_LENGTH} characters`;
+    return t("create.name.tooLong", { max: NAME_MAX_LENGTH });
   }
   return null;
 }
@@ -542,30 +614,30 @@ export function characterNameError(name: string): string | null {
 export function slotDisplayName(slot: SaveSlot): string {
   switch (slot) {
     case "slot1":
-      return "Slot 1";
+      return t("save.slot.1");
     case "slot2":
-      return "Slot 2";
+      return t("save.slot.2");
     case "slot3":
-      return "Slot 3";
+      return t("save.slot.3");
     case "autosave":
-      return "Autosave";
+      return t("save.slot.autosave");
     case "recovery":
-      return "Recovered run";
+      return t("save.slot.recovery");
   }
 }
 
 export function saveErrorMessage(error: SaveError): string {
   switch (error.code) {
     case "missing":
-      return "That slot is empty.";
+      return t("save.error.missing");
     case "corrupt":
-      return "That save is corrupted and cannot be loaded.";
+      return t("save.error.corrupt");
     case "version-mismatch":
-      return "That save comes from an incompatible game version.";
+      return t("save.error.version");
     case "checksum":
-      return "That save failed its integrity check — something changed it after it was written.";
+      return t("save.error.checksum");
     case "migration-failed":
-      return "That save could not be brought up to date for this version of the game.";
+      return t("save.error.migration");
   }
 }
 
@@ -580,20 +652,20 @@ export function exitLabel(label: string, destination?: string): string {
 }
 
 /** The key the bottom-screen prompt tells the player to press. */
-export const INTERACT_KEY_LABEL = "Enter";
+export const INTERACT_KEY_LABEL = t("interact.key");
 
 /**
  * How a prompt says what pressing the key would do, keyed by what the
  * thing is. Kept beside the other UI copy rather than in map data: the
  * maps declare what a thing *is*, this decides how to say it.
  */
-const INTERACT_VERBS: Readonly<Record<InteractableSpriteId, string>> = {
-  npc: "talk to",
-  door: "open",
-  terminal: "use",
-  stash: "search",
-  shard: "pick up",
-  exit: "take",
+const INTERACT_VERBS: Readonly<Record<InteractableSpriteId, PlainKey>> = {
+  npc: "interact.verb.talk",
+  door: "interact.verb.open",
+  terminal: "interact.verb.use",
+  stash: "interact.verb.search",
+  shard: "interact.verb.pickUp",
+  exit: "interact.verb.take",
 };
 
 /**
@@ -605,9 +677,9 @@ export function interactVerb(
   spriteId: InteractableSpriteId,
   kind: MapInteraction["kind"],
 ): string {
-  if (kind === "combat") return "fight";
-  if (kind === "breach") return "breach";
-  return INTERACT_VERBS[spriteId];
+  if (kind === "combat") return t("interact.verb.fight");
+  if (kind === "breach") return t("interact.verb.breach");
+  return plain(INTERACT_VERBS[spriteId]);
 }
 
 /**
@@ -653,7 +725,7 @@ export function shardNumber(index: number): string {
 
 /** What a locked codex slot says: the district, and nothing else. */
 export function shardLockedHint(district: string): string {
-  return `Recovered somewhere in ${district}.`;
+  return t("shard.lockedHint", { district });
 }
 
 /**
@@ -668,12 +740,21 @@ export function shardPickupToast(
 ): string {
   const tally = `${found}/${total}`;
   return found >= total
-    ? `Memory shard recovered — "${title}" (${tally}). The Grey Choir is whole; read it in the codex.`
-    : `Memory shard recovered — "${title}" (${tally}). Filed in the codex.`;
+    ? t("shard.pickup.complete", { title, tally })
+    : t("shard.pickup", { title, tally });
 }
 
 export function pointsLabel(amount: number): string {
-  return `${amount} ${amount === 1 ? "point" : "points"}`;
+  return amount === 1
+    ? t("count.point.one", { amount })
+    : t("count.point.many", { amount });
+}
+
+/** "1 turn", "3 turns" — how long a lift or a crash lasts. */
+export function turnsLabel(amount: number): string {
+  return amount === 1
+    ? t("count.turn.one", { amount })
+    : t("count.turn.many", { amount });
 }
 
 /**
@@ -683,12 +764,37 @@ export function pointsLabel(amount: number): string {
  * hundredth-time player has stopped seeing.
  */
 export function stepsLabel(amount: number): string {
-  return `${amount} ${amount === 1 ? "step" : "steps"}`;
+  return amount === 1
+    ? t("count.step.one", { amount })
+    : t("count.step.many", { amount });
+}
+
+/** "1 chain", "3 chains" — what a breach run banked on the way in. */
+export function chainsLabel(amount: number): string {
+  return amount === 1
+    ? t("count.chain.one", { amount })
+    : t("count.chain.many", { amount });
+}
+
+/** "1 socket", "3 sockets" — what a weapon frame offers. */
+export function socketsLabel(amount: number): string {
+  return amount === 1
+    ? t("count.socket.one", { amount })
+    : t("count.socket.many", { amount });
+}
+
+/** "1 tile", "6 tiles" — how much ground a move still reaches. */
+export function tilesLabel(amount: number): string {
+  return amount === 1
+    ? t("count.tile.one", { amount })
+    : t("count.tile.many", { amount });
 }
 
 /** How many hints a run has been shown, for the settings row. */
 export function hintCountLabel(amount: number): string {
-  return `${amount} ${amount === 1 ? "hint" : "hints"}`;
+  return amount === 1
+    ? t("count.hint.one", { amount })
+    : t("count.hint.many", { amount });
 }
 
 /** A chance in [0, 1] as a whole percentage, e.g. "65%". */
@@ -738,104 +844,122 @@ export function combatEventText(
 ): string | null {
   switch (event.type) {
     case "combat-started":
-      return "Hostiles engaged.";
+      return t("log.started");
     case "round-started":
-      return `— Round ${event.round} —`;
+      return t("log.round", { round: event.round });
     case "turn-started":
     case "moved":
       return null;
     case "stun-skipped":
-      return `${nameOf(event.combatantId)} is stunned and loses the turn.`;
+      return t("log.stunned", { name: nameOf(event.combatantId) });
     case "attacked":
       return event.hit
-        ? `${nameOf(event.attackerId)} hits ${nameOf(event.targetId)} for ` +
-            `${event.damage} damage.`
-        : `${nameOf(event.attackerId)} misses ${nameOf(event.targetId)}.`;
+        ? t("log.hit", {
+            attacker: nameOf(event.attackerId),
+            target: nameOf(event.targetId),
+            damage: event.damage,
+          })
+        : t("log.miss", {
+            attacker: nameOf(event.attackerId),
+            target: nameOf(event.targetId),
+          });
     case "ability-used": {
       const ability =
         lookupAbility(event.abilityId)?.name ?? event.abilityId;
       if (event.combatantId === event.targetId) {
-        return `${nameOf(event.combatantId)} uses ${ability}.`;
+        return t("log.ability.self", {
+          name: nameOf(event.combatantId),
+          ability,
+        });
       }
-      const stun = event.stunTurns > 0 ? ", stunning them" : "";
-      return (
-        `${nameOf(event.combatantId)} hits ${nameOf(event.targetId)} with ` +
-        `${ability} for ${event.damage} damage${stun}.`
-      );
+      const stun = event.stunTurns > 0 ? t("log.ability.stun") : "";
+      return t("log.ability", {
+        name: nameOf(event.combatantId),
+        target: nameOf(event.targetId),
+        ability,
+        damage: event.damage,
+        stun,
+      });
     }
     case "charge-started": {
       const ability = lookupAbility(event.abilityId)?.name ?? event.abilityId;
       // Names the ground, not the target: what the player has to act on
       // is the marked lane, and it does not follow anybody.
-      return (
-        `${nameOf(event.combatantId)} winds up ${ability} — the marked ` +
-        `ground is hit on its next turn.`
-      );
+      return t("log.charge.started", {
+        name: nameOf(event.combatantId),
+        ability,
+      });
     }
     case "charge-released": {
       const ability = lookupAbility(event.abilityId)?.name ?? event.abilityId;
       // A charge that catches nobody is the whole reward for reading it,
       // so the log says so out loud rather than falling silent.
       return event.bodies === 0
-        ? `${nameOf(event.combatantId)} looses ${ability} into empty ground.`
-        : `${nameOf(event.combatantId)} looses ${ability}.`;
+        ? t("log.charge.empty", {
+            name: nameOf(event.combatantId),
+            ability,
+          })
+        : t("log.charge.released", {
+            name: nameOf(event.combatantId),
+            ability,
+          });
     }
     case "static-armed":
       // The warning has to name the answer, or it is not a telegraph:
       // one turn, hands down, and the noise goes nowhere.
-      return (
-        `${nameOf(event.combatantId)}'s chrome is howling — hold the ` +
-        `next turn's action to bleed it off, or lose the turn after it.`
-      );
+      return t("log.static.armed", { name: nameOf(event.combatantId) });
     case "static-vented":
-      return `${nameOf(event.combatantId)} rides the static out. It settles.`;
+      return t("log.static.vented", { name: nameOf(event.combatantId) });
     case "static-surge":
-      return (
-        `Static surges through ${nameOf(event.combatantId)} — every ` +
-        `implant firing at once.`
-      );
+      return t("log.static.surge", { name: nameOf(event.combatantId) });
     case "item-used": {
       const item = lookupItem(event.itemId)?.name ?? event.itemId;
-      return `${nameOf(event.combatantId)} uses a ${item}.`;
+      return t("log.item", { name: nameOf(event.combatantId), item });
     }
     case "healed":
-      return `${nameOf(event.combatantId)} recovers ${event.amount} HP.`;
+      return t("log.healed", {
+        name: nameOf(event.combatantId),
+        amount: event.amount,
+      });
     case "second-wind":
       // Named out loud: a perk that fires once a fight has to be seen
       // firing, or the player learns nothing from having taken it.
-      return (
-        `${nameOf(event.combatantId)} goes down and does not stay down — ` +
-        `second wind, ${event.amount} HP.`
-      );
+      return t("log.secondWind", {
+        name: nameOf(event.combatantId),
+        amount: event.amount,
+      });
     case "boosted":
-      return (
-        `${nameOf(event.combatantId)} gains ${signedNumber(event.amount)} ` +
-        `${statLabel(event.stat)} for ${event.turns} turns.`
-      );
+      return t("log.boosted", {
+        name: nameOf(event.combatantId),
+        amount: signedNumber(event.amount),
+        stat: statLabel(event.stat),
+        turns: event.turns,
+      });
     case "crashed":
       // The bill, named as the bill: a stim that only ever showed its
       // lift would read as a free action several turns later.
-      return (
-        `The stim leaves ${nameOf(event.combatantId)} — ` +
-        `${signedNumber(event.amount)} ${statLabel(event.stat)} for ` +
-        `${event.turns} turns.`
-      );
+      return t("log.crashed", {
+        name: nameOf(event.combatantId),
+        amount: signedNumber(event.amount),
+        stat: statLabel(event.stat),
+        turns: event.turns,
+      });
     case "settled":
-      return `${nameOf(event.combatantId)} settles. The chrome goes quiet.`;
+      return t("log.settled", { name: nameOf(event.combatantId) });
     case "flee-attempted":
       return event.success
-        ? `${nameOf(event.combatantId)} breaks away from the fight!`
-        : `${nameOf(event.combatantId)} tries to flee but finds no opening.`;
+        ? t("log.flee.success", { name: nameOf(event.combatantId) })
+        : t("log.flee.failed", { name: nameOf(event.combatantId) });
     case "defeated":
-      return `${nameOf(event.combatantId)} goes down.`;
+      return t("log.defeated", { name: nameOf(event.combatantId) });
     case "combat-ended":
       switch (event.result) {
         case "victory":
-          return "All hostiles are down.";
+          return t("log.end.victory");
         case "defeat":
-          return "You collapse. The fight is over.";
+          return t("log.end.defeat");
         case "fled":
-          return "You are clear of the fight.";
+          return t("log.end.fled");
       }
   }
 }

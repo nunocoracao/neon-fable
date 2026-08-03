@@ -112,6 +112,7 @@ import { createWorkbenchOverlay } from "./workbenchOverlay";
 import { showScreen, type Screen } from "./screen";
 import { autosave, enterMap, type Session } from "./session";
 import { createSettingsOverlay } from "./settingsScreen";
+import { t } from "./strings";
 
 /**
  * The in-game screen: iso scene on the background canvas, a HUD bar,
@@ -542,7 +543,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
             // the player gets is the fact; what they used to get was
             // the raw ending id ("job-done", "walked-away"), which is a
             // thing only the person who wrote the arc can read.
-            showToast("That thread is closed. The city keeps moving.");
+            showToast(t("game.threadClosed"));
           }
         },
         onComplete: closeOverlay,
@@ -557,7 +558,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     panel.className = "nf-panel nf-chapter-end";
     const kicker = document.createElement("div");
     kicker.className = "nf-chapter-end-kicker";
-    kicker.textContent = "Chapter complete";
+    kicker.textContent = t("game.chapterComplete");
     const title = document.createElement("h2");
     title.textContent = ending.title;
     panel.append(kicker, title);
@@ -572,18 +573,18 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     const entries: Array<[string, () => void]> = [
       // Leaving the chapter's own panel is where the act boundary
       // actually lands, so the interlude takes over from it directly.
-      ["Keep Exploring", () => {
+      [t("game.chapter.keepExploring"), () => {
         if (!playPendingInterlude()) closeOverlay();
       }],
-      ["Main Menu", () => showScreen(createMainMenuScreen())],
+      [t("game.chapter.mainMenu"), () => showScreen(createMainMenuScreen())],
     ];
     if (availablePoints(session.state) > 0) {
-      entries.unshift(["Spend Advancement Points", openAdvancement]);
+      entries.unshift([t("game.chapter.spendPoints"), openAdvancement]);
     }
     // A chapter ending is a deed the city counts, so the milestone it
     // pushes past is offered on the same panel that reported it.
     if (perkPicksAvailable(session.state) > 0) {
-      entries.unshift(["Choose a Perk", openPerks]);
+      entries.unshift([t("game.chapter.choosePerk"), openPerks]);
     }
     for (const [label, action] of entries) {
       const button = document.createElement("button");
@@ -650,11 +651,11 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     }
     if (!shardOpens(session.state, shard)) {
       audio.emit("ui.cancel");
-      showToast(shard.sealed ?? "The chip's index refuses to open.");
+      showToast(shard.sealed ?? t("game.shardUnreadable"));
       return;
     }
     if (hasShard(session.state.lore, shard.id)) {
-      showToast(`"${shard.title}" is already in the codex.`);
+      showToast(t("game.shardAlreadyRead", { title: shard.title }));
       return;
     }
     session.state = collectShard(session.state, shard.id);
@@ -1009,18 +1010,18 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     const panel = document.createElement("div");
     panel.className = "nf-panel nf-system-menu";
     const title = document.createElement("h2");
-    title.textContent = "Paused";
+    title.textContent = t("game.paused");
     panel.append(title);
     const menu = document.createElement("div");
     menu.className = "nf-menu";
     const entries: Array<[string, () => void]> = [
-      ["Resume", closeOverlay],
-      ["Save / Load", openSaves],
+      [t("game.menu.resume"), closeOverlay],
+      [t("game.menu.saveLoad"), openSaves],
       // The codex full-screen, carrying the run so the shard section
       // can show what this character is holding beside what the player
       // has ever found. Back remounts the district.
       [
-        "Codex",
+        t("game.menu.codex"),
         () =>
           showScreen(
             createCodexScreen({
@@ -1029,9 +1030,9 @@ export function createGameScreen(options: GameScreenOptions): Screen {
             }),
           ),
       ],
-      ["Settings", openSettings],
+      [t("game.menu.settings"), openSettings],
       [
-        "Quit to Main Menu",
+        t("game.menu.quit"),
         () => showScreen(createMainMenuScreen()),
       ],
     ];
@@ -1166,18 +1167,18 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       const actions = document.createElement("div");
       actions.className = "nf-hud-actions";
       const hudButtons: Array<[string, () => void]> = [
-        ["Inventory [I]", () => (overlay?.kind === "inventory" ? closeOverlay() : openInventory())],
-        ["Crew [C]", () => (overlay?.kind === "party" ? closeOverlay() : openParty())],
-        ["Advance [P]", () => (overlay?.kind === "advance" ? closeOverlay() : openAdvancement())],
-        ["Saves", openSaves],
-        ["Menu [Esc]", () => (overlay ? closeOverlay() : openSystemMenu())],
+        [t("game.hud.inventory"), () => (overlay?.kind === "inventory" ? closeOverlay() : openInventory())],
+        [t("game.hud.crew"), () => (overlay?.kind === "party" ? closeOverlay() : openParty())],
+        [t("game.hud.advance"), () => (overlay?.kind === "advance" ? closeOverlay() : openAdvancement())],
+        [t("game.hud.saves"), openSaves],
+        [t("game.hud.menu"), () => (overlay ? closeOverlay() : openSystemMenu())],
       ];
       for (const [label, action] of hudButtons) {
         const button = document.createElement("button");
         button.className = "nf-button nf-button-small";
         button.textContent = label;
         button.addEventListener("click", action);
-        if (label === "Advance [P]") advanceButton = button;
+        if (label === t("game.hud.advance")) advanceButton = button;
         actions.append(button);
       }
       hud.append(hudStatus, actions);

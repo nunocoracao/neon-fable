@@ -400,6 +400,7 @@ export {
 export { endings, getEnding, type ChapterEnding } from "./endings";
 export {
   LORE_PAYOFF,
+  LORE_PAYOFF_TITLE,
   LORE_SHARDS,
   getShard,
   requireShard,

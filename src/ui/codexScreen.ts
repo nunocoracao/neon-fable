@@ -1,6 +1,7 @@
 import { audio, musicScene } from "../audio";
 import {
   LORE_PAYOFF,
+  LORE_PAYOFF_TITLE,
   LORE_SHARDS,
   endings,
   epilogueThreads,
@@ -16,6 +17,7 @@ import {
 import { shardLockedHint, shardNumber } from "./format";
 import { focusFirst, installListNav } from "./focus";
 import type { Screen } from "./screen";
+import { t } from "./strings";
 
 /**
  * The codex: every final ending as a card — discovered ones with title
@@ -51,11 +53,11 @@ export function createCodexScreen(options: {
       panel.className = "nf-panel nf-codex";
 
       const title = document.createElement("h2");
-      title.textContent = "Codex";
+      title.textContent = t("codex.title");
       panel.append(title);
 
       const endingsTitle = document.createElement("h3");
-      endingsTitle.textContent = "Endings";
+      endingsTitle.textContent = t("codex.endings");
       panel.append(endingsTitle);
 
       const meta = loadMetaProgress(window.localStorage);
@@ -63,9 +65,11 @@ export function createCodexScreen(options: {
 
       const stats = document.createElement("p");
       stats.className = "nf-codex-stats";
-      stats.textContent =
-        `Endings found ${codex.found}/${codex.total} · ` +
-        `Playthroughs completed: ${meta.completions}`;
+      stats.textContent = t("codex.endings.stats", {
+        found: codex.found,
+        total: codex.total,
+        completions: meta.completions,
+      });
       panel.append(stats);
 
       const list = document.createElement("div");
@@ -99,14 +103,17 @@ export function createCodexScreen(options: {
       );
 
       const threadsTitle = document.createElement("h3");
-      threadsTitle.textContent = "Epilogue Threads";
+      threadsTitle.textContent = t("codex.threads");
       panel.append(threadsTitle);
 
       const threadStats = document.createElement("p");
       threadStats.className = "nf-codex-stats nf-codex-epilogue-stats";
-      threadStats.textContent =
-        `Threads found ${epilogue.threadsFound}/${epilogue.threads} · ` +
-        `Outcomes recorded ${epilogue.found}/${epilogue.total}`;
+      threadStats.textContent = t("codex.threads.stats", {
+        found: epilogue.threadsFound,
+        threads: epilogue.threads,
+        outcomes: epilogue.found,
+        total: epilogue.total,
+      });
       panel.append(threadStats);
 
       const threadList = document.createElement("div");
@@ -127,7 +134,7 @@ export function createCodexScreen(options: {
         // Discovered threads report their tally; locked ones say only
         // what kind of thing could have happened, never which way.
         text.textContent = found
-          ? `Outcomes seen: ${entry.found}/${entry.total}`
+          ? t("codex.threads.outcomes", { found: entry.found, total: entry.total })
           : entry.hint;
 
         card.append(heading, text);
@@ -142,15 +149,21 @@ export function createCodexScreen(options: {
       const lore = deriveLoreCodex(LORE_SHARDS, options.state?.lore ?? null, meta);
 
       const loreTitle = document.createElement("h3");
-      loreTitle.textContent = "Memory Shards";
+      loreTitle.textContent = t("codex.shards");
       panel.append(loreTitle);
 
       const loreStats = document.createElement("p");
       loreStats.className = "nf-codex-stats nf-codex-lore-stats";
       loreStats.textContent = options.state
-        ? `Shards this run ${lore.collected}/${lore.total} · ` +
-          `Ever found ${lore.discovered}/${lore.total}`
-        : `Shards ever found ${lore.discovered}/${lore.total}`;
+        ? t("codex.shards.statsInRun", {
+            collected: lore.collected,
+            discovered: lore.discovered,
+            total: lore.total,
+          })
+        : t("codex.shards.statsEver", {
+            discovered: lore.discovered,
+            total: lore.total,
+          });
       panel.append(loreStats);
 
       const loreList = document.createElement("div");
@@ -167,7 +180,7 @@ export function createCodexScreen(options: {
         heading.className = "nf-codex-title";
         heading.textContent = entry.discovered
           ? `${shardNumber(entry.index)} · ${entry.title ?? ""}`
-          : `Shard ${shardNumber(entry.index)}`;
+          : t("codex.shards.locked", { number: shardNumber(entry.index) });
         card.append(heading);
 
         if (entry.discovered) {
@@ -200,7 +213,7 @@ export function createCodexScreen(options: {
         payoff.className = "nf-codex-entry nf-codex-found nf-codex-payoff";
         const heading = document.createElement("div");
         heading.className = "nf-codex-title";
-        heading.textContent = "The Grey Choir";
+        heading.textContent = LORE_PAYOFF_TITLE;
         payoff.append(heading);
         for (const paragraph of LORE_PAYOFF) {
           const text = document.createElement("p");
@@ -215,7 +228,7 @@ export function createCodexScreen(options: {
       menu.className = "nf-menu";
       const back = document.createElement("button");
       back.className = "nf-button";
-      back.textContent = "Back";
+      back.textContent = t("common.back");
       back.addEventListener("click", options.onBack);
       menu.append(back);
       panel.append(menu);

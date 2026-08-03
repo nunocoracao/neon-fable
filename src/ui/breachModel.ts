@@ -15,7 +15,8 @@ import {
   type FragmentType,
 } from "../minigames";
 import type { BreachAward, RunnerRead } from "../minigames";
-import { itemSummary } from "./format";
+import { chainsLabel, itemSummary } from "./format";
+import { plain, t, type PlainKey } from "./strings";
 
 /**
  * The Breach screen, as data. Pure over a game and its context — no
@@ -37,11 +38,11 @@ const FRAGMENT_GLYPHS: Readonly<Record<FragmentType, string>> = {
 };
 
 /** How a fragment reads in a sentence. */
-const FRAGMENT_NAMES: Readonly<Record<FragmentType, string>> = {
-  carrier: "carrier",
-  cipher: "cipher",
-  pulse: "pulse",
-  ghost: "ghost",
+const FRAGMENT_NAMES: Readonly<Record<FragmentType, PlainKey>> = {
+  carrier: "breach.fragment.carrier",
+  cipher: "breach.fragment.cipher",
+  pulse: "breach.fragment.pulse",
+  ghost: "breach.fragment.ghost",
 };
 
 export function fragmentGlyph(fragment: FragmentType): string {
@@ -80,22 +81,27 @@ export function breachCell(view: BreachNodeView): BreachCell {
         : `${view.value}`;
 
   const parts: string[] = [];
-  if (view.kind === "entry") parts.push("Entry node");
-  else if (view.kind === "core") parts.push("The core");
-  else if (view.kind === "dead") parts.push("Corrupt — nothing routes through");
+  if (view.kind === "entry") parts.push(t("breach.node.entry"));
+  else if (view.kind === "core") parts.push(t("breach.node.core"));
+  else if (view.kind === "dead") parts.push(t("breach.node.dead"));
   else {
+    const fragment = plain(FRAGMENT_NAMES[view.fragment ?? "carrier"]);
     parts.push(
       view.kind === "trace"
-        ? `Trace node, ${FRAGMENT_NAMES[view.fragment ?? "carrier"]}`
-        : `${FRAGMENT_NAMES[view.fragment ?? "carrier"]} fragment`,
+        ? t("breach.node.trace", { fragment })
+        : t("breach.node.fragment", { fragment }),
     );
-    parts.push(view.value === null ? "yield unread" : `yield ${view.value}`);
+    parts.push(
+      view.value === null
+        ? t("breach.node.unread")
+        : t("breach.node.yield", { value: view.value }),
+    );
   }
   if (view.kind !== "dead" && view.kind !== "entry") {
-    parts.push(`costs ${view.cost}`);
+    parts.push(t("breach.node.cost", { cost: view.cost }));
   }
-  if (view.head) parts.push("you are here");
-  else if (view.onPath) parts.push("routed");
+  if (view.head) parts.push(t("breach.node.here"));
+  else if (view.onPath) parts.push(t("breach.node.routed"));
   return { view, glyph, yieldLabel, label: parts.join(" · "), tone: view.kind };
 }
 
@@ -165,14 +171,16 @@ export function breachBrief(
     difficultyLine: `${difficulty.label} · ${difficulty.blurb}`,
     brief: context.brief,
     prize: context.prize,
-    bufferLine:
-      `Buffer ${game.budget} — ${game.lattice.minCost} to route it clean, ` +
-      `${slack} to be wrong with.`,
+    bufferLine: t("breach.buffer", {
+      budget: game.budget,
+      minimum: game.lattice.minCost,
+      slack,
+    }),
     notes: runner.notes,
     warning:
       context.rewards.partial === true
-        ? "One attempt. Pull out early and you keep the data you carried."
-        : "One attempt. There is nothing here to carry out early.",
+        ? t("breach.warning.partial")
+        : t("breach.warning.allOrNothing"),
   };
 }
 
@@ -220,29 +228,26 @@ export function breachReport(
 
   if (outcome.status === "breached") {
     return {
-      headline: "Core reached",
-      body:
-        `${outcome.steps} hops, ${outcome.chains} ` +
-        `chain${outcome.chains === 1 ? "" : "s"} banked, ${outcome.harvest} ` +
-        `fragments of data out, ${outcome.budgetLeft} left in the buffer.`,
+      headline: t("breach.report.breached"),
+      body: t("breach.report.breached.body", {
+        hops: outcome.steps,
+        chains: chainsLabel(outcome.chains),
+        harvest: outcome.harvest,
+        left: outcome.budgetLeft,
+      }),
       payout,
     };
   }
   if (outcome.status === "withdrawn") {
     return {
-      headline: "Pulled out",
-      body:
-        `You back the route out one node at a time and let the lattice ` +
-        `close over it. ${outcome.harvest} fragments of data came with you.`,
+      headline: t("breach.report.withdrawn"),
+      body: t("breach.report.withdrawn.body", { harvest: outcome.harvest }),
       payout,
     };
   }
   return {
-    headline: "Locked out",
-    body:
-      "The buffer runs dry with the core still ahead of you, and the " +
-      "trace closes on an empty channel. Whatever was in there stays in " +
-      "there.",
+    headline: t("breach.report.lockedOut"),
+    body: t("breach.report.lockedOut.body"),
     payout,
   };
 }
@@ -252,10 +257,7 @@ export function spentLine(context: BreachContext, recorded: unknown): string {
   const outcome = typeof recorded === "string" ? recorded : "";
   if (outcome === "breached") return context.spent;
   if (outcome === "withdrawn") {
-    return `${context.spent} You did not finish what you started here.`;
+    return t("breach.spent.withdrawn", { spent: context.spent });
   }
-  return (
-    "The channel is dead. Whatever logged you the first time is still " +
-    "logging, and it will not open again."
-  );
+  return t("breach.spent.lockedOut");
 }

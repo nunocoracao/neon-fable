@@ -12,6 +12,7 @@ import {
 import type { OverlayHandle } from "./overlay";
 import { companionPortraitCanvas } from "./portraits";
 import type { Session } from "./session";
+import { t } from "./strings";
 
 /**
  * The crew panel: who has joined, who is walking with you, and who has
@@ -106,7 +107,7 @@ export function createPartyOverlay(
     const status = document.createElement("div");
     status.className = "nf-party-status";
     status.textContent = [
-      `HP ${member.hp}/${member.maxHp}`,
+      t("party.hp", { hp: member.hp, max: member.maxHp }),
       loyaltyLabel(member.loyalty),
       gearLine(member),
     ]
@@ -141,7 +142,9 @@ export function createPartyOverlay(
     if (ready.has(member.companionId)) {
       const waiting = document.createElement("div");
       waiting.className = "nf-party-waiting";
-      waiting.textContent = `${companionName(member.companionId)} has something to say.`;
+      waiting.textContent = t("party.waiting", {
+        name: companionName(member.companionId),
+      });
       body.append(waiting);
     }
 
@@ -152,11 +155,11 @@ export function createPartyOverlay(
     if (member.active) {
       const out = document.createElement("span");
       out.className = "nf-party-out";
-      out.textContent = "With you";
-      actions.append(out, actionButton("Stand down", () => switchTo(null)));
+      out.textContent = t("party.withYou");
+      actions.append(out, actionButton(t("party.standDown"), () => switchTo(null)));
     } else {
       actions.append(
-        actionButton("Take along", () => switchTo(member.companionId)),
+        actionButton(t("party.takeAlong"), () => switchTo(member.companionId)),
       );
     }
     card.append(actions);
@@ -172,10 +175,10 @@ export function createPartyOverlay(
     const header = document.createElement("div");
     header.className = "nf-panel-header";
     const title = document.createElement("h2");
-    title.textContent = "Crew";
+    title.textContent = t("party.title");
     const close = document.createElement("button");
     close.className = "nf-button nf-button-small";
-    close.textContent = "Close [Esc]";
+    close.textContent = t("common.closeEsc");
     close.addEventListener("click", options.onClose);
     header.append(title, close);
     panel.append(header);
@@ -184,8 +187,8 @@ export function createPartyOverlay(
     note.className = "nf-message";
     note.textContent =
       session.state.party.members.length === 0
-        ? "Nobody has thrown in with you yet."
-        : "One of them walks with you at a time. Swap between jobs.";
+        ? t("party.empty")
+        : t("party.note");
     panel.append(note);
 
     const list = document.createElement("div");
@@ -196,7 +199,7 @@ export function createPartyOverlay(
     panel.append(list);
 
     if (ready.size > 0) {
-      const talk = actionButton("A word in private", () => {
+      const talk = actionButton(t("party.talk"), () => {
         audio.emit("ui.confirm");
         options.onTalk(companionsArc.entryNodeId);
       });

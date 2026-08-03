@@ -6,6 +6,7 @@
  */
 import type { Facing, LoopState } from "../iso/animation";
 import { ART_SCALE } from "../iso/art/pixel";
+import { t } from "./strings";
 
 /**
  * Facing cycle for rotate-right, one quarter turn per step. In iso
@@ -38,13 +39,13 @@ export const DEFAULT_PREVIEW_STATE: PreviewState = {
 export function facingLabel(facing: Facing): string {
   switch (facing) {
     case "s":
-      return "front left";
+      return t("preview.facing.frontLeft");
     case "e":
-      return "front right";
+      return t("preview.facing.frontRight");
     case "n":
-      return "back right";
+      return t("preview.facing.backRight");
     case "w":
-      return "back left";
+      return t("preview.facing.backLeft");
   }
 }
 

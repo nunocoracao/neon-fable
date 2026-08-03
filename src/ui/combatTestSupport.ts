@@ -17,6 +17,7 @@ import {
 import { getAbility, getItem } from "../data";
 import type { GameState } from "../state";
 import { combatantDisplayNames } from "./format";
+import { t } from "./strings";
 
 /**
  * Scripted-fight support for combat UI tests (no vitest imports so it
@@ -193,7 +194,7 @@ export function replayStep(
       ui.pressKey(step.key);
       break;
     case "end-turn":
-      ui.click("End Turn");
+      ui.click(t("combat.action.endTurn"));
       break;
   }
 }

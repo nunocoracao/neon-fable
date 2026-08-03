@@ -24,6 +24,7 @@ import { settings, type Settings } from "../settings";
 import { npcSpriteSource, sceneSpriteSource } from "./entitySprites";
 import { createPerfHud, type PerfHud } from "./perfHud";
 import type { Screen } from "./screen";
+import { t } from "./strings";
 
 export interface PerfScreenOptions {
   /** Which scripted scene to run; the first is the worst case. */
@@ -63,14 +64,16 @@ export function createPerfScreen(options: PerfScreenOptions): Screen {
 
       const back = document.createElement("button");
       back.className = "nf-button nf-explore-back";
-      back.textContent = "Back";
+      back.textContent = t("common.back");
       back.addEventListener("click", options.onExit);
 
       let scrolling = true;
       const scroll = document.createElement("button");
       scroll.className = "nf-button nf-button-small";
       const labelScroll = (): void => {
-        scroll.textContent = scrolling ? "Scroll: on" : "Scroll: off";
+        scroll.textContent = scrolling
+          ? t("perf.scroll.on")
+          : t("perf.scroll.off");
       };
       labelScroll();
       scroll.addEventListener("click", () => {

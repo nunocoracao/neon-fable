@@ -38,6 +38,7 @@ import {
   staticMeter,
   uninstallPreviewRow,
 } from "./staticModel";
+import { t } from "./strings";
 
 /**
  * Inventory panel: carried items, weapon/outfit slots, cyber install
@@ -116,9 +117,14 @@ export function createInventoryOverlay(
     status.className = "nf-inventory-status";
 
     const hp = document.createElement("span");
-    hp.textContent = `HP ${player.hp}/${player.derived.maxHp}`;
+    hp.textContent = t("inventory.hp", {
+      hp: player.hp,
+      max: player.derived.maxHp,
+    });
     const credits = document.createElement("span");
-    credits.textContent = `${session.state.credits} cr`;
+    credits.textContent = t("inventory.credits", {
+      credits: session.state.credits,
+    });
 
     const neural = document.createElement("div");
     neural.className = "nf-neural";
@@ -127,7 +133,10 @@ export function createInventoryOverlay(
     // a meter that read the raw derived capacity would refuse an
     // install the rules allow.
     const capacity = neuralCapacityOf(player);
-    neuralLabel.textContent = `Neural load ${player.neuralLoad}/${capacity}`;
+    neuralLabel.textContent = t("inventory.neuralLoad", {
+      load: player.neuralLoad,
+      capacity,
+    });
     const meter = document.createElement("div");
     meter.className = "nf-meter";
     const fill = document.createElement("div");
@@ -219,7 +228,7 @@ export function createInventoryOverlay(
     const section = document.createElement("div");
     section.className = "nf-inventory-section";
     const heading = document.createElement("h3");
-    heading.textContent = "Equipped";
+    heading.textContent = t("inventory.equipped");
     section.append(heading);
 
     for (const slot of ["weapon", "outfit"] as const) {
@@ -227,7 +236,8 @@ export function createInventoryOverlay(
       row.className = "nf-slot-row";
       const label = document.createElement("span");
       label.className = "nf-slot-label";
-      label.textContent = slot === "weapon" ? "Weapon" : "Outfit";
+      label.textContent =
+        slot === "weapon" ? t("inventory.slot.weapon") : t("inventory.slot.outfit");
       const value = document.createElement("span");
       value.className = "nf-slot-value";
       const itemId = player.equipment[slot];
@@ -235,7 +245,7 @@ export function createInventoryOverlay(
       row.append(label, value);
       if (itemId) {
         row.append(
-          actionButton("Unequip", () =>
+          actionButton(t("inventory.unequip"), () =>
             apply(() => unequip(player, session.state.inventory, slot), "ui.unequip"),
           ),
         );
@@ -248,7 +258,9 @@ export function createInventoryOverlay(
         if (fitted.length > 0) {
           const parts = document.createElement("div");
           parts.className = "nf-item-effects";
-          parts.textContent = `Fitted: ${fitted.map((m) => m.name).join(" · ")}`;
+          parts.textContent = t("inventory.fitted", {
+            mods: fitted.map((m) => m.name).join(" · "),
+          });
           section.append(parts);
         }
       }
@@ -257,7 +269,9 @@ export function createInventoryOverlay(
       if (slot === "outfit" && player.equipment.outfitDye) {
         const dyed = document.createElement("div");
         dyed.className = "nf-item-effects";
-        dyed.textContent = `Dyed: ${dyeChannelSummary(player.equipment.outfitDye)}`;
+        dyed.textContent = t("inventory.dyed", {
+          channels: dyeChannelSummary(player.equipment.outfitDye),
+        });
         section.append(dyed);
       }
     }
@@ -271,12 +285,12 @@ export function createInventoryOverlay(
       const value = document.createElement("span");
       value.className = "nf-slot-value";
       const itemId = player.equipment.enhancements[slot];
-      value.textContent = itemId ? itemName(itemId) : "Empty";
+      value.textContent = itemId ? itemName(itemId) : t("inventory.slot.empty");
       row.append(label, value);
       if (itemId) {
         if (pendingUninstall === slot) {
           row.append(
-            actionButton("Confirm extraction", () =>
+            actionButton(t("inventory.confirmExtraction"), () =>
               apply(
                 () =>
                   uninstallEnhancement(player, session.state.inventory, slot),
@@ -286,12 +300,12 @@ export function createInventoryOverlay(
           );
         } else {
           row.append(
-            actionButton("Uninstall", () => {
+            actionButton(t("inventory.uninstall"), () => {
               const item = getItem(itemId);
               message =
                 item?.kind === "enhancement"
                   ? uninstallWarning(item)
-                  : "Extraction destroys the implant.";
+                  : t("inventory.extractionWarning");
               messageIsError = false;
               pendingUninstall = slot;
               render();
@@ -307,7 +321,9 @@ export function createInventoryOverlay(
       if (itemId) {
         const quieter = document.createElement("div");
         quieter.className = "nf-item-effects";
-        quieter.textContent = `Pulling it: ${uninstallPreviewRow(player, slot).projection}`;
+        quieter.textContent = t("inventory.pulling", {
+          projection: uninstallPreviewRow(player, slot).projection,
+        });
         section.append(quieter);
       }
     }
@@ -323,7 +339,7 @@ export function createInventoryOverlay(
     const section = document.createElement("div");
     section.className = "nf-inventory-section";
     const heading = document.createElement("h3");
-    heading.textContent = "Standing";
+    heading.textContent = t("inventory.standing");
     section.append(heading);
 
     for (const row of factionRows(session.state.reputation)) {
@@ -363,7 +379,7 @@ export function createInventoryOverlay(
     const section = document.createElement("div");
     section.className = "nf-inventory-section";
     const heading = document.createElement("h3");
-    heading.textContent = "Carried";
+    heading.textContent = t("inventory.carried");
     section.append(heading);
 
     const grid = document.createElement("div");
@@ -371,7 +387,7 @@ export function createInventoryOverlay(
     if (inventory.stacks.length === 0) {
       const empty = document.createElement("p");
       empty.className = "nf-dim";
-      empty.textContent = "Nothing carried.";
+      empty.textContent = t("inventory.nothingCarried");
       grid.append(empty);
     }
     for (const stack of inventory.stacks) {
@@ -403,7 +419,7 @@ export function createInventoryOverlay(
 
         if (item.kind === "weapon" || item.kind === "outfit") {
           card.append(
-            actionButton("Equip", () =>
+            actionButton(t("inventory.equip"), () =>
               apply(() => equip(player, inventory, item.id), "ui.equip"),
             ),
           );
@@ -420,7 +436,7 @@ export function createInventoryOverlay(
           preview.textContent = projected.projection;
           card.append(preview);
           card.append(
-            actionButton("Install", () =>
+            actionButton(t("inventory.install"), () =>
               apply(() => installEnhancement(player, inventory, item.id), "ui.install"),
             ),
           );
@@ -434,11 +450,11 @@ export function createInventoryOverlay(
           preview.className = "nf-item-effects";
           preview.textContent = usableIn(item, "exploration")
             ? consumableOutcomeText(outcome)
-            : "Only in a fight.";
+            : t("inventory.combatOnly");
           card.append(preview);
           if (usableIn(item, "exploration")) {
             card.append(
-              actionButton("Use", () =>
+              actionButton(t("inventory.use"), () =>
                 apply(
                   () => useConsumable(player, inventory, item.id),
                   "ui.item.use",
@@ -477,11 +493,11 @@ export function createInventoryOverlay(
         : portraitCanvas(player.appearance, player.equipment),
     );
     const title = document.createElement("h2");
-    title.textContent = "Inventory";
+    title.textContent = t("inventory.title");
     identity.append(title);
     const close = document.createElement("button");
     close.className = "nf-button nf-button-small";
-    close.textContent = "Close [Esc]";
+    close.textContent = t("common.closeEsc");
     close.addEventListener("click", options.onClose);
     header.append(identity, close);
     panel.append(header);

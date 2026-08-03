@@ -9,6 +9,7 @@ import {
   type OutfitRef,
 } from "../inventory";
 import { dyeChannelSummary } from "./format";
+import { t } from "./strings";
 
 /**
  * The chapel's colour counter, as data. Pure over a `DyeCounter` — no
@@ -65,10 +66,10 @@ export interface DyeCounterModel {
 
 /** "Wearing black cloth · amber trim", or the factory line. */
 export function coatColorLine(coat: DyeableOutfit): string {
-  if (!coat.dyeable) return "Nothing on it to dye";
+  if (!coat.dyeable) return t("dye.notDyeable");
   return coat.dye
-    ? `Wearing ${dyeChannelSummary(coat.dye)}`
-    : "Factory colours";
+    ? t("dye.wearing", { colors: dyeChannelSummary(coat.dye) })
+    : t("dye.factory");
 }
 
 /**
@@ -128,12 +129,12 @@ export function dyeCounterModel(
       carried,
       price,
       actionLabel: current
-        ? "Already worn"
+        ? t("dye.action.worn")
         : carried > 0
-          ? "Apply — carried"
+          ? t("dye.action.carried")
           : price !== null
-            ? `Buy & apply — ${price} cr`
-            : "Not for sale",
+            ? t("dye.action.buy", { price })
+            : t("dye.action.unavailable"),
       current,
       enabled: workable && (carried > 0 || affordable),
     });

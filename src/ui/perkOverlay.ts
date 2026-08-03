@@ -3,6 +3,7 @@ import { audio } from "../audio";
 import { credLabel, perkPanel, pickLabel, type PerkCard } from "./perkModel";
 import type { OverlayHandle } from "./overlay";
 import type { Session } from "./session";
+import { t } from "./strings";
 
 /**
  * The perk pick: a milestone reached, and one permanent decision about
@@ -90,7 +91,7 @@ export function createPerkOverlay(options: PerkOverlayOptions): OverlayHandle {
     if (card.taken) {
       const taken = document.createElement("div");
       taken.className = "nf-dim";
-      taken.textContent = "Yours";
+      taken.textContent = t("perk.taken");
       el.append(taken);
       return el;
     }
@@ -98,15 +99,15 @@ export function createPerkOverlay(options: PerkOverlayOptions): OverlayHandle {
 
     if (pending === card.id) {
       el.append(
-        actionButton("Confirm — this is permanent", () =>
+        actionButton(t("perk.confirm"), () =>
           apply(() => choosePerk(session.state, card.id)),
         ),
       );
     } else {
       el.append(
-        actionButton("Take", () => {
+        actionButton(t("perk.take"), () => {
           pending = card.id;
-          message = `${card.name} is a permanent choice. Confirm to take it.`;
+          message = t("perk.confirmPrompt", { name: card.name });
           messageIsError = false;
           render();
         }),
@@ -127,13 +128,16 @@ export function createPerkOverlay(options: PerkOverlayOptions): OverlayHandle {
     const picks = document.createElement("span");
     picks.className = view.picks > 0 ? "nf-advancement-available" : "nf-dim";
     picks.textContent =
-      view.picks > 0 ? pickLabel(view.picks) : "No pick waiting";
+      view.picks > 0 ? pickLabel(view.picks) : t("perk.picks.none");
     status.append(picks);
 
     if (view.next) {
       const next = document.createElement("span");
       next.className = "nf-dim";
-      next.textContent = `Next: ${view.next.label} at ${view.next.cred}`;
+      next.textContent = t("perk.next", {
+        label: view.next.label,
+        cred: view.next.cred,
+      });
       status.append(next);
     }
     panel.append(status);
@@ -144,7 +148,7 @@ export function createPerkOverlay(options: PerkOverlayOptions): OverlayHandle {
     breakdown.textContent =
       view.lines.length > 0
         ? view.lines.map((line) => `${line.label} +${line.cred}`).join(" · ")
-        : "Nothing the city has noticed yet.";
+        : t("perk.noCredYet");
     panel.append(breakdown);
   }
 
@@ -179,10 +183,10 @@ export function createPerkOverlay(options: PerkOverlayOptions): OverlayHandle {
     const header = document.createElement("div");
     header.className = "nf-panel-header";
     const title = document.createElement("h2");
-    title.textContent = "Perks";
+    title.textContent = t("perk.title");
     const close = document.createElement("button");
     close.className = "nf-button nf-button-small";
-    close.textContent = "Close [Esc]";
+    close.textContent = t("common.closeEsc");
     close.addEventListener("click", options.onClose);
     header.append(title, close);
     panel.append(header);
@@ -202,16 +206,16 @@ export function createPerkOverlay(options: PerkOverlayOptions): OverlayHandle {
     panel.append(messageLine);
 
     renderSection(
-      "Taken",
+      t("perk.section.taken"),
       view.taken,
       0,
-      "Nothing yet — the street has not made its mind up about you.",
+      t("perk.section.taken.empty"),
     );
     renderSection(
-      view.picks > 0 ? "Choose one" : "On offer",
+      view.picks > 0 ? t("perk.section.choose") : t("perk.section.offer"),
       view.choices,
       view.picks,
-      "You have taken everything there is to take.",
+      t("perk.section.offer.empty"),
     );
   }
 

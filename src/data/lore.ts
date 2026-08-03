@@ -336,6 +336,9 @@ export const LORE_SHARDS: readonly LoreShard[] = [
  * the loudest thing a run can do in Act 1, and the twelve shards make
  * it the second time that relay has been used for exactly this.
  */
+/** What the codex calls that payoff. Narrative, so it lives beside it. */
+export const LORE_PAYOFF_TITLE = "The Grey Choir";
+
 export const LORE_PAYOFF: readonly string[] = [
   "Put the twelve together and the ghost in the drowned Weave stops " +
     "being a ghost. Hex is not a fragmentary archive wearing three dead " +

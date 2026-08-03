@@ -21,6 +21,7 @@ import {
   type IsoMap,
   type MinimapView,
 } from "../iso";
+import { t } from "./strings";
 
 export interface MinimapOptions {
   map: IsoMap;
@@ -43,7 +44,7 @@ export interface MinimapHandle {
 }
 
 /** Label on the collapse tab; the key it answers to is in settingsScreen. */
-export const MINIMAP_TAB_LABEL = "Map [M]";
+export const MINIMAP_TAB_LABEL = t("minimap.tab");
 
 export function createMinimap(options: MinimapOptions): MinimapHandle {
   const { map } = options;

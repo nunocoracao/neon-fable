@@ -20,6 +20,7 @@ import { dyeCounterModel } from "./dyeModel";
 import { focusFirst } from "./focus";
 import type { OverlayHandle } from "./overlay";
 import type { Session } from "./session";
+import { t } from "./strings";
 
 /**
  * The Chrome Chapel's re-style screen: the creation wizard's shared
@@ -62,10 +63,10 @@ export function createStylistOverlay(
   const header = document.createElement("div");
   header.className = "nf-panel-header";
   const title = document.createElement("h2");
-  title.textContent = "The Chrome Chapel";
+  title.textContent = t("stylist.title");
   const fee = document.createElement("span");
   fee.className = "nf-dim";
-  fee.textContent = `Restyle fee: ${RESTYLE_PRICE} cr`;
+  fee.textContent = t("stylist.fee", { price: RESTYLE_PRICE });
   header.append(title, fee);
 
   const columns = document.createElement("div");
@@ -147,14 +148,13 @@ export function createStylistOverlay(
     dyes.replaceChildren();
 
     const heading = document.createElement("h3");
-    heading.textContent = "Colour work";
+    heading.textContent = t("stylist.dyes");
     dyes.append(heading);
 
     if (model.coats.length === 0) {
       const empty = document.createElement("p");
       empty.className = "nf-dim";
-      empty.textContent =
-        "\"Bring me a coat and I'll bring you a colour, love.\"";
+      empty.textContent = t("stylist.dyes.noCoat");
       dyes.append(empty);
       return;
     }
@@ -171,7 +171,10 @@ export function createStylistOverlay(
         button.dataset.coat =
           coat.ref.where === "equipped" ? "worn" : `${coat.ref.stackIndex}`;
         button.setAttribute("aria-pressed", String(coat.selected));
-        button.textContent = `${coat.place}: ${coat.name}`;
+        button.textContent = t("stylist.coat", {
+          place: coat.place,
+          name: coat.name,
+        });
         button.addEventListener("click", () => {
           coatRef = coat.ref;
           renderDyes();
@@ -196,7 +199,11 @@ export function createStylistOverlay(
       button.className = "nf-button nf-button-small nf-dye-tin";
       button.dataset.dye = tin.dyeId;
       button.disabled = !tin.enabled;
-      button.textContent = `${tin.name} — ${tin.colors} · ${tin.actionLabel}`;
+      button.textContent = t("stylist.tin", {
+        name: tin.name,
+        colors: tin.colors,
+        action: tin.actionLabel,
+      });
       button.addEventListener("click", () => {
         const ref = model.selected?.ref;
         if (!ref) return;
@@ -219,11 +226,11 @@ export function createStylistOverlay(
       const ref = model.selected.ref;
       const strip = document.createElement("button");
       strip.className = "nf-button nf-button-small nf-dye-strip";
-      strip.textContent = "Strip to factory colours (free)";
+      strip.textContent = t("stylist.strip");
       strip.addEventListener("click", () => {
         dyeAction(
           () => stripDye(counter(), ref),
-          "Stripped back. The cloth remembers nothing.",
+          t("stylist.stripped"),
         );
       });
       dyes.append(strip);
@@ -242,14 +249,14 @@ export function createStylistOverlay(
   buttons.className = "nf-wizard-controls";
   const cancel = document.createElement("button");
   cancel.className = "nf-button";
-  cancel.textContent = "Cancel";
+  cancel.textContent = t("stylist.cancel");
   cancel.addEventListener("click", () => {
     audio.emit("ui.cancel");
     options.onClose();
   });
   const confirm = document.createElement("button");
   confirm.className = "nf-button nf-button-primary";
-  confirm.textContent = `Confirm (${RESTYLE_PRICE} cr)`;
+  confirm.textContent = t("stylist.confirm", { price: RESTYLE_PRICE });
   confirm.addEventListener("click", () => {
     const result = applyRestyle(session.state, draft);
     if (!result.ok) {
@@ -271,14 +278,14 @@ export function createStylistOverlay(
     confirm.disabled = !changed || !affordable;
     status.classList.toggle("nf-error", changed && !affordable);
     if (!changed) {
-      status.textContent =
-        "Pick a new look — the chair charges only for what changes.";
+      status.textContent = t("stylist.status.unchanged");
     } else if (!affordable) {
       status.textContent = RESTYLE_REFUSAL;
     } else {
-      status.textContent =
-        `${RESTYLE_PRICE} cr on confirm — you carry ` +
-        `${session.state.credits} cr.`;
+      status.textContent = t("stylist.status.price", {
+        price: RESTYLE_PRICE,
+        credits: session.state.credits,
+      });
     }
   }
   refreshStatus();
