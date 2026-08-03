@@ -19,6 +19,7 @@ import { actTitle, getBackground, getDifficulty, getMap } from "../data";
 import type { SaveSlot, SlotRecord, SlotStatus } from "../state";
 import { SAVE_LABEL_MAX_LENGTH, sanitizeSaveLabel } from "../state";
 import { formatTimestamp, slotDisplayName } from "./format";
+import { t } from "./strings";
 
 /** How a card asks before it throws a save away. */
 export type DeleteGuard = "click" | "type-name";
@@ -136,10 +137,10 @@ export function deleteConfirmed(card: SlotCard, typed: string): boolean {
  */
 export function renameError(raw: string): string | null {
   if (raw.length > 0 && sanitizeSaveLabel(raw).length === 0) {
-    return "Enter a name, or leave it blank to clear the label.";
+    return t("save.rename.error.blank");
   }
   if (raw.trim().length > SAVE_LABEL_MAX_LENGTH) {
-    return `Labels cap at ${SAVE_LABEL_MAX_LENGTH} characters.`;
+    return t("save.rename.error.tooLong", { max: SAVE_LABEL_MAX_LENGTH });
   }
   return null;
 }
@@ -154,7 +155,7 @@ export function cardTitle(card: SlotCard): string {
  * ------------------------------------------------------------------ */
 
 function identityLine(name: string, backgroundId: string): string {
-  const runner = name.trim().length > 0 ? name.trim() : "Unnamed runner";
+  const runner = name.trim().length > 0 ? name.trim() : t("save.unnamed");
   const background = getBackground(backgroundId)?.name;
   return background ? `${runner} — ${background}` : runner;
 }
@@ -191,17 +192,17 @@ function noticeFor(record: SlotRecord): string | null {
   if (!record.error) return null;
   switch (record.error.code) {
     case "version-mismatch":
-      return "Saved by a different version of the game — it cannot be loaded here.";
+      return t("save.notice.version");
     case "corrupt":
       return record.hasBackup
-        ? "This save could not be read. The backup from before it was written is still here."
-        : "This save could not be read. Everything else is fine.";
+        ? t("save.notice.corrupt.backup")
+        : t("save.notice.corrupt");
     case "checksum":
       return record.hasBackup
-        ? "This save changed after it was written and cannot be trusted. The backup from before it was written is still here."
-        : "This save changed after it was written and cannot be trusted.";
+        ? t("save.notice.checksum.backup")
+        : t("save.notice.checksum");
     case "migration-failed":
-      return "This save could not be updated for this version of the game. It has been left exactly as it was.";
+      return t("save.notice.migration");
     case "missing":
       return null;
   }

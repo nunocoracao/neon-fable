@@ -199,7 +199,7 @@ export function createPartyOverlay(
     panel.append(list);
 
     if (ready.size > 0) {
-      const talk = actionButton("A word in private", () => {
+      const talk = actionButton(t("party.talk"), () => {
         audio.emit("ui.confirm");
         options.onTalk(companionsArc.entryNodeId);
       });

@@ -206,16 +206,16 @@ export function createPerkOverlay(options: PerkOverlayOptions): OverlayHandle {
     panel.append(messageLine);
 
     renderSection(
-      "Taken",
+      t("perk.section.taken"),
       view.taken,
       0,
-      "Nothing yet — the street has not made its mind up about you.",
+      t("perk.section.taken.empty"),
     );
     renderSection(
-      view.picks > 0 ? "Choose one" : "On offer",
+      view.picks > 0 ? t("perk.section.choose") : t("perk.section.offer"),
       view.choices,
       view.picks,
-      "You have taken everything there is to take.",
+      t("perk.section.offer.empty"),
     );
   }
 

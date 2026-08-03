@@ -230,7 +230,7 @@ export function createStylistOverlay(
       strip.addEventListener("click", () => {
         dyeAction(
           () => stripDye(counter(), ref),
-          "Stripped back. The cloth remembers nothing.",
+          t("stylist.stripped"),
         );
       });
       dyes.append(strip);

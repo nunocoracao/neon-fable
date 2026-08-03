@@ -921,6 +921,85 @@ export const STRINGS = {
   "dye.action.carried": "Apply — carried",
   "dye.action.buy": "Buy & apply — {price} cr",
   "dye.action.unavailable": "Not for sale",
+
+  /* -------------------------------------------------------------- *
+   * Remaining model copy: save-card notices, the review sheet's
+   * appearance labels, stealth refusals, the preview controls.
+   * -------------------------------------------------------------- */
+  "save.unnamed": "Unnamed runner",
+  "save.rename.error.blank":
+    "Enter a name, or leave it blank to clear the label.",
+  "save.rename.error.tooLong": "Labels cap at {max} characters.",
+  "save.notice.version":
+    "Saved by a different version of the game — it cannot be loaded here.",
+  "save.notice.corrupt": "This save could not be read. Everything else is fine.",
+  "save.notice.corrupt.backup":
+    "This save could not be read. The backup from before it was written is still here.",
+  "save.notice.checksum":
+    "This save changed after it was written and cannot be trusted.",
+  "save.notice.checksum.backup":
+    "This save changed after it was written and cannot be trusted. The backup from before it was written is still here.",
+  "save.notice.migration":
+    "This save could not be updated for this version of the game. It has been left exactly as it was.",
+
+  "appearance.field.skinTone": "Skin tone",
+  "appearance.field.build": "Build",
+  "appearance.field.hairStyle": "Hair",
+  "appearance.field.hairColor": "Hair color",
+  "appearance.field.eyes": "Eyes",
+  "appearance.field.eyeColor": "Eye color",
+  "appearance.field.brows": "Brows",
+  "appearance.field.mouth": "Mouth",
+  "appearance.field.faceDetail": "Face detail",
+  "appearance.field.headwear": "Headwear",
+
+  "create.legacy.line": "{pick} · +{points} bonus point-buy points",
+  "create.legacy.lookCarried": " · last runner's look carried over",
+  "create.legacy.excludes":
+    "Perks stay with the runner who earned them — street cred is a reputation, and nobody inherits one.",
+
+  "preview.rotateLeft": "Rotate left (Q)",
+  "preview.rotateRight": "Rotate right (E)",
+  "preview.walk": "Walk",
+  "preview.walkToggle": "Toggle walk animation (W)",
+  "preview.zoomOut": "Zoom out (−)",
+  "preview.zoomIn": "Zoom in (+)",
+  "preview.facing.frontLeft": "front left",
+  "preview.facing.frontRight": "front right",
+  "preview.facing.backRight": "back right",
+  "preview.facing.backLeft": "back left",
+
+  "minimap.tab": "Map [M]",
+  "party.talk": "A word in private",
+  "perk.section.taken": "Taken",
+  "perk.section.taken.empty":
+    "Nothing yet — the street has not made its mind up about you.",
+  "perk.section.choose": "Choose one",
+  "perk.section.offer": "On offer",
+  "perk.section.offer.empty": "You have taken everything there is to take.",
+  "stylist.stripped": "Stripped back. The cloth remembers nothing.",
+
+  "stealth.refusal.spent": "No second chance at that — not with these hands.",
+  "stealth.refusal.aware": "They are looking straight at you.",
+  "stealth.refusal.tooSlow": "You are not quick enough for that gap.",
+  "stealth.takedown": "{name} goes down quietly.",
+  "stealth.heard": "A boot on the plate. ",
+
+  "combat.status.steps": "Steps left {steps}",
+  "combat.status.actionSpent": "Action spent",
+  "combat.status.actionReady": "Action ready",
+  "combat.status.enemyTurn": "Enemy turn…",
+  "combat.select.move":
+    "Click a highlighted tile to move ({steps} left) — or use the arrow keys. Esc cancels.",
+  "combat.select.target": "Select a target. Esc cancels.",
+  "combat.select.ability": "Select an ability. Esc cancels.",
+  "combat.select.item": "Select an item. Esc cancels.",
+  "combat.noSpoils": "No spoils this time.",
+  "combat.wounded": "You did not walk away clean.",
+
+  "game.threadClosed": "That thread is closed. The city keeps moving.",
+  "game.shardUnreadable": "The chip's index refuses to open.",
+  "game.shardAlreadyRead": "\"{title}\" is already in the codex.",
 } as const;
 
 export type StringTable = typeof STRINGS;

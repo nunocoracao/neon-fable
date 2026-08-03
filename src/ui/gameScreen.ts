@@ -543,7 +543,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
             // the player gets is the fact; what they used to get was
             // the raw ending id ("job-done", "walked-away"), which is a
             // thing only the person who wrote the arc can read.
-            showToast("That thread is closed. The city keeps moving.");
+            showToast(t("game.threadClosed"));
           }
         },
         onComplete: closeOverlay,
@@ -651,11 +651,11 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     }
     if (!shardOpens(session.state, shard)) {
       audio.emit("ui.cancel");
-      showToast(shard.sealed ?? "The chip's index refuses to open.");
+      showToast(shard.sealed ?? t("game.shardUnreadable"));
       return;
     }
     if (hasShard(session.state.lore, shard.id)) {
-      showToast(`"${shard.title}" is already in the codex.`);
+      showToast(t("game.shardAlreadyRead", { title: shard.title }));
       return;
     }
     session.state = collectShard(session.state, shard.id);

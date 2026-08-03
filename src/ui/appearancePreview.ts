@@ -148,13 +148,17 @@ export function createAppearancePreview(
     return button;
   }
 
-  const rotateLeft = controlButton("◀", "Rotate left (Q)", () => rotate(-1));
-  const rotateRight = controlButton("▶", "Rotate right (E)", () => rotate(1));
-  const walkToggle = controlButton("Walk", "Toggle walk animation (W)", () =>
+  const rotateLeft = controlButton("◀", t("preview.rotateLeft"), () =>
+    rotate(-1),
+  );
+  const rotateRight = controlButton("▶", t("preview.rotateRight"), () =>
+    rotate(1),
+  );
+  const walkToggle = controlButton(t("preview.walk"), t("preview.walkToggle"), () =>
     toggle(),
   );
-  const zoomOut = controlButton("−", "Zoom out (−)", () => zoom(-1));
-  const zoomIn = controlButton("+", "Zoom in (+)", () => zoom(1));
+  const zoomOut = controlButton("−", t("preview.zoomOut"), () => zoom(-1));
+  const zoomIn = controlButton("+", t("preview.zoomIn"), () => zoom(1));
   const readout = document.createElement("span");
   readout.className = "nf-preview-readout";
   controls.append(rotateLeft, rotateRight, walkToggle, zoomOut, zoomIn, readout);

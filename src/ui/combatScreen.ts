@@ -315,10 +315,12 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       acting.kind === "ally"
         ? `${nameOf(acting.id)} — HP ${Math.max(0, acting.hp)}/${acting.maxHp}`
         : `HP ${Math.max(0, acting.hp)}/${acting.maxHp}`,
-      `Steps left ${combat.moveRemaining}`,
-      combat.actionUsed ? "Action spent" : "Action ready",
+      t("combat.status.steps", { steps: combat.moveRemaining }),
+      combat.actionUsed
+        ? t("combat.status.actionSpent")
+        : t("combat.status.actionReady"),
     ];
-    if (busy) parts.push("Enemy turn…");
+    if (busy) parts.push(t("combat.status.enemyTurn"));
     for (const text of parts) {
       const span = document.createElement("span");
       span.textContent = text;
@@ -428,7 +430,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     if (!selectionEl || !combat) return;
     selectionEl.replaceChildren();
     if (!playerCanAct()) {
-      setHint(combat.status === "active" ? "" : "The fight is over.");
+      setHint(combat.status === "active" ? "" : t("combat.blocked.over"));
       return;
     }
     switch (mode.kind) {
@@ -441,12 +443,13 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         return;
       case "move":
         setHint(
-          `Click a highlighted tile to move (${stepsLabel(combat.moveRemaining)} ` +
-            "left) — or use the arrow keys. Esc cancels.",
+          t("combat.select.move", {
+            steps: stepsLabel(combat.moveRemaining),
+          }),
         );
         return;
       case "attack": {
-        setHint("Select a target. Esc cancels.");
+        setHint(t("combat.select.target"));
         for (const option of attackOptions(combat)) {
           selectionEl.append(
             selectionButton(
@@ -464,7 +467,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         const abilities = abilityOptions(combat);
         const selectedId = mode.abilityId;
         if (selectedId === null) {
-          setHint("Select an ability. Esc cancels.");
+          setHint(t("combat.select.ability"));
           for (const option of abilities) {
             const ability = getAbility(option.abilityId);
             const name = ability?.name ?? option.abilityId;
@@ -493,9 +496,12 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
           return;
         }
         const selected = abilities.find((o) => o.abilityId === selectedId);
-        setHint("Select a target. Esc cancels.");
+        setHint(t("combat.select.target"));
         for (const target of selected?.targets ?? []) {
-          const stun = target.stunTurns > 0 ? ` · stuns ${target.stunTurns}` : "";
+          const stun =
+            target.stunTurns > 0
+              ? t("combat.tip.ability.stun", { turns: target.stunTurns })
+              : "";
           selectionEl.append(
             selectionButton(
               `${nameOf(target.targetId)} — ${target.damage} dmg${stun}`,
@@ -513,7 +519,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         return;
       }
       case "item": {
-        setHint("Select an item. Esc cancels.");
+        setHint(t("combat.select.item"));
         for (const option of itemOptions(combat)) {
           const item = getItem(option.itemId);
           // The preview on the button is the outcome the engine is
@@ -1107,7 +1113,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
           return quantity > 1 ? `${name} ×${quantity}` : name;
         }),
       ];
-      for (const text of lines.length > 0 ? lines : ["No spoils this time."]) {
+      for (const text of lines.length > 0 ? lines : [t("combat.noSpoils")]) {
         const line = document.createElement("div");
         line.className = "nf-reward-line";
         line.textContent = text;
@@ -1122,7 +1128,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
         wounds.append(
           Object.assign(document.createElement("div"), {
             className: "nf-injury-heading",
-            textContent: "You did not walk away clean.",
+            textContent: t("combat.wounded"),
           }),
         );
         // What the win cost, heard as well as read.
