@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
+    "audit:narrative": "NARRATIVE_AUDIT=verbose vitest run src/narrative/audit",
     "preview": "vite preview"
   },
   "devDependencies": {
