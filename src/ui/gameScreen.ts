@@ -26,6 +26,7 @@ import {
 } from "../narrative";
 import {
   activeMember,
+  carriedInjury,
   carryoverAppearance,
   carryoverCandidates,
   collectShard,
@@ -35,6 +36,7 @@ import {
   recordShardToStorage,
   type GameState,
 } from "../state";
+import { resetHintFlags, seenHintIds } from "../narrative/hints";
 import { shardOpens } from "../world";
 import {
   ENTRY_SPAWN_ID,
@@ -50,7 +52,7 @@ import {
   type SceneWatchView,
   type TilePoint,
 } from "../iso";
-import { effectiveStats } from "../inventory";
+import { effectiveStats, staticLevel } from "../inventory";
 import {
   activeStealthZone,
   applyLunge,
@@ -91,6 +93,7 @@ import { createAdvancementOverlay } from "./advancementOverlay";
 import { createPerkOverlay } from "./perkOverlay";
 import { pickLabel } from "./perkModel";
 import { createBarkLayer, type BarkLayerHandle } from "./barkLayer";
+import { createHintLayer, type HintLayerHandle } from "./hintLayer";
 import { createBreachOverlay } from "./breachOverlay";
 import { COMBAT_RESUME_FLAG, createCombatScreen } from "./combatScreen";
 import { createDialogueOverlay } from "./dialogueOverlay";
@@ -205,6 +208,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   let promptEl: HTMLElement | null = null;
   let minimap: MinimapHandle | null = null;
   let barkLayer: BarkLayerHandle | null = null;
+  let hintLayer: HintLayerHandle | null = null;
   let unsubscribeSettings: (() => void) | null = null;
   /** The interactable whose scene is currently open, for the door beat. */
   let usedInteractable: Interactable | null = null;
@@ -323,6 +327,10 @@ export function createGameScreen(options: GameScreenOptions): Screen {
             : undefined,
         })
       : null;
+    // The prompt is the thing being explained, so the chip waits for it
+    // to actually say something actionable — pointing at a door across
+    // the plaza is not yet the lesson.
+    if (hint?.inRange === true) hintLayer?.cue("interact");
     renderPrompt();
   }
 
@@ -356,13 +364,49 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     overlay = null;
     // The street picks its chatter back up once the panel is gone.
     barkLayer?.setPaused(false);
+    // And the map is back to being a map, which is the moment its own
+    // hints are worth offering — never over an open panel.
+    hintLayer?.setPaused(false);
+    cueSceneHints();
+  }
+
+  /**
+   * What the map itself has to teach right now. Offered on every return
+   * to the street rather than once at mount: a wound and a Static band
+   * both arrive mid-run, and the first time either is true of the
+   * player is the first time either is worth a sentence.
+   *
+   * Everything here is a question about the run, never a record of one —
+   * the once-only part lives in the run's flags (see
+   * src/narrative/hints.ts) and this may be called as often as it likes.
+   */
+  function cueSceneHints(): void {
+    if (!hintLayer || overlay) return;
+    hintLayer.cue("explore");
+    if (carriedInjury(session.state)) hintLayer.cue("injury");
+    if (staticLevel(session.state.player) > 0) hintLayer.cue("static");
+  }
+
+  /**
+   * Records a hint as shown. A hint is a fact about the playthrough, so
+   * it rides the save — but it is not worth an autosave of its own: the
+   * next map, fight, or panel writes one, and a hint replayed after a
+   * hard reload costs the player one sentence.
+   */
+  function onHintSeen(flags: GameState["flags"]): void {
+    session.state = { ...session.state, flags };
   }
 
   function openOverlay(kind: OverlayKind, handle: OverlayHandle): void {
-    closeOverlay();
+    // Not closeOverlay: closing *to another panel* is not the map being
+    // handed back, and must not offer the map's own hints in between.
+    overlay?.handle.destroy();
+    overlay = null;
     // Nobody talks over an open panel: chips are cleared for as long as
-    // one is up rather than left fading behind it.
+    // one is up rather than left fading behind it. Hints are held for
+    // the same reason — and because a panel explains itself.
     barkLayer?.setPaused(true);
+    hintLayer?.setPaused(true);
     overlay = { kind, handle };
     overlayLayer?.append(handle.el);
     focusFirst(handle.el);
@@ -464,6 +508,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
           // dialogue, and closing it resumes at the choice's target —
           // which is the vendor's own node, so the scene reopens with
           // the keeper still standing there.
+          hintLayer?.cue("vendor");
           openOverlay(
             "vendor",
             createVendorOverlay({
@@ -638,6 +683,9 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       console.error(`Unknown breach context "${contextId}" — nothing opened`);
       return;
     }
+    // The lattice is a screen of its own; the chip goes up behind it and
+    // is waiting when the terminal is closed.
+    hintLayer?.cue("breach");
     openOverlay(
       "breach",
       createBreachOverlay({
@@ -938,6 +986,19 @@ export function createGameScreen(options: GameScreenOptions): Screen {
             autosave(session);
           },
         },
+        // Which hints have been shown is a fact about this run, so the
+        // reset control needs the run to write to — from the main menu
+        // there is none, and the row says so instead of pretending.
+        hints: {
+          seen: () => seenHintIds(session.state.flags).length,
+          reset: () => {
+            session.state = {
+              ...session.state,
+              flags: resetHintFlags(session.state.flags),
+            };
+            autosave(session);
+          },
+        },
       }),
     );
   }
@@ -1090,6 +1151,14 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       });
       root.append(barkLayer.el);
 
+      // Above the chatter and below every panel: a hint is louder than
+      // the street and quieter than anything the player opened.
+      hintLayer = createHintLayer({
+        flags: () => session.state.flags,
+        onSeen: onHintSeen,
+      });
+      root.append(hintLayer.el);
+
       hud = document.createElement("div");
       hud.className = "nf-hud";
       hudStatus = document.createElement("div");
@@ -1233,6 +1302,10 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       if (!overlay && picks > 0) {
         showToast(`${pickLabel(picks)} — open Advance [P].`);
       }
+
+      // Last, so a map that opened straight into a conversation says
+      // nothing until the conversation is over (closeOverlay re-offers).
+      cueSceneHints();
     },
 
     unmount(): void {
@@ -1263,6 +1336,8 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       minimap = null;
       barkLayer?.destroy();
       barkLayer = null;
+      hintLayer?.destroy();
+      hintLayer = null;
       hud?.remove();
       overlayLayer?.remove();
       toast?.remove();
