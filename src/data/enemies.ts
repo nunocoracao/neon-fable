@@ -134,8 +134,8 @@ export const enemies: Enemy[] = [
       "Corporate asset-recovery in a pressed gray coat. Polite, insured, " +
       "and carrying a sidearm the Combine will deny issuing.",
     stats: { body: 4, reflexes: 6, tech: 5, cool: 6, intelligence: 5 },
-    maxHp: 14,
-    weapon: { name: "Service Pistol", damage: 4, rangeType: "ranged" },
+    maxHp: 12,
+    weapon: { name: "Service Pistol", damage: 3, rangeType: "ranged" },
     armor: 1,
     chassis: "flesh",
     abilityIds: [],
@@ -148,12 +148,17 @@ export const enemies: Enemy[] = [
     description:
       "Scrapyard muscle with salvage-grade arm rigs and a length of " +
       "rebar. Negotiates exclusively in blunt trauma.",
-    stats: { body: 8, reflexes: 4, tech: 3, cool: 4, intelligence: 3 },
-    maxHp: 20,
-    weapon: { name: "Rebar Club", damage: 5, rangeType: "melee" },
-    armor: 1,
+    stats: { body: 7, reflexes: 4, tech: 3, cool: 4, intelligence: 3 },
+    maxHp: 15,
+    weapon: { name: "Rebar Club", damage: 4, rangeType: "melee" },
+    armor: 0,
     chassis: "flesh",
-    abilityIds: ["ability-crush"],
+    // No ability: the Rustyard's muscle is a length of rebar and
+    // the arm rigs that swing it, and nothing else. Crush belongs
+    // to industrial myomer (see cyb-myomer-arms) — a pair of Act 1
+    // thugs throwing 7 armor-ignoring damage every other turn is
+    // what made this the one fight no starting build could win.
+    abilityIds: [],
     spriteKind: "humanoid",
     looks: RUSTYARD_BRUISER_LOOKS,
   },
@@ -165,7 +170,7 @@ export const enemies: Enemy[] = [
       "and trailing a halo of stolen charge off its stinger.",
     stats: { body: 3, reflexes: 8, tech: 6, cool: 3, intelligence: 4 },
     maxHp: 8,
-    weapon: { name: "Arc Stinger", damage: 3, rangeType: "ranged" },
+    weapon: { name: "Arc Stinger", damage: 2, rangeType: "ranged" },
     armor: 0,
     chassis: "machine",
     abilityIds: ["ability-shock-dart"],
@@ -181,7 +186,7 @@ export const enemies: Enemy[] = [
       "A slab of chromed security chassis that predates the Combine's " +
       "rebrand. Still following the last order anyone gave it.",
     stats: { body: 7, reflexes: 5, tech: 4, cool: 5, intelligence: 4 },
-    maxHp: 24,
+    maxHp: 28,
     weapon: { name: "Shock Maul", damage: 6, rangeType: "melee" },
     armor: 3,
     chassis: "machine",
@@ -196,9 +201,9 @@ export const enemies: Enemy[] = [
       "Reclamation-division security in flood-grey plate. Paid by the " +
       "hour to make sure nobody interferes with the water.",
     stats: { body: 6, reflexes: 5, tech: 4, cool: 5, intelligence: 4 },
-    maxHp: 16,
+    maxHp: 15,
     weapon: { name: "Riot Pistol", damage: 4, rangeType: "ranged" },
-    armor: 2,
+    armor: 1,
     chassis: "flesh",
     abilityIds: [],
     spriteKind: "humanoid",
@@ -211,7 +216,7 @@ export const enemies: Enemy[] = [
       "A Greywater engineer in a patched wet-rig, cutter in hand. Fights " +
       "like someone defending the only home left below the waterline.",
     stats: { body: 5, reflexes: 6, tech: 7, cool: 4, intelligence: 5 },
-    maxHp: 12,
+    maxHp: 11,
     weapon: { name: "Spark Cutter", damage: 4, rangeType: "melee" },
     armor: 1,
     chassis: "flesh",
@@ -226,9 +231,9 @@ export const enemies: Enemy[] = [
       "The Undertow's original caretaker machine, barnacled with fifty " +
       "years of mineral crust. It still keeps the deck. It always will.",
     stats: { body: 8, reflexes: 3, tech: 2, cool: 6, intelligence: 2 },
-    maxHp: 24,
-    weapon: { name: "Valve Hammer", damage: 6, rangeType: "melee" },
-    armor: 3,
+    maxHp: 20,
+    weapon: { name: "Valve Hammer", damage: 4, rangeType: "melee" },
+    armor: 2,
     chassis: "machine",
     abilityIds: ["ability-stun-strike"],
     spriteKind: "humanoid",
@@ -241,8 +246,8 @@ export const enemies: Enemy[] = [
       "Halex's new security tier: matte-black interdiction plate over an " +
       "attitude of infinite patience. The Cordon does not argue. It waits.",
     stats: { body: 6, reflexes: 5, tech: 4, cool: 5, intelligence: 4 },
-    maxHp: 15,
-    weapon: { name: "Cordon Riot Gun", damage: 4, rangeType: "ranged" },
+    maxHp: 20,
+    weapon: { name: "Cordon Riot Gun", damage: 5, rangeType: "ranged" },
     armor: 2,
     chassis: "flesh",
     abilityIds: ["ability-riot-net"],
@@ -256,8 +261,8 @@ export const enemies: Enemy[] = [
       "Contract enforcement in a good coat. Serves writs, collects debts, " +
       "and considers violence a late fee.",
     stats: { body: 5, reflexes: 6, tech: 4, cool: 6, intelligence: 5 },
-    maxHp: 13,
-    weapon: { name: "Writ-Server Pistol", damage: 4, rangeType: "ranged" },
+    maxHp: 18,
+    weapon: { name: "Writ-Server Pistol", damage: 5, rangeType: "ranged" },
     armor: 1,
     chassis: "flesh",
     abilityIds: [],
@@ -286,8 +291,8 @@ export const enemies: Enemy[] = [
       "Director Halex's telepresence chassis: a polished civic idol with " +
       "the director's voice and none of the director's risk.",
     stats: { body: 7, reflexes: 5, tech: 6, cool: 7, intelligence: 6 },
-    maxHp: 24,
-    weapon: { name: "Mandate Lance", damage: 5, rangeType: "ranged" },
+    maxHp: 30,
+    weapon: { name: "Mandate Lance", damage: 6, rangeType: "ranged" },
     armor: 1,
     chassis: "machine",
     abilityIds: ["ability-mandate-pulse"],
@@ -304,7 +309,7 @@ export const enemies: Enemy[] = [
       "shoulder battery it announces before it uses. It does not chase. " +
       "It arrives, it plants, and it tells you where the salvo is going.",
     stats: { body: 10, reflexes: 4, tech: 6, cool: 8, intelligence: 3 },
-    maxHp: 44,
+    maxHp: 46,
     weapon: { name: "Interdiction Piston", damage: 7, rangeType: "melee" },
     armor: 4,
     chassis: "machine",
@@ -324,9 +329,9 @@ export const enemies: Enemy[] = [
       "Succession through. It speaks in the Cordon's voice — the Cordon " +
       "always spoke in its.",
     stats: { body: 8, reflexes: 5, tech: 7, cool: 8, intelligence: 7 },
-    maxHp: 26,
-    weapon: { name: "Succession Writ", damage: 5, rangeType: "ranged" },
-    armor: 2,
+    maxHp: 40,
+    weapon: { name: "Succession Writ", damage: 8, rangeType: "ranged" },
+    armor: 1,
     chassis: "machine",
     abilityIds: ["ability-mandate-pulse"],
     spriteKind: "humanoid",

@@ -114,14 +114,14 @@ describe("attackOptions", () => {
 describe("abilityOptions", () => {
   it("offers a damage ability's in-range opponents with computed damage", () => {
     const state = makeCombat([
-      player({ abilityIds: ["ability-shock-dart"] }), // range 5, 4 dmg
+      player({ abilityIds: ["ability-shock-dart"] }), // range 5, 3 dmg
       makeCombatant({ id: "near", position: { x: 4, y: 2 }, armor: 1 }),
       makeCombatant({ id: "far", position: { x: 2, y: 8 } }),
     ]);
     const [option] = abilityOptions(state);
     expect(option?.ready).toBe(true);
     expect(option?.selfTarget).toBe(false);
-    expect(option?.targets).toEqual([{ targetId: "near", damage: 3, stunTurns: 0 }]);
+    expect(option?.targets).toEqual([{ targetId: "near", damage: 2, stunTurns: 0 }]);
   });
 
   it("ignores armor and reports stun turns per the ability data", () => {

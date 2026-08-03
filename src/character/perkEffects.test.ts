@@ -387,8 +387,11 @@ describe("Second Wind — the damage path", () => {
   function batter(state: GameState): CombatState {
     let combat = createCombat(state, "enc-auric-scout");
     // A clean, deterministic blow: drive the player's hp down by hand
-    // through the engine's own path, one enemy swing at a time.
-    for (let i = 0; i < 40 && combat.status === "active"; i++) {
+    // through the engine's own path, one enemy swing at a time. The
+    // ceiling is turns, not rounds, and it is generous on purpose — how
+    // many swings it takes to reach a third of a frame is a balance
+    // figure, and this test is not about that figure.
+    for (let i = 0; i < 400 && combat.status === "active"; i++) {
       const actor = combat.combatants.find(
         (c) => c.id === combat.initiativeOrder[combat.turnIndex],
       )!;
