@@ -422,6 +422,83 @@ body::after {
   transform: rotate(45deg);
 }
 
+/* --- Contextual hints ---
+
+   One chip, ever. It shares the interact prompt's language — hard
+   border, flat dark panel, display type — because it is the same kind
+   of thing: the game telling you what is in front of you. It is a shade
+   quieter (cyan kicker on the panel border rather than a full cyan
+   frame) so a hint never competes with the prompt it is explaining, and
+   it parks a lane above both, along the top of the bottom-screen
+   furniture, where nothing else lives.
+
+   Unlike the bark layer this one takes input — the dismiss button is a
+   real control — so only the layer is pointer-transparent. */
+.nf-hint-layer {
+  position: fixed;
+  bottom: 7rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(38rem, calc(100vw - 2rem));
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.nf-hint-chip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.55rem 0.7rem 0.55rem 0.9rem;
+  background: rgba(18, 18, 31, 0.96);
+  border: 2px solid var(--nf-border);
+  border-left: 4px solid var(--nf-glow-cyan);
+  box-shadow: var(--nf-shadow-hard);
+  pointer-events: auto;
+}
+
+.nf-hint-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.nf-hint-title {
+  font-family: var(--nf-font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--nf-glow-cyan);
+}
+
+.nf-hint-text {
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--nf-ink);
+}
+
+/* Big enough to hit without aiming, and the only focusable thing in
+   the layer — dismissing is one key or one click, never a dialog. */
+.nf-hint-dismiss {
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  font-family: var(--nf-font-display);
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--nf-ink-dim);
+  background: transparent;
+  border: 2px solid var(--nf-border);
+  cursor: pointer;
+}
+
+.nf-hint-dismiss:hover,
+.nf-hint-dismiss:focus-visible {
+  color: var(--nf-ink);
+  border-color: var(--nf-glow-cyan);
+}
+
 /* Interact affordance: what is in front of you and which key acts on
    it. Sits just above the toast lane so the two never overlap. */
 .nf-interact-prompt {
@@ -772,6 +849,14 @@ body::after {
 .nf-wizard-hint {
   flex: 1;
   text-align: right;
+}
+
+/* First-run helper copy under the step strip. Absent entirely for
+   players who have finished a run — the element is hidden, not dimmed,
+   so a returning wizard has no gap where it used to be. */
+.nf-wizard-help {
+  margin: -0.5rem 0 0.9rem;
+  max-width: 62ch;
 }
 
 .nf-wizard-controls {
