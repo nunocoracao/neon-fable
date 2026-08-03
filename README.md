@@ -25,14 +25,29 @@ code.
 
 ## Screenshots
 
-<!-- SCREENSHOTS: see docs/images/README.md for how these are captured. -->
+> **Pending.** The four shots this section is written around — the hub
+> district, the appearance step of creation, a fight mid-decision with
+> the telegraph layer up, and a portrait-carrying conversation — are not
+> in the repository yet. The recipe for taking them (window size,
+> settings, the state each one wants, the filenames the section will
+> link) is [docs/images/README.md](docs/images/README.md); until then,
+> the [live build](https://nunocoracao.github.io/neon-fable/) is the
+> honest preview.
 
-| | |
-| --- | --- |
-| ![Cinder Row Plaza, the hub district](docs/images/hub.png) | ![The appearance step of character creation](docs/images/creation-appearance.png) |
-| **Cinder Row Plaza.** The hub, lit for dusk: an overline train on the viaduct behind the terrace, news strips on the boards, and the minimap under the HUD. | **Making a runner.** The appearance step: category tabs, swatch rows, and a live preview you can turn, walk, and zoom — all of it the same sprite the map will draw. |
-| ![A fight with the telegraph layer showing reach and impact](docs/images/combat-telegraph.png) | ![A conversation, with portraits for the speaker and the crew](docs/images/dialogue.png) |
-| **A fight.** Turn-based on an iso arena. The ground says what an action would touch before you commit to it — your reach, your range, the impact, and any wind-up somebody has already aimed at you. | **A conversation.** Portraits are composed from the same appearance data as the sprites. Choices gate on stats, gear, chrome, flags, and standing; a locked one shows you what it wanted. |
+What you would be looking at:
+
+- **Cinder Row Plaza**, the hub — an overline train crossing the
+  viaduct behind the north terrace, news strips running on the boards,
+  the minimap under the HUD bar.
+- **Making a runner** — the appearance step's category tabs and swatch
+  rows beside a live preview you can turn, walk and zoom, drawn from
+  the same sprite the map will use.
+- **A fight** — turn-based on an iso arena, the ground tinted with what
+  the open action would reach and touch, and any wind-up somebody has
+  already aimed at you.
+- **A conversation** — portraits composed from the same appearance data
+  as the sprites, and a greyed-out choice showing the requirement it
+  wanted.
 
 ## Quickstart
 
@@ -66,8 +81,7 @@ spoiler-light manual to every system, including the full key map.
   from layers (body, outfit, face, hair, weapon, cyberware) sharing one
   frame and anchor, so equipping a coat changes what you look like and
   portraits derive from the same data as the map sprite. No image file
-  ships with the game — the only ones in the repository are the
-  screenshots above — and there is nothing to fetch at runtime.
+  ships with the game, and there is nothing to fetch at runtime.
 - **Audio is synthesized in code** through WebAudio: no samples, same
   reason.
 - **State is one serializable object.** `GameState` goes to

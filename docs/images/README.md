@@ -1,10 +1,13 @@
 # Screenshots
 
-The four images the [README](../../README.md) shows, and how to take
-them again when the art moves. They are the only binary files in the
-repository, which is why the recipe is written down rather than
-remembered: a stale screenshot is a promise the game has stopped
-keeping.
+The four images the [README](../../README.md) is written around, and how
+to take them — the first time and every time the art moves. The recipe
+is written down rather than remembered because a stale screenshot is a
+promise the game has stopped keeping.
+
+**None of them are here yet.** The README's screenshot section says so
+plainly rather than linking four missing files; once these exist,
+replace that note with the markdown at the bottom of this page.
 
 Take them from `npm run dev` — never from a stale `dist` — in a window
 sized **1280×800**, at the default zoom, with the default Graphics &
@@ -20,3 +23,17 @@ device). Crop to the game viewport, nothing of the browser.
 
 Keep the filenames: the README links to them by name, and a renamed
 file is a broken image on the front page.
+
+## The section to paste
+
+Once the four files are in this folder, this replaces the "Pending"
+note under `## Screenshots` in the README:
+
+```markdown
+| | |
+| --- | --- |
+| ![Cinder Row Plaza, the hub district](docs/images/hub.png) | ![The appearance step of character creation](docs/images/creation-appearance.png) |
+| **Cinder Row Plaza.** The hub: an overline train on the viaduct behind the north terrace, news strips on the boards, and the minimap under the HUD. | **Making a runner.** The appearance step: category tabs, swatch rows, and a live preview you can turn, walk, and zoom — all of it the same sprite the map will draw. |
+| ![A fight with the telegraph layer showing reach and impact](docs/images/combat-telegraph.png) | ![A conversation, with portraits for the speaker and the crew](docs/images/dialogue.png) |
+| **A fight.** Turn-based on an iso arena. The ground says what an action would touch before you commit to it — your reach, your range, the impact, and any wind-up somebody has already aimed at you. | **A conversation.** Portraits are composed from the same appearance data as the sprites. Choices gate on stats, gear, chrome, flags, and standing; a locked one shows you what it wanted. |
+```
