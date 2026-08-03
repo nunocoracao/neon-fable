@@ -125,7 +125,7 @@ export function createVendorOverlay(
 
     if (price.adjusted) {
       const toggle = button(
-        openBreakdown === key ? "Hide breakdown" : "Why?",
+        openBreakdown === key ? t("vendor.hideBreakdown") : t("vendor.why"),
         "nf-button nf-button-small nf-vendor-why",
         onToggle,
       );
@@ -189,7 +189,9 @@ export function createVendorOverlay(
     );
 
     const buy = button(
-      row.remaining <= 0 ? "Sold out" : `Buy — ${row.price.label}`,
+      row.remaining <= 0
+        ? t("vendor.soldOut")
+        : t("vendor.buy", { price: row.price.label }),
       "nf-button nf-button-small",
       () => apply((state) => buyFromVendor(state, vendorId, row.entryId)),
     );
@@ -240,7 +242,7 @@ export function createVendorOverlay(
     for (const id of ["buy", "sell"] as const) {
       const selected = model.tab === id;
       const tabButton = button(
-        id === "buy" ? "On the shelf" : "In your bag",
+        id === "buy" ? t("vendor.tab.buy") : t("vendor.tab.sell"),
         selected ? "nf-button nf-button-small nf-selected" : "nf-button nf-button-small",
         () => {
           tab = id;

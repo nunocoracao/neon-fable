@@ -776,6 +776,13 @@ export function chainsLabel(amount: number): string {
     : t("count.chain.many", { amount });
 }
 
+/** "1 socket", "3 sockets" — what a weapon frame offers. */
+export function socketsLabel(amount: number): string {
+  return amount === 1
+    ? t("count.socket.one", { amount })
+    : t("count.socket.many", { amount });
+}
+
 /** "1 tile", "6 tiles" — how much ground a move still reaches. */
 export function tilesLabel(amount: number): string {
   return amount === 1

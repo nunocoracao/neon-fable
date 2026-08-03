@@ -14,6 +14,7 @@ import { effectiveStats } from "../inventory";
 import type { GameState } from "../state/gameState";
 import type { HaggleState } from "../state/vendors";
 import { itemSummary, percentLabel } from "./format";
+import { t } from "./strings";
 
 /**
  * The counter screen, as data.
@@ -133,13 +134,15 @@ export function priceView(quote: PriceQuote): PriceView {
   return {
     base: quote.base,
     price: quote.price,
-    label: `${quote.price} cr`,
-    baseLabel: `Worth ${quote.base} cr`,
+    label: t("counter.credits", { credits: quote.price }),
+    baseLabel: t("vendor.worth", { credits: quote.base }),
     lines,
     summary: [
-      `Worth ${quote.base} cr`,
+      t("vendor.worth", { credits: quote.base }),
       ...lines.map((line) => `${line.label} ${line.amount}`),
-      `${quote.side === "buy" ? "You pay" : "You get"} ${quote.price} cr`,
+      quote.side === "buy"
+        ? t("vendor.youPay", { credits: quote.price })
+        : t("vendor.youGet", { credits: quote.price }),
     ].join(" · "),
     adjusted: lines.length > 0,
   };
@@ -147,8 +150,11 @@ export function priceView(quote: PriceQuote): PriceView {
 
 /** "2 left this chapter", and the empty hook it turns into. */
 export function stockLabel(line: ShelfLine): string {
-  if (line.remaining <= 0) return "Sold out this chapter";
-  return `${line.remaining} of ${line.stocked} left this chapter`;
+  if (line.remaining <= 0) return t("vendor.stock.out");
+  return t("vendor.stock", {
+    remaining: line.remaining,
+    stocked: line.stocked,
+  });
 }
 
 function buyRow(line: ShelfLine, credits: number): BuyRowView {
@@ -191,8 +197,8 @@ export function haggleView(state: GameState, vendorId: string): HaggleView {
   if (view.haggle === "won") {
     return {
       state: "won",
-      label: "Price argued down",
-      hint: `${view.vendor.keeper} has already come down; it holds until the chapter turns over.`,
+      label: t("vendor.haggle.won"),
+      hint: t("vendor.haggle.won.hint", { keeper: view.vendor.keeper }),
       chanceLabel: null,
       canTry: false,
     };
@@ -200,8 +206,8 @@ export function haggleView(state: GameState, vendorId: string): HaggleView {
   if (view.haggle === "locked") {
     return {
       state: "locked",
-      label: "They stopped moving",
-      hint: `${view.vendor.keeper} is not discussing price again this chapter.`,
+      label: t("vendor.haggle.locked"),
+      hint: t("vendor.haggle.locked.hint", { keeper: view.vendor.keeper }),
       chanceLabel: null,
       canTry: false,
     };
@@ -209,18 +215,18 @@ export function haggleView(state: GameState, vendorId: string): HaggleView {
   if (!canAttemptHaggle(cool)) {
     return {
       state: "none",
-      label: "Haggle",
-      hint: `Talking a price down takes Cool ${HAGGLE.minCool}; yours is ${cool}.`,
+      label: t("vendor.haggle"),
+      hint: t("vendor.haggle.tooCool", { needed: HAGGLE.minCool, cool }),
       chanceLabel: null,
       canTry: false,
     };
   }
   return {
     state: "none",
-    label: "Haggle",
-    hint:
-      `One go, this chapter. Win and every price here shifts ` +
-      `${Math.round(HAGGLE.step * 100)}% your way; lose and they stop moving.`,
+    label: t("vendor.haggle"),
+    hint: t("vendor.haggle.hint", {
+      shift: Math.round(HAGGLE.step * 100),
+    }),
     chanceLabel: percentLabel(haggleChance(cool)),
     canTry: true,
   };
@@ -245,7 +251,10 @@ export function vendorModel(
   tab: VendorTab = "buy",
 ): VendorModel {
   const view = vendorView(state, vendorId);
-  const spreadLabel = view.vendor.kind === "stall" ? "Street stall" : "Bonded counter";
+  const spreadLabel =
+    view.vendor.kind === "stall"
+      ? t("vendor.kind.stall")
+      : t("vendor.kind.bonded");
   return {
     vendorId: view.vendor.id,
     title: view.vendor.name,

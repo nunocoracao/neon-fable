@@ -510,6 +510,8 @@ export const STRINGS = {
   "count.step.many": "{amount} steps",
   "count.hint.one": "{amount} hint",
   "count.hint.many": "{amount} hints",
+  "count.socket.one": "{amount} socket",
+  "count.socket.many": "{amount} sockets",
   "count.chain.one": "{amount} chain",
   "count.chain.many": "{amount} chains",
   "count.tile.one": "{amount} tile",
@@ -873,6 +875,52 @@ export const STRINGS = {
   "breach.spent.withdrawn": "{spent} You did not finish what you started here.",
   "breach.spent.lockedOut":
     "The channel is dead. Whatever logged you the first time is still logging, and it will not open again.",
+
+  /* -------------------------------------------------------------- *
+   * Counters and the bench, continued: prices, haggling, dye tins,
+   * and the fields a weapon mod moves.
+   * -------------------------------------------------------------- */
+  "vendor.worth": "Worth {credits} cr",
+  "vendor.youPay": "You pay {credits} cr",
+  "vendor.youGet": "You get {credits} cr",
+  "vendor.buy": "Buy — {price}",
+  "vendor.soldOut": "Sold out",
+  "vendor.stock": "{remaining} of {stocked} left this chapter",
+  "vendor.stock.out": "Sold out this chapter",
+  "vendor.tab.buy": "On the shelf",
+  "vendor.tab.sell": "In your bag",
+  "vendor.why": "Why?",
+  "vendor.hideBreakdown": "Hide breakdown",
+  "vendor.kind.stall": "Street stall",
+  "vendor.kind.bonded": "Bonded counter",
+  "vendor.haggle": "Haggle",
+  "vendor.haggle.hint":
+    "One go, this chapter. Win and every price here shifts {shift}% your way; lose and they stop moving.",
+  "vendor.haggle.tooCool":
+    "Talking a price down takes Cool {needed}; yours is {cool}.",
+  "vendor.haggle.won": "Price argued down",
+  "vendor.haggle.won.hint":
+    "{keeper} has already come down; it holds until the chapter turns over.",
+  "vendor.haggle.locked": "They stopped moving",
+  "vendor.haggle.locked.hint":
+    "{keeper} is not discussing price again this chapter.",
+
+  "bench.socketLine": "{sockets} · {filled} filled",
+  "bench.place.equipped": "In hand",
+  "bench.place.carried": "Carried",
+  "bench.field.damage": "damage",
+  "bench.field.accuracy": "accuracy",
+  "bench.field.pierce": "armor pierce",
+  "bench.field.range": "range",
+  "bench.field.crit": "crit threshold",
+
+  "dye.notDyeable": "Nothing on it to dye",
+  "dye.wearing": "Wearing {colors}",
+  "dye.factory": "Factory colours",
+  "dye.action.worn": "Already worn",
+  "dye.action.carried": "Apply — carried",
+  "dye.action.buy": "Buy & apply — {price} cr",
+  "dye.action.unavailable": "Not for sale",
 } as const;
 
 export type StringTable = typeof STRINGS;
