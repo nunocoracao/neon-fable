@@ -14,6 +14,13 @@
  * animated by bodyAnimFrames, so upper layers ride the body's breathe
  * and stride transforms without per-layer frame authoring. Everything
  * here is pure over grids — canvas baking stays in ../provider.
+ *
+ * Layers also agree about how finely they were drawn: the frame states a
+ * density (see ./density.ts) and every layer has to match it. Art that
+ * has not been re-authored yet is promoted on the way in rather than
+ * refused, which is what lets a character be migrated one layer at a
+ * time; a layer that reaches the compositor at the wrong density is a
+ * typed error, never a silently misaligned picture.
  */
 import type { Facing, LoopState, MotionState } from "../animation";
 import {
@@ -24,6 +31,12 @@ import {
   TRANSPARENT,
   type MaterialName,
 } from "./palette";
+import {
+  DEFAULT_DENSITY,
+  DensityMismatchError,
+  promotedGrid,
+  type ArtDensity,
+} from "./density";
 import { mirrored, remapped, type PixelGrid } from "./pixel";
 import {
   BODY_FRAME,
@@ -77,10 +90,48 @@ export function layerOrderFor(facing: Facing): readonly LayerSlot[] {
   return facing === "n" || facing === "w" ? BACK_ORDER : LAYER_SLOTS;
 }
 
-/** One layer: a frame-sized grid plus its channel remap, if any. */
+/**
+ * One layer: a frame-sized grid plus its channel remap, if any.
+ *
+ * `density` is what the grid was authored at (see ./density.ts); absent
+ * means the frame's own density, which is what every layer meant before
+ * there was more than one. A part drawn coarser than the frame it is
+ * composing into has to be promoted first — composeGrids will not guess.
+ */
 export interface LayerPart {
   readonly grid: PixelGrid;
   readonly remap?: Readonly<Record<string, string>>;
+  readonly density?: ArtDensity;
+}
+
+/** The part of a frame descriptor composition needs. */
+export interface ComposeFrame {
+  readonly width: number;
+  readonly height: number;
+  /** What the frame's numbers are counted in; absent means 1. */
+  readonly density?: ArtDensity;
+}
+
+/**
+ * The same layer drawn at another density, by the detail pass's own
+ * doubling. This is the shim the migration runs on: a character whose
+ * body has been re-authored at density 2 but whose hair has not still
+ * composes, because the hair is promoted on the way in. Its extra pixels
+ * are derived rather than drawn — the layer looks exactly as it always
+ * did — which is the point: nothing gets better until somebody draws it,
+ * and nothing breaks until then either.
+ */
+export function partAtDensity(
+  part: LayerPart,
+  frameDensity: ArtDensity,
+): LayerPart {
+  const density = part.density ?? frameDensity;
+  if (density === frameDensity) return part;
+  return {
+    ...part,
+    grid: promotedGrid(part.grid, density, frameDensity),
+    density: frameDensity,
+  };
 }
 
 /** Flatten a slot map into compose order for a facing, skipping absent slots. */
@@ -102,19 +153,30 @@ export function orderedLayerParts(
  * override. Throws unless every grid is exactly the frame — the 32×48
  * character layer frame by default; the portrait system passes its own
  * 48×48 frame.
+ *
+ * A layer authored at a different density than the frame is a typed
+ * DensityMismatchError rather than a size complaint. It has to be: a
+ * density-1 layer against a density-2 frame *is* the wrong number of
+ * rows, and saying so would send an author looking at their art instead
+ * of at the promotion they forgot (see partAtDensity).
  */
 export function composeGrids(
   parts: readonly LayerPart[],
-  frame: { readonly width: number; readonly height: number } = BODY_FRAME,
+  frame: ComposeFrame = BODY_FRAME,
 ): string[] {
   if (parts.length === 0) {
     throw new Error("composeGrids needs at least one layer");
   }
   const { width, height } = frame;
+  const frameDensity = frame.density ?? DEFAULT_DENSITY;
   const out: string[][] = Array.from({ length: height }, () =>
     Array<string>(width).fill(TRANSPARENT),
   );
   parts.forEach((part, i) => {
+    const density = part.density ?? frameDensity;
+    if (density !== frameDensity) {
+      throw new DensityMismatchError(`layer ${i}`, frameDensity, density);
+    }
     if (part.grid.length !== height) {
       throw new Error(
         `layer ${i} has ${part.grid.length} rows, expected ${height}`,
@@ -267,6 +329,22 @@ const SLOT_REGISTRIES: Readonly<Partial<Record<LayerSlot, SlotRegistry>>> = {
   cyberware: CYBER_GRIDS as SlotRegistry,
 };
 
+/**
+ * The migration ledger: layer art authored at a density other than 1.
+ *
+ * Every registered layer is drawn at 32×48 today, so this is empty and
+ * every lookup answers 1. As sets are re-authored at 64×96 they are
+ * listed here by `slot:art`, and everything that composes them — the
+ * sprite path, the gallery, the contact sheets — starts promoting the
+ * layers that have not moved yet, without any of them being told.
+ */
+export const LAYER_ART_DENSITY: Readonly<Record<string, ArtDensity>> = {};
+
+/** What a registered layer was authored at; unlisted art means 1x. */
+export function layerArtDensity(slot: LayerSlot, art: string): ArtDensity {
+  return LAYER_ART_DENSITY[`${slot}:${art}`] ?? DEFAULT_DENSITY;
+}
+
 /** The grid a layer draws for a view, or null while its art is unregistered. */
 export function layerArtGrid(
   slot: LayerSlot,
@@ -274,6 +352,22 @@ export function layerArtGrid(
   view: BodyViewId,
 ): PixelGrid | null {
   return SLOT_REGISTRIES[slot]?.[art]?.[view] ?? null;
+}
+
+/**
+ * The same lookup as a layer part, carrying what the registry says it
+ * was drawn at. Composing it into a frame goes through partAtDensity,
+ * which is where a set that has not been re-authored yet gets promoted —
+ * so a half-migrated character composites, one layer at a time.
+ */
+export function layerArtPart(
+  slot: LayerSlot,
+  art: string,
+  view: BodyViewId,
+): LayerPart | null {
+  const grid = layerArtGrid(slot, art, view);
+  if (!grid) return null;
+  return { grid, density: layerArtDensity(slot, art) };
 }
 
 /**
@@ -360,20 +454,24 @@ function resolvedParts(
     .sort((a, b) => order.indexOf(a.slot) - order.indexOf(b.slot))
     .flatMap((layer) => {
       if (layer.slot === skip) return [];
-      const grid = layerArtGrid(layer.slot, layer.art, view);
-      if (!grid) return [];
+      const part = layerArtPart(layer.slot, layer.art, view);
+      if (!part) return [];
       // Long hair trails one pixel on walk frames (secondary motion).
+      // Posed in the layer's own authored pixels, before any promotion:
+      // a shift is a distance on the drawing, not on the frame.
       const posed =
         layer.slot === "hair" && state === "walk"
-          ? hairWalkGrid(layer.art, grid)
-          : grid;
+          ? hairWalkGrid(layer.art, part.grid)
+          : part.grid;
       // Shimmering layers cycle their per-frame remap with the frame.
       const phase =
         layer.shimmer && layer.shimmer.length > 0
           ? layer.shimmer[frame % layer.shimmer.length]
           : undefined;
       const remap = phase ? { ...layer.remap, ...phase } : layer.remap;
-      return [{ grid: posed, remap }];
+      return [
+        partAtDensity({ ...part, grid: posed, remap }, BODY_FRAME.density),
+      ];
     });
 }
 
