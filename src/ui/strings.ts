@@ -217,6 +217,24 @@ export const STRINGS = {
   "party.takeAlong": "Take along",
   "party.empty": "Nobody has thrown in with you yet.",
   "party.note": "One of them walks with you at a time. Swap between jobs.",
+
+  /* -------------------------------------------------------------- *
+   * Codex — the between-runs record. The entries themselves are
+   * content; the tallies wrapped around them are not.
+   * -------------------------------------------------------------- */
+  "codex.title": "Codex",
+  "codex.endings": "Endings",
+  "codex.endings.stats":
+    "Endings found {found}/{total} · Playthroughs completed: {completions}",
+  "codex.threads": "Epilogue Threads",
+  "codex.threads.stats":
+    "Threads found {found}/{threads} · Outcomes recorded {outcomes}/{total}",
+  "codex.threads.outcomes": "Outcomes seen: {found}/{total}",
+  "codex.shards": "Memory Shards",
+  "codex.shards.statsInRun":
+    "Shards this run {collected}/{total} · Ever found {discovered}/{total}",
+  "codex.shards.statsEver": "Shards ever found {discovered}/{total}",
+  "codex.shards.locked": "Shard {number}",
 } as const;
 
 export type StringTable = typeof STRINGS;
