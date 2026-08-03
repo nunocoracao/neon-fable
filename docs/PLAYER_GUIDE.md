@@ -71,19 +71,19 @@ They are not decoration, and they are not interchangeable:
   ranged weapons; and it sets how far you can move in a combat turn
   (`2 + Reflexes / 4` tiles, rounded down). It also drives your odds of
   getting out of a fight you would rather not finish.
-- **Tech** — the machine-facing stat. Above **Tech 5** every point buys
-  a point of buffer on a breach run, and at **Tech 8** you can read
-  what a lattice node is carrying before you step on it. Plenty of
-  conversations want it too.
-- **Cool** — composure. It is the other half of neural capacity
-  (`(Body + Cool) / 2`, rounded down), so it decides how much chrome
-  you can carry; it is what a counter is talked down with (you need at
-  least **Cool 4** to try); and it is the most common stat gate in
-  dialogue.
-- **Intelligence** — what you know. It has no derived figure behind
-  it at all: it exists to open conversations, gear, and routes through
-  scenes that nothing else opens. A run that never invests in it is
-  simply a run that keeps hearing the short version.
+- **Tech** — the machine-facing stat, and the one the content asks for
+  most often. Above **Tech 5** every point buys a point of buffer on a
+  breach run, and at **Tech 8** you can read what a lattice node is
+  carrying before you step on it.
+- **Cool** — composure, and the second most gated stat. It is the other
+  half of neural capacity (`(Body + Cool) / 2`, rounded down), so it
+  decides how much chrome you can carry, and it is what a counter is
+  talked down with — you need at least **Cool 4** to try.
+- **Intelligence** — what you know, and the thinnest of the five. It
+  has no derived figure behind it at all and it is the rarest gate in
+  the writing: a handful of specific doors, opened by nothing else. Buy
+  it because you want those scenes, not because you expect it to carry
+  a build.
 
 There is no respec. Points earned later (see [Getting
 better](#getting-better)) only ever add.

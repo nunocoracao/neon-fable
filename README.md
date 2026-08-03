@@ -65,8 +65,9 @@ spoiler-light manual to every system, including the full key map.
   offscreen canvases at integer scale on load. Characters are composited
   from layers (body, outfit, face, hair, weapon, cyberware) sharing one
   frame and anchor, so equipping a coat changes what you look like and
-  portraits derive from the same data as the map sprite. There are no
-  image files in this repository, and nothing to download at runtime.
+  portraits derive from the same data as the map sprite. No image file
+  ships with the game — the only ones in the repository are the
+  screenshots above — and there is nothing to fetch at runtime.
 - **Audio is synthesized in code** through WebAudio: no samples, same
   reason.
 - **State is one serializable object.** `GameState` goes to
