@@ -124,6 +124,33 @@ describe("one reduced-motion selector", () => {
     expect(strays).toEqual([]);
   });
 
+  it("freezes the clock it hands the renderer, in both scenes", () => {
+    /**
+     * The one lever the whole reduced-motion design hangs from.
+     *
+     * Almost nothing in src/iso decides for itself whether to animate:
+     * the flicker, the weather, the glow shimmer, the ticker scroll and
+     * the marker pulses are all pure functions of a time in
+     * milliseconds, and the scene stills every one of them at once by
+     * passing zero instead of the clock. That is why an animated module
+     * can be written without ever mentioning reduced motion and still be
+     * covered — and also why a scene that passed the raw clock would
+     * quietly un-cover all of them together, with no other test failing.
+     *
+     * So the sweep is not "does this module know about reduced motion"
+     * but "does the clock reaching the renderer go through the gate".
+     */
+    const gated = /timeMs:\s*reduced(?:Motion)?(?:Active\(\))?\s*\?\s*0\s*:/;
+    for (const file of ["scene.ts", "combatScene.ts"]) {
+      const source = SHIPPED.find(({ path }) =>
+        path.endsWith(join("src", "iso", file)),
+      );
+      expect(source, file).toBeDefined();
+      expect(source?.text, `${file} must gate the clock it renders with`)
+        .toMatch(gated);
+    }
+  });
+
   it("keeps the CSS kill switch driven by the same answer", () => {
     const css = readFileSync(join("src", "ui", "theme.css"), "utf8");
     // The media query is the OS half, and it has to stand aside when

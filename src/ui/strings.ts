@@ -804,6 +804,17 @@ export const STRINGS = {
   "dialogue.spoken": "{speaker}: {line}",
   "combat.log.label": "Combat log",
   "combat.narrator.label": "Arena",
+  /* The initiative rail read aloud. Every chip draws its facts — whose
+     turn, how far off, how hurt, what is stuck to them — as a portrait,
+     a colour, and a bar, none of which a screen reader can see; these
+     are the same facts as a sentence. */
+  "combat.rail.label": "Initiative order",
+  "combat.rail.chip": "{name}, {turn}, {hp}",
+  "combat.rail.turn.now": "acting now",
+  "combat.rail.turn.next": "next up",
+  "combat.rail.turn.away": "{turns} turns away",
+  "combat.rail.turn.down": "defeated",
+  "combat.rail.injury": "injured: {name}, {effect}",
   "explore.narrator.label": "The street",
   "narrate.turn": "{name}'s turn.",
   "narrate.moved": "{name} moves to column {x}, row {y}.",

@@ -22,10 +22,13 @@ import {
   hpLabel,
   initiativeChips,
   staticSurgeWarning,
+  initiativeChipLabel,
+  statusLabel,
   targetCard,
   telegraphChip,
   telegraphReasonText,
   telegraphTileViews,
+  type InitiativeChip,
 } from "./combatHud";
 
 /**
@@ -290,6 +293,60 @@ describe("hpLabel", () => {
   it("never reads a body below zero", () => {
     expect(hpLabel(12, 18)).toBe("HP 12/18");
     expect(hpLabel(-4, 18)).toBe("HP 0/18");
+  });
+});
+
+describe("initiativeChipLabel", () => {
+  /**
+   * Everything the rail draws, said. The chip is a portrait, a bar, and
+   * a glyph or two, so this sentence is the whole of it for anybody not
+   * looking at the screen — which makes "does it carry every fact" the
+   * only question worth asking of it.
+   */
+  const chip = (over: Partial<InitiativeChip> = {}): InitiativeChip => ({
+    combatantId: "vex",
+    name: "Vex",
+    kind: "enemy",
+    enemyId: null,
+    companionId: null,
+    lookId: null,
+    lookIndex: null,
+    hp: 12,
+    maxHp: 18,
+    hpFraction: 12 / 18,
+    alive: true,
+    active: false,
+    turnsAway: 2,
+    statuses: [],
+    injury: null,
+    ...over,
+  });
+
+  it("names the body, its place in the order, and how hurt it is", () => {
+    expect(initiativeChipLabel(chip())).toBe("Vex, 2 turns away, HP 12/18.");
+  });
+
+  it("says whose turn it is rather than counting zero turns away", () => {
+    expect(initiativeChipLabel(chip({ turnsAway: 0 }))).toContain("acting now");
+    expect(initiativeChipLabel(chip({ turnsAway: 1 }))).toContain("next up");
+  });
+
+  it("calls a body with no turn coming defeated", () => {
+    const down = chip({ alive: false, turnsAway: null, hp: 0 });
+    expect(initiativeChipLabel(down)).toBe("Vex, defeated, HP 0/18.");
+  });
+
+  it("carries the conditions the badges draw as glyphs", () => {
+    const stunned = chip({ statuses: ["stunned"] });
+    expect(initiativeChipLabel(stunned)).toContain(statusLabel("stunned"));
+  });
+
+  it("spells out a carried wound, name and cost both", () => {
+    const hurt = chip({
+      injury: { id: "winged", name: "Winged", effect: "-2 Reflexes" },
+    });
+    expect(initiativeChipLabel(hurt)).toContain("Winged");
+    expect(initiativeChipLabel(hurt)).toContain("-2 Reflexes");
   });
 });
 
