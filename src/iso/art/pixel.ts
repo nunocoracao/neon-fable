@@ -120,6 +120,42 @@ export function bakeSprite(
 }
 
 /**
+ * The shadow channel: the soft ellipse a body casts on the ground. It
+ * is under the figure rather than part of it, so it is the one opaque
+ * thing a silhouette leaves out.
+ */
+export const SHADOW = "z";
+
+/**
+ * The silhouette of a grid, as a grid: every opaque pixel that is not
+ * ground shadow replaced by `fill`, everything else transparent. Pure,
+ * so what an outline traces can be checked without a canvas — the
+ * shape the hit flash paints is derived here and only painted by
+ * bakeSilhouette.
+ */
+export function silhouetteGrid(grid: PixelGrid, fill = "9"): string[] {
+  if (fill.length !== 1 || fill === TRANSPARENT) {
+    throw new Error(`silhouette fill must be one opaque character, got "${fill}"`);
+  }
+  return grid.map((row) =>
+    [...row]
+      .map((ch) => (ch === TRANSPARENT || ch === SHADOW ? TRANSPARENT : fill))
+      .join(""),
+  );
+}
+
+/** How many pixels a silhouette covers; zero means nothing to trace. */
+export function silhouetteArea(grid: PixelGrid): number {
+  let area = 0;
+  for (const row of grid) {
+    for (const ch of row) {
+      if (ch !== TRANSPARENT && ch !== SHADOW) area++;
+    }
+  }
+  return area;
+}
+
+/**
  * Bake a single-color silhouette of a grid (shadow pixels excluded),
  * used for hit flashes over entity sprites.
  */
@@ -135,7 +171,7 @@ export function bakeSilhouette(
   canvas.height = grid.length * ART_SCALE;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not create 2d context for sprite");
-  paintGrid(ctx, grid, (ch) => (ch === "z" ? undefined : color));
+  paintGrid(ctx, silhouetteGrid(grid), () => color);
   return { image: canvas, anchorX: anchorX * ART_SCALE, anchorY: anchorY * ART_SCALE };
 }
 

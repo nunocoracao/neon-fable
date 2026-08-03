@@ -17,6 +17,7 @@ import {
   DIAMOND_WIDTHS,
   gridErrors,
   remapped,
+  silhouetteGrid,
   type PixelGrid,
 } from "./pixel";
 import { PROP_ART, isoBox, isoSlab } from "./props";
@@ -917,15 +918,11 @@ describe("signage (native hi-res)", () => {
 const INTERACTABLE_IDS = ["door", "terminal", "stash", "shard", "exit"] as const;
 
 /**
- * The hit-flash/outline silhouette of a grid: every pixel bakeSilhouette
- * would paint (everything but transparency and the z ground shadow).
+ * The hit-flash/outline silhouette of a grid, as one comparable string —
+ * derived by the same pure helper bakeSilhouette paints from.
  */
 function silhouette(grid: PixelGrid): string {
-  return grid
-    .map((row) =>
-      [...row].map((ch) => (ch === TRANSPARENT || ch === "z" ? "." : "x")).join(""),
-    )
-    .join("\n");
+  return silhouetteGrid(grid, "x").join("\n");
 }
 
 describe("interactable art (native hi-res)", () => {
