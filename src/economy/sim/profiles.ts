@@ -62,7 +62,7 @@ export interface EconomyProfile {
  * spike pays the risk premium for the same gun, which is the point of
  * the premium and the reason it belongs in the sweep.
  */
-const WEAPON_WISHLIST = [
+export const WEAPON_WISHLIST = [
   "buy-rail-spitter",
   "buy-torque-cleaver",
   "buy-rail-spitter-hot",
@@ -94,6 +94,14 @@ const PARTS_WISHLIST = [
   "buy-burst-governor",
   "buy-hairline-sear",
 ] as const;
+
+/**
+ * How a weapon tier-up shows up in a ledger. Every purchase step labels
+ * itself with the head of its wishlist (see shopStep), so this is the
+ * prefix a bought gun files itself under whichever of the five lines the
+ * shelf actually had out.
+ */
+export const WEAPON_WISH_PREFIX = `buy ${WEAPON_WISHLIST[0]}`;
 
 /* ------------------------------------------------------------------ *
  * The profiles

@@ -30,6 +30,8 @@ export {
   ECONOMY_PROFILE_IDS,
   ECONOMY_PROFILES,
   requireEconomyProfile,
+  WEAPON_WISH_PREFIX,
+  WEAPON_WISHLIST,
   type EconomyProfile,
   type EconomyProfileId,
 } from "./profiles";

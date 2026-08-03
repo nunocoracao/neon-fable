@@ -119,12 +119,16 @@ export const bandedEncounters = encounterBalance;
 
 /**
  * Credits a run must be holding at a chapter break for the clinic to
- * still be a place it can walk into. Set at the dearest treatment in
- * ./injuries.ts, not the cheapest: the promise is that *any* wound can
- * be closed, not that a lucky one can.
+ * still be a place it can walk into.
  *
- * Pinned against the injury table by test, so a treatment priced above
- * this floor fails rather than quietly creating the dead end.
+ * Set at the *cheapest* treatment in ./injuries.ts, because that is what
+ * the promise actually is: basic recovery is always reachable. Having
+ * the dearest wound closed on the spot is a thing a run can be too poor
+ * for — it still has patches, kits, and the next chapter.
+ *
+ * Pinned against the injury table by test, so a clinic whose cheapest
+ * door costs more than this fails here rather than quietly creating the
+ * dead end.
  */
 export const CLINIC_FLOOR = 45;
 
@@ -172,10 +176,22 @@ export const MAINLINE_SURPLUS = {
    * where there is nothing left to buy — that is an epilogue, not a
    * surplus.
    */
-  maxShare: 0.95,
+  maxShare: 0.85,
   /** And in absolute terms, enough to walk into a clinic. */
   minCredits: CLINIC_FLOOR,
 } as const;
+
+/**
+ * How many of the canonical roads must be able to buy the chapter-2
+ * weapon tier-up on the mainline profile.
+ *
+ * Not all of them, and that is the design rather than a tolerance: the
+ * ghost road resolves its whole finale without drawing a weapon, and a
+ * road that never fights should not be funded as though it did. A
+ * majority, so a road that quietly stops affording its own gun fails
+ * here.
+ */
+export const MIN_ROADS_AFFORDING_TIER_UP = 3;
 
 /**
  * What separates a thorough run from a mainline one. Both ends matter:
@@ -184,15 +200,20 @@ export const MAINLINE_SURPLUS = {
  */
 export const THOROUGH_CHOICE = {
   /**
-   * Credits a thorough run must put through the shops beyond what the
-   * mainline run spends. Under it, browsing is not a playstyle.
+   * Credits the thorough runs must put through the shops, across the
+   * whole sweep, beyond what the mainline runs spend. Aggregate rather
+   * than per-road because the poor roads have nothing to browse with —
+   * that is the finding, not a failure — and the promise is that
+   * browsing is worth something *somewhere*.
    */
-  minExtraSpend: 100,
+  minExtraSpend: 300,
   /**
    * Wishlist entries a thorough run must fail to buy, per run. The whole
    * point: the shops offer more than any one road can pay for.
    */
-  minUnmetWishes: 1,
+  minUnmetWishes: 3,
+  /** Credits resale must be worth to a run that clears its bag. */
+  minSalvage: 20,
 } as const;
 
 /**
@@ -207,5 +228,5 @@ export const INCOME_SPREAD = {
   /** The poorest road still has to earn a real amount over three acts. */
   minIncome: 200,
   /** And the richest has to stay inside a comprehensible multiple of it. */
-  maxRatio: 10,
+  maxRatio: 9,
 } as const;
