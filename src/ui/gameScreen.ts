@@ -107,6 +107,7 @@ import { createMainMenuScreen } from "./mainMenu";
 import { createMinimap, type MinimapHandle } from "./minimap";
 import { createPartyOverlay } from "./partyOverlay";
 import { createOverlayRoot, type OverlayHandle } from "./overlay";
+import { createPhotoOverlay, type PhotoOverlayHandle } from "./photoOverlay";
 import { createSaveLoadPanel } from "./saveLoad";
 import { createStylistOverlay } from "./stylistOverlay";
 import { createVendorOverlay } from "./vendorOverlay";
@@ -242,6 +243,32 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     | { kind: OverlayKind; handle: OverlayHandle; dismiss: () => void }
     | null = null;
   let advanceButton: HTMLButtonElement | null = null;
+  /**
+   * The photo-mode strip, while one is up. It is deliberately not an
+   * `overlay`: an overlay is a panel opened *over* a running game, and
+   * photo mode is the opposite — the game is held still and the screen
+   * is cleared of everything the game put on it. It cannot coexist with
+   * a panel in either direction (see openPhotoMode / onKeyDown).
+   */
+  let photo: PhotoOverlayHandle | null = null;
+  /** The canvas the scene is running on; what a shot is taken of. */
+  let sceneCanvas: HTMLCanvasElement | null = null;
+  /**
+   * Everything the game screen puts on top of the map. Photo mode takes
+   * the lot off screen and puts it back, which is the whole of "the HUD
+   * hides" — one list, so a layer added later is hidden by being added
+   * here rather than by being remembered.
+   */
+  function hudLayers(): HTMLElement[] {
+    return [
+      hud,
+      minimap?.el ?? null,
+      promptEl,
+      barkLayer?.el ?? null,
+      hintLayer?.el ?? null,
+      toast,
+    ].filter((el): el is HTMLElement => el !== null);
+  }
   /**
    * The hour a story beat has staged this visit at, if any. A beat that
    * sets one moves the scene's clock and leaves it there — the plaza
@@ -1112,6 +1139,54 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   }
 
   /**
+   * Photo mode: the street held still, the HUD off screen, and a strip
+   * of framing controls in its place.
+   *
+   * Refused while anything is open over the map — a conversation paused
+   * mid-line behind a photograph is a conversation the player has to
+   * find their way back to — and refused before the scene exists, since
+   * there would be nothing to photograph.
+   */
+  function openPhotoMode(): void {
+    if (photo || overlay || !scene || !root || !sceneCanvas) return;
+    for (const layer of hudLayers()) layer.hidden = true;
+    // The street goes quiet with the chatter it was carrying: a chip
+    // fading in over a held frame would be in the shot.
+    barkLayer?.setPaused(true);
+    hintLayer?.setPaused(true);
+    photo = createPhotoOverlay({
+      canvas: sceneCanvas,
+      scene,
+      map,
+      prior: {
+        camera: scene.viewCamera(),
+        zoom: settings.get().zoom,
+        // The hour actually being played at, story override included —
+        // what the shot opens on, and what it hands back.
+        dayPhase: resolveDayPhase(map, storyPhase),
+        weather: settings.get().weather,
+      },
+      onExit: closePhotoMode,
+    });
+    root.append(photo.el);
+    focusFirst(photo.el);
+  }
+
+  /**
+   * And back to the game. The strip's own teardown is what restores the
+   * scene (see createPhotoOverlay); everything here is the screen it was
+   * borrowing.
+   */
+  function closePhotoMode(): void {
+    if (!photo) return;
+    photo.destroy();
+    photo = null;
+    for (const layer of hudLayers()) layer.hidden = false;
+    barkLayer?.setPaused(false);
+    hintLayer?.setPaused(false);
+  }
+
+  /**
    * Panels that own the keyboard while they are up. A conversation is
    * one because its choices are the only thing worth pressing; a breach
    * is one because closing it away would throw the run, and it has its
@@ -1122,6 +1197,13 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   }
 
   function onKeyDown(event: KeyboardEvent): void {
+    // Photo mode answers every key itself, Escape included — the map's
+    // panels are not reachable from behind a viewfinder.
+    if (photo) return;
+    if (event.key === "v" || event.key === "V") {
+      openPhotoMode();
+      return;
+    }
     if (event.key === "Escape") {
       if (ownsKeyboard()) return;
       audio.emit("ui.cancel");
@@ -1202,6 +1284,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       if (!(canvas instanceof HTMLCanvasElement)) {
         throw new Error("Missing #iso-canvas element");
       }
+      sceneCanvas = canvas;
 
       // Map transition (and post-combat return): record location + autosave.
       enterMap(session, mapId);
@@ -1323,8 +1406,10 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         onFocus: showFocusHint,
         // The map answers the keyboard only when nothing is open over
         // it: a step taken behind an inventory panel is a step nobody
-        // asked for, and the panel's own arrows are the panel's.
-        keyboardEnabled: () => overlay === null,
+        // asked for, and the panel's own arrows are the panel's. Photo
+        // mode is the same answer for a different reason — the arrows
+        // are its camera, and the map is not being played.
+        keyboardEnabled: () => overlay === null && photo === null,
         // Whoever is watching this map tonight; null on every map that
         // has nobody on it, which is most of them.
         watch: watchFrame,
@@ -1399,6 +1484,10 @@ export function createGameScreen(options: GameScreenOptions): Screen {
 
     unmount(): void {
       window.removeEventListener("keydown", onKeyDown);
+      // Before the scene goes: the strip hands the camera and the hour
+      // back through it, and a teardown afterwards would be talking to
+      // something already destroyed.
+      closePhotoMode();
       closeOverlay();
       if (toastTimer) clearTimeout(toastTimer);
       if (alertFlashTimer) clearTimeout(alertFlashTimer);
@@ -1439,6 +1528,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       overlayLayer = null;
       toast = null;
       promptEl = null;
+      sceneCanvas = null;
       if (root) {
         root.style.pointerEvents = "";
         root = null;

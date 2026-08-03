@@ -153,6 +153,20 @@ The city also notices what you have done: which stalls are shuttered,
 what the news strips are running, who is standing on which corner, and
 what a vendor has on the shelf all move with the state of your run.
 
+### Photo mode
+
+`V` holds the district still and clears the screen of everything the
+game put on it — HUD, minimap, prompts, chatter — leaving a strip of
+framing controls along the bottom. Pan the camera anywhere inside the
+map with the arrows or by dragging, zoom with `+`/`−` (there is one
+level deeper than the game itself plays at), stage the shot at another
+hour with `]`/`[`, put the rain in or take it out with `R`, and empty
+the street of every figure with `H` if you want the city on its own.
+`Enter` saves a PNG — at the screen's own resolution, or double it with
+`2` — and `Esc` puts you back exactly where you were standing, at the
+hour the story is actually at. None of it touches your save: photo mode
+changes what you are looking at and nothing else.
+
 ## Conversations
 
 Click a choice, press its number, or walk the list with the arrows and
@@ -518,7 +532,23 @@ While a district is on screen and no panel is open over it.
 | `X` | Crouch-walk, where somebody is watching |
 | `F` | Take down a guard · lunge past a gap |
 | `+ / − / wheel` | Zoom the camera |
+| `V` | Enter photo mode — the street held still, ready to frame |
 | `Click / drag` | Move and interact · pan the camera |
+
+### In photo mode
+
+The district is held still and the HUD is off screen. Nothing here touches the run: the hour, the rain, and the zoom are the shot's alone, and leaving puts the street back exactly as it was.
+
+| Keys | What it does |
+| --- | --- |
+| `Arrows / WASD / drag` | Move the camera anywhere inside the district |
+| `+ / − / wheel` | Zoom, including one level deeper than the game plays at |
+| `] / [` | Stage the shot at another hour |
+| `R` | Rain in the shot, or none |
+| `H` | Leave every figure out, for the city on its own |
+| `2` | Capture at double the screen's resolution |
+| `Enter` | Take the shot and save it as a PNG |
+| `Esc` | Leave photo mode, back to exactly where you were |
 
 ### In a conversation
 

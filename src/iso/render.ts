@@ -172,6 +172,26 @@ export interface RenderView {
   /** Which telegraph palette the tints are painted from. */
   telegraphPalette?: TelegraphPaletteId;
   /**
+   * The ground affordances: the pulsing marker under every interactable,
+   * the lit ring in every way out, the walk preview, the cursor diamond,
+   * and the focus outline and its name chip. On by default and absent
+   * everywhere except photo mode, which is the one caller that wants a
+   * picture of a street rather than a playable one — a screenshot with
+   * the game pointing at things in it is a screenshot of the HUD.
+   *
+   * A render flag rather than an emptied view: the affordances are still
+   * true, they are simply not in the shot.
+   */
+  marks?: boolean;
+  /**
+   * Leave every figure out of the pass: the entity list (the player,
+   * whoever walks with them, the crowd, anybody watching) and the map's
+   * own standing NPCs alike. Photo mode's environment-only shot, and the
+   * same kind of flag as `marks` for the same reason — nobody has left
+   * the map, they are just not being drawn.
+   */
+  hideCharacters?: boolean;
+  /**
    * Dev instrumentation: a counter record the frame fills in as it
    * paints (see ./perf.ts). Absent in the game, which is the point —
    * measuring costs nothing when nobody is looking.
@@ -238,7 +258,10 @@ export function renderScene(
 ): void {
   const { map, camera, viewportW, viewportH, timeMs, dpr, zoom } = view;
   const weather = view.weather ?? null;
-  const focus = view.focus ?? null;
+  const marks = view.marks !== false;
+  const hideCharacters = view.hideCharacters === true;
+  // Nothing is offered in a photograph, so nothing is outlined in one.
+  const focus = marks ? (view.focus ?? null) : null;
   const setPieces = view.setPieces ?? [];
   const counters = view.counters;
   const scale = dpr * zoom;
@@ -281,51 +304,53 @@ export function renderScene(
   }
 
   const palette = view.telegraphPalette ?? DEFAULT_TELEGRAPH_PALETTE;
-  // Ground somebody else is holding, under everything that stands on it.
-  paintTints(ctx, view.tints ?? [], palette);
+  if (marks) {
+    // Ground somebody else is holding, under everything that stands on it.
+    paintTints(ctx, view.tints ?? [], palette);
 
-  // Exit affordance: every interactable that leads off the map gets the
-  // same lit ring laid in its tile, so a way out reads identically
-  // whether it is a door, a stair, or a tram arch. The ones already
-  // drawn as the marker itself skip it rather than double-painting.
-  for (const exit of map.interactables) {
-    if (!exit.exit || exit.spriteId === "exit") continue;
-    const ring = sprites.interactable("exit", exit.x, exit.y, timeMs);
-    if (!spriteVisible(bounds, ring, exit.x, exit.y)) continue;
-    drawSprite(ctx, ring, exit.x, exit.y, scale);
-    if (counters) counters.draws++;
-  }
+    // Exit affordance: every interactable that leads off the map gets the
+    // same lit ring laid in its tile, so a way out reads identically
+    // whether it is a door, a stair, or a tram arch. The ones already
+    // drawn as the marker itself skip it rather than double-painting.
+    for (const exit of map.interactables) {
+      if (!exit.exit || exit.spriteId === "exit") continue;
+      const ring = sprites.interactable("exit", exit.x, exit.y, timeMs);
+      if (!spriteVisible(bounds, ring, exit.x, exit.y)) continue;
+      drawSprite(ctx, ring, exit.x, exit.y, scale);
+      if (counters) counters.draws++;
+    }
 
-  // Highlights sit on the ground, under all objects. Every colour on
-  // this layer comes out of the same palette as the telegraph tints, so
-  // the colourblind-assist option repaints the whole ground layer.
-  const marks = highlightColors(palette);
-  // Pulsing marker under every interactable so points of interest read
-  // at a glance without hunting with the cursor.
-  const markerAlpha = 0.08 + 0.1 * pulse01(timeMs, 1600);
-  for (const interactable of map.interactables) {
-    if (!tileVisible(bounds, interactable.x, interactable.y)) continue;
-    drawDiamond(
-      ctx,
-      interactable,
-      markerFill(marks, markerAlpha),
-      marks.markerOutline,
-    );
-  }
-  for (const step of view.path) {
-    if (!tileVisible(bounds, step.x, step.y)) continue;
-    drawDiamond(ctx, step, marks.pathStep, null);
-  }
-  if (view.hoverTile) {
-    const { x, y } = view.hoverTile;
-    const walkable = isWalkable(map, x, y);
-    const interactable = map.interactables.some((i) => i.x === x && i.y === y);
-    const color = interactable
-      ? marks.hoverInteractable
-      : walkable
-        ? marks.hoverWalkable
-        : marks.hoverBlocked;
-    drawDiamond(ctx, view.hoverTile, null, color);
+    // Highlights sit on the ground, under all objects. Every colour on
+    // this layer comes out of the same palette as the telegraph tints, so
+    // the colourblind-assist option repaints the whole ground layer.
+    const colors = highlightColors(palette);
+    // Pulsing marker under every interactable so points of interest read
+    // at a glance without hunting with the cursor.
+    const markerAlpha = 0.08 + 0.1 * pulse01(timeMs, 1600);
+    for (const interactable of map.interactables) {
+      if (!tileVisible(bounds, interactable.x, interactable.y)) continue;
+      drawDiamond(
+        ctx,
+        interactable,
+        markerFill(colors, markerAlpha),
+        colors.markerOutline,
+      );
+    }
+    for (const step of view.path) {
+      if (!tileVisible(bounds, step.x, step.y)) continue;
+      drawDiamond(ctx, step, colors.pathStep, null);
+    }
+    if (view.hoverTile) {
+      const { x, y } = view.hoverTile;
+      const walkable = isWalkable(map, x, y);
+      const interactable = map.interactables.some((i) => i.x === x && i.y === y);
+      const color = interactable
+        ? colors.hoverInteractable
+        : walkable
+          ? colors.hoverWalkable
+          : colors.hoverBlocked;
+      drawDiamond(ctx, view.hoverTile, null, color);
+    }
   }
 
   // Object pass: props, interactables, and entities depth-sorted
@@ -362,6 +387,10 @@ export function renderScene(
     });
   }
   for (const i of map.interactables) {
+    // The people the map stands on its corners are drawn here rather
+    // than in the entity list, so leaving figures out of a shot has to
+    // reach them too.
+    if (hideCharacters && i.spriteId === "npc") continue;
     const drawable: SceneDrawable = {
       x: i.x,
       y: i.y,
@@ -382,7 +411,7 @@ export function renderScene(
     };
     if (keep(drawable) && drawable.outline) focused = drawable;
   }
-  for (const e of view.entities) {
+  for (const e of hideCharacters ? [] : view.entities) {
     keep({
       x: e.position.x,
       y: e.position.y,

@@ -540,6 +540,89 @@ body::after {
   opacity: 1;
 }
 
+/* --- Photo mode ---
+
+   Everything the game screen lays over the map is hidden by attribute
+   rather than by class while a shot is being framed, because each of
+   those layers sets its own `display` and a plain `[hidden]` would lose
+   to it. The list is the same one the game screen walks — a layer added
+   later is hidden by being added there, and remembered here. */
+
+.nf-hud[hidden],
+.nf-minimap[hidden],
+.nf-interact-prompt[hidden],
+.nf-bark-layer[hidden],
+.nf-hint-layer[hidden],
+.nf-toast[hidden] {
+  display: none;
+}
+
+/* The control strip: a single band along the bottom, and nothing else
+   on screen. Deliberately not an overlay — it dims nothing and covers
+   as little of the district as a row of buttons can. */
+.nf-photo {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.75rem 1rem 1rem;
+  background: linear-gradient(
+    to top,
+    rgba(5, 6, 12, 0.92),
+    rgba(5, 6, 12, 0)
+  );
+  pointer-events: none;
+}
+
+.nf-photo-title {
+  margin: 0;
+  font-family: var(--nf-font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--nf-glow-cyan);
+}
+
+.nf-photo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+/* The buttons take the pointer back; the band around them lets a drag
+   through to the canvas, so the camera can be panned from anywhere. */
+.nf-photo-controls .nf-button {
+  pointer-events: auto;
+}
+
+.nf-photo-zoom {
+  min-width: 3ch;
+  padding: 0 0.3rem;
+  font-family: var(--nf-font-display);
+  font-size: 0.8rem;
+  color: var(--nf-glow-amber);
+}
+
+.nf-photo-hints,
+.nf-photo-status {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: var(--nf-ink-dim);
+}
+
+.nf-photo-status {
+  min-height: 1rem;
+  color: var(--nf-glow-amber);
+}
+
 /* --- Minimap (exploration) --- */
 
 /* Parked in the strip directly under the HUD bar's action buttons — the
