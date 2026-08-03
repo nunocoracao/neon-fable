@@ -21,6 +21,7 @@ import { createGameScreen } from "./gameScreen";
 import { createSaveLoadPanel } from "./saveLoad";
 import type { Screen } from "./screen";
 import { showScreen } from "./screen";
+import { t } from "./strings";
 import { clearActiveSession, createSession } from "./session";
 import { createSettingsScreen } from "./settingsScreen";
 
@@ -47,11 +48,11 @@ export function createMainMenuScreen(): Screen {
 
       const title = document.createElement("h1");
       title.className = "nf-title";
-      title.textContent = "Neon Fable";
+      title.textContent = t("menu.title");
 
       const subtitle = document.createElement("p");
       subtitle.className = "nf-subtitle";
-      subtitle.textContent = "A cyberpunk story";
+      subtitle.textContent = t("menu.subtitle");
 
       const menu = document.createElement("div");
       menu.className = "nf-menu";
@@ -61,7 +62,7 @@ export function createMainMenuScreen(): Screen {
 
       const newGame = document.createElement("button");
       newGame.className = "nf-button";
-      newGame.textContent = "New Game";
+      newGame.textContent = t("menu.newGame");
       newGame.addEventListener("click", () =>
         showScreen(createCharacterCreateScreen()),
       );
@@ -72,7 +73,7 @@ export function createMainMenuScreen(): Screen {
       if (meta.ngPlusUnlocked) {
         newGamePlus = document.createElement("button");
         newGamePlus.className = "nf-button";
-        newGamePlus.textContent = "New Game+";
+        newGamePlus.textContent = t("menu.newGamePlus");
         newGamePlus.addEventListener("click", () =>
           showScreen(
             createCharacterCreateScreen({
@@ -89,7 +90,7 @@ export function createMainMenuScreen(): Screen {
       const recent = mostRecentSave(listSaves(window.localStorage));
       const cont = document.createElement("button");
       cont.className = "nf-button";
-      cont.textContent = "Continue";
+      cont.textContent = t("menu.continue");
       cont.disabled = recent === null;
       cont.addEventListener("click", () => {
         if (!recent) return;
@@ -99,7 +100,7 @@ export function createMainMenuScreen(): Screen {
           errorLine.textContent =
             error instanceof SaveError
               ? saveErrorMessage(error)
-              : "Could not load the most recent save.";
+              : t("menu.error.loadRecent");
         }
       });
 
@@ -111,7 +112,7 @@ export function createMainMenuScreen(): Screen {
       if (stashed?.status === "ready") {
         recover = document.createElement("button");
         recover.className = "nf-button";
-        recover.textContent = "Recover Run";
+        recover.textContent = t("menu.recoverRun");
         recover.addEventListener("click", () => {
           try {
             startLoadedGame(takeRecovery(window.localStorage));
@@ -119,19 +120,19 @@ export function createMainMenuScreen(): Screen {
             errorLine.textContent =
               error instanceof SaveError
                 ? saveErrorMessage(error)
-                : "The stashed run could not be recovered.";
+                : t("menu.error.recover");
           }
         });
       }
 
       const load = document.createElement("button");
       load.className = "nf-button";
-      load.textContent = "Load Game";
+      load.textContent = t("menu.loadGame");
       load.addEventListener("click", () => showScreen(createLoadScreen()));
 
       const codex = document.createElement("button");
       codex.className = "nf-button";
-      codex.textContent = "Codex";
+      codex.textContent = t("menu.codex");
       codex.addEventListener("click", () =>
         showScreen(
           createCodexScreen({
@@ -142,7 +143,7 @@ export function createMainMenuScreen(): Screen {
 
       const settings = document.createElement("button");
       settings.className = "nf-button";
-      settings.textContent = "Settings";
+      settings.textContent = t("menu.settings");
       settings.addEventListener("click", () =>
         showScreen(
           createSettingsScreen({
@@ -162,7 +163,7 @@ export function createMainMenuScreen(): Screen {
       if (isDevMode()) {
         const explore = document.createElement("button");
         explore.className = "nf-button";
-        explore.textContent = "Explore (dev)";
+        explore.textContent = t("menu.dev.explore");
         explore.addEventListener("click", () => {
           showScreen(
             createExploreScreen({
@@ -176,7 +177,7 @@ export function createMainMenuScreen(): Screen {
 
         const gallery = document.createElement("button");
         gallery.className = "nf-button";
-        gallery.textContent = "Art Gallery (dev)";
+        gallery.textContent = t("menu.dev.gallery");
         gallery.addEventListener("click", () => {
           void openArtGallery(() => showScreen(createMainMenuScreen()));
         });
@@ -186,7 +187,7 @@ export function createMainMenuScreen(): Screen {
         // it: the one scene a performance claim is made against.
         const perf = document.createElement("button");
         perf.className = "nf-button";
-        perf.textContent = "Perf Scene (dev)";
+        perf.textContent = t("menu.dev.perf");
         perf.addEventListener("click", () => {
           void openPerfScene(() => showScreen(createMainMenuScreen()));
         });
