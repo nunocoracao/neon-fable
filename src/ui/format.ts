@@ -769,6 +769,13 @@ export function stepsLabel(amount: number): string {
     : t("count.step.many", { amount });
 }
 
+/** "1 chain", "3 chains" — what a breach run banked on the way in. */
+export function chainsLabel(amount: number): string {
+  return amount === 1
+    ? t("count.chain.one", { amount })
+    : t("count.chain.many", { amount });
+}
+
 /** "1 tile", "6 tiles" — how much ground a move still reaches. */
 export function tilesLabel(amount: number): string {
   return amount === 1

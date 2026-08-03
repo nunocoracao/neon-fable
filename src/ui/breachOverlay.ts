@@ -147,7 +147,7 @@ export function createBreachOverlay(
     try {
       game = undoBreach(game);
       audio.emit("ui.cancel");
-      say("You back off the node. The hop is spent either way.");
+      say(t("breach.undo"));
     } catch (error) {
       if (!(error instanceof BreachError)) throw error;
       say(error.message, true);
@@ -216,21 +216,21 @@ export function createBreachOverlay(
     panel.append(paragraph(model.warning, "nf-dim"));
     const menu = document.createElement("div");
     menu.className = "nf-menu";
-    menu.append(button("Jack in", "nf-button", jackIn));
+    menu.append(button(t("breach.jackIn"), "nf-button", jackIn));
     if (rescueOffered) {
       menu.append(
-        button("Let it route itself", "nf-button nf-breach-rescue", routeForMe),
+        button(
+          t("breach.rescue"),
+          "nf-button nf-breach-rescue",
+          routeForMe,
+        ),
       );
     }
-    menu.append(button("Walk away", "nf-button", options.onClose));
+    menu.append(button(t("breach.walkAway"), "nf-button", options.onClose));
     panel.append(menu);
     if (rescueOffered) {
       panel.append(
-        paragraph(
-          "Assist: the lattice will route itself to the core. You take " +
-            "what the core holds and none of the data along the way.",
-          "nf-dim",
-        ),
+        paragraph(t("breach.rescue.note"), "nf-dim"),
       );
     }
   }
@@ -314,9 +314,9 @@ export function createBreachOverlay(
 
     const menu = document.createElement("div");
     menu.className = "nf-menu nf-breach-actions";
-    const back = button("Back up [U]", "nf-button nf-button-small", undo);
+    const back = button(t("breach.backUp"), "nf-button nf-button-small", undo);
     back.disabled = !model.canUndo;
-    const out = button("Pull out [W]", "nf-button nf-button-small", withdraw);
+    const out = button(t("breach.pullOut"), "nf-button nf-button-small", withdraw);
     out.disabled = !model.canWithdraw;
     menu.append(back, out);
     panel.append(menu);
@@ -346,7 +346,7 @@ export function createBreachOverlay(
     }
     const menu = document.createElement("div");
     menu.className = "nf-menu";
-    menu.append(button("Jack out [Esc]", "nf-button", options.onClose));
+    menu.append(button(t("breach.jackOut"), "nf-button", options.onClose));
     panel.append(menu);
   }
 
@@ -357,7 +357,7 @@ export function createBreachOverlay(
     );
     const menu = document.createElement("div");
     menu.className = "nf-menu";
-    menu.append(button("Step back [Esc]", "nf-button", options.onClose));
+    menu.append(button(t("breach.stepBack"), "nf-button", options.onClose));
     panel.append(menu);
   }
 
@@ -388,7 +388,7 @@ export function createBreachOverlay(
       // A run in progress cannot be closed away from: it is finished,
       // walked out of, or lost, and the panel says which keys do that.
       audio.emit("ui.cancel");
-      say("Pull out with [W] — you cannot simply close the channel.", true);
+      say(t("breach.cannotClose"), true);
       render();
       return;
     }

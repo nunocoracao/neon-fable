@@ -510,6 +510,8 @@ export const STRINGS = {
   "count.step.many": "{amount} steps",
   "count.hint.one": "{amount} hint",
   "count.hint.many": "{amount} hints",
+  "count.chain.one": "{amount} chain",
+  "count.chain.many": "{amount} chains",
   "count.tile.one": "{amount} tile",
   "count.tile.many": "{amount} tiles",
 
@@ -821,6 +823,56 @@ export const STRINGS = {
     "The corner map shows the whole district, where you stand and face, the ways out, and who is worth walking to. Collapsed it leaves a tab; M expands it again while exploring.",
   "graphics.minimap.shown": "Shown",
   "graphics.minimap.collapsed": "Collapsed",
+
+  /* -------------------------------------------------------------- *
+   * Breach: the lattice, its nodes, and how a run reads afterward.
+   * The terminal's own briefing and spent lines are content.
+   * -------------------------------------------------------------- */
+  "breach.jackIn": "Jack in",
+  "breach.walkAway": "Walk away",
+  "breach.jackOut": "Jack out [Esc]",
+  "breach.stepBack": "Step back [Esc]",
+  "breach.backUp": "Back up [U]",
+  "breach.pullOut": "Pull out [W]",
+  "breach.undo": "You back off the node. The hop is spent either way.",
+  "breach.cannotClose": "Pull out with [W] — you cannot simply close the channel.",
+  "breach.rescue": "Let it route itself",
+  "breach.rescue.note":
+    "Assist: the lattice will route itself to the core. You take what the core holds and none of the data along the way.",
+  "breach.buffer":
+    "Buffer {budget} — {minimum} to route it clean, {slack} to be wrong with.",
+  "breach.warning.partial":
+    "One attempt. Pull out early and you keep the data you carried.",
+  "breach.warning.allOrNothing":
+    "One attempt. There is nothing here to carry out early.",
+
+  "breach.node.entry": "Entry node",
+  "breach.node.core": "The core",
+  "breach.node.dead": "Corrupt — nothing routes through",
+  "breach.node.trace": "Trace node, {fragment}",
+  "breach.node.fragment": "{fragment} fragment",
+  "breach.node.unread": "yield unread",
+  "breach.node.yield": "yield {value}",
+  "breach.node.cost": "costs {cost}",
+  "breach.node.here": "you are here",
+  "breach.node.routed": "routed",
+  "breach.fragment.carrier": "carrier",
+  "breach.fragment.cipher": "cipher",
+  "breach.fragment.pulse": "pulse",
+  "breach.fragment.ghost": "ghost",
+
+  "breach.report.breached": "Core reached",
+  "breach.report.breached.body":
+    "{hops} hops, {chains} banked, {harvest} fragments of data out, {left} left in the buffer.",
+  "breach.report.withdrawn": "Pulled out",
+  "breach.report.withdrawn.body":
+    "You back the route out one node at a time and let the lattice close over it. {harvest} fragments of data came with you.",
+  "breach.report.lockedOut": "Locked out",
+  "breach.report.lockedOut.body":
+    "The buffer runs dry with the core still ahead of you, and the trace closes on an empty channel. Whatever was in there stays in there.",
+  "breach.spent.withdrawn": "{spent} You did not finish what you started here.",
+  "breach.spent.lockedOut":
+    "The channel is dead. Whatever logged you the first time is still logging, and it will not open again.",
 } as const;
 
 export type StringTable = typeof STRINGS;
