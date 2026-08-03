@@ -20,12 +20,17 @@ import { TILE_ART } from "./tiles";
  * Micro-benchmark guarding compose+bake cost: bakes every registered
  * grid through the same transform chains the provider uses. The stub
  * context makes fillRect free, so what's measured is the JS work we own
- * — grid transforms (compose, remap, mirror) and the run-collapsing
- * paint loop — which is exactly what a scene pays on a cache miss.
- * The full current set (~320 sprites) bakes in ~9ms on a dev machine;
- * the budget leaves room for severalfold art growth while still
- * catching order-of-magnitude regressions (a per-pixel paint path, an
- * accidental deep copy in the compose chain).
+ * — grid transforms (compose, remap, mirror), the detail pass, and the
+ * run-collapsing paint loop — which is exactly what a scene pays on a
+ * cache miss.
+ *
+ * The full current set (~460 sprites) bakes in ~750ms on a dev machine,
+ * of which roughly a third is ./detail.ts quadrupling the pixel count
+ * on the way to the canvas: 460ms before that pass existed, 750ms
+ * after, for four times the pixels painted. The budget keeps room for
+ * art growth on top of that while still catching order-of-magnitude
+ * regressions (a per-pixel paint path, an accidental deep copy in the
+ * compose chain).
  *
  * The timing is only *asserted* under `PERF_BENCH=1` — see
  * `../benchSupport.ts`. The sprite count below is checked always, so a

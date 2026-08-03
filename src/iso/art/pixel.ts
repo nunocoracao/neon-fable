@@ -5,7 +5,8 @@
  * baking that turns a grid into a crisp, integer-scaled Sprite.
  */
 import type { Sprite } from "../sprites";
-import { PALETTE, TRANSPARENT } from "./palette";
+import { PALETTE, SHADOW, TRANSPARENT } from "./palette";
+import { DETAIL_SCALE, doubled, refined } from "./detail";
 
 /** A palette-indexed sprite grid; rows top to bottom, all equal width. */
 export type PixelGrid = readonly string[];
@@ -95,9 +96,33 @@ export function rowsShifted(
 }
 
 /**
+ * Screen pixels one detail pixel covers. The detail pass (./detail.ts)
+ * splits every authored pixel DETAIL_SCALE ways per axis before
+ * painting, so the sprite comes out the size it always did — same
+ * canvas, same anchor, same place on screen — with that many more
+ * pixels inside it. A DETAIL_SCALE that does not divide ART_SCALE would
+ * paint on half pixels, so the pass switches itself off rather than
+ * blur what it is there to sharpen.
+ */
+const DETAIL_FITS = ART_SCALE % DETAIL_SCALE === 0;
+const PIXEL_SIZE = DETAIL_FITS ? ART_SCALE / DETAIL_SCALE : ART_SCALE;
+
+/** A grid as it is painted: run through the detail pass where it fits. */
+function detailed(grid: PixelGrid): PixelGrid {
+  return DETAIL_FITS ? refined(grid) : grid;
+}
+
+/**
  * Bake a grid onto an offscreen canvas at ART_SCALE. The anchor is given
  * in 1x art pixels and scaled to match. Horizontal same-color runs
  * collapse into single fillRect calls.
+ *
+ * What lands on the canvas is the grid *after* the detail pass, which
+ * is where the extra definition comes from: the canvas is the size the
+ * 1x grid has always baked to, and every screen pixel in it is now its
+ * own art pixel rather than one quarter of a 2×2 block. Nothing outside
+ * this function needs to know — dimensions, anchors, and silhouettes
+ * are unchanged.
  *
  * `palette` defaults to the master table; scenes bake through a day
  * phase's tinted palette instead (see ./tint.ts), which is the only way
@@ -115,16 +140,11 @@ export function bakeSprite(
   canvas.height = grid.length * ART_SCALE;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not create 2d context for sprite");
-  paintGrid(ctx, grid, (ch) => palette[ch]);
+  paintGrid(ctx, detailed(grid), (ch) => palette[ch]);
   return { image: canvas, anchorX: anchorX * ART_SCALE, anchorY: anchorY * ART_SCALE };
 }
 
-/**
- * The shadow channel: the soft ellipse a body casts on the ground. It
- * is under the figure rather than part of it, so it is the one opaque
- * thing a silhouette leaves out.
- */
-export const SHADOW = "z";
+export { SHADOW };
 
 /**
  * The silhouette of a grid, as a grid: every opaque pixel that is not
@@ -171,7 +191,10 @@ export function bakeSilhouette(
   canvas.height = grid.length * ART_SCALE;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not create 2d context for sprite");
-  paintGrid(ctx, silhouetteGrid(grid), () => color);
+  // Silhouettes double with the art so a flash traces the same edge the
+  // sprite under it paints, but there is nothing in one shape to bevel.
+  const shape = silhouetteGrid(grid);
+  paintGrid(ctx, DETAIL_FITS ? doubled(shape) : shape, () => color);
   return { image: canvas, anchorX: anchorX * ART_SCALE, anchorY: anchorY * ART_SCALE };
 }
 
@@ -205,10 +228,10 @@ function paintGrid(
       while (runEnd < row.length && row[runEnd] === ch) runEnd++;
       ctx.fillStyle = color;
       ctx.fillRect(
-        x * ART_SCALE,
-        y * ART_SCALE,
-        (runEnd - x) * ART_SCALE,
-        ART_SCALE,
+        x * PIXEL_SIZE,
+        y * PIXEL_SIZE,
+        (runEnd - x) * PIXEL_SIZE,
+        PIXEL_SIZE,
       );
       x = runEnd;
     }
