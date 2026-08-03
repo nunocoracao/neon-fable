@@ -818,7 +818,9 @@ describe("dialogue overlay", () => {
     click("Head back to the Filament");
     click("Hand over the spike");
     expect(document.querySelector(".nf-dialogue")).toBeNull();
-    expect(textOf(".nf-toast")).toMatch(/job-done/);
+    // A thread with no chapter panel behind it closes on a sentence,
+    // never on the content id that named it.
+    expect(textOf(".nf-toast")).toMatch(/That thread is closed/);
     expect(textOf(".nf-hud-status")).toMatch(/315 cr/);
   });
 });

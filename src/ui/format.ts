@@ -676,6 +676,16 @@ export function pointsLabel(amount: number): string {
   return `${amount} ${amount === 1 ? "point" : "points"}`;
 }
 
+/**
+ * A step budget, said the way a person would. The move prompt counts
+ * down to one and then to zero, and "1 steps left" on the last tile of
+ * every move is the sort of thing a first-time player notices and a
+ * hundredth-time player has stopped seeing.
+ */
+export function stepsLabel(amount: number): string {
+  return `${amount} ${amount === 1 ? "step" : "steps"}`;
+}
+
 /** A chance in [0, 1] as a whole percentage, e.g. "65%". */
 export function percentLabel(chance: number): string {
   return `${Math.round(chance * 100)}%`;

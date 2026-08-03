@@ -350,7 +350,8 @@ describe("action bar", () => {
     pressKey("4");
     expect(textOf(".nf-combat-hint")).toMatch(/Click a highlighted tile/);
     pressKey("Escape");
-    expect(textOf(".nf-combat-hint")).toMatch(/Choose an action/);
+    // Back to the idle line — which, with nothing in reach, says so.
+    expect(textOf(".nf-combat-hint")).toMatch(/Nothing in reach/);
 
     // 6 is End Turn, and it goes through the engine like the button.
     expect(textOf(".nf-combat-status")).toMatch(/Steps left 3/);
@@ -366,7 +367,7 @@ describe("action bar", () => {
     // 1 is Attack, and nothing is in reach — pressing it changes nothing.
     expect(actionButton("attack").disabled).toBe(true);
     pressKey("1");
-    expect(textOf(".nf-combat-hint")).toMatch(/Choose an action/);
+    expect(textOf(".nf-combat-hint")).toMatch(/Nothing in reach/);
   });
 
   it("locks the bar with one reason while the enemy phase plays", () => {

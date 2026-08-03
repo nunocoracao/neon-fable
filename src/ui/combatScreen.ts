@@ -60,6 +60,7 @@ import {
 import {
   actionForHotkey,
   actionButtons,
+  idleHintText,
   initiativeChips,
   staticSurgeWarning,
   targetCard,
@@ -102,6 +103,7 @@ import {
   injuryLine,
   percentLabel,
   saveErrorMessage,
+  stepsLabel,
 } from "./format";
 import { createGameScreen } from "./gameScreen";
 import { createMainMenuScreen } from "./mainMenu";
@@ -427,11 +429,11 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     }
     switch (mode.kind) {
       case "idle":
-        setHint("Choose an action.");
+        setHint(idleHintText(combat));
         return;
       case "move":
         setHint(
-          `Click a highlighted tile to move (${combat.moveRemaining} steps ` +
+          `Click a highlighted tile to move (${stepsLabel(combat.moveRemaining)} ` +
             "left) — or use the arrow keys. Esc cancels.",
         );
         return;

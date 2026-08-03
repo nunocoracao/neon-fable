@@ -766,6 +766,9 @@ body::after {
   margin-top: 1.25rem;
 }
 
+/* The step's remaining requirement, said in the panel's own amber (see
+   .nf-message) rather than in danger red: it is guidance towards the
+   next step, not a report of something the player got wrong. */
 .nf-wizard-hint {
   flex: 1;
   text-align: right;

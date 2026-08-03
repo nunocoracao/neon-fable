@@ -1182,7 +1182,12 @@ export function createCharacterCreateScreen(
       backButton.textContent = "Back";
       backButton.addEventListener("click", () => navigate(goBack(wizard)));
       navHint = document.createElement("p");
-      navHint.className = "nf-message nf-error nf-wizard-hint";
+      // Guidance, not an error. The line says what the step still needs
+      // and the disabled Next says it cannot be left yet — nobody has
+      // failed at anything, least of all the player who has been on the
+      // screen for half a second. Real failures (a rejected Jack In)
+      // still render in red, on the review step, where they belong.
+      navHint.className = "nf-message nf-wizard-hint";
       nextButton = document.createElement("button");
       nextButton.className = "nf-button nf-button-primary";
       nextButton.addEventListener("click", () => {

@@ -492,7 +492,12 @@ export function createGameScreen(options: GameScreenOptions): Screen {
             autosave(session);
             openChapterEnd(ending);
           } else if (endingId) {
-            showToast(`Story thread complete — ${endingId}`);
+            // A thread that ends without a chapter panel behind it —
+            // a supported authoring shape, not a content fault. What
+            // the player gets is the fact; what they used to get was
+            // the raw ending id ("job-done", "walked-away"), which is a
+            // thing only the person who wrote the arc can read.
+            showToast("That thread is closed. The city keeps moving.");
           }
         },
         onComplete: closeOverlay,
