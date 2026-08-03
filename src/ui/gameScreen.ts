@@ -152,13 +152,6 @@ const META_RECORDED_FLAG = "meta-recorded";
 const ALERT_FLASH_MS = 320;
 
 /**
- * Writes a finished run into meta-progress (endings codex, NG+ unlock,
- * legacy carry-over candidates). Guarded by a state flag so a
- * completion is recorded exactly once, even if a finished save's final
- * dialogue somehow replays; reopening a finished save never re-records
- * because only the final-ending handoff calls this.
- */
-/**
  * The sprite id for the companion travelling with the player, or null
  * when they walk alone. The look is part of the id, so re-dressing a
  * companion changes what is drawn without changing this call site.
@@ -170,6 +163,13 @@ function followerSpriteIdFor(state: GameState): string | null {
     : null;
 }
 
+/**
+ * Writes a finished run into meta-progress (endings codex, NG+ unlock,
+ * legacy carry-over candidates). Guarded by a state flag so a
+ * completion is recorded exactly once, even if a finished save's final
+ * dialogue somehow replays; reopening a finished save never re-records
+ * because only the final-ending handoff calls this.
+ */
 function recordFinishedRun(session: Session): void {
   const state = session.state;
   if (state.flags[META_RECORDED_FLAG] === true) return;
