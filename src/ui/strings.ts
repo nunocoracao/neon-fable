@@ -494,6 +494,213 @@ export const STRINGS = {
     "Drafts aren't saved — backing out to the menu discards every choice.",
   "create.abandon.keep": "Keep Editing",
   "create.abandon.discard": "Discard Draft",
+  "create.name.required": "Enter a name",
+  "create.name.tooLong": "Names cap at {max} characters",
+
+  /* -------------------------------------------------------------- *
+   * Counted things. English needs two forms and the game counts in
+   * five places, so the pair is written out rather than assembled —
+   * a language that needs three forms adds a third key here.
+   * -------------------------------------------------------------- */
+  "count.point.one": "{amount} point",
+  "count.point.many": "{amount} points",
+  "count.turn.one": "{amount} turn",
+  "count.turn.many": "{amount} turns",
+  "count.step.one": "{amount} step",
+  "count.step.many": "{amount} steps",
+  "count.hint.one": "{amount} hint",
+  "count.hint.many": "{amount} hints",
+
+  /* -------------------------------------------------------------- *
+   * Companions and factions — where somebody stands, in a word
+   * -------------------------------------------------------------- */
+  "loyalty.sworn": "Sworn to you",
+  "loyalty.loyal": "Loyal",
+  "loyalty.warm": "Warm",
+  "loyalty.professional": "Professional",
+  "loyalty.wary": "Wary",
+  "loyalty.cold": "Cold",
+  "loyalty.done": "Done with you",
+  "loyalty.approves": "{name} approves",
+  "loyalty.disapproves": "{name} disapproves",
+  "standing.note": "{faction}: {band}",
+
+  /* -------------------------------------------------------------- *
+   * Requirement labels — the bracketed reason a choice is greyed out
+   * -------------------------------------------------------------- */
+  "req.stat": "[{stat} {value}]",
+  "req.background": "[Background: {tag}]",
+  "req.static.atMost": "[Static: {band} at most]",
+  "req.static.atLeast": "[Static: {band}+]",
+  "req.item": "[Requires: {name}]",
+  "req.item.many": "[Requires: {quantity}× {name}]",
+  "req.enhancement": "[Installed: {name}]",
+  "req.flag.equals": "[{key}: {value}]",
+  "req.flag.notEquals": "[{key}: not {value}]",
+  "req.flag.atLeast": "[{key} {value}+]",
+  "req.flag.set": "[{key}: settled]",
+  "req.flag.unset": "[{key}: unsettled]",
+  "req.credits": "[{value} cr]",
+  "req.companion.knows": "[Knows: {name}]",
+  "req.companion.with": "[With: {name}]",
+  "req.loyalty.low": "[{name} has had enough]",
+  "req.loyalty.high": "[{name} trusts you]",
+  "req.injury": "[{who}{what}]",
+  "req.injury.any": "hurt",
+  "req.reputation.atMost": "[{faction}: {band} at best]",
+  "req.reputation.atLeast": "[{faction}: {band}+]",
+  "req.dominant": "[{faction}: your strongest tie]",
+  "req.dominant.none": "[No power stands above the others]",
+
+  "pointBuy.range": "Stats must be between {min} and {max}",
+  "pointBuy.range.stat": "{stat} must be between {min} and {max}",
+  "pointBuy.overspent": "Allocation spends more points than the pool holds",
+  "pointBuy.underspent": "Spend all remaining points before confirming",
+
+  /* -------------------------------------------------------------- *
+   * Item shelf labels. The item's own name and description are
+   * content; the vocabulary describing its kind and numbers is not.
+   * -------------------------------------------------------------- */
+  "item.melee": "Melee",
+  "item.ranged": "Ranged",
+  "item.weapon": "{range} weapon · {damage} dmg{requirement}",
+  "item.weapon.needs": " · needs {stat} {value}",
+  "item.outfit": "Outfit · armor {armor}",
+  "item.consumable": "{kind} · {effect} · {context}",
+  "item.enhancement": "Cyberware · {slot} · {load} neural load · {static} Static",
+  "item.mod": "Weapon mod · {socket} socket",
+  "item.dye": "Outfit dye · {colors}",
+  "item.misc": "Item",
+  "item.kind.stim": "Stim",
+  "item.kind.food": "Street food",
+  "item.kind.kit": "Field kit",
+  "item.kind.oddity": "Oddity",
+  "item.context.either": "either side of a fight",
+  "item.context.combat": "in a fight",
+  "item.context.exploration": "out of combat",
+  "item.context.none": "nowhere",
+
+  "effect.timed": "{amount} {stat} for {turns}",
+  "effect.timed.after": "{lift}, then {amount} {stat} for {turns}",
+  "effect.heal": "heals {amount} HP",
+  "effect.readied": "next fight: {effect}",
+  "effect.treatInjury": "closes an injury",
+  "effect.settle": "settles the chrome, clears the crash",
+  "effect.none": "does nothing",
+  "outcome.heal": "+{amount} HP",
+  "outcome.treatsInjury": "closes the injury",
+  "outcome.settles": "settles the chrome",
+  "outcome.none": "no effect right now",
+
+  "material.concrete": "grey",
+  "material.chrome": "chrome",
+  "material.glass": "pale",
+  "material.dark": "black",
+  "material.amber": "amber",
+  "material.blue": "blue",
+  "material.cyan": "cyan",
+  "dye.cloth": "{color} cloth",
+  "dye.trim": "{color} trim",
+  "dye.none": "no color",
+
+  "socket.barrel": "Barrel",
+  "socket.core": "Core",
+  "socket.grip": "Grip",
+  "socket.none": "No mod sockets",
+  "mod.stat": "{amount} {stat}",
+  "mod.grantAbility": "Grants {ability}",
+  "mod.unlockDialogue": "Unlocks \"{tag}\" dialogue",
+  "mod.damage": "{amount} damage",
+  "mod.pierce": "{amount} armor pierce",
+  "mod.accuracy": "{amount} accuracy",
+  "mod.range": "{amount} range",
+  "mod.crit.sooner": "Crits land sooner",
+  "mod.crit.later": "Crits land later",
+
+  /* -------------------------------------------------------------- *
+   * Static, injuries and the extraction warning
+   * -------------------------------------------------------------- */
+  "static.line": "Static {level} — {band}",
+  "static.cool": "{amount} Cool in conversation",
+  "static.affinity": "Opens chrome-affinity talk",
+  "static.initiative": "{amount} initiative",
+  "static.surge": "Static surge, once a fight",
+  "static.noChange": "No change to Static",
+  "static.shift": "{delta} Static → {level}",
+  "static.shift.band": "{move} · {band}",
+  "injury.line": "{name} — {effect}",
+  "injury.closesNext": "Closes after your next move across the city.",
+  "injury.closesIn": "Closes after {scenes} more moves across the city.",
+  "inventory.extractionCost":
+    "Extraction destroys the {name} and deals {trauma} HP of trauma.",
+
+  /* -------------------------------------------------------------- *
+   * Save slots and the errors a load can fail with
+   * -------------------------------------------------------------- */
+  "save.slot.1": "Slot 1",
+  "save.slot.2": "Slot 2",
+  "save.slot.3": "Slot 3",
+  "save.slot.autosave": "Autosave",
+  "save.slot.recovery": "Recovered run",
+  "save.error.missing": "That slot is empty.",
+  "save.error.corrupt": "That save is corrupted and cannot be loaded.",
+  "save.error.version": "That save comes from an incompatible game version.",
+  "save.error.checksum":
+    "That save failed its integrity check — something changed it after it was written.",
+  "save.error.migration":
+    "That save could not be brought up to date for this version of the game.",
+
+  /* -------------------------------------------------------------- *
+   * The interact prompt, and shards
+   * -------------------------------------------------------------- */
+  "interact.key": "Enter",
+  "interact.verb.talk": "talk to",
+  "interact.verb.open": "open",
+  "interact.verb.use": "use",
+  "interact.verb.search": "search",
+  "interact.verb.pickUp": "pick up",
+  "interact.verb.take": "take",
+  "interact.verb.fight": "fight",
+  "interact.verb.breach": "breach",
+  "shard.lockedHint": "Recovered somewhere in {district}.",
+  "shard.pickup": "Memory shard recovered — \"{title}\" ({tally}). Filed in the codex.",
+  "shard.pickup.complete":
+    "Memory shard recovered — \"{title}\" ({tally}). The Grey Choir is whole; read it in the codex.",
+
+  /* -------------------------------------------------------------- *
+   * Combat log. Every line is the engine reporting, not the story
+   * speaking — the names inside come from content.
+   * -------------------------------------------------------------- */
+  "log.started": "Hostiles engaged.",
+  "log.round": "— Round {round} —",
+  "log.stunned": "{name} is stunned and loses the turn.",
+  "log.hit": "{attacker} hits {target} for {damage} damage.",
+  "log.miss": "{attacker} misses {target}.",
+  "log.ability": "{name} hits {target} with {ability} for {damage} damage{stun}.",
+  "log.ability.self": "{name} uses {ability}.",
+  "log.ability.stun": ", stunning them",
+  "log.charge.started":
+    "{name} winds up {ability} — the marked ground is hit on its next turn.",
+  "log.charge.released": "{name} looses {ability}.",
+  "log.charge.empty": "{name} looses {ability} into empty ground.",
+  "log.static.armed":
+    "{name}'s chrome is howling — hold the next turn's action to bleed it off, or lose the turn after it.",
+  "log.static.vented": "{name} rides the static out. It settles.",
+  "log.static.surge":
+    "Static surges through {name} — every implant firing at once.",
+  "log.item": "{name} uses a {item}.",
+  "log.healed": "{name} recovers {amount} HP.",
+  "log.secondWind":
+    "{name} goes down and does not stay down — second wind, {amount} HP.",
+  "log.boosted": "{name} gains {amount} {stat} for {turns} turns.",
+  "log.crashed": "The stim leaves {name} — {amount} {stat} for {turns} turns.",
+  "log.settled": "{name} settles. The chrome goes quiet.",
+  "log.flee.success": "{name} breaks away from the fight!",
+  "log.flee.failed": "{name} tries to flee but finds no opening.",
+  "log.defeated": "{name} goes down.",
+  "log.end.victory": "All hostiles are down.",
+  "log.end.defeat": "You collapse. The fight is over.",
+  "log.end.fled": "You are clear of the fight.",
 } as const;
 
 export type StringTable = typeof STRINGS;
