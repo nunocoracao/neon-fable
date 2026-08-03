@@ -763,6 +763,64 @@ export const STRINGS = {
   "combat.surge.armed":
     "Static armed — end this turn with your action unspent to bleed it off.",
   "combat.surge.building": "Static building — {turns} until it peaks.",
+
+  /* -------------------------------------------------------------- *
+   * Graphics & Comfort controls. Each row's caption and the sentence
+   * under it; the option words come from the setting's own catalog in
+   * src/data/accessibility.ts where one exists.
+   * -------------------------------------------------------------- */
+  "graphics.group.comfort": "Comfort",
+  "graphics.group.comfort.blurb":
+    "Nothing in here changes how the game plays, what it tells you, or what you can reach. They change how much of it moves and how easily it reads.",
+  "graphics.group.world": "The city",
+  "graphics.group.world.blurb":
+    "What the streets are doing while you walk through them.",
+  "graphics.group.camera": "Camera",
+  "graphics.group.hud": "Heads-up display",
+
+  "graphics.motion": "Screen motion",
+  "graphics.motion.blurb":
+    "The master switch for everything that moves on its own. System follows what this device asks for; the other two override it either way. Nothing is ever hidden by reducing motion — it is stilled.",
+  "graphics.colorMode": "Marker colours",
+  "graphics.colorMode.blurb":
+    "Which palette every marked tile is painted from: the tinted ground in a fight, the vision cones of anyone watching, the walk preview, the cursor, and the ring around whatever you are standing next to.",
+  "graphics.textScale": "Interface text",
+  "graphics.textScale.blurb":
+    "Scales every panel, label, and HUD readout together. The pixel lettering stays as crisp at the larger sizes — it is the same type drawn bigger, not stretched.",
+
+  "graphics.glow": "Neon glow",
+  "graphics.glow.blurb":
+    "Layers soft light from signage, screens, and streetlights over the streets. Off is a flatter, faster picture.",
+  "graphics.weather": "Weather",
+  "graphics.weather.blurb":
+    "Rain, puddles, and splashes on the districts that have them. It never changes how the game plays. Reduced motion stills the rain on its own; this takes it away entirely.",
+  "graphics.setPieces": "Set pieces",
+  "graphics.setPieces.blurb":
+    "The trains crossing the viaducts, the drones on their routes, the steam off the vents. Scenery on a clock — off leaves the streets standing still, and nothing you can walk to or talk to changes.",
+  "graphics.barks": "Street chatter",
+  "graphics.barks.blurb":
+    "Passers-by, the people standing on the map, and whoever is walking with you say short unprompted lines over their heads. Nothing said this way matters to the story.",
+
+  "graphics.zoom": "Camera zoom",
+  "graphics.zoom.blurb":
+    "How close the exploring camera sits. The wheel and the + and − keys move it too; this is where it starts.",
+  "graphics.combatFeel": "Combat camera",
+  "graphics.combatFeel.blurb":
+    "The camera glides to whoever is acting, holds for a few frames when a blow connects, and takes a small knock off the heavy ones. Off keeps the arena still, as does reduced motion.",
+  "graphics.combatFeel.fixed": "Fixed",
+  "graphics.shake": "Screen shake",
+  "graphics.shake.blurb":
+    "How hard heavy hits and blasts knock the view. Off stills the shake alone and leaves the glide and the hit-pause as they are.",
+  "graphics.shake.off": "Off",
+  "graphics.shake.light": "Light",
+  "graphics.shake.standard": "Standard",
+  "graphics.shake.strong": "Strong",
+
+  "graphics.minimap": "Minimap",
+  "graphics.minimap.blurb":
+    "The corner map shows the whole district, where you stand and face, the ways out, and who is worth walking to. Collapsed it leaves a tab; M expands it again while exploring.",
+  "graphics.minimap.shown": "Shown",
+  "graphics.minimap.collapsed": "Collapsed",
 } as const;
 
 export type StringTable = typeof STRINGS;
