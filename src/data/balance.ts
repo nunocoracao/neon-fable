@@ -39,12 +39,6 @@
 /** Where in a run an encounter is written to be met. */
 export type ProgressionTier = "opening" | "mid" | "late";
 
-export const PROGRESSION_TIERS: readonly ProgressionTier[] = [
-  "opening",
-  "mid",
-  "late",
-];
-
 /** What kind of promise a fight makes: a night's work, or the set piece. */
 export type EncounterClass = "standard" | "boss";
 
@@ -94,23 +88,12 @@ const balanceById = new Map(
   encounterBalance.map((entry) => [entry.encounterId, entry]),
 );
 
-export function getEncounterBalance(
-  encounterId: string,
-): EncounterBalance | undefined {
-  return balanceById.get(encounterId);
-}
-
 export function requireEncounterBalance(encounterId: string): EncounterBalance {
   const entry = balanceById.get(encounterId);
   if (!entry) {
     throw new Error(`No balance entry for encounter "${encounterId}"`);
   }
   return entry;
-}
-
-/** Every encounter written for one tier, in authored order. */
-export function encountersAtTier(tier: ProgressionTier): EncounterBalance[] {
-  return encounterBalance.filter((entry) => entry.tier === tier);
 }
 
 /**

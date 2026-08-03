@@ -20,7 +20,6 @@ import {
   cheapestRouteCost,
   nodeId,
   neighbours,
-  requireNode,
   stepCostOf,
   FRAGMENT_TYPES,
   type BreachLattice,
@@ -144,12 +143,4 @@ export function solveRoute(lattice: BreachLattice): string[] {
     cursor = parent.get(cursor);
   }
   return route;
-}
-
-/** The budget a route costs, for asserting a solver's answer. */
-export function routeCost(lattice: BreachLattice, route: readonly string[]): number {
-  return route.reduce(
-    (total, id) => total + stepCostOf(requireNode(lattice, id)),
-    0,
-  );
 }

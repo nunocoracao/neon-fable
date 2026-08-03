@@ -227,13 +227,24 @@ export const TITLE_CASE_MINOR_WORDS: readonly string[] = [
 /** The shape every content id takes. */
 export const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-/** The shape of a location reference: `<map-id>:<point-id>`. */
+/**
+ * The shape of a story node's `location` tag: `<district>:<place>`,
+ * both halves kebab-case. It is a scene's address in the fiction rather
+ * than a map id — "charter:session-hall" is a room the game never
+ * renders — so nothing resolves it, and the shape is all there is to
+ * hold it to.
+ */
 export const LOCATION_REF_PATTERN =
   /^[a-z0-9]+(?:-[a-z0-9]+)*:[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** Whether an id follows the kebab-case convention. */
 export function isContentId(id: string): boolean {
   return ID_PATTERN.test(id);
+}
+
+/** Whether a story node's `location` tag has the right shape. */
+export function isLocationRef(ref: string): boolean {
+  return LOCATION_REF_PATTERN.test(ref);
 }
 
 /**

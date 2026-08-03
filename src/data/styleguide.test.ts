@@ -14,10 +14,12 @@ import { items } from "./items";
 import { LORE_SHARDS } from "./lore";
 import { maps } from "./maps";
 import { perks } from "./perks";
+import { storyArcs } from "./story";
 import {
   CASING_EXCEPTIONS,
   PROPER_NOUNS,
   isContentId,
+  isLocationRef,
   isSignage,
   isTitleCase,
   properNounIssues,
@@ -83,6 +85,17 @@ describe("isContentId", () => {
     expect(isContentId("out cordon plate")).toBe(false);
     expect(isContentId("-leading")).toBe(false);
     expect(isContentId("trailing-")).toBe(false);
+  });
+});
+
+describe("isLocationRef", () => {
+  it("accepts a district and a place", () => {
+    expect(isLocationRef("flooded-quays:lockgate-stair")).toBe(true);
+  });
+
+  it("rejects a bare id and a doubled colon", () => {
+    expect(isLocationRef("flooded-quays")).toBe(false);
+    expect(isLocationRef("a:b:c")).toBe(false);
   });
 });
 
@@ -286,6 +299,24 @@ describe("registry names and ids", () => {
         .filter((entry) => !isContentId(entry.id))
         .map((entry) => `${label}: "${entry.id}"`),
     );
+    expect(misses).toEqual([]);
+  });
+
+  it("addresses every story node it places at a district and a place", () => {
+    const nodes = storyArcs.flatMap((arc) => arc.nodes);
+    expect(nodes.length).toBeGreaterThan(100);
+    const misses = nodes
+      .filter((node) => node.location !== undefined)
+      .filter((node) => !isLocationRef(node.location ?? ""))
+      .map((node) => `${node.id}: "${node.location ?? ""}"`);
+    expect(misses).toEqual([]);
+  });
+
+  it("gives every story arc and node a kebab-case id", () => {
+    const misses = storyArcs.flatMap((arc) => [
+      ...(isContentId(arc.id) ? [] : [`arc: "${arc.id}"`]),
+      ...arc.nodes.filter((n) => !isContentId(n.id)).map((n) => `node: "${n.id}"`),
+    ]);
     expect(misses).toEqual([]);
   });
 

@@ -57,12 +57,9 @@
  * are emissive, so the eye and the capacitors keep their bite at every
  * hour of the day.
  */
-import { hash2, type LoopState } from "../animation";
-import { ATTACK_TIMING, type AttackClassId } from "../attack";
-import {
-  reactionFrameCount,
-  type ReactionKind,
-} from "../reaction";
+import { hash2 } from "../animation";
+import type { AttackClassId } from "../attack";
+import type { ReactionKind } from "../reaction";
 import { PORTRAIT_FRAME } from "./layers/portrait";
 import { mirrored, type PixelGrid } from "./pixel";
 
@@ -487,12 +484,6 @@ const IMPACT_SPARKS = overlay({
 
 /* --- The sets. --- */
 
-/** How many frames the sets have; pinned against the shared timings. */
-export const MECH_LOOP_FRAMES: Readonly<Record<LoopState, number>> = {
-  idle: 4,
-  walk: 6,
-};
-
 /** One derived frame: how the chassis is displaced, and what is lit. */
 interface MechFrameSpec {
   readonly dx?: number;
@@ -907,12 +898,3 @@ export function mechMuzzlePoint(
   return { x: flip ? WIDTH - 1 - point.x : point.x, y: point.y };
 }
 
-/** Frame counts the timings expect of a chassis; pinned by mech.test. */
-export function mechAttackFrameCount(id: MechArtId, variant = 0): number {
-  return ATTACK_TIMING[mechAttackClass(id, variant)].frameMs.length;
-}
-
-/** Frames a reaction has; the shared reaction timings decide. */
-export function mechReactionFrameCount(kind: ReactionKind): number {
-  return reactionFrameCount(kind);
-}

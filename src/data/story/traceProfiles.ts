@@ -357,9 +357,3 @@ export const streetChromeTrace: TraceProfile = {
   },
   endingId: "ending-freehold",
 };
-
-export const TRACE_PROFILES: readonly TraceProfile[] = [
-  corpoRushTrace,
-  netExplorerTrace,
-  streetChromeTrace,
-];

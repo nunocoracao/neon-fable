@@ -367,15 +367,6 @@ export function modAccent(
   return undefined;
 }
 
-/**
- * The character-facing effects a set of fitted parts contributes — the
- * ItemEffect half of the mod vocabulary, which the equipment selectors
- * fold in exactly as they do an outfit's.
- */
-export function modItemEffects(mods: readonly ModItem[]): ItemEffect[] {
-  return mods.flatMap((mod) => mod.effects.filter(isItemEffect));
-}
-
 /** True for the effects an ordinary piece of gear could also carry. */
 export function isItemEffect(effect: ModEffect): effect is ItemEffect {
   return (

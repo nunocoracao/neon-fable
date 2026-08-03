@@ -15,9 +15,6 @@
 /** Gap between beats arriving. */
 export const INTERLUDE_BEAT_MS = 1100;
 
-/** How long one beat takes to fade in; mirrored by the stylesheet. */
-export const INTERLUDE_FADE_MS = 420;
-
 export interface InterludeReveal {
   /** Beats currently on screen. */
   shown: number;

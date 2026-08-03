@@ -67,10 +67,6 @@ export function showScreen(screen: Screen): void {
   }
 }
 
-export function getCurrentScreen(): Screen | null {
-  return currentScreen;
-}
-
 /** What the screen on show calls itself, for a report. */
 export function currentScreenName(): string {
   return currentScreen?.name ?? "";
