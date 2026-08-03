@@ -9,7 +9,7 @@ import {
   injuryRecoveryNote,
   loyaltyLabel,
 } from "./format";
-import type { OverlayHandle } from "./overlay";
+import { createOverlayRoot, type OverlayHandle } from "./overlay";
 import { companionPortraitCanvas } from "./portraits";
 import type { Session } from "./session";
 import { t } from "./strings";
@@ -39,8 +39,7 @@ export function createPartyOverlay(
 ): OverlayHandle {
   const { session } = options;
 
-  const el = document.createElement("div");
-  el.className = "nf-overlay nf-overlay-center";
+  const el = createOverlayRoot(t("party.title"));
 
   const panel = document.createElement("div");
   panel.className = "nf-panel nf-party";

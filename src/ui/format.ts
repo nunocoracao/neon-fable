@@ -699,19 +699,32 @@ export interface InteractPromptInput {
   kind: MapInteraction["kind"];
   /** Whether it can be triggered from where the player stands. */
   inRange: boolean;
+  /**
+   * Whether the keyboard picked this rather than the cursor finding it.
+   * A pick is a request, so an out-of-reach one is offered as a walk;
+   * a thing merely hovered over is not.
+   */
+  picked?: boolean;
   /** Resolved destination name, on interactables that lead off the map. */
   destination?: string;
 }
 
 /**
  * The bottom-screen line for whatever is in focus: an offer to act on
- * it once in reach ("Enter — talk to Vesper"), and until then just
+ * it once in reach ("Enter — talk to Vesper"), an offer to walk there
+ * when the keyboard picked it from across the map, and otherwise just
  * where a way out would lead. Pointing at something out of reach that
  * goes nowhere says nothing — the floating chip already names it.
  */
 export function interactPrompt(hint: InteractPromptInput): string | null {
   const destination = hint.destination ? ` → ${hint.destination}` : "";
   if (!hint.inRange) {
+    if (hint.picked === true) {
+      return t("interact.walkTo", {
+        key: INTERACT_KEY_LABEL,
+        name: `${interactName(hint.label)}${destination}`,
+      });
+    }
     return hint.destination ? `${hint.label}${destination}` : null;
   }
   const verb = interactVerb(hint.spriteId, hint.kind);
@@ -795,6 +808,13 @@ export function hintCountLabel(amount: number): string {
   return amount === 1
     ? t("count.hint.one", { amount })
     : t("count.hint.many", { amount });
+}
+
+/** "1 thing", "4 things" — what a map has on it worth walking to. */
+export function thingCountLabel(amount: number): string {
+  return amount === 1
+    ? t("count.thing.one", { amount })
+    : t("count.thing.many", { amount });
 }
 
 /** A chance in [0, 1] as a whole percentage, e.g. "65%". */
@@ -961,6 +981,37 @@ export function combatEventText(
         case "fled":
           return t("log.end.fled");
       }
+  }
+}
+
+/**
+ * What the *arena* says about an event, for the live region that
+ * narrates the canvas.
+ *
+ * The log and the narrator read the same stream and deliberately say
+ * different halves of it. The log skips turn markers and moves because
+ * the initiative strip and the animation carry them — which is true for
+ * eyes and false for everything else, so those two are exactly what the
+ * narrator adds. Anything with a log line already has its words, and is
+ * left to the log's own live region rather than said twice.
+ *
+ * Null means "nothing to narrate", which is most events.
+ */
+export function combatSceneNarration(
+  event: CombatEvent,
+  nameOf: CombatantNameLookup,
+): string | null {
+  switch (event.type) {
+    case "turn-started":
+      return t("narrate.turn", { name: nameOf(event.combatantId) });
+    case "moved":
+      return t("narrate.moved", {
+        name: nameOf(event.combatantId),
+        x: event.to.x,
+        y: event.to.y,
+      });
+    default:
+      return null;
   }
 }
 

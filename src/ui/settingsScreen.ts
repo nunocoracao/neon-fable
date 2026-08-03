@@ -13,10 +13,11 @@ import {
 import { hintCountLabel } from "./format";
 import { withAssist, withDifficulty, type RunRules } from "../state";
 import { focusFirst, installListNav } from "./focus";
+import { createControlsScreen } from "./controlsScreen";
 import { GRAPHICS_GROUPS, type GraphicsControl } from "./graphicsModel";
-import type { OverlayHandle } from "./overlay";
-import type { Screen } from "./screen";
-import { plain, t, type PlainKey } from "./strings";
+import { createOverlayRoot, type OverlayHandle } from "./overlay";
+import { showScreen, type Screen } from "./screen";
+import { t } from "./strings";
 
 /**
  * The Settings panel: the audio mixer, text speed, the Graphics &
@@ -92,6 +93,12 @@ export interface SettingsPanelOptions {
   rules?: RunRulesHandle | null;
   /** The run's hint memory, when the panel is opened over one. */
   hints?: HintsHandle | null;
+  /**
+   * Opens the full Controls reference. Both callers pass one — the
+   * screen swaps to it, the overlay opens it over the map — and the
+   * row is hidden without one rather than offering a dead button.
+   */
+  onControls?(): void;
 }
 
 const TEXT_SPEED_LABELS: Record<TextSpeed, string> = {
@@ -99,23 +106,6 @@ const TEXT_SPEED_LABELS: Record<TextSpeed, string> = {
   fast: "Fast",
   normal: "Normal",
 };
-
-/** Keyboard reference shown in the Controls section. */
-const CONTROLS: ReadonlyArray<[keys: PlainKey, what: PlainKey]> = [
-  ["settings.controls.focus.keys", "settings.controls.focus.what"],
-  ["settings.controls.confirm.keys", "settings.controls.confirm.what"],
-  ["settings.controls.back.keys", "settings.controls.back.what"],
-  ["settings.controls.choice.keys", "settings.controls.choice.what"],
-  ["settings.controls.inventory.keys", "settings.controls.inventory.what"],
-  ["settings.controls.advance.keys", "settings.controls.advance.what"],
-  ["settings.controls.minimap.keys", "settings.controls.minimap.what"],
-  ["settings.controls.crouch.keys", "settings.controls.crouch.what"],
-  ["settings.controls.takedown.keys", "settings.controls.takedown.what"],
-  ["settings.controls.step.keys", "settings.controls.step.what"],
-  ["settings.controls.cycle.keys", "settings.controls.cycle.what"],
-  ["settings.controls.pointer.keys", "settings.controls.pointer.what"],
-  ["settings.controls.zoom.keys", "settings.controls.zoom.what"],
-];
 
 function settingRow(label: string, ...controls: HTMLElement[]): HTMLElement {
   const row = document.createElement("div");
@@ -588,20 +578,23 @@ function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
 
   buildGraphicsSection(panel);
 
-  const controlsHeading = document.createElement("h3");
-  controlsHeading.textContent = t("settings.controls");
-  panel.append(controlsHeading);
-  for (const [keys, what] of CONTROLS) {
-    const row = document.createElement("div");
-    row.className = "nf-controls-row";
-    const kbd = document.createElement("span");
-    kbd.className = "nf-kbd";
-    kbd.textContent = plain(keys);
-    const desc = document.createElement("span");
-    desc.className = "nf-controls-desc";
-    desc.textContent = plain(what);
-    row.append(kbd, desc);
-    panel.append(row);
+  // The key map itself lives in ./controlsModel.ts and is rendered by
+  // ./controlsScreen.ts. Here it is a door rather than a copy: a
+  // reference is something you go and read, and a second rendering of
+  // the same table would be a second thing to keep in step.
+  if (options.onControls) {
+    const controlsHeading = document.createElement("h3");
+    controlsHeading.textContent = t("settings.controls");
+    panel.append(controlsHeading, note(t("settings.controls.note")));
+    const openControls = document.createElement("button");
+    openControls.className = "nf-button nf-button-small";
+    openControls.textContent = t("settings.controls.open");
+    openControls.dataset.opens = "controls";
+    openControls.addEventListener("click", () => {
+      audio.emit("ui.confirm");
+      options.onControls?.();
+    });
+    panel.append(settingRow(t("controls.title"), openControls));
   }
 
   const back = document.createElement("button");
@@ -618,8 +611,7 @@ function buildSettingsPanel(options: SettingsPanelOptions): HTMLElement {
 export function createSettingsOverlay(
   options: SettingsPanelOptions,
 ): OverlayHandle {
-  const el = document.createElement("div");
-  el.className = "nf-overlay nf-overlay-center";
+  const el = createOverlayRoot(t("settings.title"));
   el.append(buildSettingsPanel(options));
   return { el, destroy: () => el.remove() };
 }
@@ -640,7 +632,15 @@ export function createSettingsScreen(options: { onBack(): void }): Screen {
       container.className = "nf-screen";
       // No run to change from the main menu: the rows set what the
       // next one will start on, and say so.
-      const panel = buildSettingsPanel({ onClose: options.onBack });
+      const panel = buildSettingsPanel({
+        onClose: options.onBack,
+        onControls: () =>
+          showScreen(
+            createControlsScreen({
+              onBack: () => showScreen(createSettingsScreen(options)),
+            }),
+          ),
+      });
       container.append(panel);
       root.append(container);
       window.addEventListener("keydown", onKeyDown);

@@ -18,8 +18,13 @@ import { interactableAt, type Interactable, type IsoMap } from "./tilemap";
  */
 export const INTERACT_RANGE = 1;
 
-/** Why something is in focus: pointed at, or within arm's reach. */
-export type FocusReason = "hover" | "nearby";
+/**
+ * Why something is in focus: pointed at, within arm's reach, or picked
+ * off the map with the keyboard. "picked" is the keyboard's answer to
+ * the cursor — a player with no pointer has to be able to name a thing
+ * across the plaza before they can ask to walk to it.
+ */
+export type FocusReason = "hover" | "nearby" | "picked";
 
 export interface FocusedInteractable {
   interactable: Interactable;
@@ -34,6 +39,13 @@ export interface FocusedInteractable {
 export interface FocusQuery {
   playerTile: TilePoint;
   hoverTile?: TilePoint | null;
+  /**
+   * The interactable the keyboard has picked, if any. It outranks both
+   * the cursor and arm's reach: a player who tabbed onto the far door
+   * meant the far door, and the outline must agree with the key they
+   * are about to press.
+   */
+  pickedId?: string | null;
 }
 
 /**
@@ -82,22 +94,57 @@ export function nearestInteractable(
 }
 
 /**
- * The single interactable the scene should light up: the one under the
- * cursor if the cursor is on one (at any distance — pointing at a thing
- * names it), else the nearest one in reach. Never more than one.
+ * The single interactable the scene should light up: whatever the
+ * keyboard has picked, else the one under the cursor if the cursor is
+ * on one (at any distance — pointing at a thing names it), else the
+ * nearest one in reach. Never more than one.
  */
 export function focusInteractable(
   map: IsoMap,
   query: FocusQuery,
   range: number = INTERACT_RANGE,
 ): FocusedInteractable | null {
-  const { playerTile, hoverTile } = query;
+  const { playerTile, hoverTile, pickedId } = query;
+  const picked = pickedId
+    ? map.interactables.find((entry) => entry.id === pickedId)
+    : undefined;
+  if (picked) return focused(picked, "picked", playerTile, range);
   const hovered = hoverTile
     ? interactableAt(map, hoverTile.x, hoverTile.y)
     : undefined;
   if (hovered) return focused(hovered, "hover", playerTile, range);
   const nearby = nearestInteractable(map, playerTile, range);
   return nearby ? focused(nearby, "nearby", playerTile, range) : null;
+}
+
+/**
+ * The keyboard's walk through everything on the map worth touching:
+ * nearest first, in the same total order the reach check uses, so
+ * tabbing round a plaza always visits the same things in the same
+ * sequence. `currentId` null (or unknown — an id from the map that was
+ * just left) starts at whichever end the direction implies, so the
+ * first press lands on the nearest thing forwards and the last one
+ * backwards. Wraps at both ends; null when the map holds nothing.
+ */
+export function cycleInteractable(
+  map: IsoMap,
+  from: TilePoint,
+  currentId: string | null,
+  direction: 1 | -1,
+): Interactable | null {
+  const ordered = map.interactables
+    .map((interactable) => ({
+      interactable,
+      distance: tileDistance(from, interactable),
+    }))
+    .sort(compareCandidates)
+    .map((candidate) => candidate.interactable);
+  if (ordered.length === 0) return null;
+  const index = ordered.findIndex((entry) => entry.id === currentId);
+  if (index === -1) {
+    return (direction === 1 ? ordered[0] : ordered[ordered.length - 1]) ?? null;
+  }
+  return ordered[(index + direction + ordered.length) % ordered.length] ?? null;
 }
 
 function focused(

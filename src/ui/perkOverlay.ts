@@ -1,7 +1,7 @@
 import { AdvancementError, choosePerk, type CharacterState } from "../character";
 import { audio } from "../audio";
 import { credLabel, perkPanel, pickLabel, type PerkCard } from "./perkModel";
-import type { OverlayHandle } from "./overlay";
+import { createOverlayRoot, type OverlayHandle } from "./overlay";
 import type { Session } from "./session";
 import { t } from "./strings";
 
@@ -29,8 +29,7 @@ export interface PerkOverlayOptions {
 export function createPerkOverlay(options: PerkOverlayOptions): OverlayHandle {
   const { session } = options;
 
-  const el = document.createElement("div");
-  el.className = "nf-overlay nf-overlay-center";
+  const el = createOverlayRoot(t("perks.label"));
 
   const panel = document.createElement("div");
   panel.className = "nf-panel nf-advancement nf-perks";

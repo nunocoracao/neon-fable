@@ -2,6 +2,7 @@ import type { CombatActionKind } from "../combat";
 import type { StatusFamilyId } from "../iso";
 import {
   hpLabel,
+  initiativeChipLabel,
   statusLabel,
   type ActionButton,
   type InitiativeChip,
@@ -10,6 +11,7 @@ import {
 } from "./combatHud";
 import { actionIconCanvas, statusIconCanvas } from "./combatIcons";
 import { percentLabel } from "./format";
+import { t } from "./strings";
 
 /**
  * The combat HUD's view layer: the initiative rail, the action bar, and
@@ -46,7 +48,14 @@ function meter(className: string, fraction: number): HTMLDivElement {
   return bar;
 }
 
-/** A row of condition badges; empty when nothing is true of the body. */
+/**
+ * A row of condition badges; empty when nothing is true of the body.
+ *
+ * Each badge is a baked glyph and nothing else, so it needs `role="img"`
+ * and a name to be anything at all to a screen reader — a bare `title`
+ * on a `<span>` is a hover, and announced by no assistive technology
+ * reliably enough to be the only copy of a fact.
+ */
 function statusBadges(
   statuses: readonly StatusFamilyId[],
   className: string,
@@ -56,7 +65,10 @@ function statusBadges(
     const badge = document.createElement("span");
     badge.className = "nf-status-badge";
     badge.dataset.status = family;
-    badge.title = statusLabel(family);
+    const label = statusLabel(family);
+    badge.title = label;
+    badge.setAttribute("role", "img");
+    badge.setAttribute("aria-label", label);
     badge.append(statusIconCanvas(family));
     row.append(badge);
   }
@@ -87,9 +99,15 @@ export function createInitiativeRail(
   options: InitiativeRailOptions,
 ): HudView<InitiativeRailModel> {
   const el = div("nf-initiative");
+  // A list of bodies in turn order is exactly what it is, so it says so:
+  // a screen reader then offers it as a list and counts it, which is the
+  // whole point of a rail.
+  el.setAttribute("role", "list");
+  el.setAttribute("aria-label", t("combat.rail.label"));
 
   function chipEl(chip: InitiativeChip): HTMLElement {
     const root = div("nf-init-chip");
+    root.setAttribute("role", "listitem");
     root.dataset.combatant = chip.combatantId;
     if (chip.kind === "player") root.classList.add("nf-init-player");
     // A companion reads as one of yours without reading as you.
@@ -129,6 +147,14 @@ export function createInitiativeRail(
     }
 
     root.title = `${chip.name} — ${hpLabel(chip.hp, chip.maxHp)}`;
+    // The chip says all of itself in one sentence, so the pieces it is
+    // built from are decoration: a portrait, a bar, a glyph, and a "+2"
+    // that only means anything next to the chips either side of it.
+    // Hidden rather than left to be read one fragment at a time.
+    for (const child of root.children) {
+      child.setAttribute("aria-hidden", "true");
+    }
+    root.setAttribute("aria-label", initiativeChipLabel(chip));
     if (options.onHover) {
       root.addEventListener("mouseenter", () =>
         options.onHover?.(chip.combatantId),
@@ -228,6 +254,9 @@ export function createTargetCard(
       const body = div("nf-target-body");
       body.append(div("nf-target-name", card.name));
       const hp = meter("nf-target-hp", card.hpFraction);
+      // The bar and the figure beside it are the same fact drawn twice;
+      // only one of them needs saying.
+      hp.setAttribute("aria-hidden", "true");
       body.append(hp, div("nf-target-hp-text", hpLabel(card.hp, card.maxHp)));
 
       const stats = div("nf-target-stats");

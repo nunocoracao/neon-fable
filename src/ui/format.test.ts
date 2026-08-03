@@ -484,6 +484,40 @@ describe("misc labels", () => {
     ).toBeNull();
   });
 
+  it("offers the walk when the keyboard picked something out of reach", () => {
+    // A pointer can click across a plaza; the keyboard's equivalent is
+    // picking a thing and pressing Enter, so the line has to say so.
+    expect(
+      interactPrompt({
+        label: "Notice Board",
+        spriteId: "terminal",
+        kind: "dialogue",
+        inRange: false,
+        picked: true,
+      }),
+    ).toBe("Enter — walk to Notice Board");
+    expect(
+      interactPrompt({
+        label: "Tram Gate",
+        spriteId: "exit",
+        kind: "dialogue",
+        destination: "Cinder Row Plaza",
+        inRange: false,
+        picked: true,
+      }),
+    ).toBe("Enter — walk to Tram Gate → Cinder Row Plaza");
+    // Once in reach the pick changes nothing: the offer is to act.
+    expect(
+      interactPrompt({
+        label: "Notice Board",
+        spriteId: "terminal",
+        kind: "dialogue",
+        inRange: true,
+        picked: true,
+      }),
+    ).toBe("Enter — use Notice Board");
+  });
+
   it("takes the name out of a label that also names a place", () => {
     expect(interactName("Vesper — Chrome Chapel")).toBe("Vesper");
     expect(interactName("Notice Board")).toBe("Notice Board");

@@ -176,3 +176,43 @@ describe("the counter beat", () => {
     ).toBe(1);
   });
 });
+
+describe("backing out with the keyboard", () => {
+  /**
+   * Escape used to reach the game screen's own overlay teardown, which
+   * knows nothing about what a panel owes on the way out — so a chair
+   * or a counter opened out of a conversation closed onto a dead map
+   * with the scene never resumed. Escape now leaves by the same door
+   * the panel's own Done button does.
+   */
+  it("Escape closes the counter back into the conversation", () => {
+    const session = createSession(state(), createMemoryStorage());
+    showScreen(
+      createGameScreen({ session, dialogueNodeId: "wet-market-back" }),
+    );
+    button("Trade across the oilcloth.").click();
+    expect(root.querySelector(".nf-vendor")).not.toBeNull();
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+    expect(root.querySelector(".nf-vendor")).toBeNull();
+    expect(root.querySelector(".nf-dialogue")?.textContent).toContain(
+      "Post-flood",
+    );
+  });
+
+  it("Escape closes the stylist's chair back into the conversation", () => {
+    // The chair has no Escape handler of its own — it is the game
+    // screen's, and before the pass that meant standing up out of the
+    // chair with Vesper's scene abandoned mid-sentence.
+    const session = createSession(state(), createMemoryStorage());
+    showScreen(createGameScreen({ session, dialogueNodeId: "chapel-door" }));
+    button("Take the chair. \"Change my look.\" (40 cr)").click();
+    expect(root.querySelector(".nf-stylist")).not.toBeNull();
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+    expect(root.querySelector(".nf-stylist")).toBeNull();
+    expect(root.querySelector(".nf-dialogue")).not.toBeNull();
+  });
+});

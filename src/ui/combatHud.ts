@@ -529,6 +529,48 @@ export function hpLabel(hp: number, maxHp: number): string {
   return `HP ${Math.max(0, hp)}/${maxHp}`;
 }
 
+/** Where a chip sits in the order, said rather than counted off the rail. */
+function turnPhrase(chip: InitiativeChip): string {
+  if (!chip.alive || chip.turnsAway === null) return t("combat.rail.turn.down");
+  if (chip.turnsAway === 0) return t("combat.rail.turn.now");
+  if (chip.turnsAway === 1) return t("combat.rail.turn.next");
+  return t("combat.rail.turn.away", { turns: chip.turnsAway });
+}
+
+/**
+ * One initiative chip as a sentence.
+ *
+ * The rail says everything it knows in pixels: whose turn it is by a
+ * highlight, how far off by a portrait's place in a row, how hurt by the
+ * length of a bar, what is stuck to a body by a glyph. A screen reader
+ * gets none of that, and the chip carried its readout on a `title`,
+ * which is a tooltip — a hover is not an interface a keyboard has.
+ *
+ * So the same facts, in the same order the eye takes them, become the
+ * chip's accessible name. Pure and here rather than in the view, like
+ * every other figure the HUD shows: ./combatHud.test.ts reads it
+ * without a DOM.
+ */
+export function initiativeChipLabel(chip: InitiativeChip): string {
+  const parts = [
+    t("combat.rail.chip", {
+      name: chip.name,
+      turn: turnPhrase(chip),
+      hp: hpLabel(chip.hp, chip.maxHp),
+    }),
+    ...chip.statuses.map(statusLabel),
+  ];
+  if (chip.injury) {
+    parts.push(
+      t("combat.rail.injury", {
+        name: chip.injury.name,
+        effect: chip.injury.effect,
+      }),
+    );
+  }
+  return `${parts.join(". ")}.`;
+}
+
 /* --- Grid telegraph -------------------------------------------------- */
 
 /**

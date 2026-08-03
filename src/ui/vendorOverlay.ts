@@ -8,7 +8,7 @@ import {
 } from "../economy";
 import type { GameState } from "../state/gameState";
 import { focusFirst } from "./focus";
-import type { OverlayHandle } from "./overlay";
+import { createOverlayRoot, type OverlayHandle } from "./overlay";
 import type { Session } from "./session";
 import {
   vendorModel,
@@ -46,8 +46,7 @@ export function createVendorOverlay(
 ): OverlayHandle {
   const { session, vendorId } = options;
 
-  const el = document.createElement("div");
-  el.className = "nf-overlay nf-overlay-center";
+  const el = createOverlayRoot(t("vendor.label"));
 
   const panel = document.createElement("div");
   panel.className = "nf-panel nf-vendor";

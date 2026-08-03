@@ -11,7 +11,7 @@ import { advancementPool, getAbility } from "../data/abilities";
 import { STAT_RAISE_COST, chapterGrants } from "../data/advancement";
 import { pointsLabel, statLabel } from "./format";
 import { credLabel, perkPanel, pickLabel } from "./perkModel";
-import type { OverlayHandle } from "./overlay";
+import { createOverlayRoot, type OverlayHandle } from "./overlay";
 import type { Session } from "./session";
 import { t } from "./strings";
 
@@ -38,8 +38,7 @@ export function createAdvancementOverlay(
 ): OverlayHandle {
   const { session } = options;
 
-  const el = document.createElement("div");
-  el.className = "nf-overlay nf-overlay-center";
+  const el = createOverlayRoot(t("advance.title"));
 
   const panel = document.createElement("div");
   panel.className = "nf-panel nf-advancement";

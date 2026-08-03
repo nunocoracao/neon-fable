@@ -83,8 +83,9 @@ import {
   watchTints,
 } from "./stealthModel";
 import { reducedMotionActive, settings } from "../settings";
-import { interactPrompt, shardPickupToast } from "./format";
+import { interactPrompt, shardPickupToast, thingCountLabel } from "./format";
 import { createCodexScreen } from "./codexScreen";
+import { createControlsOverlay } from "./controlsScreen";
 import { resolveDistrict } from "./district";
 import { runMapTransition, type MapTransitionHandle } from "./mapTransition";
 import { npcSpriteSource, sceneSpriteSource } from "./entitySprites";
@@ -92,6 +93,7 @@ import { playerSpriteSource } from "./playerSprite";
 import { createAdvancementOverlay } from "./advancementOverlay";
 import { createPerkOverlay } from "./perkOverlay";
 import { pickLabel } from "./perkModel";
+import { createAnnouncer, type Announcer } from "./announce";
 import { createBarkLayer, type BarkLayerHandle } from "./barkLayer";
 import { createHintLayer, type HintLayerHandle } from "./hintLayer";
 import { createBreachOverlay } from "./breachOverlay";
@@ -104,7 +106,7 @@ import { focusFirst, installListNav } from "./focus";
 import { createMainMenuScreen } from "./mainMenu";
 import { createMinimap, type MinimapHandle } from "./minimap";
 import { createPartyOverlay } from "./partyOverlay";
-import type { OverlayHandle } from "./overlay";
+import { createOverlayRoot, type OverlayHandle } from "./overlay";
 import { createSaveLoadPanel } from "./saveLoad";
 import { createStylistOverlay } from "./stylistOverlay";
 import { createVendorOverlay } from "./vendorOverlay";
@@ -143,6 +145,7 @@ type OverlayKind =
   | "settings"
   | "stylist"
   | "workbench"
+  | "controls"
   | "vendor";
 
 /** Flag marking that this playthrough's ending is already in meta-progress. */
@@ -207,6 +210,14 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   let toast: HTMLElement | null = null;
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let promptEl: HTMLElement | null = null;
+  /**
+   * The street's narrator. The map is a canvas, so what it offers has
+   * to be said in words as well as drawn: where the player has just
+   * arrived and what is on it, what the pick or the cursor has landed
+   * on and how far off it is, and whether they are crouched. Events,
+   * never pixels.
+   */
+  let narrator: Announcer | null = null;
   let minimap: MinimapHandle | null = null;
   let barkLayer: BarkLayerHandle | null = null;
   let hintLayer: HintLayerHandle | null = null;
@@ -216,7 +227,20 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   /** A map transition in flight, and whether it has already swapped. */
   let transition: MapTransitionHandle | null = null;
   let transitionSwapped = false;
-  let overlay: { kind: OverlayKind; handle: OverlayHandle } | null = null;
+  /**
+   * The one panel open over the map, and how Escape backs out of it.
+   *
+   * `dismiss` is not decoration. Several panels replace a conversation
+   * and resume it when they close (the stylist, the bench, a vendor's
+   * counter), and until the accessibility pass Escape reached
+   * closeOverlay directly — tearing the panel down without its own
+   * closing, so the conversation that opened it was simply dropped and
+   * the run continued a beat short. Escape now goes through the same
+   * door the panel's own Close button does.
+   */
+  let overlay:
+    | { kind: OverlayKind; handle: OverlayHandle; dismiss: () => void }
+    | null = null;
   let advanceButton: HTMLButtonElement | null = null;
   /**
    * The hour a story beat has staged this visit at, if any. A beat that
@@ -317,12 +341,24 @@ export function createGameScreen(options: GameScreenOptions): Screen {
    * wording.
    */
   function showFocusHint(hint: IsoFocusHint | null): void {
+    // Said before the prompt is written, because the prompt goes quiet
+    // for anything out of reach that leads nowhere — and "the kiosk,
+    // four tiles away" is the one thing a player who cannot see the
+    // outline needs from it.
+    if (hint) {
+      narrator?.say(
+        hint.inRange
+          ? t("narrate.focus.inReach", { label: hint.label })
+          : t("narrate.focus", { label: hint.label, distance: hint.distance }),
+      );
+    }
     focusPromptText = hint
       ? interactPrompt({
           label: hint.label,
           spriteId: hint.spriteId,
           kind: hint.interaction.kind,
           inRange: hint.inRange,
+          picked: hint.reason === "picked",
           destination: hint.exitMapId
             ? getMap(hint.exitMapId)?.name
             : undefined,
@@ -398,7 +434,16 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     session.state = { ...session.state, flags };
   }
 
-  function openOverlay(kind: OverlayKind, handle: OverlayHandle): void {
+  /**
+   * Mounts a panel over the map. `dismiss` is what Escape does with it;
+   * panels that owe somebody something on the way out (a conversation
+   * to resume) pass their own, and everything else backs out to the map.
+   */
+  function openOverlay(
+    kind: OverlayKind,
+    handle: OverlayHandle,
+    dismiss?: () => void,
+  ): void {
     // Not closeOverlay: closing *to another panel* is not the map being
     // handed back, and must not offer the map's own hints in between.
     overlay?.handle.destroy();
@@ -408,7 +453,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     // the same reason — and because a panel explains itself.
     barkLayer?.setPaused(true);
     hintLayer?.setPaused(true);
-    overlay = { kind, handle };
+    overlay = { kind, handle, dismiss: dismiss ?? closeOverlay };
     overlayLayer?.append(handle.el);
     focusFirst(handle.el);
   }
@@ -476,32 +521,37 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         },
         onStylist(resumeNodeId) {
           // The re-style screen replaces the dialogue; closing it
-          // (confirm or cancel) resumes at the choice's target node.
+          // (confirm or cancel, button or Escape) resumes at the
+          // choice's target node.
+          const leave = (): void => {
+            closeOverlay();
+            if (resumeNodeId) openDialogue(resumeNodeId);
+          };
           openOverlay(
             "stylist",
             createStylistOverlay({
               session,
               onStateChange: refreshHud,
-              onClose() {
-                closeOverlay();
-                if (resumeNodeId) openDialogue(resumeNodeId);
-              },
+              onClose: leave,
             }),
+            leave,
           );
         },
         onWorkbench(resumeNodeId) {
           // Same handoff as the stylist: the bench replaces the
           // dialogue, and closing it resumes at the choice's target.
+          const leave = (): void => {
+            closeOverlay();
+            if (resumeNodeId) openDialogue(resumeNodeId);
+          };
           openOverlay(
             "workbench",
             createWorkbenchOverlay({
               session,
               onStateChange: refreshHud,
-              onClose() {
-                closeOverlay();
-                if (resumeNodeId) openDialogue(resumeNodeId);
-              },
+              onClose: leave,
             }),
+            leave,
           );
         },
         onVendor(vendorId, resumeNodeId) {
@@ -510,17 +560,19 @@ export function createGameScreen(options: GameScreenOptions): Screen {
           // which is the vendor's own node, so the scene reopens with
           // the keeper still standing there.
           hintLayer?.cue("vendor");
+          const leave = (): void => {
+            closeOverlay();
+            if (resumeNodeId) openDialogue(resumeNodeId);
+          };
           openOverlay(
             "vendor",
             createVendorOverlay({
               session,
               vendorId,
               onStateChange: refreshHud,
-              onClose() {
-                closeOverlay();
-                if (resumeNodeId) openDialogue(resumeNodeId);
-              },
+              onClose: leave,
             }),
+            leave,
           );
         },
         onEnded(endingId) {
@@ -552,8 +604,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   }
 
   function openChapterEnd(ending: ChapterEnding): void {
-    const el = document.createElement("div");
-    el.className = "nf-overlay nf-overlay-center";
+    const el = createOverlayRoot(t("game.chapterComplete"));
     const panel = document.createElement("div");
     panel.className = "nf-panel nf-chapter-end";
     const kicker = document.createElement("div");
@@ -887,6 +938,12 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     stealthRun = toggleCrouch(stealthRun);
     scene?.setCrouched(stealthRun.crouched);
     audio.emit("ui.click");
+    // A crouch changes nothing on screen but the pace and a HUD chip,
+    // so it is said: it is the whole of the player's answer to being
+    // watched, and it must not be a state you can only see.
+    narrator?.say(
+      stealthRun.crouched ? t("narrate.crouched") : t("narrate.standing"),
+    );
     refreshHud();
   }
 
@@ -980,6 +1037,13 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       "settings",
       createSettingsOverlay({
         onClose: openSystemMenu,
+        // The key map over the map, rather than a screen change: a
+        // player checking which key crouches has not left the street.
+        onControls: () =>
+          openOverlay(
+            "controls",
+            createControlsOverlay({ onClose: openSettings }),
+          ),
         rules: {
           get: () => session.state.rules,
           set: (next) => {
@@ -1005,8 +1069,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   }
 
   function openSystemMenu(): void {
-    const el = document.createElement("div");
-    el.className = "nf-overlay nf-overlay-center";
+    const el = createOverlayRoot(t("menu.pause.label"));
     const panel = document.createElement("div");
     panel.className = "nf-panel nf-system-menu";
     const title = document.createElement("h2");
@@ -1062,7 +1125,10 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     if (event.key === "Escape") {
       if (ownsKeyboard()) return;
       audio.emit("ui.cancel");
-      if (overlay) closeOverlay();
+      // The panel's own way out, not a teardown behind its back: a
+      // counter or a stylist opened out of a conversation owes that
+      // conversation a resume, and Escape has to pay it too.
+      if (overlay) overlay.dismiss();
       else openSystemMenu();
       return;
     }
@@ -1209,7 +1275,14 @@ export function createGameScreen(options: GameScreenOptions): Screen {
 
       promptEl = document.createElement("div");
       promptEl.className = "nf-interact-prompt";
+      // The offer changes without focus moving — walking up to a door
+      // is not a DOM event — so the line announces itself.
+      promptEl.setAttribute("role", "status");
+      promptEl.setAttribute("aria-live", "polite");
       root.append(promptEl);
+
+      narrator = createAnnouncer({ label: "explore.narrator.label" });
+      root.append(narrator.el);
 
       // Whether anybody is standing between the player and the far side
       // of this map. Resolved once, here, off the run: a zone whose
@@ -1248,6 +1321,10 @@ export function createGameScreen(options: GameScreenOptions): Screen {
           entity: sceneSpriteSource(),
         }),
         onFocus: showFocusHint,
+        // The map answers the keyboard only when nothing is open over
+        // it: a step taken behind an inventory panel is a step nobody
+        // asked for, and the panel's own arrows are the panel's.
+        keyboardEnabled: () => overlay === null,
         // Whoever is watching this map tonight; null on every map that
         // has nobody on it, which is most of them.
         watch: watchFrame,
@@ -1282,6 +1359,17 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       // the weather it arrives under, and the state the player walked
       // in in. Cues wait for somebody able to answer them and lapse if
       // nobody is (walking alone, all three go unsaid).
+      // What arriving somewhere is, in words: where you are, and how
+      // much of it you can act on. A canvas says neither.
+      narrator?.say(
+        map.interactables.length === 0
+          ? t("narrate.arrived.alone", { map: map.name })
+          : t("narrate.arrived", {
+              map: map.name,
+              things: thingCountLabel(map.interactables.length),
+            }),
+      );
+
       barkLayer.cue("arrive");
       if (map.weather === "rain") barkLayer.cue("weather");
       if (isWounded(session.state)) barkLayer.cue("wounded");
@@ -1343,6 +1431,8 @@ export function createGameScreen(options: GameScreenOptions): Screen {
       overlayLayer?.remove();
       toast?.remove();
       promptEl?.remove();
+      narrator?.destroy();
+      narrator = null;
       hud = null;
       hudStatus = null;
       advanceButton = null;

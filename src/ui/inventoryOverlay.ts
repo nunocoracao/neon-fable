@@ -30,7 +30,7 @@ import {
   slotLabel,
   uninstallWarning,
 } from "./format";
-import type { OverlayHandle } from "./overlay";
+import { createOverlayRoot, type OverlayHandle } from "./overlay";
 import { flickeringPortraitCanvas, portraitCanvas } from "./portraits";
 import type { Session } from "./session";
 import {
@@ -63,8 +63,7 @@ export function createInventoryOverlay(
 ): OverlayHandle {
   const { session } = options;
 
-  const el = document.createElement("div");
-  el.className = "nf-overlay nf-overlay-center";
+  const el = createOverlayRoot(t("inventory.title"));
 
   const panel = document.createElement("div");
   panel.className = "nf-panel nf-inventory";
@@ -139,6 +138,10 @@ export function createInventoryOverlay(
     });
     const meter = document.createElement("div");
     meter.className = "nf-meter";
+    // The bar draws what the label beside it already says in figures.
+    // Left in the reading order it would be an unnamed box between two
+    // sentences; hidden, nothing is lost.
+    meter.setAttribute("aria-hidden", "true");
     const fill = document.createElement("div");
     fill.className = "nf-meter-fill";
     fill.style.width =
@@ -210,6 +213,9 @@ export function createInventoryOverlay(
 
     const track = document.createElement("div");
     track.className = "nf-meter nf-static-meter";
+    // Same again: the band, the figure, and what it costs are all on
+    // the row in words.
+    track.setAttribute("aria-hidden", "true");
     const fill = document.createElement("div");
     fill.className = "nf-static-fill";
     fill.style.width = `${Math.round(view.fill * 100)}%`;
@@ -358,6 +364,10 @@ export function createInventoryOverlay(
 
       const track = document.createElement("div");
       track.className = "nf-meter nf-standing-meter";
+      // The band name carries which side of nothing this faction sits
+      // on and roughly how far — the bar is the same fact drawn, and
+      // the number is deliberately never shown at all.
+      track.setAttribute("aria-hidden", "true");
       const fill = document.createElement("div");
       fill.className = `nf-standing-fill nf-standing-${row.meter.side}`;
       fill.style.left = `${row.meter.offsetPercent}%`;

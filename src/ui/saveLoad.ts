@@ -15,7 +15,7 @@ import {
 } from "../state";
 import { SAVE_LABEL_MAX_LENGTH } from "../state";
 import { saveErrorMessage } from "./format";
-import type { OverlayHandle } from "./overlay";
+import { createOverlayRoot, type OverlayHandle } from "./overlay";
 import {
   cardTitle,
   deleteConfirmed,
@@ -67,8 +67,7 @@ export function createSaveLoadPanel(
 ): OverlayHandle {
   const { storage } = options;
 
-  const el = document.createElement("div");
-  el.className = "nf-overlay nf-overlay-center";
+  const el = createOverlayRoot(t("save.label"));
 
   const panel = document.createElement("div");
   panel.className = "nf-panel nf-saves";

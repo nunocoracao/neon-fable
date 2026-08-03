@@ -403,37 +403,103 @@ export const STRINGS = {
     "{seen} shown so far. Resetting makes this run teach itself again from the next street you stand on.",
 
   "settings.controls": "Controls",
-  "settings.controls.focus.keys": "Arrows / Tab",
-  "settings.controls.focus.what": "Move focus through menus, choices, and items",
-  "settings.controls.confirm.keys": "Enter / Space",
-  "settings.controls.confirm.what": "Confirm the focused control",
-  "settings.controls.back.keys": "Esc",
-  "settings.controls.back.what": "Back out of a panel · pause the game",
-  "settings.controls.choice.keys": "1–9",
-  "settings.controls.choice.what": "Pick a dialogue choice by number",
-  "settings.controls.inventory.keys": "I",
-  "settings.controls.inventory.what": "Open or close the inventory",
-  "settings.controls.advance.keys": "P",
-  "settings.controls.advance.what": "Open or close advancement",
-  "settings.controls.minimap.keys": "M",
-  "settings.controls.minimap.what": "Expand or collapse the minimap",
-  "settings.controls.crouch.keys": "X",
-  "settings.controls.crouch.what": "Crouch-walk, where somebody is watching",
-  "settings.controls.takedown.keys": "F",
-  "settings.controls.takedown.what": "Take down a guard · lunge past a gap",
-  "settings.controls.step.keys": "Arrows in combat",
-  "settings.controls.step.what": "Step across the grid while moving",
-  "settings.controls.cycle.keys": "Tab in combat",
-  "settings.controls.cycle.what": "Cycle the action buttons",
-  "settings.controls.pointer.keys": "Click / drag",
-  "settings.controls.pointer.what": "Move and interact · pan the camera",
-  "settings.controls.zoom.keys": "Wheel / + −",
-  "settings.controls.zoom.what": "Zoom the camera while exploring",
+  "settings.controls.note":
+    "Every key the game answers, grouped by where you are standing when it works. Nothing here needs a mouse: the street is walked with the arrows, and everything on it is reached with the pick.",
+  "settings.controls.open": "Full controls reference",
+  "controls.title": "Controls",
+  "controls.lede":
+    "Neon Fable is playable end to end from the keyboard alone — creation, the street, a conversation, a fight, a lattice, and every panel in between.",
+
+  "controls.group.panels": "Menus and panels",
+  "controls.group.panels.blurb":
+    "Anywhere a panel is open: the main menu, settings, inventory, the codex, a counter, the chair.",
+  "controls.focus.keys": "Arrows / Tab",
+  "controls.focus.what": "Move focus through menus, choices, and items",
+  "controls.confirm.keys": "Enter / Space",
+  "controls.confirm.what": "Confirm the focused control",
+  "controls.back.keys": "Esc",
+  "controls.back.what": "Back out of a panel, the way its own Close does",
+  "controls.grid.keys": "Arrows / Home / End",
+  "controls.grid.what": "Move inside a grid of thumbnails, swatches, or tabs",
+
+  "controls.group.explore": "On the street",
+  "controls.group.explore.blurb":
+    "While a district is on screen and no panel is open over it.",
+  "controls.walk.keys": "Arrows / WASD",
+  "controls.walk.what": "Walk one tile in that direction",
+  "controls.pick.keys": "] / [",
+  "controls.pick.what": "Pick the next or previous thing on the map, nearest first",
+  "controls.use.keys": "Enter / E",
+  "controls.use.what": "Use what is picked or in reach — walking there first if it is across the map",
+  "controls.dropPick.keys": "Esc",
+  "controls.dropPick.what": "Drop the pick; with nothing picked, pause the game",
+  "controls.inventory.keys": "I",
+  "controls.inventory.what": "Open or close the character screen",
+  "controls.crew.keys": "C",
+  "controls.crew.what": "Open or close the crew",
+  "controls.advance.keys": "P",
+  "controls.advance.what": "Open or close advancement",
+  "controls.minimap.keys": "M",
+  "controls.minimap.what": "Expand or collapse the minimap",
+  "controls.crouch.keys": "X",
+  "controls.crouch.what": "Crouch-walk, where somebody is watching",
+  "controls.takedown.keys": "F",
+  "controls.takedown.what": "Take down a guard · lunge past a gap",
+  "controls.zoom.keys": "+ / − / wheel",
+  "controls.zoom.what": "Zoom the camera",
+  "controls.pointer.keys": "Click / drag",
+  "controls.pointer.what": "Move and interact · pan the camera",
+
+  "controls.group.dialogue": "In a conversation",
+  "controls.choice.keys": "1–9",
+  "controls.choice.what": "Take a choice by its number in the list",
+  "controls.choiceFocus.keys": "Arrows / Enter",
+  "controls.choiceFocus.what": "Walk the choices and take the focused one",
+  "controls.skipReveal.keys": "Click the line",
+  "controls.skipReveal.what": "Skip the typewriter to the end of the line",
+
+  "controls.group.combat": "In a fight",
+  "controls.group.combat.blurb":
+    "The action bar is numbered in the order it is drawn, so the key and the button never disagree.",
+  "controls.action.keys": "1–9",
+  "controls.action.what": "Take an action off the bar",
+  "controls.step.keys": "Arrows",
+  "controls.step.what": "Step across the grid while moving",
+  "controls.cycle.keys": "Tab",
+  "controls.cycle.what": "Cycle the action buttons",
+  "controls.cancel.keys": "Esc",
+  "controls.cancel.what": "Cancel targeting and go back to the bar",
+
+  "controls.group.breach": "In a breach",
+  "controls.group.breach.blurb":
+    "A run cannot be closed away from — it is finished, withdrawn from, or lost.",
+  "controls.route.keys": "Arrows",
+  "controls.route.what": "Move between the nodes around the head of the route",
+  "controls.stepOn.keys": "Enter / Space",
+  "controls.stepOn.what": "Step onto the focused node",
+  "controls.undo.keys": "U",
+  "controls.undo.what": "Undo the last step",
+  "controls.withdraw.keys": "W",
+  "controls.withdraw.what": "Withdraw with what you are holding",
+
+  "controls.group.create": "Making a runner",
+  "controls.group.create.blurb":
+    "The wizard's own keys, on top of the panel keys above.",
+  "controls.stepJump.keys": "1–5",
+  "controls.stepJump.what": "Jump to a step you have already reached",
+  "controls.turn.keys": "Q / E",
+  "controls.turn.what": "Turn the live preview",
+  "controls.motion.keys": "W",
+  "controls.motion.what": "Switch the preview between standing and walking",
+  "controls.previewZoom.keys": "+ / −",
+  "controls.previewZoom.what": "Zoom the live preview",
 
   /* -------------------------------------------------------------- *
    * Character creation. Backgrounds, appearance options and their
    * blurbs are content; the wizard around them is not.
    * -------------------------------------------------------------- */
+  "create.live.label": "Creation status",
+  "create.step.announce": "Step {index} of {total}: {label}",
   "create.title": "New Runner",
   "create.title.ngPlus": "New Runner — New Game+",
   "create.menu": "Menu",
@@ -670,6 +736,7 @@ export const STRINGS = {
    * The interact prompt, and shards
    * -------------------------------------------------------------- */
   "interact.key": "Enter",
+  "interact.walkTo": "{key} — walk to {name}",
   "interact.verb.talk": "talk to",
   "interact.verb.open": "open",
   "interact.verb.use": "use",
@@ -717,6 +784,48 @@ export const STRINGS = {
   "log.end.victory": "All hostiles are down.",
   "log.end.defeat": "You collapse. The fight is over.",
   "log.end.fled": "You are clear of the fight.",
+
+  /* -------------------------------------------------------------- *
+   * Narration — what the canvas says out loud.
+   *
+   * The district and the arena are pixels; a screen reader gets these
+   * instead. They narrate *events*, never pixels: whose turn it is,
+   * what moved where, what is in focus and how far off. Anything the
+   * log already says in words is left to the log.
+   * -------------------------------------------------------------- */
+  "dialogue.label": "Conversation",
+  "breach.label": "Breach",
+  "perks.label": "Perks",
+  "save.label": "Save and load",
+  "vendor.label": "Counter",
+  "workbench.label": "Workbench",
+  "menu.pause.label": "Pause menu",
+  "interlude.label": "Previously",
+  "dialogue.spoken": "{speaker}: {line}",
+  "combat.log.label": "Combat log",
+  "combat.narrator.label": "Arena",
+  /* The initiative rail read aloud. Every chip draws its facts — whose
+     turn, how far off, how hurt, what is stuck to them — as a portrait,
+     a colour, and a bar, none of which a screen reader can see; these
+     are the same facts as a sentence. */
+  "combat.rail.label": "Initiative order",
+  "combat.rail.chip": "{name}, {turn}, {hp}",
+  "combat.rail.turn.now": "acting now",
+  "combat.rail.turn.next": "next up",
+  "combat.rail.turn.away": "{turns} turns away",
+  "combat.rail.turn.down": "defeated",
+  "combat.rail.injury": "injured: {name}, {effect}",
+  "explore.narrator.label": "The street",
+  "narrate.turn": "{name}'s turn.",
+  "narrate.moved": "{name} moves to column {x}, row {y}.",
+  "narrate.arrived": "{map}. {things} within reach of you.",
+  "narrate.arrived.alone": "{map}. Nothing here to use.",
+  "narrate.focus": "{label}, {distance} tiles away.",
+  "narrate.focus.inReach": "{label}, within reach.",
+  "narrate.crouched": "Crouched.",
+  "narrate.standing": "Standing.",
+  "count.thing.one": "{amount} thing",
+  "count.thing.many": "{amount} things",
 
   /* -------------------------------------------------------------- *
    * Combat HUD: the action bar, why a button is off, and what the

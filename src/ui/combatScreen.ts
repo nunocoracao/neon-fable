@@ -97,8 +97,10 @@ import { SaveError, assistOn, loadGame, type GameState } from "../state";
 import { COMBAT_HINT_BUDGET } from "../narrative/hints";
 import { createHintLayer, type HintLayerHandle } from "./hintLayer";
 import { focusFirst, installListNav } from "./focus";
+import { createAnnouncer, type Announcer } from "./announce";
 import {
   combatEventText,
+  combatSceneNarration,
   combatantDisplayNames,
   companionName,
   consumableOutcomeText,
@@ -212,6 +214,13 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
 
   let topBar: HTMLElement | null = null;
   let logEl: HTMLElement | null = null;
+  /**
+   * The arena's narrator. The log's own live region reads every line it
+   * renders; this one adds the half the log deliberately leaves out —
+   * turn markers and moves, which the initiative strip and the
+   * animation carry for eyes and for nobody else.
+   */
+  let narrator: Announcer | null = null;
   let bottomBar: HTMLElement | null = null;
   let statusEl: HTMLElement | null = null;
   let hintEl: HTMLElement | null = null;
@@ -767,6 +776,7 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       if (!event) continue;
       const text = combatEventText(event, nameOf);
       if (text) appendLogLine(text);
+      else narrator?.say(combatSceneNarration(event, nameOf));
       playEventSfx(event);
       if (!scene) continue;
       /** Ms until the blow this event describes actually lands. */
@@ -1050,6 +1060,10 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
     hintLayer?.setPaused(true);
     const overlay = document.createElement("div");
     overlay.className = "nf-overlay nf-overlay-center";
+    // The fight is over and the panel is the only thing left to act on.
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", title);
     const panel = document.createElement("div");
     panel.className = "nf-panel nf-combat-outcome";
     const heading = document.createElement("h2");
@@ -1311,7 +1325,15 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
 
       logEl = document.createElement("div");
       logEl.className = "nf-combat-log";
+      // A log in the ARIA sense: appended lines are read out in order
+      // as they arrive, and the whole thing is still browsable after.
+      logEl.setAttribute("role", "log");
+      logEl.setAttribute("aria-live", "polite");
+      logEl.setAttribute("aria-label", t("combat.log.label"));
       root.append(logEl);
+
+      narrator = createAnnouncer({ label: "combat.narrator.label" });
+      root.append(narrator.el);
 
       targetCardView = createTargetCard({
         portrait: (card: TargetCard) => combatantPortrait(card),
@@ -1362,6 +1384,8 @@ export function createCombatScreen(options: CombatScreenOptions): Screen {
       scene = null;
       topBar?.remove();
       logEl?.remove();
+      narrator?.destroy();
+      narrator = null;
       bottomBar?.remove();
       targetCardView?.el.remove();
       telegraphChipView?.el.remove();

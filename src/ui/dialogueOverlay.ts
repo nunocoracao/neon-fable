@@ -12,6 +12,7 @@ import {
   type StoryNode,
 } from "../narrative";
 import { revealDelayMs, settings } from "../settings";
+import { createAnnouncer } from "./announce";
 import { focusFirst } from "./focus";
 import {
   companionName,
@@ -22,6 +23,7 @@ import {
 import type { OverlayHandle } from "./overlay";
 import { enemyPortraitCanvas, portraitCanvas } from "./portraits";
 import type { Session } from "./session";
+import { t } from "./strings";
 
 /**
  * Dialogue box over the iso scene. Renders the current story node and
@@ -81,7 +83,22 @@ export function createDialogueOverlay(
 
   const panel = document.createElement("div");
   panel.className = "nf-panel nf-dialogue";
+  // A group rather than a dialog: the box does not trap focus and the
+  // map behind it is still the map. What it needs is a name, so a
+  // reader browsing the page knows which region it has landed in.
+  panel.setAttribute("role", "group");
+  panel.setAttribute("aria-label", t("dialogue.label"));
   el.append(panel);
+
+  /**
+   * The box rewrites itself in place: a taken choice replaces the
+   * speaker, the line, and the choices without anything new arriving in
+   * the document for a reader to notice. So each beat is announced —
+   * who is speaking and what they said, in one sentence, before the
+   * choices are read out by focus landing on the first of them.
+   */
+  const announcer = createAnnouncer({ label: "dialogue.label" });
+  el.append(announcer.el);
 
   /**
    * One side of the portrait row. The expression is stamped on the
@@ -234,6 +251,12 @@ export function createDialogueOverlay(
     main.append(choices);
     // Keyboard flow: Enter takes the focused (first enabled) choice.
     focusFirst(choices);
+
+    announcer.say(
+      speakerName === null
+        ? node.text
+        : t("dialogue.spoken", { speaker: speakerName, line: node.text }),
+    );
   }
 
   /**
@@ -328,6 +351,7 @@ export function createDialogueOverlay(
     el,
     destroy(): void {
       window.removeEventListener("keydown", onKeyDown);
+      announcer.destroy();
       el.remove();
     },
   };
