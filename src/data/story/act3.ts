@@ -362,7 +362,7 @@ export const act3Arc: StoryArc = {
       id: "a3-voss-brief",
       speaker: "Director Voss",
       text:
-        "\"One item, this time. The crown ring, at the Spire's peak. " +
+        "\"One item, this time. The Crown Ring, at the Spire's peak. " +
         "Reach the Locus before dawn and put a hand on the founders' " +
         "keys — as my proxy, with the chair's own override riding your " +
         "credentials.\" The retainer's kit slides across the desk, " +
@@ -1523,7 +1523,7 @@ export const act3Arc: StoryArc = {
       text:
         "The sweep comes back early. There is a half-second where the " +
         "lead looks at the space you are standing in rather than at you, " +
-        "and then the half-second is over. \"Contact, executive floor,\" " +
+        "and then the half-second is over. \"Contact, Executive Floor,\" " +
         "they say, to the building rather than to you, and the baton that " +
         "has not been drawn in nine years comes off the belt while they " +
         "are still saying it.",
@@ -1948,7 +1948,7 @@ export const act3Arc: StoryArc = {
     {
       id: "a3-crown-allies-auric",
       text:
-        "The reclamation crew do not fight the crown ring so much as " +
+        "The reclamation crew do not fight the Crown Ring so much as " +
         "process it. Clearance codes go ahead of you door by door; " +
         "the custodial aspects are met with their own founding " +
         "schedule and told, in the Combine's flat internal voice, " +
@@ -1966,7 +1966,7 @@ export const act3Arc: StoryArc = {
       id: "a3-crown-allies-market",
       text:
         "Six levels' worth of rigging comes up the Spire's outside " +
-        "face in the dark, and the crown ring's glass goes in on a " +
+        "face in the dark, and the Crown Ring's glass goes in on a " +
         "count of three from a hoist crew who have taken worse " +
         "buildings apart for scrap. The aspects turn to meet a breach " +
         "that is on the wrong wall entirely. Marrow's runners hold " +

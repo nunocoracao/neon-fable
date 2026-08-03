@@ -525,7 +525,7 @@ export const cast: Readonly<Record<string, CharacterVisual>> = {
     },
     outfit: "out-tender-coat",
   },
-  // Greywater walking its own water line in salvaged cordon plate.
+  // Greywater walking its own water line in salvaged Cordon plate.
   "Steps Watch": {
     appearance: {
       skinTone: "deep-umber",

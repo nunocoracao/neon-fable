@@ -97,7 +97,7 @@ export const corpoRushTrace: TraceProfile = {
       midGame,
       // Up out of the Registry's terminal, one scene short of the crown.
       "audit",
-      saveLoadStep("at the spire", log),
+      saveLoadStep("at the Spire", log),
       clinicStep(log),
     );
   },
@@ -245,7 +245,7 @@ export const netExplorerTrace: TraceProfile = {
       midGame,
       // Hex reaches the concourse first; the crown is the next scene.
       "wire",
-      saveLoadStep("at the spire", log),
+      saveLoadStep("at the Spire", log),
     );
   },
   endingId: "ending-ghost",
@@ -351,7 +351,7 @@ export const streetChromeTrace: TraceProfile = {
       // Through the Registry Gate the loud way, one scene short of the
       // crown.
       "in",
-      saveLoadStep("at the spire", log),
+      saveLoadStep("at the Spire", log),
       healStep(),
     );
   },

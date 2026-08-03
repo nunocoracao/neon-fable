@@ -330,7 +330,7 @@ export const streetsArc: StoryArc = {
       speaker: "Steps Watch",
       text:
         "She has a pump wrench through her belt and somebody's old " +
-        "cordon plate cut down to fit, and she is walking the walk " +
+        "Cordon plate cut down to fit, and she is walking the walk " +
         "properly — corners, water line, back again. \"No patrol's " +
         "coming down here and none's coming to move us on either,\" she " +
         "says. \"Turns out those were the same patrol. Nobody told us " +
