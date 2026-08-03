@@ -216,7 +216,20 @@ export function createGameScreen(options: GameScreenOptions): Screen {
   /** A map transition in flight, and whether it has already swapped. */
   let transition: MapTransitionHandle | null = null;
   let transitionSwapped = false;
-  let overlay: { kind: OverlayKind; handle: OverlayHandle } | null = null;
+  /**
+   * The one panel open over the map, and how Escape backs out of it.
+   *
+   * `dismiss` is not decoration. Several panels replace a conversation
+   * and resume it when they close (the stylist, the bench, a vendor's
+   * counter), and until the accessibility pass Escape reached
+   * closeOverlay directly — tearing the panel down without its own
+   * closing, so the conversation that opened it was simply dropped and
+   * the run continued a beat short. Escape now goes through the same
+   * door the panel's own Close button does.
+   */
+  let overlay:
+    | { kind: OverlayKind; handle: OverlayHandle; dismiss: () => void }
+    | null = null;
   let advanceButton: HTMLButtonElement | null = null;
   /**
    * The hour a story beat has staged this visit at, if any. A beat that
@@ -399,7 +412,16 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     session.state = { ...session.state, flags };
   }
 
-  function openOverlay(kind: OverlayKind, handle: OverlayHandle): void {
+  /**
+   * Mounts a panel over the map. `dismiss` is what Escape does with it;
+   * panels that owe somebody something on the way out (a conversation
+   * to resume) pass their own, and everything else backs out to the map.
+   */
+  function openOverlay(
+    kind: OverlayKind,
+    handle: OverlayHandle,
+    dismiss?: () => void,
+  ): void {
     // Not closeOverlay: closing *to another panel* is not the map being
     // handed back, and must not offer the map's own hints in between.
     overlay?.handle.destroy();
@@ -409,7 +431,7 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     // the same reason — and because a panel explains itself.
     barkLayer?.setPaused(true);
     hintLayer?.setPaused(true);
-    overlay = { kind, handle };
+    overlay = { kind, handle, dismiss: dismiss ?? closeOverlay };
     overlayLayer?.append(handle.el);
     focusFirst(handle.el);
   }
@@ -477,32 +499,37 @@ export function createGameScreen(options: GameScreenOptions): Screen {
         },
         onStylist(resumeNodeId) {
           // The re-style screen replaces the dialogue; closing it
-          // (confirm or cancel) resumes at the choice's target node.
+          // (confirm or cancel, button or Escape) resumes at the
+          // choice's target node.
+          const leave = (): void => {
+            closeOverlay();
+            if (resumeNodeId) openDialogue(resumeNodeId);
+          };
           openOverlay(
             "stylist",
             createStylistOverlay({
               session,
               onStateChange: refreshHud,
-              onClose() {
-                closeOverlay();
-                if (resumeNodeId) openDialogue(resumeNodeId);
-              },
+              onClose: leave,
             }),
+            leave,
           );
         },
         onWorkbench(resumeNodeId) {
           // Same handoff as the stylist: the bench replaces the
           // dialogue, and closing it resumes at the choice's target.
+          const leave = (): void => {
+            closeOverlay();
+            if (resumeNodeId) openDialogue(resumeNodeId);
+          };
           openOverlay(
             "workbench",
             createWorkbenchOverlay({
               session,
               onStateChange: refreshHud,
-              onClose() {
-                closeOverlay();
-                if (resumeNodeId) openDialogue(resumeNodeId);
-              },
+              onClose: leave,
             }),
+            leave,
           );
         },
         onVendor(vendorId, resumeNodeId) {
@@ -511,17 +538,19 @@ export function createGameScreen(options: GameScreenOptions): Screen {
           // which is the vendor's own node, so the scene reopens with
           // the keeper still standing there.
           hintLayer?.cue("vendor");
+          const leave = (): void => {
+            closeOverlay();
+            if (resumeNodeId) openDialogue(resumeNodeId);
+          };
           openOverlay(
             "vendor",
             createVendorOverlay({
               session,
               vendorId,
               onStateChange: refreshHud,
-              onClose() {
-                closeOverlay();
-                if (resumeNodeId) openDialogue(resumeNodeId);
-              },
+              onClose: leave,
             }),
+            leave,
           );
         },
         onEnded(endingId) {
@@ -1063,7 +1092,10 @@ export function createGameScreen(options: GameScreenOptions): Screen {
     if (event.key === "Escape") {
       if (ownsKeyboard()) return;
       audio.emit("ui.cancel");
-      if (overlay) closeOverlay();
+      // The panel's own way out, not a teardown behind its back: a
+      // counter or a stylist opened out of a conversation owes that
+      // conversation a resume, and Escape has to pay it too.
+      if (overlay) overlay.dismiss();
       else openSystemMenu();
       return;
     }
