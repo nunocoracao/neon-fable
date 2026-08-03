@@ -48,6 +48,22 @@ export const HAIR_REGION = {
   right: BODY_FRAME.head.right + 1,
 } as const;
 
+/**
+ * Where hair may be on a *walk* frame: HAIR_REGION plus the one column
+ * the trail lags behind the head into (see HAIR_TRAIL below). The
+ * resting styles that fall past the head already reach the flare
+ * column, so a trailing row lands one further out — inside the frame,
+ * clear of everything, but outside the resting box. Declared rather
+ * than widening HAIR_REGION, so the authored art keeps the tighter
+ * contract and only the shift is allowed the extra column.
+ */
+export const HAIR_WALK_REGION = {
+  top: HAIR_REGION.top,
+  bottom: HAIR_REGION.bottom,
+  left: HAIR_REGION.left - 1,
+  right: HAIR_REGION.right,
+} as const;
+
 const WIDTH = BODY_FRAME.width;
 const gap = (n: number): string => ".".repeat(n);
 const row = (left: number, body: string): string =>
@@ -334,6 +350,9 @@ export const HAIR_TRAIL: Readonly<
  * rows shift them one pixel back, everything else is untouched. Applied
  * before channel remap and composition, so the trail rides the same
  * bob transforms as the rest of the hair.
+ *
+ * The result honors HAIR_WALK_REGION, not HAIR_REGION: a style already
+ * out at the flare column trails one column further.
  */
 export function hairWalkGrid(art: string, grid: PixelGrid): PixelGrid {
   const trail = HAIR_TRAIL[art as HairStyleId];
