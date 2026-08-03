@@ -34,6 +34,7 @@ import {
   type PropId,
   type TileId,
 } from "../tilemap";
+import { atDensity, densityOf } from "./density";
 import { ABILITY_FX_ART } from "./abilityEffects";
 import { EFFECT_ART } from "./effects";
 import { INTERACTABLE_ART } from "./interactables";
@@ -52,7 +53,12 @@ import {
 } from "./entity";
 import { type ComposedCharacter } from "./layers";
 import { bakeGlow } from "./glow";
-import { ART_SCALE, bakeSilhouette, bakeSprite, spriteBytes } from "./pixel";
+import {
+  bakeSilhouette,
+  bakeSprite,
+  screenPixels,
+  spriteBytes,
+} from "./pixel";
 import { PROP_ART } from "./props";
 import { SETPIECE_ART } from "./setpieces";
 import {
@@ -259,6 +265,7 @@ export function createPixelArtSprites(
           box.anchorX,
           box.anchorY,
           palette,
+          box.density,
         ),
     );
   }
@@ -276,8 +283,15 @@ export function createPixelArtSprites(
         // Per-tile phase offset so water/glow tiles don't pulse in sync.
         frame = frameAt(timeMs + tilePhaseMs(x, y, art.frameMs), art.frameMs, frames.length);
       }
+      const density = densityOf(art);
       return cached(`tile:${id}:${variant}:${frame}:${rain ? "wet" : "dry"}`, () =>
-        bakeSprite(frames[frame] ?? [], TILE_ANCHOR_X, TILE_ANCHOR_Y, palette),
+        bakeSprite(
+          frames[frame] ?? [],
+          atDensity(TILE_ANCHOR_X, density),
+          atDensity(TILE_ANCHOR_Y, density),
+          palette,
+          density,
+        ),
       );
     },
 
@@ -292,7 +306,13 @@ export function createPixelArtSprites(
         timeMs,
       );
       return cached(`prop:${id}:${frame}`, () =>
-        bakeSprite(art.frames[frame] ?? [], art.anchorX, art.anchorY, palette),
+        bakeSprite(
+          art.frames[frame] ?? [],
+          art.anchorX,
+          art.anchorY,
+          palette,
+          densityOf(art),
+        ),
       );
     },
 
@@ -318,13 +338,25 @@ export function createPixelArtSprites(
       if (open > 0 && opening) {
         const index = doorFrameIndex(open, opening.length);
         return cached(`interactable:${id}:open:${index}`, () =>
-          bakeSprite(opening[index] ?? [], art.anchorX, art.anchorY, palette),
+          bakeSprite(
+            opening[index] ?? [],
+            art.anchorX,
+            art.anchorY,
+            palette,
+            densityOf(art),
+          ),
         );
       }
       const phase = (hash2(x, y) % 5) * 120;
       const frame = frameAt(timeMs + phase, art.frameMs, art.frames.length);
       return cached(`interactable:${id}:${frame}`, () =>
-        bakeSprite(art.frames[frame] ?? [], art.anchorX, art.anchorY, palette),
+        bakeSprite(
+          art.frames[frame] ?? [],
+          art.anchorX,
+          art.anchorY,
+          palette,
+          densityOf(art),
+        ),
       );
     },
 
@@ -355,6 +387,7 @@ export function createPixelArtSprites(
               color,
               BODY_FRAME.anchorX,
               BODY_FRAME.anchorY,
+              BODY_FRAME.density,
             ),
         );
       }
@@ -363,7 +396,13 @@ export function createPixelArtSprites(
       // one bake per kind, held for as long as the scene lives.
       const art = INTERACTABLE_ART[id];
       return untinted(`outline:${color}:${id}`, () =>
-        bakeSilhouette(art.frames[0] ?? [], color, art.anchorX, art.anchorY),
+        bakeSilhouette(
+          art.frames[0] ?? [],
+          color,
+          art.anchorX,
+          art.anchorY,
+          densityOf(art),
+        ),
       );
     },
 
@@ -377,7 +416,10 @@ export function createPixelArtSprites(
 
     entityAnchor(id: EntitySpriteId): { x: number; y: number } {
       const box = entityFrame(descriptorFor(id));
-      return { x: box.anchorX * ART_SCALE, y: box.anchorY * ART_SCALE };
+      return {
+        x: screenPixels(box.anchorX, box.density),
+        y: screenPixels(box.anchorY, box.density),
+      };
     },
 
     muzzleOffset(
@@ -391,8 +433,8 @@ export function createPixelArtSprites(
       // Art pixels relative to the sprite's own anchor, in screen scale —
       // the scene adds this straight onto the entity's screen position.
       return {
-        x: (point.x - box.anchorX) * ART_SCALE,
-        y: (point.y - box.anchorY) * ART_SCALE,
+        x: screenPixels(point.x - box.anchorX, box.density),
+        y: screenPixels(point.y - box.anchorY, box.density),
       };
     },
 
@@ -472,6 +514,7 @@ export function createPixelArtSprites(
             FLASH_COLOR,
             box.anchorX,
             box.anchorY,
+            box.density,
           ),
       );
     },
@@ -499,7 +542,13 @@ export function createPixelArtSprites(
             art.frames.length
           : 0;
       return cached(`setpiece:${id}:${index}`, () =>
-        bakeSprite(art.frames[index] ?? [], art.anchorX, art.anchorY, palette),
+        bakeSprite(
+          art.frames[index] ?? [],
+          art.anchorX,
+          art.anchorY,
+          palette,
+          densityOf(art),
+        ),
       );
     },
 

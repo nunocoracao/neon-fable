@@ -40,6 +40,12 @@
  * channel only — hair and face arrive as separate layers.
  */
 import type { Facing } from "../../animation";
+import {
+  rangeAtDensity,
+  spanAtDensity,
+  type ArtDensity,
+  type FrameSpan,
+} from "../density";
 import type { PixelGrid } from "../pixel";
 
 export const BODY_BUILD_IDS = ["lean", "heavy"] as const;
@@ -48,11 +54,22 @@ export type BodyBuildId = (typeof BODY_BUILD_IDS)[number];
 export const BODY_VIEW_IDS = ["front", "back"] as const;
 export type BodyViewId = (typeof BODY_VIEW_IDS)[number];
 
-/** The shared 32×48 layer frame; see the module comment for the map. */
+/**
+ * The shared 32×48 layer frame; see the module comment for the map.
+ *
+ * Every number here is in the frame's own authored pixels, and `density`
+ * says what those are: 1 while the body set is drawn at 32×48, 2 once it
+ * is re-authored at 64×96. Anything that needs the map at another
+ * resolution asks bodyFrameAt() rather than doubling by hand — that is
+ * the one conversion, stated once, that lets a density-2 layer align
+ * against a density-1 one.
+ */
 export const BODY_FRAME = {
   width: 32,
   height: 48,
-  /** Anchor (shadow center) in 1x art pixels. */
+  /** What the numbers in this frame are counted in (see ../density.ts). */
+  density: 1 as ArtDensity,
+  /** Anchor (shadow center) in the frame's own authored pixels. */
   anchorX: 16,
   anchorY: 44,
   /** Skull bounding box (rows/cols inclusive), shared by all builds. */
@@ -65,6 +82,72 @@ export const BODY_FRAME = {
   },
   shadow: { top: 43, bottom: 45, centerX: 16 },
 } as const;
+
+/** The body frame as BODY_FRAME states it, at any authored density. */
+export interface BodyFrameMetrics {
+  readonly width: number;
+  readonly height: number;
+  readonly density: ArtDensity;
+  readonly anchorX: number;
+  readonly anchorY: number;
+  readonly head: FrameSpan;
+  readonly neck: FrameSpan;
+  readonly hands: Readonly<
+    Record<
+      BodyBuildId,
+      {
+        readonly rows: readonly [number, number];
+        readonly left: readonly [number, number];
+        readonly right: readonly [number, number];
+      }
+    >
+  >;
+  readonly shadow: {
+    readonly top: number;
+    readonly bottom: number;
+    readonly centerX: number;
+  };
+}
+
+/**
+ * The whole frame map measured at another density: sizes and anchors
+ * scale, spans stretch to cover the sub-pixels of the pixels they named,
+ * and the hand columns a weapon attaches at move with them. This is what
+ * a layer authored finer than the body reads its contract from — no call
+ * site multiplies a row number by two.
+ */
+export function bodyFrameAt(density: ArtDensity): BodyFrameMetrics {
+  const from = BODY_FRAME.density;
+  const scale = density / from;
+  const span = (box: FrameSpan): FrameSpan => spanAtDensity(box, from, density);
+  const run = (range: readonly [number, number]): [number, number] =>
+    rangeAtDensity(range, from, density);
+  const hands = {} as Record<BodyBuildId, BodyFrameMetrics["hands"][BodyBuildId]>;
+  for (const build of BODY_BUILD_IDS) {
+    const authored = BODY_FRAME.hands[build];
+    hands[build] = {
+      rows: run(authored.rows),
+      left: run(authored.left),
+      right: run(authored.right),
+    };
+  }
+  const shadowRows = run([BODY_FRAME.shadow.top, BODY_FRAME.shadow.bottom]);
+  return {
+    width: BODY_FRAME.width * scale,
+    height: BODY_FRAME.height * scale,
+    density,
+    anchorX: BODY_FRAME.anchorX * scale,
+    anchorY: BODY_FRAME.anchorY * scale,
+    head: span(BODY_FRAME.head),
+    neck: span(BODY_FRAME.neck),
+    hands,
+    shadow: {
+      top: shadowRows[0],
+      bottom: shadowRows[1],
+      centerX: BODY_FRAME.shadow.centerX * scale,
+    },
+  };
+}
 
 const WIDTH = BODY_FRAME.width;
 const gap = (n: number): string => ".".repeat(n);

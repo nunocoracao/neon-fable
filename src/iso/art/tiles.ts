@@ -24,6 +24,7 @@ import {
   type TileId,
   type TrimEdge,
 } from "../tilemap";
+import type { ArtDensity } from "./density";
 import type { GlowSource } from "./glow";
 import { DIAMOND_WIDTHS, diamond, type PixelGrid } from "./pixel";
 
@@ -34,9 +35,19 @@ export interface TileArt {
   frameMs: number;
   /**
    * Emissive light every tile of this kind casts in the glow pass;
-   * offsets are in 1x art pixels relative to the diamond center.
+   * offsets are in the entry's own authored pixels relative to the
+   * diamond center.
    */
   glow?: readonly GlowSource[];
+  /**
+   * What this entry's grids and coordinates are counted in (see
+   * ./density.ts): 1 for art drawn at the original resolution, 2 for art
+   * authored at the detail resolution. Absent means 1. A density-2 entry
+   * bakes to exactly the same on-screen size — same footprint, same
+   * anchor — with four times the authored pixels inside it.
+   */
+  density?: ArtDensity;
+
   /**
    * Wet surface: the tile receives a faint offset copy of nearby prop
    * and interactable glows (a cheap reflection accent, not lighting).

@@ -31,7 +31,8 @@ import {
   smoothStep01,
   type Facing,
 } from "./animation";
-import type { GlowSource } from "./art/glow";
+import { densityOf } from "./art/density";
+import { glowsInArtPixels, type GlowSource } from "./art/glow";
 import { SETPIECE_ART } from "./art/setpieces";
 import type { WorldPoint } from "./coords";
 import { glowIntensityScale } from "./dayPhase";
@@ -152,7 +153,7 @@ export function trainDraws(track: TrainTrack, timeMs: number): SetPieceDraw[] {
       y: track.row,
       offsetX: 0,
       offsetY: -track.heightPx,
-      glow: art.glow,
+      glow: glowsInArtPixels(art.glow, densityOf(art)),
     });
   }
   return draws;
@@ -247,7 +248,7 @@ export function droneDraws(path: DronePath, timeMs: number): SetPieceDraw[] {
       y: state.position.y,
       offsetX: 0,
       offsetY: -path.heightPx + state.bobPx,
-      glow: art.glow,
+      glow: glowsInArtPixels(art.glow, densityOf(art)),
     },
   ];
 }

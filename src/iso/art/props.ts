@@ -8,6 +8,7 @@
  */
 import { hash2 } from "../animation";
 import type { PropId } from "../tilemap";
+import type { ArtDensity } from "./density";
 import type { GlowSource } from "./glow";
 import { mirrored, remapped, type PixelGrid } from "./pixel";
 
@@ -20,11 +21,19 @@ export interface PropArt {
   /** Neon flicker: dropouts briefly show the last frame instead. */
   flicker: boolean;
   /**
-   * Emissive light this prop casts in the glow pass. Offsets are in 1x
-   * art pixels relative to the anchor. Flicker props go dark with their
-   * dropout frame.
+   * Emissive light this prop casts in the glow pass. Offsets are in the
+   * entry's own authored pixels relative to the anchor (see `density`).
+   * Flicker props go dark with their dropout frame.
    */
   glow?: readonly GlowSource[];
+  /**
+   * What this entry's grids and coordinates are counted in (see
+   * ./density.ts): 1 for art drawn at the original resolution, 2 for art
+   * authored at the detail resolution. Absent means 1. A density-2 entry
+   * bakes to exactly the same on-screen size — same footprint, same
+   * anchor — with four times the authored pixels inside it.
+   */
+  density?: ArtDensity;
 }
 
 const rep = (n: number, row: string): string[] => Array<string>(n).fill(row);

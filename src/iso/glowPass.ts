@@ -6,7 +6,8 @@
  * radial sprites. No canvas here — everything is unit-testable.
  */
 import { propFrameAt } from "./animation";
-import type { GlowSource } from "./art/glow";
+import { densityOf } from "./art/density";
+import { glowInArtPixels, type GlowSource } from "./art/glow";
 import { INTERACTABLE_ART } from "./art/interactables";
 import { ART_SCALE } from "./art/pixel";
 import { PROP_ART } from "./art/props";
@@ -180,10 +181,13 @@ export function collectGlowPlacements(
       // Read the list rather than defaulting it: most ground is unlit,
       // and `?? []` handed the collector a fresh empty array per tile
       // per frame for nothing.
-      const glows = TILE_ART[id].glow;
+      const art = TILE_ART[id];
+      const glows = art.glow;
       if (!glows) continue;
       for (const source of glows) {
-        placements.push(toPlacement(source, x, y, intensity));
+        placements.push(
+          toPlacement(glowInArtPixels(source, densityOf(art)), x, y, intensity),
+        );
       }
     }
   }
@@ -201,17 +205,30 @@ export function collectGlowPlacements(
     );
     if (!glowLitAtFrame(art.frames.length, art.flicker, frame)) continue;
     for (const source of art.glow) {
-      objectGlows.push(toPlacement(source, prop.x, prop.y, intensity));
+      objectGlows.push(
+        toPlacement(
+          glowInArtPixels(source, densityOf(art)),
+          prop.x,
+          prop.y,
+          intensity,
+        ),
+      );
     }
   }
 
   for (const interactable of map.interactables) {
     if (interactable.spriteId === "npc") continue;
-    const glows = INTERACTABLE_ART[interactable.spriteId].glow;
+    const art = INTERACTABLE_ART[interactable.spriteId];
+    const glows = art.glow;
     if (!glows) continue;
     for (const source of glows) {
       objectGlows.push(
-        toPlacement(source, interactable.x, interactable.y, intensity),
+        toPlacement(
+          glowInArtPixels(source, densityOf(art)),
+          interactable.x,
+          interactable.y,
+          intensity,
+        ),
       );
     }
   }

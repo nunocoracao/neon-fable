@@ -6,24 +6,69 @@
  * the placement logic (../glowPass.ts) stays canvas-free and testable.
  */
 import type { Sprite } from "../sprites";
+import {
+  DEFAULT_DENSITY,
+  inArtPixels,
+  type ArtDensity,
+} from "./density";
 import { PALETTE } from "./palette";
 import { ART_SCALE } from "./pixel";
 
 /**
- * One emissive light an art entry casts. Authored in v2 (1x) art
- * pixels; offsets are relative to the sprite's anchor point (the tile
- * diamond center it stands on), +y downward.
+ * One emissive light an art entry casts. Authored in the entry's own
+ * pixels — the artist points at the lamp in the grid in front of them —
+ * so a density-2 entry writes density-2 numbers here and
+ * glowInArtPixels converts them once, at the boundary. Offsets are
+ * relative to the sprite's anchor point (the tile diamond center it
+ * stands on), +y downward.
  */
 export interface GlowSource {
   /** Palette character (a hex entry) the glow tints toward. */
   color: string;
-  /** Falloff radius in 1x art pixels. */
+  /** Falloff radius in the declaring entry's authored pixels. */
   radius: number;
   /** Peak alpha multiplier (0..1] applied over the baked falloff. */
   intensity: number;
-  /** Glow center relative to the anchor, in 1x art pixels. */
+  /** Glow center relative to the anchor, in authored pixels. */
   offsetX: number;
   offsetY: number;
+}
+
+/**
+ * A glow as the placement pass reads it: 1x art pixels, whatever the
+ * entry that declared it was drawn at. Light is a world quantity — a
+ * lamp reaches as far as it reaches — so the pass measures in the unit
+ * the world is measured in, and the conversion happens here rather than
+ * in every art module that ever gets re-authored.
+ *
+ * Radii and offsets round to whole 1x pixels: a radius sizes a baked
+ * canvas, and half a pixel of falloff is not a light anybody can see.
+ */
+export function glowInArtPixels(
+  source: GlowSource,
+  density: ArtDensity,
+): GlowSource {
+  if (density === DEFAULT_DENSITY) return source;
+  return {
+    ...source,
+    radius: Math.max(1, Math.round(inArtPixels(source.radius, density))),
+    offsetX: Math.round(inArtPixels(source.offsetX, density)),
+    offsetY: Math.round(inArtPixels(source.offsetY, density)),
+  };
+}
+
+/**
+ * Every glow an entry casts, in 1x art pixels. Art drawn at 1x — which
+ * is all of it during the migration — gets its own list back rather than
+ * a copy: this runs per lit piece per frame, and converting nothing was
+ * not worth an allocation.
+ */
+export function glowsInArtPixels(
+  sources: readonly GlowSource[] | undefined,
+  density: ArtDensity,
+): readonly GlowSource[] | undefined {
+  if (!sources || density === DEFAULT_DENSITY) return sources;
+  return sources.map((source) => glowInArtPixels(source, density));
 }
 
 /**

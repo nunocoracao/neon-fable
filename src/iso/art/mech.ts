@@ -61,6 +61,7 @@
 import { hash2 } from "../animation";
 import type { AttackClassId } from "../attack";
 import type { ReactionKind } from "../reaction";
+import type { ArtDensity } from "./density";
 import { PORTRAIT_FRAME } from "./layers/portrait";
 import { mirrored, type PixelGrid } from "./pixel";
 
@@ -87,6 +88,8 @@ export type MechViewId = (typeof MECH_VIEW_IDS)[number];
 export const MECH_FRAME = {
   width: 96,
   height: 112,
+  /** What the numbers in this frame are counted in (see ./density.ts). */
+  density: 1 as ArtDensity,
   anchorX: 48,
   anchorY: 104,
   /** Last row the chassis itself may occupy; the shadow is below it. */
