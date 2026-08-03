@@ -20,6 +20,7 @@ import {
   silhouetteGrid,
   type PixelGrid,
 } from "./pixel";
+import { densityOf, inArtPixels, type ArtDensity } from "./density";
 import { PROP_ART, isoBox, isoSlab } from "./props";
 import { SETPIECE_ART } from "./setpieces";
 import { TILE_ART, puddleGrid } from "./tiles";
@@ -31,8 +32,18 @@ import {
   streakSlant,
 } from "./weather";
 
-function expectValid(grid: PixelGrid, label: string): void {
-  expect(gridErrors(grid), label).toEqual([]);
+/**
+ * Valid art, at whatever density it was drawn: a palette-indexed grid of
+ * equal-length rows that covers a whole number of 1x art pixels. Sweeps
+ * pass the entry's declared density so a re-authored asset is held to
+ * the same standard in its own units (see ./density.ts).
+ */
+function expectValid(
+  grid: PixelGrid,
+  label: string,
+  density: ArtDensity = 1,
+): void {
+  expect(gridErrors(grid, density), label).toEqual([]);
 }
 
 describe("palette", () => {
@@ -50,8 +61,12 @@ describe("palette", () => {
  * the rain variants alike, so a puddled tile is held to exactly the same
  * standard as the ground it was derived from.
  */
-function allTileGrids(): ReadonlyArray<{ label: string; grid: PixelGrid }> {
-  const grids: Array<{ label: string; grid: PixelGrid }> = [];
+function allTileGrids(): ReadonlyArray<{
+  label: string;
+  grid: PixelGrid;
+  density: ArtDensity;
+}> {
+  const grids: Array<{ label: string; grid: PixelGrid; density: ArtDensity }> = [];
   for (const [id, art] of Object.entries(TILE_ART)) {
     const sets: ReadonlyArray<[string, readonly PixelGrid[][]]> = art.wet
       ? [
@@ -64,7 +79,11 @@ function allTileGrids(): ReadonlyArray<{ label: string; grid: PixelGrid }> {
         expect(frames.length, `${id} ${kind} variant ${v} has frames`)
           .toBeGreaterThan(0);
         frames.forEach((grid, f) => {
-          grids.push({ label: `${id} ${kind} v${v} f${f}`, grid });
+          grids.push({
+            label: `${id} ${kind} v${v} f${f}`,
+            grid,
+            density: densityOf(art),
+          });
         });
       });
     }
@@ -74,10 +93,11 @@ function allTileGrids(): ReadonlyArray<{ label: string; grid: PixelGrid }> {
 
 describe("tile art", () => {
   it("every tile grid is a valid palette-indexed native 64×32 diamond", () => {
-    for (const { label, grid } of allTileGrids()) {
-      expectValid(grid, label);
-      expect(grid.length, `${label} height`).toBe(32);
-      expect(grid[0]?.length, `${label} width`).toBe(64);
+    for (const { label, grid, density } of allTileGrids()) {
+      expectValid(grid, label, density);
+      // The diamond is 64×32 of the ground, however finely it is drawn.
+      expect(inArtPixels(grid.length, density), `${label} height`).toBe(32);
+      expect(inArtPixels(grid[0]?.length ?? 0, density), `${label} width`).toBe(64);
     }
   });
 
@@ -312,10 +332,11 @@ describe("prop art", () => {
       expect(art.frames.length, `${id} frames`).toBeGreaterThan(0);
       const first = art.frames[0];
       art.frames.forEach((grid, f) => {
-        expectValid(grid, `${id} frame ${f}`);
+        expectValid(grid, `${id} frame ${f}`, densityOf(art));
         expect(grid.length, `${id} frame ${f} height`).toBe(first?.length);
         expect(grid[0]?.length, `${id} frame ${f} width`).toBe(first?.[0]?.length);
       });
+      // Anchors are counted in the entry's own pixels, like its grids.
       expect(art.anchorX, `${id} anchorX`).toBeLessThan(first?.[0]?.length ?? 0);
       expect(art.anchorY, `${id} anchorY`).toBeLessThan(first?.length ?? 0);
     }
@@ -936,12 +957,15 @@ describe("interactable art (native hi-res)", () => {
       expect(art.frameMs, id).toBeGreaterThan(0);
       const first = art.frames[0];
       art.frames.forEach((grid, f) => {
-        expectValid(grid, `${id} frame ${f}`);
+        expectValid(grid, `${id} frame ${f}`, densityOf(art));
         expect(grid.length, `${id} frame ${f} height`).toBe(first?.length);
         expect(grid[0]?.length, `${id} frame ${f} width`).toBe(first?.[0]?.length);
       });
-      expect(first?.[0]?.length, `${id} width`).toBeLessThanOrEqual(64);
-      expect(first?.length, `${id} height`).toBeLessThanOrEqual(96);
+      const density = densityOf(art);
+      expect(inArtPixels(first?.[0]?.length ?? 0, density), `${id} width`)
+        .toBeLessThanOrEqual(64);
+      expect(inArtPixels(first?.length ?? 0, density), `${id} height`)
+        .toBeLessThanOrEqual(96);
     }
   });
 
@@ -1080,7 +1104,7 @@ describe("opening sequences", () => {
       expect(frames.length, id).toBeGreaterThanOrEqual(3);
       const base = art.frames[0] ?? [];
       frames.forEach((grid, f) => {
-        expectValid(grid, `${id} open frame ${f}`);
+        expectValid(grid, `${id} open frame ${f}`, densityOf(art));
         expect(grid.length, `${id} open ${f} height`).toBe(base.length);
         expect(grid[0]?.length, `${id} open ${f} width`).toBe(base[0]?.length);
       });
@@ -1368,7 +1392,7 @@ describe("set-piece art", () => {
       const width = art.frames[0]?.[0]?.length ?? 0;
       const height = art.frames[0]?.length ?? 0;
       art.frames.forEach((grid, f) => {
-        expectValid(grid, `${id} frame ${f}`);
+        expectValid(grid, `${id} frame ${f}`, densityOf(art));
         // One silhouette envelope per piece: the bake cache keys on the
         // frame index alone, so frames may not change size.
         expect(grid[0]?.length, `${id} frame ${f} width`).toBe(width);

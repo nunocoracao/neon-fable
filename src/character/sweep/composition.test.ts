@@ -49,6 +49,7 @@ import {
   composedCharacterKey,
   composedFrameKey,
   layerArtGrid,
+  layerArtPart,
   layerOrderFor,
   type ComposedCharacter,
   type LayerSlot,
@@ -180,9 +181,15 @@ describe("every resolved layer honors its region", () => {
     for (const sweepCase of plan.cases) {
       for (const view of BODY_VIEW_IDS) {
         for (const layer of sweepCase.character.layers) {
-          const grid = layerArtGrid(layer.slot, layer.art, view);
-          if (!grid) continue;
-          for (const fault of layerFaults(layer.slot, layer.art, view, grid)) {
+          const part = layerArtPart(layer.slot, layer.art, view);
+          if (!part) continue;
+          for (const fault of layerFaults(
+            layer.slot,
+            layer.art,
+            view,
+            part.grid,
+            part.density,
+          )) {
             faults.push(`${describeFault(fault)} — ${describeCase(sweepCase)}`);
           }
         }
