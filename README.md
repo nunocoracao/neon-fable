@@ -35,7 +35,9 @@ ships with anyway: [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 > settings, the state each one wants, the filenames the section will
 > link) is [docs/images/README.md](docs/images/README.md); until then,
 > the [live build](https://nunocoracao.github.io/neon-fable/) is the
-> honest preview.
+> honest preview. For the first of the four, `npm run postcards` writes
+> `postcards/scene-street-night.png` — the plaza itself, painted by the
+> game's own renderer, without the HUD over it.
 
 What you would be looking at:
 
@@ -123,7 +125,8 @@ src/
   audio/       # synthesized music and SFX
   ui/          # DOM screens, overlays, and the HUD
   data/        # typed content: items, enemies, maps, story arcs, catalogs
-docs/          # player guide, authoring guide, accessibility
+  postcards/   # offline PNG renderer: contact sheets of every drawing
+docs/          # player guide, authoring guide, accessibility, art review
 ```
 
 Game logic is pure and data-driven — plain functions over `GameState`
@@ -139,6 +142,8 @@ Tests live beside their source as `*.test.ts`.
   vendors, epilogues, and the rules each one is linted against.
 - [Accessibility](docs/ACCESSIBILITY.md) — what the game promises and
   which test holds it to that.
+- [Art review](docs/ART_REVIEW.md) — what the art actually looks like,
+  written by rendering it to PNG (`npm run postcards`) and opening it.
 - [Changelog](CHANGELOG.md) — what 1.0 is, by phase, in player-facing
   language.
 - [Known issues](KNOWN_ISSUES.md) — what 1.0 ships with anyway, what

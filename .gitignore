@@ -6,8 +6,9 @@ node_modules/
 # build output
 dist/
 
-# rendered art contact sheets (npm run postcards) — derived, not source
-postcards/
+# rendered art contact sheets (npm run postcards) — derived, not source.
+# Anchored at the root on purpose: the renderer itself is src/postcards/.
+/postcards/
 
 # logs
 npm-debug.log*

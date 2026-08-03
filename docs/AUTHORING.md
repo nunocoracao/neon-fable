@@ -160,6 +160,38 @@ plus content from `src/data/`); rendering and DOM code stay thin.
     `--nf-text-scale` CSS variable; every panel, label, and HUD readout
     is sized in `rem`, so one variable moves all of them together.
 
+## Looking at the art (`npm run postcards`)
+
+Every picture in this game is a palette-indexed string grid in
+`src/iso/art/`, so none of it needs a browser to become an image.
+`npm run postcards` renders the lot to PNG contact sheets under
+`postcards/` (gitignored) in about twelve seconds:
+
+```
+npm run postcards                        # 37 PNGs: every sheet + six scenes
+npm run postcards -- --filter art-tiles  # just the family you touched
+npm run postcards -- --out /tmp/before    # keep a before/after pair
+```
+
+Each sheet is a labelled grid of cells — one per gallery entry, frames
+laid out left to right with their indices, ids written under them in the
+game's own pixel font, over a checkerboard so transparent pixels and
+misplaced layers show. The six `scene-*.png` files are whole districts
+painted by `src/iso/render.ts` itself against a framebuffer, so depth
+sort, glow, weather and day phase are the real ones.
+
+The machinery lives in `src/postcards/`: a PNG encoder over `node:zlib`
+(`png.ts`), an RGBA framebuffer (`framebuffer.ts`), and enough of a 2d
+canvas (`canvas2d.ts`) for the shipping bakes and the shipping painter
+to run unchanged in Node. No new dependencies, no native canvas. A
+fixture sheet pins the pipeline by hash, so re-authoring a sprite never
+turns those tests red — only a change to how postcards are *made* does.
+
+**Any task that changes art renders the sheets it touched and opens
+them before calling itself done**, then writes what it saw into
+[`ART_REVIEW.md`](ART_REVIEW.md) — the standing account of what the art
+actually looks like, and the list of what is still wrong with it.
+
 ## Authoring content
 
 All game content lives in typed data files under `src/data/` — engine
