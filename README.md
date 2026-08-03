@@ -21,6 +21,9 @@ code.
 
 **[Play it in a browser →](https://nunocoracao.github.io/neon-fable/)**
 
+Version 1.0.0. What is in it: [CHANGELOG.md](CHANGELOG.md). What it
+ships with anyway: [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
 ---
 
 ## Screenshots
@@ -56,7 +59,9 @@ npm install
 npm run dev      # dev server
 npm run build    # strict type-check, then bundle
 npm test         # the Vitest suite
+npm run smoke    # build, then play the built bundle: fresh run + a v1 save
 npm run preview  # serve the production build
+npm run bench    # the wall-clock benches, which npm test does not assert
 ```
 
 Open the dev server URL and press **New Game**. Adding `?dev` to the URL
@@ -130,6 +135,10 @@ Tests live beside their source as `*.test.ts`.
   vendors, epilogues, and the rules each one is linted against.
 - [Accessibility](docs/ACCESSIBILITY.md) — what the game promises and
   which test holds it to that.
+- [Changelog](CHANGELOG.md) — what 1.0 is, by phase, in player-facing
+  language.
+- [Known issues](KNOWN_ISSUES.md) — what 1.0 ships with anyway, what
+  was measured, and the lever each one would be changed by.
 
 ## Credits & licence
 
