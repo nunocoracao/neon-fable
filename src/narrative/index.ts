@@ -73,6 +73,26 @@ export {
   companionAsides,
   type CompanionAside,
 } from "./companions";
+// The catalog itself (and COMBAT_HINT_BUDGET, which is content) is
+// exported from src/data; what is here is the rules over it.
+export {
+  HINT_FLAG_PREFIX,
+  budgetSpent,
+  createHintQueue,
+  cueHints,
+  dismissHint,
+  forgetHint,
+  hintFlagKey,
+  hintSeen,
+  markHintSeen,
+  nextHintId,
+  pauseHints,
+  resetHintFlags,
+  seenHintIds,
+  showHint,
+  wizardHelpFor,
+  type HintQueue,
+} from "./hints";
 export { applyEffect, applyEffects } from "./effects";
 export {
   applyLoyaltyChanges,
