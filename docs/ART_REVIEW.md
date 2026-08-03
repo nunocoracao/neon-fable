@@ -280,6 +280,57 @@ Both were found by opening the PNGs, which is the point.
 
 ---
 
+## Two-density pipeline, 2026-08-03 (task 0121)
+
+Looked at: `art-props.png`, plus a side-by-side of the mooring post as
+it was and as it is, rendered at 12 art pixels per sheet pixel so the
+individual decisions are visible.
+
+**What changed.** A grid may now declare that it was drawn at the detail
+resolution (`density: 2`), in which case the bake skips the doubling
+pass and paints what the artist actually drew. One asset went through
+it end to end: `mooring-post`, redrawn at 40×46 from 20×23, same
+footprint, same ground contact, same size on screen.
+
+**What that bought, looking at the two side by side.** The 1x post was
+a flat steel tube: three columns of shading, a rope drawn as one brown
+band with two colours in it, rust in three whole-pixel triangles. The
+redraw turns the cylinder through nine shades — four of them palette v3
+half-steps that did not exist before — so it reads as round rather than
+as a rectangle with a lighter left edge. The rope is six rows of
+strands with a groove per four columns, slanting a column per row, and
+at real size it reads as a coil. The rust bleeds from the shaded side
+down to the waterline with a ragged edge, instead of appearing in three
+places at once. The outline is one detail pixel thick rather than two,
+which is the single biggest difference at real size: the post no longer
+looks drawn in marker.
+
+**What I checked and would flag.**
+
+- At the sheet's real scale, beside `crate`, `hydrant`, `barrier` and
+  `salvage-tarp`, it does not stand out as brighter or busier than its
+  1x neighbours — which was the risk. The first two attempts did: a
+  chrome ramp with a wide specular read as polished marble on a night
+  street. The specular is now one column wide and the shaded side runs
+  off the chrome ramp into the neutral slates.
+- The concrete pad's lit top row is entirely eaten by the bevel (every
+  `)` pixel borders the metal flange above it and steps up to `S`).
+  That is the detail pass working as designed, but it means an authored
+  half-step can be invisible in the bake; worth knowing before somebody
+  spends an afternoon picking one.
+- **Everything else is unchanged, and that is pinned.**
+  `src/iso/art/legacyBake.test.ts` hashes every registered grid through
+  the real detail pass and the real palette. Palette v3 landed with all
+  sixteen digests untouched; only `props` moved, in the commit that
+  redrew the post.
+
+Still open: F1–F11 above are untouched by this task. F9 (small things
+are smaller than they look) is the one this pipeline most directly
+answers — a re-authored asset can put detail where the 1x grid had no
+room for it — but nothing beyond the mooring post has been redrawn yet.
+
+---
+
 ## Conventions for the tasks that follow
 
 Every art task from here renders what it changed and opens it before

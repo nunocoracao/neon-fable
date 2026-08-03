@@ -9,6 +9,7 @@
  * stable shape.
  */
 import type { InteractableSpriteId } from "../tilemap";
+import type { ArtDensity } from "./density";
 import type { GlowSource } from "./glow";
 import { DIAMOND_WIDTHS, remapped, type PixelGrid } from "./pixel";
 
@@ -25,10 +26,18 @@ export interface InteractableArt {
    */
   openFrames?: readonly PixelGrid[];
   /**
-   * Emissive light this interactable casts in the glow pass; offsets
-   * are in 1x art pixels relative to the anchor.
+   * Emissive light this interactable casts in the glow pass; offsets are
+   * in the entry's own authored pixels relative to the anchor.
    */
   glow?: readonly GlowSource[];
+  /**
+   * What this entry's grids and coordinates are counted in (see
+   * ./density.ts): 1 for art drawn at the original resolution, 2 for art
+   * authored at the detail resolution. Absent means 1. A density-2 entry
+   * bakes to exactly the same on-screen size — same footprint, same
+   * anchor — with four times the authored pixels inside it.
+   */
+  density?: ArtDensity;
 }
 
 const rep = (n: number, row: string): string[] => Array<string>(n).fill(row);

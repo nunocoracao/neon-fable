@@ -25,7 +25,7 @@ import {
   type ComposedCharacter,
 } from "../iso/art/layers";
 import { BODY_FRAME } from "../iso/art/layers/body";
-import { ART_SCALE, bakeSprite, spriteBytes } from "../iso/art/pixel";
+import { bakeSprite, screenPixels, spriteBytes } from "../iso/art/pixel";
 import { createSpriteCache, type SpriteCacheStats } from "../iso/art/spriteCache";
 import type { Sprite } from "../iso/sprites";
 import { reducedMotionActive } from "../settings";
@@ -122,8 +122,10 @@ export function createAppearancePreview(
 
   const canvas = document.createElement("canvas");
   canvas.className = "nf-preview-canvas";
-  canvas.width = BODY_FRAME.width * ART_SCALE;
-  canvas.height = BODY_FRAME.height * ART_SCALE;
+  // Through the frame's own density, so a body re-authored at the
+  // finer grid still gets the canvas it has always had.
+  canvas.width = screenPixels(BODY_FRAME.width, BODY_FRAME.density);
+  canvas.height = screenPixels(BODY_FRAME.height, BODY_FRAME.density);
   const ctx = canvas.getContext("2d");
 
   const portraitInset = document.createElement("div");
@@ -179,6 +181,8 @@ export function createAppearancePreview(
         composedCharacterGrid(composed, state.facing, state.motion, frame),
         0,
         0,
+        undefined,
+        BODY_FRAME.density,
       ),
     );
     ctx.imageSmoothingEnabled = false;

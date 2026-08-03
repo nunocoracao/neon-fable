@@ -160,6 +160,67 @@ plus content from `src/data/`); rendering and DOM code stay thin.
     `--nf-text-scale` CSS variable; every panel, label, and HUD readout
     is sized in `rem`, so one variable moves all of them together.
 
+## Drawing at the finer density
+
+Every grid in `src/iso/art/` used to be drawn at one resolution — 32×48
+for a person, 64×32 for a ground tile — and the detail pass
+(`src/iso/art/detail.ts`) doubled it on the way to the canvas so each
+authored pixel could at least differ from its own corners. A grid may
+now say it was drawn at the finer resolution instead:
+
+```ts
+"mooring-post": {
+  frames: [mooringPost],   // 40×46 rather than 20×23
+  density: 2,              // ...because it was drawn that way
+  anchorX: 20,             // counted in the entry's own pixels
+  anchorY: 40,
+  frameMs: 0,
+  flicker: false,
+},
+```
+
+`density: 1` is the default and means exactly what every registration
+has always meant, so nothing needs changing until it is redrawn. A
+density-2 entry is **twice the rows and columns for the same
+footprint**: it bakes to the same canvas, sits at the same anchor, and
+is interchangeable with 1x art everywhere a grid is accepted. The
+doubling step is skipped — the pixels are drawn rather than derived —
+and the bevel still runs, because that is lighting rather than
+resolution.
+
+**Coordinates are in the entry's own pixels.** Anchors, glow offsets,
+hand columns and region boxes are all counted in whatever the grid was
+drawn at, and converted once at the boundary
+(`src/iso/art/density.ts`). Nothing multiplies a coordinate by two at a
+call site; ask `inArtPixels`, `atDensity`, `bodyFrameAt(density)` or
+`glowInArtPixels` instead, so the answer stays right when a frame's
+density changes.
+
+**Layers migrate one at a time.** `composeGrids` refuses to compose
+layers that disagree about their density — a typed
+`DensityMismatchError`, not a complaint about row counts — and
+`partAtDensity` promotes a layer that has not been redrawn yet, by the
+same doubling the bake used to do. So a character whose body is
+redrawn and whose hair is not still composes; the hair simply looks
+exactly as it always did. Sets that have moved are listed in
+`LAYER_ART_DENSITY` (`src/iso/art/layers.ts`), which is empty until the
+first one does.
+
+**Palette v3 half-steps.** Four times the pixels run out of shades
+fast: a chrome cylinder fourteen columns wide needs five steps to turn
+and the ramp has three. `HALF_STEPS` (`src/iso/art/palette.ts`) adds
+one character between each pair of named steps on the ramps that carry
+material detail — `[` between `6` and `T`, `(` between `Q` and `R`, and
+so on. They are shades to paint *with*: the automatic bevel still steps
+between the named rungs, which is why adding twenty palette entries
+recoloured nothing already drawn. `src/iso/art/legacyBake.test.ts`
+hashes every registered grid through the real detail pass and the real
+palette and holds that claim to the pixel.
+
+**The migration is visible.** The dev art gallery badges every asset
+with its authored density, and so does every contact-sheet cell, so a
+glance at `art-props.png` says how far this has got.
+
 ## Looking at the art (`npm run postcards`)
 
 Every picture in this game is a palette-indexed string grid in

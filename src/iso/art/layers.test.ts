@@ -6,8 +6,12 @@ import {
   composedCharacterKey,
   composedFrameKey,
   eyeColorRemap,
+  layerArtDensity,
   layerArtGrid,
+  layerArtPart,
   layerOrderFor,
+  partAtDensity,
+  LAYER_ART_DENSITY,
   orderedLayerParts,
   outfitChannelRemap,
   skinToneRemap,
@@ -16,6 +20,8 @@ import {
   type LayerSlot,
 } from "./layers";
 import { BODY_FRAME } from "./layers/body";
+import { DensityMismatchError } from "./density";
+import { doubled } from "./detail";
 import { SKIN_RAMPS } from "./palette";
 import { gridErrors, mirrored, type PixelGrid } from "./pixel";
 
@@ -158,7 +164,7 @@ describe("channel remaps", () => {
 
   it("maps the iris channel to any palette entry and rejects others", () => {
     expect(eyeColorRemap("m")).toEqual({ g: "m" });
-    expect(() => eyeColorRemap("?")).toThrow(/not a palette entry/);
+    expect(() => eyeColorRemap("@")).toThrow(/not a palette entry/);
     expect(() => eyeColorRemap(".")).toThrow(/not a palette entry/);
   });
 
@@ -433,5 +439,73 @@ describe("layer shimmer", () => {
     expect(composedCharacterKey(withDetail(SHIMMER))).toBe(
       composedCharacterKey(withDetail([...SHIMMER])),
     );
+  });
+});
+
+describe("composing across authored densities", () => {
+  const dense = { width: W * 2, height: H * 2, density: 2 as const };
+  const coarsePart: LayerPart = { grid: frameGrid([[4, 4, "9"]]) };
+
+  it("refuses a coarser layer with a typed error, not a size complaint", () => {
+    expect(() => composeGrids([{ ...coarsePart, density: 1 }], dense)).toThrow(
+      DensityMismatchError,
+    );
+    try {
+      composeGrids([{ ...coarsePart, density: 1 }], dense);
+    } catch (error) {
+      const mismatch = error as DensityMismatchError;
+      expect(mismatch.expected).toBe(2);
+      expect(mismatch.found).toBe(1);
+      expect(mismatch.message).toContain("layer 0");
+    }
+  });
+
+  it("refuses a finer layer against a 1x frame just as clearly", () => {
+    const finer: LayerPart = { grid: doubled(coarsePart.grid), density: 2 };
+    expect(() => composeGrids([finer])).toThrow(DensityMismatchError);
+  });
+
+  it("takes an unstated density as the frame's own, so old callers are untouched", () => {
+    expect(() => composeGrids([coarsePart])).not.toThrow();
+    expect(composeGrids([coarsePart])).toEqual(coarsePart.grid);
+  });
+
+  it("promotes a layer that has not been re-authored yet", () => {
+    const promoted = partAtDensity({ ...coarsePart, density: 1 }, 2);
+    expect(promoted.density).toBe(2);
+    expect(promoted.grid).toEqual(doubled(coarsePart.grid));
+    // Which is exactly what the density-2 frame will accept.
+    const composed = composeGrids([promoted], dense);
+    expect(composed.length).toBe(H * 2);
+    expect(composed[0]?.length).toBe(W * 2);
+  });
+
+  it("half-migrated composes: one promoted layer under one native one", () => {
+    const native: LayerPart = {
+      grid: doubled(frameGrid([[6, 6, "j"]])),
+      density: 2,
+    };
+    const composed = composeGrids(
+      [partAtDensity({ ...coarsePart, density: 1 }, 2), native],
+      dense,
+    );
+    // Both layers land, at the same places their 1x coordinates named.
+    expect(composed[8]?.[8]).toBe("9");
+    expect(composed[12]?.[12]).toBe("j");
+  });
+});
+
+describe("the layer registry states what it was drawn at", () => {
+  it("reports 1x for every set until one is re-authored", () => {
+    expect(layerArtDensity("body", "lean")).toBe(1);
+    expect(layerArtDensity("hair", "buzz")).toBe(1);
+    expect(Object.keys(LAYER_ART_DENSITY)).toEqual([]);
+  });
+
+  it("hands back the registered grid with its density attached", () => {
+    const part = layerArtPart("body", "lean", "front");
+    expect(part?.grid).toBe(layerArtGrid("body", "lean", "front"));
+    expect(part?.density).toBe(1);
+    expect(layerArtPart("body", "nothing-registered", "front")).toBeNull();
   });
 });

@@ -23,7 +23,7 @@ import { companionLook, getCompanion } from "../data/companions";
 import { enemyLook, getEnemy, parseEnemySpriteId } from "../data/enemies";
 import { DRONE_ART, MECH_ART } from "../iso";
 import type { EquipmentState } from "../inventory/equipment";
-import { ART_SCALE, bakeSprite, spriteBytes } from "../iso/art/pixel";
+import { bakeSprite, screenPixels, spriteBytes } from "../iso/art/pixel";
 import { PORTRAIT_FRAME } from "../iso/art/layers/portrait";
 import { createSpriteCache } from "../iso/art/spriteCache";
 import { STATIC_FLICKER_FRAMES } from "../iso/art/layers/portrait";
@@ -132,13 +132,13 @@ export function gridPortraitCanvas(
   compose: () => PixelGrid,
 ): HTMLCanvasElement {
   const baked = cache.get(`portrait:${key}`, () =>
-    bakeSprite(compose(), 0, 0),
+    bakeSprite(compose(), 0, 0, undefined, PORTRAIT_FRAME.density),
   );
 
   const el = document.createElement("canvas");
   el.className = "nf-portrait";
-  el.width = PORTRAIT_FRAME.width * ART_SCALE;
-  el.height = PORTRAIT_FRAME.height * ART_SCALE;
+  el.width = screenPixels(PORTRAIT_FRAME.width, PORTRAIT_FRAME.density);
+  el.height = screenPixels(PORTRAIT_FRAME.height, PORTRAIT_FRAME.density);
   el.getContext("2d")?.drawImage(baked.image, 0, 0);
   return el;
 }

@@ -34,6 +34,7 @@
  * "K" like the sprite hair layers, one full-frame grid per catalog
  * style plus the shared crushed under-cap variants.
  */
+import type { ArtDensity } from "../density";
 import type { PixelGrid } from "../pixel";
 import type { BodyBuildId } from "./body";
 import type { CrushedHairId, HairStyleId } from "./hair";
@@ -42,6 +43,8 @@ import type { CrushedHairId, HairStyleId } from "./hair";
 export const PORTRAIT_FRAME = {
   width: 48,
   height: 48,
+  /** What the numbers in this frame are counted in (see ../density.ts). */
+  density: 1 as ArtDensity,
   /** The 16×12 overlay window: brow line at top, chin at bottom. */
   face: { left: 16, top: 9, width: 16, height: 12 },
   /** Screen-left eye part anchor; the right eye mirrors at mirrorLeft. */

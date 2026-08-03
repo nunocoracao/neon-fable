@@ -8,6 +8,7 @@
  */
 import { hash2 } from "../animation";
 import type { PropId } from "../tilemap";
+import type { ArtDensity } from "./density";
 import type { GlowSource } from "./glow";
 import { mirrored, remapped, type PixelGrid } from "./pixel";
 
@@ -20,11 +21,19 @@ export interface PropArt {
   /** Neon flicker: dropouts briefly show the last frame instead. */
   flicker: boolean;
   /**
-   * Emissive light this prop casts in the glow pass. Offsets are in 1x
-   * art pixels relative to the anchor. Flicker props go dark with their
-   * dropout frame.
+   * Emissive light this prop casts in the glow pass. Offsets are in the
+   * entry's own authored pixels relative to the anchor (see `density`).
+   * Flicker props go dark with their dropout frame.
    */
   glow?: readonly GlowSource[];
+  /**
+   * What this entry's grids and coordinates are counted in (see
+   * ./density.ts): 1 for art drawn at the original resolution, 2 for art
+   * authored at the detail resolution. Absent means 1. A density-2 entry
+   * bakes to exactly the same on-screen size — same footprint, same
+   * anchor — with four times the authored pixels inside it.
+   */
+  density?: ArtDensity;
 }
 
 const rep = (n: number, row: string): string[] => Array<string>(n).fill(row);
@@ -1449,42 +1458,176 @@ const cartFrame = (phase: number): string[] => {
  * top-left, chrome where the metal shows, rust everywhere it has been
  * wet for twenty years. --- */
 
-/* --- Mooring post: a chromed bollard gone rusty at the waterline,
- * a coil of rope round its shaft, set in a concrete pad. 20x23,
- * ground contact at (10, 20). --- */
+/* --- Mooring post: a chromed bollard gone rusty at the waterline, a
+ * coil of rope round its shaft, set in a concrete pad. 40x46, ground
+ * contact at (20, 40) — and the first asset in the game authored
+ * natively at density 2 (see ./density.ts).
+ *
+ * It is the same object it was at 20x23, at the same size on screen.
+ * What the extra pixels bought: an outline one detail pixel thick
+ * instead of two, a cylinder shaded across fourteen columns rather than
+ * six, a single-pixel specular down the lit side, rope with strands in
+ * it, and rust that bleeds along the waterline instead of appearing in
+ * whole authored pixels. The shading uses the palette v3 half-steps,
+ * which exist for exactly this: a chrome cylinder at this width needs
+ * five steps to turn, and the ramp only had three. --- */
 
-const POST_CAP = gap(5) + "0TT" + "9".repeat(4) + "TT0" + gap(5);
-const POST_CAP_LOW = gap(5) + "0T9" + "6".repeat(4) + "9T0" + gap(5);
-const POST_COLLAR = gap(5) + "0" + "6".repeat(8) + "0" + gap(5);
-/** One row of the shaft: chrome, with four columns of rust bleed. */
-const postShaft = (bleed: string): string => gap(6) + "07" + bleed + "60" + gap(6);
-/** A wrap of rope round the shaft, standing proud of it. */
-const postRope = (wrap: string): string => gap(5) + "0" + wrap + "0" + gap(5);
+/** The post's frame: 40 columns of density-2 pixels, 20 of ground. */
+const POST_W = 40;
+
+/**
+ * Brushed chrome turning through a cylinder, lit from the top left,
+ * authored per ring width — a wider ring turns slower, and sampling one
+ * narrow turn across a wide one lands the specular a column off. Three
+ * of the five shades are palette v3 half-steps: at these widths the
+ * ramp's own three steps read as bands rather than as a turn.
+ */
+const CHROME_RINGS: Readonly<Record<number, string>> = {
+  10: "6[T]T[6554",
+  14: "66[T]T[6655444",
+  16: "66[TT]T[[6655444",
+  18: "66[TT]]T[[66655444",
+  20: "666[TT]]T[[[66655444",
+  22: "666[TT]]]TT[[[66655444",
+};
+
+/**
+ * One step up and one step down the chrome ramp, ends held. The shaded
+ * end runs off the chrome ramp into the neutral slates, which is where
+ * a dockside bollard at 3am actually sits — polished all the way down
+ * would read as marble.
+ */
+const CHROME_UP: Readonly<Record<string, string>> =
+  { "4": "5", "5": "6", "6": "[", "[": "T", T: "]", "]": "9", "9": "9" };
+const CHROME_DOWN: Readonly<Record<string, string>> =
+  { "9": "]", "]": "T", T: "[", "[": "6", "6": "5", "5": "4", "4": "4" };
+
+/** The rust ramp the chrome corrodes into, shade for shade. */
+const POST_RUST: Readonly<Record<string, string>> =
+  { "9": "c", "]": "?", T: "b", "[": "!", "6": "a", "5": "a", "4": "a" };
+const RUST_UP: Readonly<Record<string, string>> =
+  { a: "!", "!": "b", b: "?", "?": "c", c: "c" };
+const RUST_DOWN: Readonly<Record<string, string>> =
+  { c: "?", "?": "b", b: "!", "!": "a", a: "a" };
+
+/** A centered band: an interior run between its two outline pixels. */
+const centered = (interior: string): string => {
+  const outlined = `0${interior}0`;
+  const pad = (POST_W - outlined.length) / 2;
+  return gap(pad) + outlined + gap(pad);
+};
+
+/** A chrome ring of an authored width, optionally a step off its turn. */
+const chromeRing = (
+  width: number,
+  step?: Readonly<Record<string, string>>,
+): string =>
+  centered(
+    [...(CHROME_RINGS[width] ?? "")].map((ch) => step?.[ch] ?? ch).join(""),
+  );
+
+/**
+ * One shaft row. `rust` names the columns the waterline has eaten
+ * through: the chrome there swaps onto the rust ramp shade for shade, so
+ * corrosion follows the same light the metal does instead of flattening
+ * into a brown patch.
+ */
+const postShaft = (rust: readonly number[] = []): string =>
+  centered(
+    [...(CHROME_RINGS[14] ?? "")]
+      .map((ch, i) => (rust.includes(i) ? (POST_RUST[ch] ?? ch) : ch))
+      .join(""),
+  );
+
+/**
+ * One row of the rope coil, standing a pixel proud of the shaft on each
+ * side. Each wrap is three rows — lit crown, body, shaded underside —
+ * and the strands slant because the groove pattern walks a column per
+ * row. The whole coil turns with the cylinder it is wrapped round: a
+ * step lighter at the lit edge, a step darker down the shaded side.
+ */
+const ROPE_BODY = ["?", "b", "!"] as const;
+const ropeRow = (row: number): string =>
+  centered(
+    Array.from({ length: 16 }, (_, i) => {
+      let ch: string = ROPE_BODY[row % ROPE_BODY.length] ?? "b";
+      // Four columns to a strand: a lit crown, two of body, a groove.
+      const strand = (i + row) % 4;
+      if (strand === 0) ch = RUST_UP[ch] ?? ch;
+      else if (strand === 3) ch = RUST_DOWN[ch] ?? ch;
+      if (i >= 12) ch = RUST_DOWN[ch] ?? ch;
+      return ch;
+    }).join(""),
+  );
+
+/** A concrete pad row: 22 interior columns, its own edge shades named. */
+const padRow = (left: string, fill: string, right: string): string =>
+  centered(left + fill.repeat(20) + right);
+
+/** A row of the soft ground shadow, by half-width from the center. */
+const shadowRow = (half: number): string =>
+  gap(POST_W / 2 - half) + "z".repeat(half * 2) + gap(POST_W / 2 - half);
 
 const mooringPost: string[] = [
-  POST_CAP,
-  POST_CAP_LOW,
-  POST_COLLAR,
-  postShaft("6666"),
-  postShaft("66a6"),
-  postShaft("6aa6"),
-  postShaft("66a6"),
-  postShaft("6666"),
-  postRope("cbccbccb"),
-  postRope("bccbccbc"),
-  postShaft("6666"),
-  postShaft("6a66"),
-  postShaft("aa66"),
-  postShaft("6a66"),
-  postShaft("6666"),
-  postShaft("66aa"),
-  postShaft("666a"),
-  postShaft("6666"),
-  gap(4) + "0" + "6".repeat(10) + "0" + gap(4),
-  gap(4) + "0S" + "R".repeat(8) + "Q0" + gap(4),
-  gap(4) + "0Q" + "Q".repeat(8) + "Q0" + gap(4),
-  gap(3) + "z".repeat(14) + gap(3),
-  gap(6) + "z".repeat(8) + gap(6),
+  // Cap: the top disc catching the light, a rim turning below it, and
+  // an underside lip in shadow. Widths run out and back so it reads
+  // round rather than stacked.
+  chromeRing(10, CHROME_UP),
+  chromeRing(14, CHROME_UP),
+  chromeRing(18),
+  chromeRing(20),
+  chromeRing(20),
+  chromeRing(20),
+  chromeRing(18, CHROME_DOWN),
+  chromeRing(16, CHROME_DOWN),
+  // Collar, where the cap meets the shaft.
+  chromeRing(16),
+  chromeRing(16, CHROME_DOWN),
+  // Clean shaft above the waterline.
+  postShaft(),
+  postShaft(),
+  postShaft(),
+  postShaft(),
+  postShaft(),
+  postShaft(),
+  // Two wraps of rope, three rows each, the twist walking round.
+  ropeRow(0),
+  ropeRow(1),
+  ropeRow(2),
+  ropeRow(3),
+  ropeRow(4),
+  ropeRow(5),
+  // Below the rope the rust starts on the shaded side and spreads down
+  // and across, until at the waterline there is barely any chrome left.
+  // The edge is deliberately ragged: corrosion does not have a straight
+  // side, and at this density the raggedness is a pixel wide.
+  postShaft(),
+  postShaft([13]),
+  postShaft([12, 13]),
+  postShaft([13]),
+  postShaft([3, 11, 12, 13]),
+  postShaft([12, 13]),
+  postShaft([11, 12, 13]),
+  postShaft([10, 11, 12, 13]),
+  postShaft([2, 11, 12, 13]),
+  postShaft([9, 10, 11, 12, 13]),
+  postShaft([8, 9, 10, 11, 12, 13]),
+  postShaft([9, 10, 11, 12, 13]),
+  postShaft([7, 8, 9, 10, 11, 12, 13]),
+  postShaft([6, 7, 8, 9, 10, 11, 12, 13]),
+  // The foot ring the pad is poured around.
+  chromeRing(22),
+  chromeRing(22, CHROME_DOWN),
+  // Concrete pad: lit top surface, then down its own ramp into shadow.
+  padRow("S", ")", "R"),
+  padRow(")", "R", "("),
+  padRow("R", "(", "Q"),
+  padRow("(", "Q", "Q"),
+  // Ground shadow, an ellipse under the lot.
+  shadowRow(13),
+  shadowRow(14),
+  shadowRow(12),
+  shadowRow(8),
 ];
 
 /* --- Salvage tarp: whatever came up off the bottom this week, roped
@@ -2027,8 +2170,11 @@ export const PROP_ART: Readonly<Record<PropId, PropArt>> = {
   },
   "mooring-post": {
     frames: [mooringPost],
-    anchorX: 10,
-    anchorY: 20,
+    // Authored at density 2, so its coordinates are counted in its own
+    // pixels: (20, 40) is the same ground contact (10, 20) named before.
+    density: 2,
+    anchorX: 20,
+    anchorY: 40,
     frameMs: 0,
     flicker: false,
   },

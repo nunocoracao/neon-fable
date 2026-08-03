@@ -3499,6 +3499,19 @@ canvas.nf-action-glyph {
   overflow-wrap: anywhere;
 }
 
+/* The authored-density badge: art re-drawn at the finer grid wears it,
+   art still at 1x wears nothing, so the migration reads as a scattering
+   of lit chips across the sheet rather than as a list somewhere. */
+.nf-gallery-density {
+  display: inline-block;
+  padding: 0 0.25em;
+  border: 1px solid var(--nf-glow-cyan);
+  border-radius: 2px;
+  color: var(--nf-glow-cyan);
+  font-size: 0.9em;
+  letter-spacing: 0.05em;
+}
+
 /* --- Breach (the signal-tracing minigame) ---
    A terminal's own screen, so it reads colder and harder than the rest
    of the UI: a lattice of square cells on a black field, the routed

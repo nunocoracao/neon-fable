@@ -41,10 +41,19 @@ import {
   SHADOW,
   TRANSPARENT,
 } from "./palette";
+import type { ArtDensity } from "./density";
 import type { PixelGrid } from "./pixel";
 
 /** How many detail pixels one authored pixel becomes per axis. */
 export const DETAIL_SCALE = 2;
+
+/**
+ * The density this pass leaves a grid at — the same number as
+ * DETAIL_SCALE and for the same reason: one authored pixel covers a 2×2
+ * block, so a grid already drawn that finely is a grid this pass has
+ * nothing left to derive from. See ./density.ts for what that means.
+ */
+export const DETAIL_DENSITY: ArtDensity = 2;
 
 /**
  * The outline character. It is the one color the bevel never rewrites:
@@ -205,4 +214,16 @@ export function beveled(grid: PixelGrid): string[] {
 /** The full pass — double, then bevel. This is what bakeSprite paints. */
 export function refined(grid: PixelGrid): string[] {
   return beveled(doubled(grid));
+}
+
+/**
+ * The pass a grid needs given what it was authored at. A density-1 grid
+ * gets the full treatment, exactly as before. A grid already drawn at the
+ * detail resolution skips the doubling — there is nothing to derive, the
+ * artist has already made every one of those decisions — and goes
+ * straight to the bevel, which is a lighting pass rather than a
+ * resolution one and applies to both alike.
+ */
+export function refinedAt(grid: PixelGrid, density: ArtDensity): string[] {
+  return density >= DETAIL_DENSITY ? beveled(grid) : refined(grid);
 }

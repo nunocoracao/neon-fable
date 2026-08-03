@@ -93,6 +93,9 @@ export function gallerySheets(): SheetSpec[] {
       cells: section.entries.map((entry) => ({
         id: entry.id,
         frames: entry.frames,
+        // Carried through so a re-authored asset draws at the same size
+        // as the ones around it, and is labelled as the odd one out.
+        ...(entry.density === undefined ? {} : { density: entry.density }),
       })),
     };
     return paginate(spec);

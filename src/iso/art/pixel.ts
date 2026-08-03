@@ -6,7 +6,18 @@
  */
 import type { Sprite } from "../sprites";
 import { PALETTE, SHADOW, TRANSPARENT } from "./palette";
-import { DETAIL_SCALE, doubled, refined } from "./detail";
+import {
+  DETAIL_DENSITY,
+  DETAIL_SCALE,
+  refinedAt,
+} from "./detail";
+import {
+  DEFAULT_DENSITY,
+  densityErrors,
+  inArtPixels,
+  promotedGrid,
+  type ArtDensity,
+} from "./density";
 
 /** A palette-indexed sprite grid; rows top to bottom, all equal width. */
 export type PixelGrid = readonly string[];
@@ -20,13 +31,21 @@ export const ART_SCALE = 2;
 /**
  * Problems with a grid, as human-readable strings; empty means valid.
  * Checked by tests over every registered grid so bad art fails fast.
+ *
+ * `density` is what the grid says it was authored at (see ./density.ts);
+ * a finer grid has to cover a whole number of 1x pixels on both axes or
+ * it cannot stand where the art it replaces stood.
  */
-export function gridErrors(grid: PixelGrid): string[] {
+export function gridErrors(
+  grid: PixelGrid,
+  density: ArtDensity = DEFAULT_DENSITY,
+): string[] {
   const errors: string[] = [];
   if (grid.length === 0) {
     errors.push("grid has no rows");
     return errors;
   }
+  errors.push(...densityErrors(grid, density));
   const width = grid[0]?.length ?? 0;
   grid.forEach((row, y) => {
     if (row.length !== width) {
@@ -108,21 +127,42 @@ const DETAIL_FITS = ART_SCALE % DETAIL_SCALE === 0;
 const PIXEL_SIZE = DETAIL_FITS ? ART_SCALE / DETAIL_SCALE : ART_SCALE;
 
 /** A grid as it is painted: run through the detail pass where it fits. */
-function detailed(grid: PixelGrid): PixelGrid {
-  return DETAIL_FITS ? refined(grid) : grid;
+function detailed(grid: PixelGrid, density: ArtDensity): PixelGrid {
+  return DETAIL_FITS ? refinedAt(grid, density) : grid;
+}
+
+/**
+ * Screen pixels one pixel of an authored grid covers. With the detail
+ * pass in play everything reaches the canvas at the detail density, so
+ * the size is the same whatever the art was drawn at; without it, a
+ * finer grid simply paints smaller blocks. Either way the sprite comes
+ * out the size the 1x art has always baked to.
+ */
+function pixelSizeAt(density: ArtDensity): number {
+  return DETAIL_FITS ? PIXEL_SIZE : ART_SCALE / density;
+}
+
+/** Screen pixels a length authored at `density` covers. */
+export function screenPixels(
+  value: number,
+  density: ArtDensity = DEFAULT_DENSITY,
+): number {
+  return inArtPixels(value, density) * ART_SCALE;
 }
 
 /**
  * Bake a grid onto an offscreen canvas at ART_SCALE. The anchor is given
- * in 1x art pixels and scaled to match. Horizontal same-color runs
- * collapse into single fillRect calls.
+ * in the grid's *own* authored pixels — the artist points at a pixel in
+ * the picture in front of them — and converted here. Horizontal
+ * same-color runs collapse into single fillRect calls.
  *
  * What lands on the canvas is the grid *after* the detail pass, which
  * is where the extra definition comes from: the canvas is the size the
  * 1x grid has always baked to, and every screen pixel in it is now its
- * own art pixel rather than one quarter of a 2×2 block. Nothing outside
- * this function needs to know — dimensions, anchors, and silhouettes
- * are unchanged.
+ * own art pixel rather than one quarter of a 2×2 block. A grid authored
+ * at density 2 arrives with those pixels already drawn rather than
+ * derived; it bakes to the same canvas, at the same anchor, and nothing
+ * outside this function can tell the difference by measuring.
  *
  * `palette` defaults to the master table; scenes bake through a day
  * phase's tinted palette instead (see ./tint.ts), which is the only way
@@ -133,15 +173,20 @@ export function bakeSprite(
   anchorX: number,
   anchorY: number,
   palette: Readonly<Record<string, string>> = PALETTE,
+  density: ArtDensity = DEFAULT_DENSITY,
 ): Sprite {
   const width = grid[0]?.length ?? 0;
   const canvas = document.createElement("canvas");
-  canvas.width = width * ART_SCALE;
-  canvas.height = grid.length * ART_SCALE;
+  canvas.width = screenPixels(width, density);
+  canvas.height = screenPixels(grid.length, density);
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not create 2d context for sprite");
-  paintGrid(ctx, detailed(grid), (ch) => palette[ch]);
-  return { image: canvas, anchorX: anchorX * ART_SCALE, anchorY: anchorY * ART_SCALE };
+  paintGrid(ctx, detailed(grid, density), (ch) => palette[ch], pixelSizeAt(density));
+  return {
+    image: canvas,
+    anchorX: screenPixels(anchorX, density),
+    anchorY: screenPixels(anchorY, density),
+  };
 }
 
 export { SHADOW };
@@ -184,18 +229,30 @@ export function bakeSilhouette(
   color: string,
   anchorX: number,
   anchorY: number,
+  density: ArtDensity = DEFAULT_DENSITY,
 ): Sprite {
   const width = grid[0]?.length ?? 0;
   const canvas = document.createElement("canvas");
-  canvas.width = width * ART_SCALE;
-  canvas.height = grid.length * ART_SCALE;
+  canvas.width = screenPixels(width, density);
+  canvas.height = screenPixels(grid.length, density);
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not create 2d context for sprite");
-  // Silhouettes double with the art so a flash traces the same edge the
-  // sprite under it paints, but there is nothing in one shape to bevel.
+  // Silhouettes reach the detail density with the art so a flash traces
+  // the same edge the sprite under it paints — by doubling when the art
+  // was drawn coarser, by already being there when it was not. There is
+  // nothing in one flat shape to bevel either way.
   const shape = silhouetteGrid(grid);
-  paintGrid(ctx, DETAIL_FITS ? doubled(shape) : shape, () => color);
-  return { image: canvas, anchorX: anchorX * ART_SCALE, anchorY: anchorY * ART_SCALE };
+  paintGrid(
+    ctx,
+    DETAIL_FITS ? promotedGrid(shape, density, DETAIL_DENSITY) : shape,
+    () => color,
+    pixelSizeAt(density),
+  );
+  return {
+    image: canvas,
+    anchorX: screenPixels(anchorX, density),
+    anchorY: screenPixels(anchorY, density),
+  };
 }
 
 /**
@@ -214,6 +271,7 @@ function paintGrid(
   ctx: CanvasRenderingContext2D,
   grid: PixelGrid,
   colorOf: (ch: string) => string | undefined,
+  pixelSize: number,
 ): void {
   grid.forEach((row, y) => {
     let x = 0;
@@ -228,10 +286,10 @@ function paintGrid(
       while (runEnd < row.length && row[runEnd] === ch) runEnd++;
       ctx.fillStyle = color;
       ctx.fillRect(
-        x * PIXEL_SIZE,
-        y * PIXEL_SIZE,
-        (runEnd - x) * PIXEL_SIZE,
-        PIXEL_SIZE,
+        x * pixelSize,
+        y * pixelSize,
+        (runEnd - x) * pixelSize,
+        pixelSize,
       );
       x = runEnd;
     }

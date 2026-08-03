@@ -15,6 +15,7 @@
  * never restated: this module is the map from slot to contract, and the
  * contract itself stays with the art.
  */
+import { spanAtDensity, type ArtDensity } from "../../iso/art/density";
 import type { LayerSlot } from "../../iso/art/layers";
 import { BODY_FRAME, type BodyViewId } from "../../iso/art/layers/body";
 import { CYBER_REGION } from "../../iso/art/layers/cyberware";
@@ -111,15 +112,22 @@ export function describeFault(fault: RegionFault): string {
 /**
  * Check one resolved layer's grid against its slot's contract: pixels
  * inside the declared region, and ground shadow only from the body.
+ *
+ * Regions are declared in 1x art pixels beside the art that keeps them.
+ * A layer re-authored at density 2 is checked against the same box
+ * converted to its own units — the contract does not change because the
+ * drawing got finer, and nobody restates it in a second unit.
  */
 export function layerFaults(
   slot: LayerSlot,
   art: string,
   view: BodyViewId,
   grid: PixelGrid,
+  density: ArtDensity = BODY_FRAME.density,
 ): RegionFault[] {
   const faults: RegionFault[] = [];
-  const outside = pixelsOutside(grid, SLOT_REGIONS[slot]);
+  const region = spanAtDensity(SLOT_REGIONS[slot], BODY_FRAME.density, density);
+  const outside = pixelsOutside(grid, region);
   if (outside.length > 0) {
     faults.push({
       slot,

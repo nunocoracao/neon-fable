@@ -97,6 +97,7 @@ export const STRINGS = {
   "gallery.filter.placeholder": "Filter by id…",
   "gallery.filter.label": "Filter art by id",
   "gallery.section": "{title} ({count})",
+  "gallery.density": "d{density}",
   "perf.scroll.on": "Scroll: on",
   "perf.scroll.off": "Scroll: off",
 

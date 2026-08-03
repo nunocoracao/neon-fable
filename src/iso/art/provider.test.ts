@@ -162,7 +162,7 @@ describe("createPixelArtSprites cache", () => {
 
   it("refuses glow colors that are not hex palette entries", () => {
     const sprites = createPixelArtSprites();
-    expect(() => sprites.glow("?", 10)).toThrow();
+    expect(() => sprites.glow("@", 10)).toThrow();
     // "z" is the rgba() ground shadow, not a hex entry.
     expect(() => sprites.glow("z", 10)).toThrow();
   });

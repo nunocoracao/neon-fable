@@ -28,6 +28,7 @@
 import type { Facing, MotionState } from "../animation";
 import type { AttackClassId } from "../attack";
 import type { ReactionVariant } from "../reaction";
+import type { ArtDensity } from "./density";
 import { DRONE_ART, type DroneArtId, type DroneSetId } from "./drone";
 import {
   MECH_ART,
@@ -101,6 +102,13 @@ export interface EntityFrame {
   readonly height: number;
   readonly anchorX: number;
   readonly anchorY: number;
+  /**
+   * What this frame's numbers are counted in (see ../art/density.ts).
+   * Everything measured off a frame — the anchor, the muzzle point —
+   * converts through it, so a chassis re-authored at density 2 keeps
+   * standing where it stood.
+   */
+  readonly density: ArtDensity;
 }
 
 export function entityFrame(art: EntityArt): EntityFrame {

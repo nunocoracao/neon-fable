@@ -55,6 +55,7 @@ import { DRONE_ART, DRONE_ART_IDS } from "./drone";
 import {
   MECH_ART,
   MECH_ART_IDS,
+  MECH_FRAME,
   MECH_SET_IDS,
   mechFrameCount,
 } from "./mech";
@@ -67,7 +68,7 @@ import {
   weaponChannelRemap,
   type ComposedCharacter,
 } from "./layers";
-import { BODY_BUILD_IDS, bodyViewForFacing } from "./layers/body";
+import { BODY_BUILD_IDS, BODY_FRAME, bodyViewForFacing } from "./layers/body";
 import {
   CYBER_LAYER_TRAITS,
   cyberArtId,
@@ -76,6 +77,7 @@ import {
 import { outfitArtId } from "./layers/outfits";
 import { weaponArtId } from "./layers/weapons";
 import { BODY_ANIM } from "./layers/bodyAnim";
+import { densityOf, type ArtDensity } from "./density";
 import { REMAP_CHANNELS } from "./palette";
 import { mirrored, type PixelGrid } from "./pixel";
 import { PROP_ART } from "./props";
@@ -91,6 +93,13 @@ export interface GalleryEntry {
   frames: readonly PixelGrid[];
   /** Per-frame duration in ms; 0 = static. */
   frameMs: number;
+  /**
+   * What the frames were authored at (see ./density.ts). Absent means
+   * the original 1x, which is what everything not yet re-drawn is — so
+   * the gallery and the contact sheets show the migration's progress by
+   * showing this, asset by asset.
+   */
+  density?: ArtDensity;
 }
 
 export interface GallerySection {
@@ -119,6 +128,7 @@ function tileEntries(): GalleryEntry[] {
       id: art.variants.length > 1 ? `${id} v${v}` : id,
       frames,
       frameMs: frames.length > 1 ? art.frameMs : 0,
+      density: densityOf(art),
     })),
   );
 }
@@ -128,6 +138,7 @@ function propEntries(): GalleryEntry[] {
     id,
     frames: art.frames,
     frameMs: art.frames.length > 1 ? art.frameMs : 0,
+    density: densityOf(art),
   }));
 }
 
@@ -142,6 +153,7 @@ function setPieceEntries(): GalleryEntry[] {
     id,
     frames: art.frames,
     frameMs: art.frameMs > 0 ? art.frameMs : STEAM_FRAME_MS,
+    density: densityOf(art),
   }));
 }
 
@@ -152,6 +164,7 @@ function interactableEntries(): GalleryEntry[] {
     id,
     frames: art.frames,
     frameMs: art.frames.length > 1 ? art.frameMs : 0,
+    density: densityOf(art),
   }));
 }
 
@@ -796,24 +809,58 @@ function appearanceEntries(): GalleryEntry[] {
  * e.g. a later appearance-layer task registers its combination builder
  * and the gallery picks it up with no UI changes.
  */
+/**
+ * The density a section's entries come out at when they do not say so
+ * themselves. Registry-driven sections (tiles, props, interactables, set
+ * pieces) read it off each art entry, because those migrate one asset at
+ * a time. Everything composed comes out at the density of the frame it
+ * was composed in, which is one number per section.
+ */
 const SECTION_BUILDERS: ReadonlyArray<{
   id: string;
   title: string;
   build: () => GalleryEntry[];
+  density?: ArtDensity;
 }> = [
   { id: "tiles", title: "Tiles", build: tileEntries },
   { id: "props", title: "Props", build: propEntries },
   { id: "interactables", title: "Interactables", build: interactableEntries },
   { id: "setpieces", title: "Set pieces", build: setPieceEntries },
-  { id: "cast", title: "Cast (NPCs & enemy look families)", build: castEntries },
-  { id: "drones", title: "Drones (authored chassis)", build: droneEntries },
-  { id: "mechs", title: "Mechs (multi-tile chassis)", build: mechEntries },
-  { id: "bodies", title: "Bodies (hi-res)", build: bodyEntries },
-  { id: "attacks", title: "Attacks (per weapon class)", build: attackEntries },
+  {
+    id: "cast",
+    title: "Cast (NPCs & enemy look families)",
+    build: castEntries,
+    density: BODY_FRAME.density,
+  },
+  {
+    id: "drones",
+    title: "Drones (authored chassis)",
+    build: droneEntries,
+    density: BODY_FRAME.density,
+  },
+  {
+    id: "mechs",
+    title: "Mechs (multi-tile chassis)",
+    build: mechEntries,
+    density: MECH_FRAME.density,
+  },
+  {
+    id: "bodies",
+    title: "Bodies (hi-res)",
+    build: bodyEntries,
+    density: BODY_FRAME.density,
+  },
+  {
+    id: "attacks",
+    title: "Attacks (per weapon class)",
+    build: attackEntries,
+    density: BODY_FRAME.density,
+  },
   {
     id: "reactions",
     title: "Reactions (hits & deaths)",
     build: reactionEntries,
+    density: BODY_FRAME.density,
   },
   { id: "effects", title: "Effects (shots & impacts)", build: effectEntries },
   {
@@ -836,15 +883,24 @@ const SECTION_BUILDERS: ReadonlyArray<{
     title: "Action-bar icons",
     build: actionIconEntries,
   },
-  { id: "appearance", title: "Appearance layers", build: appearanceEntries },
+  {
+    id: "appearance",
+    title: "Appearance layers",
+    build: appearanceEntries,
+    density: BODY_FRAME.density,
+  },
 ];
 
 /** Every registered art piece, grouped into display sections. */
 export function buildGallerySections(): GallerySection[] {
-  return SECTION_BUILDERS.map(({ id, title, build }) => ({
+  return SECTION_BUILDERS.map(({ id, title, build, density }) => ({
     id,
     title,
-    entries: build(),
+    entries: build().map((entry) =>
+      entry.density === undefined && density !== undefined
+        ? { ...entry, density }
+        : entry,
+    ),
   }));
 }
 

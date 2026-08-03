@@ -19,6 +19,7 @@
  */
 import { hash2 } from "../animation";
 import type { SetPieceSpriteId } from "../sprites";
+import type { ArtDensity } from "./density";
 import type { GlowSource } from "./glow";
 import type { PixelGrid } from "./pixel";
 import { isoSlab, stamped, type BoxInk } from "./props";
@@ -35,6 +36,14 @@ export interface SetPieceArt {
    * the piece's own elevation on top before placing them.
    */
   glow?: readonly GlowSource[];
+  /**
+   * What this entry's grids and coordinates are counted in (see
+   * ./density.ts): 1 for art drawn at the original resolution, 2 for art
+   * authored at the detail resolution. Absent means 1. A density-2 entry
+   * bakes to exactly the same on-screen size — same footprint, same
+   * anchor — with four times the authored pixels inside it.
+   */
+  density?: ArtDensity;
 }
 
 const gap = (n: number): string => ".".repeat(n);

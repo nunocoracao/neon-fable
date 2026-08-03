@@ -39,7 +39,7 @@ import {
   type ComposedCharacter,
 } from "../iso/art/layers";
 import { BODY_FRAME } from "../iso/art/layers/body";
-import { ART_SCALE, bakeSprite, spriteBytes } from "../iso/art/pixel";
+import { bakeSprite, screenPixels, spriteBytes } from "../iso/art/pixel";
 import { createSpriteCache } from "../iso/art/spriteCache";
 import type { Sprite } from "../iso/sprites";
 import { portraitCanvas } from "./portraits";
@@ -70,13 +70,20 @@ export function characterMiniCanvas(appearance: Appearance): HTMLCanvasElement {
   }
   const baked = miniCache.get(
     `mini:${composedFrameKey(composed, "s", "idle", 0)}`,
-    () => bakeSprite(composedCharacterGrid(composed, "s", "idle", 0), 0, 0),
+    () =>
+      bakeSprite(
+        composedCharacterGrid(composed, "s", "idle", 0),
+        0,
+        0,
+        undefined,
+        BODY_FRAME.density,
+      ),
   );
 
   const el = document.createElement("canvas");
   el.className = "nf-thumb-mini";
-  el.width = BODY_FRAME.width * ART_SCALE;
-  el.height = BODY_FRAME.height * ART_SCALE;
+  el.width = screenPixels(BODY_FRAME.width, BODY_FRAME.density);
+  el.height = screenPixels(BODY_FRAME.height, BODY_FRAME.density);
   el.getContext("2d")?.drawImage(baked.image, 0, 0);
   return el;
 }

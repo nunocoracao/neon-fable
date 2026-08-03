@@ -11,6 +11,7 @@ import {
   matchesQuery,
   type GalleryEntry,
 } from "../iso/art/gallery";
+import { DEFAULT_DENSITY, densityOf } from "../iso/art/density";
 import { bakeSprite } from "../iso/art/pixel";
 import type { Sprite } from "../iso/sprites";
 import { focusFirst } from "./focus";
@@ -43,7 +44,12 @@ function paintFrame(cell: Cell, frame: number): void {
 function createCell(entry: GalleryEntry): Cell {
   // bakeSprite scales by ART_SCALE (2), which is exactly the gallery's
   // 2x zoom; anchors are irrelevant here, cells draw from the top-left.
-  const baked = entry.frames.map((grid) => bakeSprite(grid, 0, 0));
+  // Baking through the entry's authored density means a re-drawn asset
+  // shows at the size its neighbours do, beside them, for comparison.
+  const density = densityOf(entry);
+  const baked = entry.frames.map((grid) =>
+    bakeSprite(grid, 0, 0, undefined, density),
+  );
   const cell = document.createElement("figure");
   cell.className = "nf-gallery-cell";
 
@@ -59,6 +65,14 @@ function createCell(entry: GalleryEntry): Cell {
   label.className = "nf-gallery-label";
   label.textContent = entry.id;
   cell.append(canvas, label);
+  // The migration is visible at a glance: art still drawn at 1x says
+  // nothing, art re-authored at the finer grid wears a badge.
+  if (density > DEFAULT_DENSITY) {
+    const badge = document.createElement("span");
+    badge.className = "nf-gallery-density";
+    badge.textContent = t("gallery.density", { density: String(density) });
+    label.append(" ", badge);
+  }
 
   const made: Cell = {
     entryId: entry.id,
