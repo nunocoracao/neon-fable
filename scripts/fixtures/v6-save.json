@@ -1,0 +1,51 @@
+{
+  "version": 6,
+  "savedAt": 1719792000000,
+  "state": {
+    "version": 6,
+    "player": {
+      "name": "Sable",
+      "backgroundId": "gutter-courier",
+      "stats": {
+        "body": 7,
+        "reflexes": 7,
+        "tech": 6,
+        "cool": 6,
+        "intelligence": 6
+      },
+      "derived": {
+        "maxHp": 33,
+        "initiative": 7,
+        "neuralCapacity": 6,
+        "meleeDamageBonus": 1,
+        "rangedDamageBonus": 1
+      },
+      "hp": 33,
+      "neuralLoad": 0,
+      "equipment": {
+        "weapon": "wpn-shard-knife",
+        "outfit": "out-courier-slicker",
+        "enhancements": {}
+      },
+      "tags": [
+        "street",
+        "courier"
+      ],
+      "advancement": {
+        "pointsSpent": 0,
+        "abilityIds": [],
+        "perkIds": []
+      }
+    },
+    "flags": {},
+    "location": "main-menu",
+    "inventory": {
+      "stacks": []
+    },
+    "credits": 25,
+    "pendingEncounterId": null,
+    "rng": {
+      "seed": 4
+    }
+  }
+}

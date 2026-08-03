@@ -9,6 +9,7 @@
     "test": "vitest run",
     "bench": "PERF_BENCH=1 vitest run src/iso/crowdBench.test.ts src/iso/art/bakeBench.test.ts",
     "audit:narrative": "NARRATIVE_AUDIT=verbose vitest run src/narrative/audit",
+    "smoke": "npm run build && node scripts/smoke.mjs",
     "preview": "vite preview"
   },
   "devDependencies": {
