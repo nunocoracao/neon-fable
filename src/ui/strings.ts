@@ -235,6 +235,32 @@ export const STRINGS = {
     "Shards this run {collected}/{total} · Ever found {discovered}/{total}",
   "codex.shards.statsEver": "Shards ever found {discovered}/{total}",
   "codex.shards.locked": "Shard {number}",
+
+  /* -------------------------------------------------------------- *
+   * Inventory overlay
+   * -------------------------------------------------------------- */
+  "inventory.title": "Inventory",
+  "inventory.hp": "HP {hp}/{max}",
+  "inventory.credits": "{credits} cr",
+  "inventory.neuralLoad": "Neural load {load}/{capacity}",
+  "inventory.equipped": "Equipped",
+  "inventory.slot.weapon": "Weapon",
+  "inventory.slot.outfit": "Outfit",
+  "inventory.slot.empty": "Empty",
+  "inventory.fitted": "Fitted: {mods}",
+  "inventory.dyed": "Dyed: {channels}",
+  "inventory.pulling": "Pulling it: {projection}",
+  "inventory.equip": "Equip",
+  "inventory.unequip": "Unequip",
+  "inventory.install": "Install",
+  "inventory.uninstall": "Uninstall",
+  "inventory.confirmExtraction": "Confirm extraction",
+  "inventory.extractionWarning": "Extraction destroys the implant.",
+  "inventory.use": "Use",
+  "inventory.combatOnly": "Only in a fight.",
+  "inventory.standing": "Standing",
+  "inventory.carried": "Carried",
+  "inventory.nothingCarried": "Nothing carried.",
 } as const;
 
 export type StringTable = typeof STRINGS;
