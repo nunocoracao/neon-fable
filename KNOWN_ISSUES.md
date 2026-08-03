@@ -13,26 +13,35 @@ that got fixed. See [CHANGELOG.md](CHANGELOG.md) for what closed.
 
 ## Verification gaps
 
-### No visual or screen-reader pass has ever been run
+### The art has been looked at; the screens and the sound have not
 
-**What it is.** Every claim this repository makes is either machine-
-checked or unverified — there is no third state. The Chrome extension
-has not been connected in any environment this game was built in, so
-nothing rendered has been *looked* at except through the offline
-postcard renderer (`docs/AUTHORING.md`), and nothing has been *heard*
-through a screen reader. The suite's 5,236 tests, the DOM sweeps, the
-scripted playthroughs and the production-bundle smoke are all
-structural: they prove a screen mounted, a control existed, a label
-read as a sentence, a save came back. They cannot see a sprite drawn
-one pixel low, or hear an announcement interrupt something worth
-hearing.
+**What it is.** This entry used to say that nothing drawn here had ever
+been seen. That half is closed: `npm run postcards` (task 0120) renders
+every registered grid and six composed districts to PNG offline —
+through the shipping bake and the shipping scene painter, not a second
+renderer — and `docs/ART_REVIEW.md` is the account of opening them. It
+found eleven things no structural test could: half the facings lit from
+the wrong side, cyberware that changes six pixels of a body, a default
+hair colour at 1.00:1 against the background it sits on.
 
-**Why it ships.** The gap is honest and documented rather than papered
-over, and everything a machine *can* check is checked. `npm run smoke`
-now plays the built bundle end to end (fresh run and a v1-era save),
-which closes the "was the release bundle ever run at all" half of it.
+What remains unseen is everything that is not a canvas. No DOM screen
+has been looked at, nothing has been *heard*, and nothing has been read
+by a screen reader. The suite's 5,300-odd tests, the DOM sweeps, the
+scripted playthroughs and the production-bundle smoke are structural:
+they prove a screen mounted, a control existed, a label read as a
+sentence, a save came back. They cannot see a panel overflow at 200%
+text scale, or hear an announcement interrupt something worth hearing.
+Neither can the postcards: they are stills at one device pixel ratio,
+so cadence, frame rate and zoom are still claims rather than
+measurements.
 
-**The lever.** A person with a browser and half an hour: walk the three
+**Why it ships.** The gap is honest, documented, and now much smaller.
+`npm run smoke` plays the built bundle end to end (fresh run and a
+v1-era save); `npm run postcards` shows the pixels. What is left needs
+a browser and a person.
+
+**The lever.** `npm run postcards` for anything drawn on the canvas.
+For the rest: a person with a browser and half an hour — walk the three
 trace profiles in `src/data/story/traceProfiles.ts`, then repeat with
 VoiceOver on, per `docs/ACCESSIBILITY.md`. `?dev` gives the art gallery
 and the perf scene.
@@ -172,6 +181,9 @@ out on their own.
 recipe for taking them (`docs/images/README.md`); the images are not in
 the repository.
 
-**Why it ships.** See the first entry — nothing has been looked at in a
-browser, so there is nothing to screenshot from. The live build is the
-honest preview until somebody takes them.
+**Why it ships.** See the first entry: the postcard renderer draws the
+*scene* but not the game — no HUD, no dialogue, no inventory, because
+those are DOM over the canvas and there is no browser out here. Three
+of the four screenshots the README describes are of screens. The live
+build is the honest preview until somebody takes them; `postcards/
+scene-*.png` is what the street itself looks like in the meantime.
