@@ -11,6 +11,7 @@ import {
   type InterludeReveal,
 } from "./interludeModel";
 import type { OverlayHandle } from "./overlay";
+import { t } from "./strings";
 
 /**
  * The act-boundary vignette: a full-screen card over a tinted still of
@@ -88,7 +89,7 @@ export function createInterludeOverlay(
 
   const hint = document.createElement("p");
   hint.className = "nf-dim nf-interlude-hint";
-  hint.textContent = "Click or press Enter to continue.";
+  hint.textContent = t("interlude.continueHint");
   panel.append(hint);
 
   el.append(backdrop, panel);

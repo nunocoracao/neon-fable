@@ -6,6 +6,7 @@ import { focusFirst } from "./focus";
 import { createMainMenuScreen } from "./mainMenu";
 import { showScreen, type Screen } from "./screen";
 import type { Session } from "./session";
+import { t } from "./strings";
 
 /**
  * The final screen: the game ending's text followed by the epilogue
@@ -39,7 +40,7 @@ export function createEpilogueScreen(options: EpilogueScreenOptions): Screen {
 
       const kicker = document.createElement("div");
       kicker.className = "nf-chapter-end-kicker";
-      kicker.textContent = "Epilogue — The Meridian Sprawl";
+      kicker.textContent = t("epilogue.kicker");
       panel.append(kicker);
 
       const endingId = state.flags["ending"];
@@ -82,18 +83,14 @@ export function createEpilogueScreen(options: EpilogueScreenOptions): Screen {
 
       const closer = document.createElement("p");
       closer.className = "nf-dim";
-      closer.textContent =
-        `${state.player.name}'s story is told. The Sprawl keeps every ` +
-        "receipt.";
+      closer.textContent = t("epilogue.closer", { name: state.player.name });
       panel.append(closer);
 
       // Read-only meta peek: point finished players at what's next.
       if (loadMetaProgress(options.session.storage).ngPlusUnlocked) {
         const unlock = document.createElement("p");
         unlock.className = "nf-dim";
-        unlock.textContent =
-          "New Game+ is open from the main menu — a fresh run with a " +
-          "small legacy carry-over.";
+        unlock.textContent = t("epilogue.ngPlus");
         panel.append(unlock);
       }
 
@@ -101,7 +98,7 @@ export function createEpilogueScreen(options: EpilogueScreenOptions): Screen {
       menu.className = "nf-menu";
       const back = document.createElement("button");
       back.className = "nf-button";
-      back.textContent = "Return to Main Menu";
+      back.textContent = t("epilogue.returnToMenu");
       back.addEventListener("click", () => showScreen(createMainMenuScreen()));
       menu.append(back);
       panel.append(menu);

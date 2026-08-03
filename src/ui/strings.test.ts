@@ -134,6 +134,23 @@ describe("string table", () => {
     }
   });
 
+  it("holds every value as one string literal", () => {
+    // A `+` between two halves of a caption widens the inferred type to
+    // `string`, and `Placeholders<string>` is `never` — the parameters
+    // would quietly stop being checked at every call site.
+    const table = stripComments(
+      readFileSync(join(UI_DIR, "strings.ts"), "utf8"),
+    );
+    const body = table.slice(
+      table.indexOf("export const STRINGS = {"),
+      table.indexOf("} as const;"),
+    );
+    const concatenated = body
+      .split("\n")
+      .filter((line) => /^\s*("[^"]*"|)\s*\+\s*$|\+\s*$/.test(line));
+    expect(concatenated, "split this back into one literal").toEqual([]);
+  });
+
   it("has no duplicate keys differing only by case", () => {
     const lowered = Object.keys(STRINGS).map((key) => key.toLowerCase());
     expect(new Set(lowered).size).toBe(lowered.length);

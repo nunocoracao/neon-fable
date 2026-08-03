@@ -34,6 +34,12 @@
  * Keys are hierarchical and dot-separated, grouped by the screen or
  * overlay that renders them (`save.slot.empty`, `combat.action.flee`).
  *
+ * One rule about writing entries: **every value is a single string
+ * literal**. Splitting a long line with `+` widens its inferred type
+ * from the literal to `string`, and a `string` has no placeholders TS
+ * can see — the parameters would silently stop being checked. Long
+ * lines are the price; `strings.test.ts` enforces it.
+ *
  * A lint-style sweep (`strings.lint.test.ts`) walks `src/ui` looking for
  * string literals assigned into DOM sinks, so a new hard-coded caption
  * fails the suite rather than quietly shipping.
@@ -78,6 +84,36 @@ export const STRINGS = {
   "gallery.section": "{title} ({count})",
   "perf.scroll.on": "Scroll: on",
   "perf.scroll.off": "Scroll: off",
+
+  /* -------------------------------------------------------------- *
+   * Crash screen
+   * -------------------------------------------------------------- */
+  "crash.title": "Something glitched",
+  "crash.lede.stashed":
+    "The game hit an error it could not carry on from. The run you were in has been stashed — pick it up from the main menu.",
+  "crash.lede.clean":
+    "The game hit an error it could not carry on from. Your last save is untouched; head back to the main menu to pick the thread up.",
+  "crash.report.label": "Diagnostic report",
+  "crash.includeSave": "Include save data (adds the whole run to the report)",
+  "crash.copy": "Copy report",
+  "crash.mainMenu": "Main Menu",
+  "crash.reload": "Reload",
+  "crash.status.copied": "Report copied.",
+  "crash.status.copyFailed":
+    "Could not reach the clipboard — select the text and copy it.",
+  "crash.status.saveIncluded": "The whole save is in the report now.",
+  "crash.status.saveOmitted": "The report is back to a summary of the run.",
+
+  /* -------------------------------------------------------------- *
+   * Interludes, hints and the epilogue
+   * -------------------------------------------------------------- */
+  "interlude.continueHint": "Click or press Enter to continue.",
+  "hint.dismiss": "Dismiss hint: {title}",
+  "epilogue.kicker": "Epilogue — The Meridian Sprawl",
+  "epilogue.closer": "{name}'s story is told. The Sprawl keeps every receipt.",
+  "epilogue.ngPlus":
+    "New Game+ is open from the main menu — a fresh run with a small legacy carry-over.",
+  "epilogue.returnToMenu": "Return to Main Menu",
 } as const;
 
 export type StringTable = typeof STRINGS;
