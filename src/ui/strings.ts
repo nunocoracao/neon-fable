@@ -331,6 +331,92 @@ export const STRINGS = {
   "stylist.status.unchanged":
     "Pick a new look — the chair charges only for what changes.",
   "stylist.status.price": "{price} cr on confirm — you carry {credits} cr.",
+
+  /* -------------------------------------------------------------- *
+   * Settings — the chrome. The blurb under each row comes from the
+   * setting's own definition in src/data, not from here.
+   * -------------------------------------------------------------- */
+  "settings.title": "Settings",
+  "settings.on": "On",
+  "settings.off": "Off",
+  "settings.startOver": "Start over",
+  "settings.text": "Text",
+  "settings.text.speed": "Text speed",
+
+  "settings.audio": "Audio",
+  "settings.audio.volume": "{bus} volume",
+  "settings.audio.test": "Test",
+  "settings.audio.testLabel": "Play a test tone on {bus}",
+  "settings.audio.mute": "Mute",
+  "settings.audio.unmute": "Unmute",
+  "settings.audio.muteLabel": "Mute {bus}",
+  "settings.audio.unmuteLabel": "Unmute {bus}",
+  "settings.audio.duck": "When you look away",
+  "settings.audio.duck.quiet": "Quiet down",
+  "settings.audio.duck.keep": "Keep playing",
+  "settings.audio.duck.note":
+    "Clicking away turns the game down; switching to another tab stops it altogether, and it picks up where it was when you come back. Keep playing if you run it on a second screen.",
+
+  "settings.graphics": "Graphics & Comfort",
+  "settings.graphics.note":
+    "How the game looks and how much of it moves. None of these change what happens, what you are told, or how hard anything hits.",
+  "settings.graphics.reset": "Reset graphics & comfort",
+  "settings.graphics.reset.note":
+    "Puts every switch in this section back to how the game shipped. Nothing else on this panel is touched.",
+
+  "settings.difficulty": "Difficulty",
+  "settings.difficulty.thisRun": "This run",
+  "settings.difficulty.newRuns": "New runs start on",
+  "settings.difficulty.confirm":
+    "Switch this run to {preset}? It takes effect at once, and the save will record that the difficulty was changed.",
+  "settings.difficulty.switch": "Switch to {preset}",
+  "settings.difficulty.keep": "Keep playing",
+  "settings.difficulty.changed":
+    "This run has had its difficulty changed. Nothing is locked out by that — the save simply says so.",
+
+  "settings.assists": "Assists",
+  "settings.assists.noteInRun":
+    "Independent of difficulty, and of each other. Every one of them takes effect immediately and none of them changes a die roll.",
+  "settings.assists.noteOutOfRun":
+    "Independent of difficulty, and of each other. These are what a new run will start with.",
+
+  "settings.guidance": "Guidance",
+  "settings.guidance.hints": "Contextual hints",
+  "settings.guidance.note":
+    "One line the first time a system comes up — walking, the action bar, a wound, a counter. Each appears once and is dismissed on the spot. Off silences every one of them and forgets none, so switching back on carries on where you left off.",
+  "settings.guidance.reset": "Reset hints",
+  "settings.guidance.reset.noRun":
+    "This run's hints are recorded in its save, so they can only be replayed from inside a game.",
+  "settings.guidance.reset.note":
+    "{seen} shown so far. Resetting makes this run teach itself again from the next street you stand on.",
+
+  "settings.controls": "Controls",
+  "settings.controls.focus.keys": "Arrows / Tab",
+  "settings.controls.focus.what": "Move focus through menus, choices, and items",
+  "settings.controls.confirm.keys": "Enter / Space",
+  "settings.controls.confirm.what": "Confirm the focused control",
+  "settings.controls.back.keys": "Esc",
+  "settings.controls.back.what": "Back out of a panel · pause the game",
+  "settings.controls.choice.keys": "1–9",
+  "settings.controls.choice.what": "Pick a dialogue choice by number",
+  "settings.controls.inventory.keys": "I",
+  "settings.controls.inventory.what": "Open or close the inventory",
+  "settings.controls.advance.keys": "P",
+  "settings.controls.advance.what": "Open or close advancement",
+  "settings.controls.minimap.keys": "M",
+  "settings.controls.minimap.what": "Expand or collapse the minimap",
+  "settings.controls.crouch.keys": "X",
+  "settings.controls.crouch.what": "Crouch-walk, where somebody is watching",
+  "settings.controls.takedown.keys": "F",
+  "settings.controls.takedown.what": "Take down a guard · lunge past a gap",
+  "settings.controls.step.keys": "Arrows in combat",
+  "settings.controls.step.what": "Step across the grid while moving",
+  "settings.controls.cycle.keys": "Tab in combat",
+  "settings.controls.cycle.what": "Cycle the action buttons",
+  "settings.controls.pointer.keys": "Click / drag",
+  "settings.controls.pointer.what": "Move and interact · pan the camera",
+  "settings.controls.zoom.keys": "Wheel / + −",
+  "settings.controls.zoom.what": "Zoom the camera while exploring",
 } as const;
 
 export type StringTable = typeof STRINGS;
@@ -417,6 +503,23 @@ export function t<K extends StringKey>(key: K, ...args: TArgs<K>): string {
   const template: string = STRINGS[key];
   const params = args[0] as Record<string, FormatValue> | undefined;
   return format(template, params);
+}
+
+/**
+ * The keys whose template takes no parameters.
+ *
+ * `t()` needs a *literal* key to work out what parameters that key
+ * demands, so a key held in a variable — a table of control bindings, a
+ * map from a discriminant to a caption — cannot go through it. Narrowing
+ * to the parameterless keys makes those lookups safe again.
+ */
+export type PlainKey = {
+  [K in StringKey]: [Placeholders<StringTable[K]>] extends [never] ? K : never;
+}[StringKey];
+
+/** Looks up a parameterless string by a key held in a variable. */
+export function plain(key: PlainKey): string {
+  return STRINGS[key];
 }
 
 /** Whether a runtime string names an entry in the table. */
