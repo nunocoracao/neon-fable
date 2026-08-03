@@ -68,6 +68,12 @@ entry that drops you on the hub map without a character).
   the corner minimap, `Esc` opens the pause menu (or closes the open
   overlay). Saves live in the pause menu; the game also autosaves on
   every map transition and combat entry.
+- **Hints** — the first time a system is actually in front of you, one
+  line says what it is: walking, the thing you are stood beside, the
+  action bar, a wound, Static, a counter, a breach terminal. Never more
+  than one at a time, each appears once per run, and the `×` on it takes
+  it away instantly. Settings → Guidance switches them off entirely, or
+  resets the run so it teaches itself again.
 - **Minimap** — a top-down overview of the district under the HUD bar:
   two-tone walkable and blocked ground, tinted water, a pip with a
   facing tick for you, and pips for the ways out, the people, and the
@@ -858,6 +864,33 @@ whoever is travelling with you. A wound is readable in three places
 and says the same three things in each: what it is, what it costs, and
 when it stops — the character screen (`I`), the crew screen (`C`), and
 its own chip on the initiative rail.
+
+### Contextual hints (`src/data/hints.ts`, `src/narrative/hints.ts`)
+
+Adding a hint is a table row: an id, the `HintTrigger` that owns it,
+a two-or-three-word title, one sentence, and a priority. The screens
+cue triggers (`hintLayer.cue("vendor")`) as often as they like — every
+cue is filtered against the run's `hint:<id>` flags, so "fires once" is
+a property of the save and survives reloads, and re-cueing every frame
+is free.
+
+Three rules the content has to respect:
+
+- **A trigger fires when the system is in front of the player**, not
+  when it exists. `interact` waits for something to actually be in
+  reach; `static` waits for chrome to actually be loading the body.
+- **Priority decides who wins**, then catalog order. Several hints on
+  one trigger is the action-bar tour: a fight may spend
+  `COMBAT_HINT_BUDGET` chips and the rest wait for the next fight, so
+  the first fight teaches two things rather than six.
+- **Nothing is load-bearing.** Everything a chip says is also said by a
+  button label, a tooltip, or a prompt — hints are a shortcut past the
+  first half hour, not a dependency. `Settings → Guidance` turns them
+  all off, and the game must still be finishable.
+
+`WIZARD_STEP_HELP` in the same file is the creation wizard's first-run
+copy, shown under the step strip and suppressed outright once
+meta-progress records one completed playthrough (`wizardHelpFor`).
 
 ### Endings & epilogues (`src/data/endings.ts`, `epilogues.ts`)
 

@@ -70,6 +70,8 @@ import {
   installRovingGrid,
   restoreFocus,
 } from "./focus";
+import { wizardHelpFor } from "../narrative/hints";
+import { loadMetaProgress } from "../state";
 import { APPEARANCE_LABELS, reviewModel } from "./reviewModel";
 import { createGameScreen } from "./gameScreen";
 import { createMainMenuScreen } from "./mainMenu";
@@ -126,6 +128,7 @@ export function createCharacterCreateScreen(
   let container: HTMLElement | null = null;
   let stepBody: HTMLElement | null = null;
   let progressEl: HTMLElement | null = null;
+  let stepHelp: HTMLElement | null = null;
   let navHint: HTMLElement | null = null;
   let backButton: HTMLButtonElement | null = null;
   let nextButton: HTMLButtonElement | null = null;
@@ -134,6 +137,14 @@ export function createCharacterCreateScreen(
   let liveRegion: HTMLElement | null = null;
 
   const ngPlus = options.ngPlus ?? null;
+  /**
+   * Read once, at build time: whether this player has ever finished a
+   * run, which is the only thing the first-run helper copy asks about.
+   * Nothing on this screen can change it mid-wizard.
+   */
+  const meta = loadMetaProgress(
+    typeof window === "undefined" ? null : window.localStorage,
+  );
   // Drop legacy ids with no content behind them (future-proofing).
   const legacyChoices = ngPlus
     ? ngPlus.legacyItemIds.filter((id) => getItem(id) !== undefined)
@@ -306,13 +317,7 @@ export function createCharacterCreateScreen(
       renderChrome();
     });
 
-    const note = document.createElement("p");
-    note.className = "nf-dim";
-    note.textContent =
-      "Pick the name the street will know you by. Everything else can " +
-      "change later — this can't.";
-
-    body.append(nameLabel, nameInput, note);
+    body.append(nameLabel, nameInput);
 
     if (ngPlus) {
       const legacyNote = document.createElement("p");
@@ -963,6 +968,19 @@ export function createCharacterCreateScreen(
     }
   }
 
+  /**
+   * The first-run helper line under the step strip. Suppressed outright
+   * for anybody who has finished a run — a returning player has made
+   * every one of these choices before and gets the step back clean (see
+   * wizardHelpFor, which owns that test).
+   */
+  function renderStepHelp(): void {
+    if (!stepHelp) return;
+    const help = wizardHelpFor(wizard.step, meta);
+    stepHelp.textContent = help ?? "";
+    stepHelp.hidden = help === null;
+  }
+
   /** Progress strip, Back/Next state, and the inline validity hint. */
   function renderChrome(): void {
     if (!progressEl || !backButton || !nextButton || !navHint) return;
@@ -994,6 +1012,7 @@ export function createCharacterCreateScreen(
     backButton.disabled = !canGoBack(wizard);
     const problem = stepProblem();
     navHint.textContent = problem ?? "";
+    renderStepHelp();
     if (wizard.step === "review") {
       nextButton.textContent = "Jack In";
       nextButton.disabled = !stepValid(draft(), "review", context);
@@ -1167,6 +1186,9 @@ export function createCharacterCreateScreen(
       progressEl.className = "nf-wizard-steps";
       progressEl.setAttribute("aria-label", "Creation steps");
 
+      stepHelp = document.createElement("p");
+      stepHelp.className = "nf-dim nf-wizard-help";
+
       liveRegion = document.createElement("div");
       liveRegion.className = "nf-sr-only";
       liveRegion.setAttribute("role", "status");
@@ -1197,7 +1219,7 @@ export function createCharacterCreateScreen(
       });
       nav.append(backButton, navHint, nextButton);
 
-      panel.append(header, progressEl, liveRegion, stepBody, nav);
+      panel.append(header, progressEl, stepHelp, liveRegion, stepBody, nav);
       container.append(panel);
       root.append(container);
 
@@ -1216,6 +1238,7 @@ export function createCharacterCreateScreen(
       container = null;
       stepBody = null;
       progressEl = null;
+      stepHelp = null;
       liveRegion = null;
       navHint = null;
       backButton = null;
