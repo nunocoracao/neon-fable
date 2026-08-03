@@ -9,7 +9,6 @@ import {
   itemOptions,
   livingEnemies,
   manhattan,
-  playerCombatant,
   reachableTiles,
   resolveCombat,
   runEnemyTurns,
@@ -39,9 +38,19 @@ import { createNewGame, type GameState } from "../../state";
 /** Thrown when a fight is lost — the signal to retry with the next seed. */
 export class RouteFightLost extends Error {}
 
-/** One player action, mirroring the combat screen's default controls. */
+/**
+ * One player action, mirroring the combat screen's default controls.
+ *
+ * Asked of the **acting** body rather than of the player's own: a
+ * companion's turn is one the player spends through the same bar, and
+ * `takeAction` always applies to whoever is up. A policy that read the
+ * player's frame and the player's feet while a companion was acting
+ * would heal the wrong wound and walk the wrong body — and would do it
+ * silently, because the engine happily moves the active combatant to
+ * whatever tile it is handed.
+ */
 function chooseAction(combat: CombatState): CombatAction {
-  const player = playerCombatant(combat);
+  const actor = activeCombatant(combat);
 
   // The dose worth taking, off the same preview the combat screen's
   // item buttons quote: the biggest heal actually on offer. Reading the
@@ -50,7 +59,7 @@ function chooseAction(combat: CombatState): CombatAction {
   const heal = itemOptions(combat)
     .filter((option) => option.outcome.heal > 0)
     .sort((a, b) => b.outcome.heal - a.outcome.heal)[0];
-  if (heal && player.hp <= player.maxHp - 10) {
+  if (heal && actor.hp <= actor.maxHp - 10) {
     return { type: "use-item", itemId: heal.itemId };
   }
 
@@ -70,21 +79,21 @@ function chooseAction(combat: CombatState): CombatAction {
   const foes = livingEnemies(combat);
   if (combat.moveRemaining > 0 && foes.length > 0) {
     const nearest = foes.reduce((a, b) =>
-      manhattan(player.position, b.position) <
-      manhattan(player.position, a.position)
+      manhattan(actor.position, b.position) <
+      manhattan(actor.position, a.position)
         ? b
         : a,
     );
     const reach = reachableTiles(combat);
     for (const to of [
-      { x: player.position.x + 1, y: player.position.y },
-      { x: player.position.x - 1, y: player.position.y },
-      { x: player.position.x, y: player.position.y + 1 },
-      { x: player.position.x, y: player.position.y - 1 },
+      { x: actor.position.x + 1, y: actor.position.y },
+      { x: actor.position.x - 1, y: actor.position.y },
+      { x: actor.position.x, y: actor.position.y + 1 },
+      { x: actor.position.x, y: actor.position.y - 1 },
     ]) {
       if (
         manhattan(to, nearest.position) <
-          manhattan(player.position, nearest.position) &&
+          manhattan(actor.position, nearest.position) &&
         reach.some((t) => t.x === to.x && t.y === to.y)
       ) {
         return { type: "move", to };
