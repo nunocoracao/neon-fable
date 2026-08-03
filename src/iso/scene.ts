@@ -80,6 +80,14 @@ import {
   type SetPieceDraw,
 } from "./setpiece";
 import { collectTickers, type TickerDraw } from "./ticker";
+import {
+  RUNNING_CLOCK,
+  clockHeld,
+  holdClock,
+  releaseClock,
+  sceneTime,
+  type SceneClock,
+} from "./sceneClock";
 import { doorCycleMs, doorOpen01, doorTiming } from "./transition";
 import { resolveWeather, type WeatherView } from "./weather";
 import type { SpriteProvider } from "./sprites";
@@ -184,6 +192,28 @@ export interface IsoSceneOptions {
   keyboardEnabled?: () => boolean;
 }
 
+/**
+ * What photo mode is asking the scene to show while it is open (see
+ * src/ui/photoModel.ts, which owns the state this is a snapshot of).
+ *
+ * Handing the whole framing over every time rather than keeping any of
+ * it here is the point: the scene's own camera, zoom, hour, and weather
+ * are never written while a shot is being framed, so putting photo mode
+ * away is a matter of dropping this record — there is nothing to undo.
+ */
+export interface ScenePhotoView {
+  /** Where the shot is pointed; clamped by the caller, and again here. */
+  camera: Camera;
+  /** A photo zoom level, which may be deeper than the game's own ladder. */
+  zoom: number;
+  /** The hour the shot is staged at; the run's hour is left alone. */
+  dayPhase: DayPhaseId;
+  /** Whether the district's weather is painted into the shot. */
+  weather: boolean;
+  /** Leave every figure out — the environment on its own. */
+  hideCharacters: boolean;
+}
+
 export interface IsoScene {
   /**
    * Take on a companion, swap which one is following, or drop back to
@@ -225,6 +255,37 @@ export interface IsoScene {
    * the game moves the camera this way.
    */
   setCamera(point: Camera): void;
+  /** Where the camera is pointed right now — what photo mode opens on. */
+  viewCamera(): Camera;
+  /**
+   * Frame a shot, or put photo mode away (null).
+   *
+   * Entering holds the scene clock (see ./sceneClock.ts): the street
+   * stops where it stands and every step, walk, and patrol stops with
+   * it, because the frame delta is read off that same clock. Nothing
+   * else in the scene changes — the gameplay camera, zoom, hour, and
+   * weather sit exactly where they were, untouched — so leaving is
+   * simply releasing the clock and dropping the view, and the city
+   * carries on from the instant it stopped rather than from wherever
+   * the wall clock has got to.
+   *
+   * Input is the caller's while it is open: the scene answers no
+   * pointer and no key, so the one thing moving the camera is the
+   * framing being pushed back in here.
+   */
+  setPhoto(view: ScenePhotoView | null): void;
+  /**
+   * Paint the frame currently on screen into a canvas of its own, at
+   * `supersample`× the backing resolution the scene is running at, and
+   * hand it back for saving. One extra render of a scene that is
+   * already held still, so what comes out is exactly what is on screen
+   * with more pixels in it — and the pixels are art pixels multiplied by
+   * a whole number, so a doubled capture is as crisp as the original.
+   *
+   * Null before the first frame has been drawn, or where the canvas has
+   * no size and there is nothing to photograph.
+   */
+  captureFrame(supersample?: number): HTMLCanvasElement | null;
   /** Stop the animation loop and remove all listeners. */
   destroy(): void;
 }
@@ -241,6 +302,14 @@ const CROUCH_WALK_SCALE = 0.55;
 const SPEAKER_ANCHOR_LIFT = 92;
 /** Pointer travel in px beyond which a press becomes a camera pan. */
 const PAN_THRESHOLD = 5;
+/**
+ * What a capture puts behind the scene. The canvas is cleared to
+ * transparency every frame and the page's own background shows through
+ * it, so a PNG saved without this would have holes where the sky is —
+ * the value is `--nf-bg-deep` from src/ui/theme.css, which is what the
+ * player was actually looking at.
+ */
+const CAPTURE_BACKDROP = "#0a0a12";
 /** Keys that trigger whatever the scene has in focus. */
 const INTERACT_KEYS = new Set(["Enter", "e", "E"]);
 
@@ -344,6 +413,27 @@ export function createIsoScene(
   let dayPhase = resolveDayPhase(map, options.dayPhase);
   sprites.setDayPhase?.(dayPhase);
 
+  /**
+   * The shot being framed, or null — which is the scene's whole state
+   * for photo mode. Everything it changes is read off this record at
+   * paint time; nothing it changes is stored anywhere else.
+   */
+  let photo: ScenePhotoView | null = null;
+  /** The weather resolved for the shot, rebuilt only when it changes. */
+  let photoWeather: WeatherView | null = null;
+  /**
+   * The animation clock, and how photo mode holds it. The frame delta is
+   * read off this too, so a held clock stills the walk, the crowd, and
+   * the companion without a second switch anywhere.
+   */
+  let clock: SceneClock = RUNNING_CLOCK;
+  /**
+   * The last view handed to the renderer, kept so a capture can paint
+   * the same frame again at another resolution rather than rebuilding
+   * one that might not match what is on screen.
+   */
+  let lastView: RenderView | null = null;
+
   let viewportW = 0;
   let viewportH = 0;
   let zoom: ZoomLevel = settings.get().zoom;
@@ -377,6 +467,11 @@ export function createIsoScene(
     canvas.style.cursor = value;
   }
 
+  /** The zoom actually being painted: the shot's, while there is one. */
+  function activeZoom(): number {
+    return photo?.zoom ?? zoom;
+  }
+
   function resize(): void {
     const dpr = window.devicePixelRatio || 1;
     viewportW = canvas.clientWidth;
@@ -385,8 +480,24 @@ export function createIsoScene(
     // units by dpr * zoom so draw code stays in world-screen units.
     canvas.width = Math.round(viewportW * dpr);
     canvas.height = Math.round(viewportH * dpr);
-    const scale = dpr * zoom;
+    const scale = dpr * activeZoom();
     ctx!.setTransform(scale, 0, 0, scale, 0, 0);
+    // While a shot is being framed the gameplay camera is not the
+    // scene's business: the framing owns the view, and re-clamping the
+    // one underneath it would be a change the player cannot see now and
+    // would find waiting for them on the way out.
+    if (photo) {
+      photo = {
+        ...photo,
+        camera: clampCamera(
+          photo.camera,
+          bounds,
+          viewportW / photo.zoom,
+          viewportH / photo.zoom,
+        ),
+      };
+      return;
+    }
     if (!cameraSettled && viewportW > 0 && viewportH > 0) {
       // First measured frame: open on the player, already centered.
       camera = initialCamera(map, playerTile, viewportW, viewportH, zoom);
@@ -456,7 +567,19 @@ export function createIsoScene(
     if (path) startWalk(path);
   }
 
+  /**
+   * Whether the scene should answer the pointer at all. It should not
+   * while a shot is being framed: photo mode drives the camera through
+   * one clamped path (see src/ui/photoModel.ts), and a scene panning
+   * itself underneath that would leave the framing describing a view
+   * nobody is looking at.
+   */
+  function pointerIsOurs(): boolean {
+    return photo === null;
+  }
+
   function onPointerDown(event: PointerEvent): void {
+    if (!pointerIsOurs()) return;
     if (event.button !== 0) return;
     pointerDown = true;
     panning = false;
@@ -467,6 +590,7 @@ export function createIsoScene(
   }
 
   function onPointerMove(event: PointerEvent): void {
+    if (!pointerIsOurs()) return;
     const p = canvasPoint(event);
     if (pointerDown) {
       if (
@@ -497,6 +621,7 @@ export function createIsoScene(
   }
 
   function onPointerUp(event: PointerEvent): void {
+    if (!pointerIsOurs()) return;
     if (!pointerDown) return;
     pointerDown = false;
     canvas.releasePointerCapture(event.pointerId);
@@ -514,6 +639,7 @@ export function createIsoScene(
   }
 
   function onWheel(event: WheelEvent): void {
+    if (!pointerIsOurs()) return;
     if (event.deltaY === 0) return;
     event.preventDefault();
     applyZoom(stepZoom(zoom, event.deltaY < 0 ? 1 : -1));
@@ -527,6 +653,9 @@ export function createIsoScene(
    * would open the panel *and* try to open a door.
    */
   function keyIsOurs(event: KeyboardEvent): boolean {
+    // Photo mode answers the keyboard itself, down to the zoom keys —
+    // its ladder has a level the game's does not.
+    if (photo) return false;
     if (options.keyboardEnabled?.() === false) return false;
     const target = event.target;
     if (!(target instanceof HTMLElement)) return true;
@@ -875,9 +1004,21 @@ export function createIsoScene(
    */
   const counters = options.onPerf ? createRenderCounters() : null;
 
-  function frame(time: number): void {
+  function frame(frameMs: number): void {
     const startedAt = counters ? performance.now() : 0;
     const previousTime = lastTime;
+    // The hold is taken here rather than where photo mode is switched on
+    // and off, so both ends are stamped against the same clock the
+    // frames arrive on and a freeze can never be measured against a
+    // reading from somewhere else.
+    if (photo && !clockHeld(clock)) clock = holdClock(clock, frameMs);
+    else if (!photo && clockHeld(clock)) clock = releaseClock(clock, frameMs);
+    // Everything below runs on the scene clock rather than the frame
+    // clock, which is what makes a freeze one decision instead of a
+    // dozen: a held clock reports the same instant every frame, so the
+    // delta is zero and nothing steps, without a single `if (photo)`
+    // in the movement code.
+    const time = sceneTime(clock, frameMs);
     const dt = lastTime === null ? 0 : Math.min((time - lastTime) / 1000, 0.1);
     lastTime = time;
     if (counters) clearRenderCounters(counters);
@@ -911,19 +1052,27 @@ export function createIsoScene(
     // Whoever is watching the map, asked against the real clock: a
     // patrol is not scenery, and freezing it for reduced motion would
     // freeze a rule rather than an effect.
-    const watch: SceneWatchView | null =
-      options.watch?.({
-        timeMs: time,
-        playerTile,
-        moving: walkQueue.length > 0,
-      }) ?? null;
+    // Nobody is asked anything while a shot is being framed: a patrol
+    // is a rule, and a rule that ran on for the minute somebody spent
+    // choosing a camera angle would be a minute of the game played
+    // without them.
+    const watch: SceneWatchView | null = photo
+      ? null
+      : (options.watch?.({
+          timeMs: time,
+          playerTile,
+          moving: walkQueue.length > 0,
+        }) ?? null);
     const view: RenderView = {
       map,
-      camera,
+      camera: photo?.camera ?? camera,
       viewportW,
       viewportH,
-      hoverTile,
-      path: walkQueue,
+      // A photograph has no cursor in it, no route drawn across it, and
+      // nothing outlined: the affordances are true and simply not in
+      // the shot (see RenderView.marks).
+      hoverTile: photo ? null : hoverTile,
+      path: photo ? [] : walkQueue,
       tickers,
       // The crowd rides in the same entity list as the player, so the
       // renderer's one depth-sorted object pass keeps pedestrians,
@@ -960,8 +1109,10 @@ export function createIsoScene(
       // positions, not the clock) stays fully visible.
       timeMs: reducedMotion ? 0 : time,
       dpr: window.devicePixelRatio || 1,
-      zoom,
+      zoom: photo?.zoom ?? zoom,
       glowEnabled: current.glow,
+      marks: photo === null,
+      hideCharacters: photo?.hideCharacters === true,
       // One palette id for every mark on the ground — the vision cones
       // of anyone watching, the walk preview, the cursor, the pulse
       // under an interactable (see ./telegraphPalette.ts).
@@ -969,8 +1120,8 @@ export function createIsoScene(
       // Rain rides the same frozen clock: reduced motion leaves the
       // streaks hanging still and the puddles in place, so the map
       // still reads as wet without anything moving.
-      weather,
-      dayPhase,
+      weather: photo ? photoWeather : weather,
+      dayPhase: photo?.dayPhase ?? dayPhase,
       setPieces,
       opening: stepOpening(time, reducedMotion),
       // The outline color is a value, not a branch: the colorblind
@@ -986,7 +1137,8 @@ export function createIsoScene(
       ...(counters ? { counters } : {}),
     };
     renderScene(ctx!, sprites, view);
-    if (options.onSpeakers) {
+    lastView = view;
+    if (options.onSpeakers && !photo) {
       // The bark clock is the real one, not the frozen animation clock:
       // reduced motion stills the picture, and a line somebody says is
       // words rather than movement.
@@ -1001,14 +1153,19 @@ export function createIsoScene(
       };
       options.onSpeakers(frame);
     }
-    options.onView?.({
-      playerTile,
-      facing: playerFacing,
-      camera,
-      viewportW,
-      viewportH,
-      zoom,
-    });
+    // The minimap is off screen with the rest of the HUD while a shot is
+    // being framed, and the view it would be told about is the shot's
+    // rather than the player's.
+    if (!photo) {
+      options.onView?.({
+        playerTile,
+        facing: playerFacing,
+        camera,
+        viewportW,
+        viewportH,
+        zoom,
+      });
+    }
     if (counters && options.onPerf) {
       // Two clocks, because they answer different questions: how much
       // JS this frame owned, and how long it had been since the last
@@ -1021,6 +1178,13 @@ export function createIsoScene(
       });
     }
     rafId = requestAnimationFrame(frame);
+  }
+
+  /** The weather a shot wants: the district's own, or none at all. */
+  function resolvePhotoWeather(wanted: boolean): WeatherView | null {
+    return wanted
+      ? resolveWeather(map, { enabled: true, weather: forcedWeather })
+      : null;
   }
 
   resize();
@@ -1088,6 +1252,71 @@ export function createIsoScene(
       // A camera placed on purpose is a settled one: the first measured
       // resize must not overwrite it with the player's tile.
       cameraSettled = true;
+    },
+
+    viewCamera(): Camera {
+      return { ...camera };
+    },
+
+    setPhoto(view: ScenePhotoView | null): void {
+      const wasFraming = photo !== null;
+      if (view === null) {
+        photo = null;
+        photoWeather = null;
+        if (wasFraming) {
+          // The hour goes back to the run's and the transform back to
+          // the gameplay zoom; the clock starts again on the next frame,
+          // at the instant it stopped, so the street picks up
+          // mid-flicker rather than however far into the future the
+          // pause left it.
+          sprites.setDayPhase?.(dayPhase);
+          resize();
+        }
+        return;
+      }
+      const previous = photo;
+      photo = {
+        ...view,
+        camera: clampCamera(
+          view.camera,
+          bounds,
+          viewportW / view.zoom,
+          viewportH / view.zoom,
+        ),
+      };
+      if (!previous || previous.weather !== view.weather) {
+        photoWeather = resolvePhotoWeather(view.weather);
+      }
+      if (previous?.dayPhase !== view.dayPhase) {
+        // The provider bakes per phase and caches, so an hour already
+        // framed at costs nothing to come back to.
+        sprites.setDayPhase?.(view.dayPhase);
+      }
+      if (!previous || previous.zoom !== view.zoom) resize();
+    },
+
+    captureFrame(supersample = 1): HTMLCanvasElement | null {
+      const view = lastView;
+      if (!view || viewportW <= 0 || viewportH <= 0) return null;
+      const scale = Math.max(1, Math.round(supersample));
+      const out = document.createElement("canvas");
+      const dpr = view.dpr * scale;
+      out.width = Math.round(viewportW * dpr);
+      out.height = Math.round(viewportH * dpr);
+      const shot = out.getContext("2d");
+      if (!shot) return null;
+      const unit = dpr * view.zoom;
+      shot.setTransform(unit, 0, 0, unit, 0, 0);
+      renderScene(shot, sprites, { ...view, dpr });
+      // The renderer clears to transparency and lets the page show
+      // through; a file has no page behind it, so the same colour is
+      // laid in underneath what was just painted.
+      shot.setTransform(1, 0, 0, 1, 0, 0);
+      shot.globalCompositeOperation = "destination-over";
+      shot.fillStyle = CAPTURE_BACKDROP;
+      shot.fillRect(0, 0, out.width, out.height);
+      shot.globalCompositeOperation = "source-over";
+      return out;
     },
 
     playOpening(interactableId: string): boolean {

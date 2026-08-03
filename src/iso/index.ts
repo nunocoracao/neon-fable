@@ -269,7 +269,20 @@ export {
   type FollowOptions,
   type FollowState,
 } from "./follow";
-export { createIsoScene, type IsoScene, type IsoSceneOptions } from "./scene";
+export {
+  createIsoScene,
+  type IsoScene,
+  type IsoSceneOptions,
+  type ScenePhotoView,
+} from "./scene";
+export {
+  RUNNING_CLOCK,
+  clockHeld,
+  holdClock,
+  releaseClock,
+  sceneTime,
+  type SceneClock,
+} from "./sceneClock";
 export {
   type FocusView,
   type OpeningView,
