@@ -50,7 +50,20 @@ export const TEXT_ATTRIBUTES = [
 ] as const;
 
 /** Calls whose string arguments are keys or already-tabled text. */
-const TABLE_CALLS = ["t", "format"] as const;
+const TABLE_CALLS = ["t", "plain", "format"] as const;
+
+/**
+ * Literals that read like words but are not: discriminants the code
+ * branches on, passed to a predicate inside an expression that also
+ * renders something.
+ *
+ * `preview.textContent = usableIn(item, "exploration") ? … : …` puts no
+ * "exploration" on screen — it asks a question about a context id. The
+ * sweep reads text rather than types, so it cannot tell that from a
+ * caption, and this is where the exceptions are written down. Keep the
+ * list short: an entry here is a place the sweep has stopped watching.
+ */
+export const ALLOWED_LITERALS: readonly string[] = ["exploration"];
 
 export interface LintHit {
   /** 1-based line the offending text sits on. */
@@ -69,6 +82,7 @@ export interface LintHit {
 export function isNonTranslatable(text: string): boolean {
   const plain = unescape(text);
   if (plain.trim() === "") return true;
+  if (ALLOWED_LITERALS.includes(plain)) return true;
   // No letter anywhere: "×", " — ", "/", "0", "+1", "…", " · ", "\n".
   if (!/\p{Letter}/u.test(plain)) return true;
   // A CSS class list, which is what most letters in a screen file are.

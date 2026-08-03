@@ -151,8 +151,8 @@ export function createWorkbenchOverlay(
     column.className = "nf-bench-column";
     const heading = document.createElement("h3");
     heading.textContent = model.selected
-      ? `${model.selected.item.name} — sockets`
-      : "Sockets";
+      ? t("bench.sockets.of", { name: model.selected.item.name })
+      : t("bench.sockets");
     column.append(heading);
 
     if (model.sockets.length === 0) {

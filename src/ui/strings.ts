@@ -307,6 +307,8 @@ export const STRINGS = {
   "bench.rack": "On the rack",
   "bench.rack.label": "Weapon to work on",
   "bench.rack.empty": "You are carrying nothing to work on.",
+  "bench.sockets": "Sockets",
+  "bench.sockets.of": "{name} — sockets",
   "bench.noSockets": "Nothing on this one takes a part.",
   "bench.socket": "{label} — {fitted}",
   "bench.socket.empty": "empty",
