@@ -58,6 +58,9 @@ export const STRINGS = {
    * -------------------------------------------------------------- */
   "common.back": "Back",
   "common.closeEsc": "Close [Esc]",
+  "common.doneEsc": "Done [Esc]",
+  /** What a counter charges in, on every screen that has one. */
+  "counter.credits": "{credits} cr",
 
   /* -------------------------------------------------------------- *
    * Main menu
@@ -289,6 +292,45 @@ export const STRINGS = {
   "save.delete.prompt": "Delete {slot}? This cannot be undone.",
   "save.delete.needsName": "Deleting {slot} needs the runner's name typed back.",
   "save.delete.typePrompt": "Type \"{word}\" to delete this run",
+
+  /* -------------------------------------------------------------- *
+   * Vendor counter
+   * -------------------------------------------------------------- */
+  "vendor.sellSummary": "{summary} · {condition}",
+  "vendor.empty.buy": "The shelf is bare tonight.",
+  "vendor.empty.sell": "You are carrying nothing this counter would take.",
+
+  /* -------------------------------------------------------------- *
+   * Rig-up bench
+   * -------------------------------------------------------------- */
+  "bench.title": "Rig-Up Bench",
+  "bench.rack": "On the rack",
+  "bench.rack.label": "Weapon to work on",
+  "bench.rack.empty": "You are carrying nothing to work on.",
+  "bench.noSockets": "Nothing on this one takes a part.",
+  "bench.socket": "{label} — {fitted}",
+  "bench.socket.empty": "empty",
+  "bench.fit": "Fit",
+  "bench.fitPart": "Fit a part",
+  "bench.parts": "Parts in the bag",
+  "bench.parts.hint": "Pick a socket to see what fits it.",
+  "bench.parts.empty": "You carry nothing that fits that socket.",
+
+  /* -------------------------------------------------------------- *
+   * The Chrome Chapel — the stylist's chair
+   * -------------------------------------------------------------- */
+  "stylist.title": "The Chrome Chapel",
+  "stylist.fee": "Restyle fee: {price} cr",
+  "stylist.dyes": "Colour work",
+  "stylist.dyes.noCoat": "\"Bring me a coat and I'll bring you a colour, love.\"",
+  "stylist.coat": "{place}: {name}",
+  "stylist.tin": "{name} — {colors} · {action}",
+  "stylist.strip": "Strip to factory colours (free)",
+  "stylist.cancel": "Cancel",
+  "stylist.confirm": "Confirm ({price} cr)",
+  "stylist.status.unchanged":
+    "Pick a new look — the chair charges only for what changes.",
+  "stylist.status.price": "{price} cr on confirm — you carry {credits} cr.",
 } as const;
 
 export type StringTable = typeof STRINGS;

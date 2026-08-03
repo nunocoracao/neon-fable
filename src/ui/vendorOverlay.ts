@@ -18,6 +18,7 @@ import {
   type VendorModel,
   type VendorTab,
 } from "./vendorModel";
+import { t } from "./strings";
 
 /**
  * The counter: the only screen that buys or sells.
@@ -207,7 +208,10 @@ export function createVendorOverlay(
       row.quantity > 1 ? `${row.name} ×${row.quantity}` : row.name;
     const summary = document.createElement("div");
     summary.className = "nf-item-summary";
-    summary.textContent = `${row.summary} · ${row.conditionLabel}`;
+    summary.textContent = t("vendor.sellSummary", {
+      summary: row.summary,
+      condition: row.conditionLabel,
+    });
     card.append(name, summary);
 
     const key = `sell:${row.stackIndex}`;
@@ -300,10 +304,10 @@ export function createVendorOverlay(
     title.textContent = model.title;
     const credits = document.createElement("span");
     credits.className = "nf-bench-credits";
-    credits.textContent = `${model.credits} cr`;
+    credits.textContent = t("counter.credits", { credits: model.credits });
     const close = document.createElement("button");
     close.className = "nf-button nf-button-small";
-    close.textContent = "Done [Esc]";
+    close.textContent = t("common.doneEsc");
     close.addEventListener("click", options.onClose);
     header.append(title, credits, close);
     panel.append(header);
@@ -343,9 +347,7 @@ export function createVendorOverlay(
       const empty = document.createElement("p");
       empty.className = "nf-dim";
       empty.textContent =
-        model.tab === "buy"
-          ? "The shelf is bare tonight."
-          : "You are carrying nothing this counter would take.";
+        model.tab === "buy" ? t("vendor.empty.buy") : t("vendor.empty.sell");
       list.append(empty);
     } else {
       list.append(...rows);

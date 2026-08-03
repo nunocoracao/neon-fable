@@ -10,6 +10,7 @@ import { focusFirst } from "./focus";
 import type { OverlayHandle } from "./overlay";
 import type { Session } from "./session";
 import { workbenchModel, type WorkbenchModel } from "./workbenchModel";
+import { t } from "./strings";
 
 /**
  * The rig-up bench: the only screen that changes a weapon's parts.
@@ -99,13 +100,13 @@ export function createWorkbenchOverlay(
     const column = document.createElement("div");
     column.className = "nf-bench-column";
     const heading = document.createElement("h3");
-    heading.textContent = "On the rack";
+    heading.textContent = t("bench.rack");
     column.append(heading);
 
     if (model.weapons.length === 0) {
       const empty = document.createElement("p");
       empty.className = "nf-dim";
-      empty.textContent = "You are carrying nothing to work on.";
+      empty.textContent = t("bench.rack.empty");
       column.append(empty);
       return column;
     }
@@ -113,7 +114,7 @@ export function createWorkbenchOverlay(
     const list = document.createElement("div");
     list.className = "nf-bench-list";
     list.setAttribute("role", "radiogroup");
-    list.setAttribute("aria-label", "Weapon to work on");
+    list.setAttribute("aria-label", t("bench.rack.label"));
     for (const row of model.weapons) {
       const card = button(
         "",
@@ -157,7 +158,7 @@ export function createWorkbenchOverlay(
     if (model.sockets.length === 0) {
       const empty = document.createElement("p");
       empty.className = "nf-dim";
-      empty.textContent = "Nothing on this one takes a part.";
+      empty.textContent = t("bench.noSockets");
       column.append(empty);
       return column;
     }
@@ -171,7 +172,10 @@ export function createWorkbenchOverlay(
 
       const label = document.createElement("div");
       label.className = "nf-item-name";
-      label.textContent = `${socket.label} — ${socket.fitted ?? "empty"}`;
+      label.textContent = t("bench.socket", {
+        label: socket.label,
+        fitted: socket.fitted ?? t("bench.socket.empty"),
+      });
       card.append(label);
 
       const effects = chips(socket.effects, "nf-item-effects");
@@ -192,7 +196,7 @@ export function createWorkbenchOverlay(
         card.append(pull);
       } else {
         card.append(
-          button("Fit a part", "nf-button nf-button-small", () => {
+          button(t("bench.fitPart"), "nf-button nf-button-small", () => {
             socketIndex = socket.index;
             message = "";
             render();
@@ -208,20 +212,20 @@ export function createWorkbenchOverlay(
     const column = document.createElement("div");
     column.className = "nf-bench-column";
     const heading = document.createElement("h3");
-    heading.textContent = "Parts in the bag";
+    heading.textContent = t("bench.parts");
     column.append(heading);
 
     if (model.socketIndex === null) {
       const hint = document.createElement("p");
       hint.className = "nf-dim";
-      hint.textContent = "Pick a socket to see what fits it.";
+      hint.textContent = t("bench.parts.hint");
       column.append(hint);
       return column;
     }
     if (model.parts.length === 0) {
       const empty = document.createElement("p");
       empty.className = "nf-dim";
-      empty.textContent = "You carry nothing that fits that socket.";
+      empty.textContent = t("bench.parts.empty");
       column.append(empty);
       return column;
     }
@@ -243,7 +247,7 @@ export function createWorkbenchOverlay(
       const deltas = chips(part.deltas, "nf-bench-delta");
       if (deltas) card.append(deltas);
 
-      const fit = button("Fit", "nf-button nf-button-small", () =>
+      const fit = button(t("bench.fit"), "nf-button nf-button-small", () =>
         apply((current) =>
           fitMod(current, model.selected!.ref, model.socketIndex!, part.modId),
         ),
@@ -268,13 +272,13 @@ export function createWorkbenchOverlay(
     const header = document.createElement("div");
     header.className = "nf-panel-header";
     const title = document.createElement("h2");
-    title.textContent = "Rig-Up Bench";
+    title.textContent = t("bench.title");
     const credits = document.createElement("span");
     credits.className = "nf-bench-credits";
-    credits.textContent = `${model.credits} cr`;
+    credits.textContent = t("counter.credits", { credits: model.credits });
     const close = document.createElement("button");
     close.className = "nf-button nf-button-small";
-    close.textContent = "Done [Esc]";
+    close.textContent = t("common.doneEsc");
     close.addEventListener("click", options.onClose);
     header.append(title, credits, close);
     panel.append(header);
