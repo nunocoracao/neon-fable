@@ -7,13 +7,15 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
+    "bench": "PERF_BENCH=1 vitest run src/iso/crowdBench.test.ts src/iso/art/bakeBench.test.ts",
     "audit:narrative": "NARRATIVE_AUDIT=verbose vitest run src/narrative/audit",
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@types/node": "^24.13.3",
     "happy-dom": "^20.11.1",
     "typescript": "^5.5.4",
-    "vite": "^5.4.0",
-    "vitest": "^2.0.5"
+    "vite": "^8.2.0",
+    "vitest": "^4.1.10"
   }
 }
