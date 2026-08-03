@@ -1,8 +1,10 @@
 import type { GameState } from "../../state";
 import { act1Arc } from "./act1";
 import { act2Arc } from "./act2";
+import { act3Arc } from "./act3";
 import { introArc } from "./intro";
 import {
+  advanceStep,
   equipStep,
   healStep,
   installStep,
@@ -17,6 +19,11 @@ import {
  * tests build on. Kept beside walkthroughSupport (no vitest imports)
  * so act2 and act3 walkthroughs replay identical histories instead of
  * drifting apart.
+ *
+ * The four `PLAYTHROUGHS` at the foot of the file carry the same routes
+ * all the way through the finale, so a harness that needs a whole run —
+ * the economy ledger sweep in src/economy/sim, and the act3 walkthrough
+ * test itself — replays one script rather than its own copy of one.
  */
 
 /** Intro played to a delivered spike (fighting the scout). */
@@ -481,5 +488,234 @@ export const routeLoneToSeveranceHex: RouteStep[] = [
       "sever-hex", // the ghost keeps the parish
       "throw",
     ],
+  },
+];
+
+/* ------------------------------------------------------------------ *
+ * The finale, and the whole runs
+ * ------------------------------------------------------------------ */
+
+/**
+ * The six advancement points three chapters earn, spent the way a
+ * player spends them: into the stats the finale actually asks for.
+ */
+const spendPoints: RouteStep[] = [
+  advanceStep("body"),
+  advanceStep("body"),
+  advanceStep("reflexes"),
+];
+
+/** Court loyalist finale: sappers at the crown, the keys burned. */
+export const act3CourtToFreehold: RouteStep[] = [
+  ...spendPoints,
+  healStep(),
+  {
+    kind: "arc",
+    arc: act3Arc,
+    entry: "a3-start",
+    choices: [
+      "severance", // opening gated on act2-outcome = severance
+      "council",
+      "ferrow", // ally-cistern-court aside: Ferrow's blessing
+      "back",
+      "go",
+      "muster",
+      "sappers", // the loyal Court joins the final battle
+      "back",
+      "crews-warned", // Odal remembers the courier knock
+      "back",
+      "back",
+      "gate",
+      "fight", // never wanted, no veil, no ghost: the loud way in
+      "in",
+    ],
+  },
+  healStep(),
+  {
+    kind: "arc",
+    arc: act3Arc,
+    entry: "a3-spire-arrival",
+    choices: [
+      "crown",
+      "breach-court", // climax variant only a kept alliance unlocks
+      "stand",
+      "keys",
+      "freehold", // ending gated on steps-independent
+      "seal",
+    ],
+  },
+];
+
+/** Voss retainer finale: the chair's override, the keys routed up. */
+export const act3VossToRegency: RouteStep[] = [
+  ...spendPoints,
+  healStep(),
+  {
+    kind: "arc",
+    arc: act3Arc,
+    entry: "a3-start",
+    choices: [
+      "takeover", // opening gated on act2-outcome = takeover
+      "glasshouse",
+      "terms",
+      "go",
+      "gate",
+      "standing", // the regent's credentials open the Registry Gate
+      "in",
+      "terminal",
+      "audit", // corp-exclusive read of the founding instrument
+      "surface",
+    ],
+  },
+  healStep(),
+  {
+    kind: "arc",
+    arc: act3Arc,
+    entry: "a3-spire-arrival",
+    choices: [
+      "crown",
+      "breach-auric", // climax variant keyed on the chair's standing
+      "stand",
+      "clause", // locus-known callback: the engine re-reads its will
+      "keys",
+      "regency", // ending gated on voss-ascendant
+      "seal",
+    ],
+  },
+];
+
+/** Charter witness finale: the betrayal bites, the warrant stands down. */
+export const act3BetrayalToCommons: RouteStep[] = [
+  ...spendPoints,
+  healStep(),
+  {
+    kind: "arc",
+    arc: act3Arc,
+    entry: "a3-start",
+    choices: [
+      "charter", // opening gated on act2-outcome = charter
+      "ask",
+      "go",
+      "outlaw", // act1-outcome = broadcast aside: the witness was wanted
+      "back",
+      "mandate",
+      "collectors", // betrayed-voss bites a third time: the Trust's writ
+      "fight",
+      "gate",
+      "witness", // wanted-by-auric = false: the scanners stand down
+      "in",
+      "terminal",
+      "dive", // net-exclusive read of the founding instrument
+      "surface",
+    ],
+  },
+  healStep(),
+  {
+    kind: "arc",
+    arc: act3Arc,
+    entry: "a3-spire-arrival",
+    choices: [
+      "crown",
+      "breach-alone", // no sappers, no chair: the hardest door
+      "stand",
+      "clause",
+      "keys",
+      "commons", // ending gated on undercroft-charter
+      "seal",
+    ],
+  },
+];
+
+/** The diver and the ghost: a finale with no fight anywhere in it. */
+export const act3LoneToGhost: RouteStep[] = [
+  ...spendPoints,
+  healStep(),
+  {
+    kind: "arc",
+    arc: act3Arc,
+    entry: "a3-start",
+    choices: [
+      "severance", // same act2-outcome as the court route...
+      "council",
+      "outlaw", // ...but act1-outcome = broadcast opens this aside
+      "back",
+      "go",
+      "wire", // Hex reaches the concourse first
+      "take",
+    ],
+  },
+  installStep("cyb-lattice-coprocessor"),
+  {
+    kind: "arc",
+    arc: act3Arc,
+    entry: "a3-spire-arrival",
+    choices: [
+      "gate",
+      "dark", // Hex misfiles the arch — the wanted diver never scans
+      "in",
+      "terminal",
+      "dive",
+      "surface",
+      "crown",
+      "commune", // hex-exchange + Tech 8 + installed lattice: no battle
+      "stand",
+      "clause",
+      "keys",
+      "ghost", // ending gated on hex-exchange
+      "seal",
+    ],
+  },
+];
+
+/**
+ * A whole run, named: who is playing it, the script that plays it, and
+ * where it lands. This is the unit both the finale walkthroughs and the
+ * economy ledger sweep iterate over, so "the four canonical runs" is one
+ * list in one place rather than a convention four tests remember.
+ */
+export interface Playthrough {
+  id: string;
+  /** Background the run is played on (see src/data/backgrounds.ts). */
+  backgroundId: string;
+  /** One line of what this run is. */
+  blurb: string;
+  makeState(seed: number): GameState;
+  steps: RouteStep[];
+  /** Ending id the run lands on. */
+  endingId: string;
+}
+
+export const PLAYTHROUGHS: readonly Playthrough[] = [
+  {
+    id: "court-freehold",
+    backgroundId: "gutter-courier",
+    blurb: "A courier who keeps the Court's oath and burns the keys.",
+    makeState: makeCourtState,
+    steps: [...routeCourtToSeverance, ...act3CourtToFreehold],
+    endingId: "ending-freehold",
+  },
+  {
+    id: "voss-regency",
+    backgroundId: "tower-analyst",
+    blurb: "An analyst who signs with Voss and routes the crown upstairs.",
+    makeState: makeVossState,
+    steps: [...routeVossToTakeover, ...act3VossToRegency],
+    endingId: "ending-regency",
+  },
+  {
+    id: "betrayal-commons",
+    backgroundId: "grid-diver",
+    blurb: "A diver who takes Voss's deal, burns it, and pays for it thrice.",
+    makeState: makeBetrayalState,
+    steps: [...routeBetrayalToCharter, ...act3BetrayalToCommons],
+    endingId: "ending-commons",
+  },
+  {
+    id: "lone-ghost",
+    backgroundId: "grid-diver",
+    blurb: "A diver who owes nobody and hands the parish to the ghost.",
+    makeState: makeLoneState,
+    steps: [...routeLoneToSeveranceHex, ...act3LoneToGhost],
+    endingId: "ending-ghost",
   },
 ];

@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { epilogueVignettes } from "../epilogues";
 import { selectVignettes } from "../../narrative";
-import { act3Arc } from "./act3";
 import {
+  act3BetrayalToCommons,
+  act3CourtToFreehold,
+  act3LoneToGhost,
+  act3VossToRegency,
   makeBetrayalState,
   makeCourtState,
   makeLoneState,
@@ -12,13 +15,7 @@ import {
   routeLoneToSeveranceHex,
   routeVossToTakeover,
 } from "./walkthroughRoutes";
-import {
-  advanceStep,
-  findRouteSeed,
-  healStep,
-  installStep,
-  type RouteStep,
-} from "./walkthroughSupport";
+import { findRouteSeed } from "./walkthroughSupport";
 
 /**
  * Four scripted full-game routes — character creation through the
@@ -32,13 +29,6 @@ import {
  * selected for the finished state tell each history back correctly.
  */
 
-/** Spend the six advancement points three chapters earn, like a player. */
-const spendPoints: RouteStep[] = [
-  advanceStep("body"),
-  advanceStep("body"),
-  advanceStep("reflexes"),
-];
-
 function vignetteIds(state: Parameters<typeof selectVignettes>[0]): string[] {
   return selectVignettes(state, epilogueVignettes).map((v) => v.id);
 }
@@ -47,43 +37,7 @@ describe("act3 walkthroughs — four endings", () => {
   it("court loyalist: sappers at the crown, the keys burned — Freehold", () => {
     const { state, endings } = findRouteSeed(makeCourtState, [
       ...routeCourtToSeverance,
-      ...spendPoints,
-      healStep(),
-      {
-        kind: "arc",
-        arc: act3Arc,
-        entry: "a3-start",
-        choices: [
-          "severance", // opening gated on act2-outcome = severance
-          "council",
-          "ferrow", // ally-cistern-court aside: Ferrow's blessing
-          "back",
-          "go",
-          "muster",
-          "sappers", // the loyal Court joins the final battle
-          "back",
-          "crews-warned", // Odal remembers the courier knock
-          "back",
-          "back",
-          "gate",
-          "fight", // never wanted, no veil, no ghost: the loud way in
-          "in",
-        ],
-      },
-      healStep(),
-      {
-        kind: "arc",
-        arc: act3Arc,
-        entry: "a3-spire-arrival",
-        choices: [
-          "crown",
-          "breach-court", // climax variant only a kept alliance unlocks
-          "stand",
-          "keys",
-          "freehold", // ending gated on steps-independent
-          "seal",
-        ],
-      },
+      ...act3CourtToFreehold,
     ]);
 
     expect(endings).toEqual([
@@ -120,40 +74,7 @@ describe("act3 walkthroughs — four endings", () => {
   it("voss retainer: the chair's override, the keys routed up — Regency", () => {
     const { state, endings } = findRouteSeed(makeVossState, [
       ...routeVossToTakeover,
-      ...spendPoints,
-      healStep(),
-      {
-        kind: "arc",
-        arc: act3Arc,
-        entry: "a3-start",
-        choices: [
-          "takeover", // opening gated on act2-outcome = takeover
-          "glasshouse",
-          "terms",
-          "go",
-          "gate",
-          "standing", // the regent's credentials open the Registry Gate
-          "in",
-          "terminal",
-          "audit", // corp-exclusive read of the founding instrument
-          "surface",
-        ],
-      },
-      healStep(),
-      {
-        kind: "arc",
-        arc: act3Arc,
-        entry: "a3-spire-arrival",
-        choices: [
-          "crown",
-          "breach-auric", // climax variant keyed on the chair's standing
-          "stand",
-          "clause", // locus-known callback: the engine re-reads its will
-          "keys",
-          "regency", // ending gated on voss-ascendant
-          "seal",
-        ],
-      },
+      ...act3VossToRegency,
     ]);
 
     expect(endings).toEqual([
@@ -187,44 +108,7 @@ describe("act3 walkthroughs — four endings", () => {
   it("charter witness: betrayal bites again, warrant stands down — Commons", () => {
     const { state, endings } = findRouteSeed(makeBetrayalState, [
       ...routeBetrayalToCharter,
-      ...spendPoints,
-      healStep(),
-      {
-        kind: "arc",
-        arc: act3Arc,
-        entry: "a3-start",
-        choices: [
-          "charter", // opening gated on act2-outcome = charter
-          "ask",
-          "go",
-          "outlaw", // act1-outcome = broadcast aside: the witness was wanted
-          "back",
-          "mandate",
-          "collectors", // betrayed-voss bites a third time: the Trust's writ
-          "fight",
-          "gate",
-          "witness", // wanted-by-auric = false: the scanners stand down
-          "in",
-          "terminal",
-          "dive", // net-exclusive read of the founding instrument
-          "surface",
-        ],
-      },
-      healStep(),
-      {
-        kind: "arc",
-        arc: act3Arc,
-        entry: "a3-spire-arrival",
-        choices: [
-          "crown",
-          "breach-alone", // no sappers, no chair: the hardest door
-          "stand",
-          "clause",
-          "keys",
-          "commons", // ending gated on undercroft-charter
-          "seal",
-        ],
-      },
+      ...act3BetrayalToCommons,
     ]);
 
     expect(endings).toEqual([
@@ -260,43 +144,7 @@ describe("act3 walkthroughs — four endings", () => {
   it("the diver and the ghost: a fully non-combat crown — Caretaker", () => {
     const { state, endings } = findRouteSeed(makeLoneState, [
       ...routeLoneToSeveranceHex,
-      ...spendPoints,
-      healStep(),
-      {
-        kind: "arc",
-        arc: act3Arc,
-        entry: "a3-start",
-        choices: [
-          "severance", // same act2-outcome as the court route...
-          "council",
-          "outlaw", // ...but act1-outcome = broadcast opens this aside
-          "back",
-          "go",
-          "wire", // Hex reaches the concourse first
-          "take",
-        ],
-      },
-      installStep("cyb-lattice-coprocessor"),
-      {
-        kind: "arc",
-        arc: act3Arc,
-        entry: "a3-spire-arrival",
-        choices: [
-          "gate",
-          "dark", // Hex misfiles the arch — the wanted diver never scans
-          "in",
-          "terminal",
-          "dive",
-          "surface",
-          "crown",
-          "commune", // hex-exchange + Tech 8 + installed lattice: no battle
-          "stand",
-          "clause",
-          "keys",
-          "ghost", // ending gated on hex-exchange
-          "seal",
-        ],
-      },
+      ...act3LoneToGhost,
     ]);
 
     expect(endings).toEqual([
