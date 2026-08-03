@@ -9,7 +9,6 @@ import {
   itemOptions,
   livingEnemies,
   manhattan,
-  playerCombatant,
   reachableTiles,
   resolveCombat,
   runEnemyTurns,
@@ -39,9 +38,19 @@ import { createNewGame, type GameState } from "../../state";
 /** Thrown when a fight is lost — the signal to retry with the next seed. */
 export class RouteFightLost extends Error {}
 
-/** One player action, mirroring the combat screen's default controls. */
+/**
+ * One player action, mirroring the combat screen's default controls.
+ *
+ * Asked of the **acting** body rather than of the player's own: a
+ * companion's turn is one the player spends through the same bar, and
+ * `takeAction` always applies to whoever is up. A policy that read the
+ * player's frame and the player's feet while a companion was acting
+ * would heal the wrong wound and walk the wrong body — and would do it
+ * silently, because the engine happily moves the active combatant to
+ * whatever tile it is handed.
+ */
 function chooseAction(combat: CombatState): CombatAction {
-  const player = playerCombatant(combat);
+  const actor = activeCombatant(combat);
 
   // The dose worth taking, off the same preview the combat screen's
   // item buttons quote: the biggest heal actually on offer. Reading the
@@ -50,7 +59,7 @@ function chooseAction(combat: CombatState): CombatAction {
   const heal = itemOptions(combat)
     .filter((option) => option.outcome.heal > 0)
     .sort((a, b) => b.outcome.heal - a.outcome.heal)[0];
-  if (heal && player.hp <= player.maxHp - 10) {
+  if (heal && actor.hp <= actor.maxHp - 10) {
     return { type: "use-item", itemId: heal.itemId };
   }
 
@@ -70,21 +79,21 @@ function chooseAction(combat: CombatState): CombatAction {
   const foes = livingEnemies(combat);
   if (combat.moveRemaining > 0 && foes.length > 0) {
     const nearest = foes.reduce((a, b) =>
-      manhattan(player.position, b.position) <
-      manhattan(player.position, a.position)
+      manhattan(actor.position, b.position) <
+      manhattan(actor.position, a.position)
         ? b
         : a,
     );
     const reach = reachableTiles(combat);
     for (const to of [
-      { x: player.position.x + 1, y: player.position.y },
-      { x: player.position.x - 1, y: player.position.y },
-      { x: player.position.x, y: player.position.y + 1 },
-      { x: player.position.x, y: player.position.y - 1 },
+      { x: actor.position.x + 1, y: actor.position.y },
+      { x: actor.position.x - 1, y: actor.position.y },
+      { x: actor.position.x, y: actor.position.y + 1 },
+      { x: actor.position.x, y: actor.position.y - 1 },
     ]) {
       if (
         manhattan(to, nearest.position) <
-          manhattan(player.position, nearest.position) &&
+          manhattan(actor.position, nearest.position) &&
         reach.some((t) => t.x === to.x && t.y === to.y)
       ) {
         return { type: "move", to };
@@ -153,9 +162,30 @@ export interface RouteCreditEvent {
   balance: number;
 }
 
+/**
+ * One thing a route did, and the state it left behind.
+ *
+ * The finest grain a route has: every choice, every fight it started,
+ * every between-scene step. A watcher that wants to hold the run to
+ * something at every moment rather than only at the end — the
+ * playthrough traces check save-shape validity beat by beat — gets it
+ * here, instead of re-deriving the seams from a finished state.
+ */
+export interface RouteBeat {
+  kind: "choice" | "combat" | "step";
+  /** The arc the beat happened in, or "route" for a `do` step. */
+  arcId: string;
+  /** The choice id, encounter id, or step label behind it. */
+  detail: string;
+  /** The state the beat produced. */
+  state: GameState;
+}
+
 export interface RouteOptions {
   /** Called for every credit movement, in route order. */
   onCredits?(event: RouteCreditEvent): void;
+  /** Called after every choice, fight and step, in route order. */
+  onBeat?(beat: RouteBeat): void;
 }
 
 /**
@@ -189,11 +219,18 @@ export function runRoute(
       balance: after.credits,
     });
   };
+  const beat = (
+    kind: RouteBeat["kind"],
+    arcId: string,
+    detail: string,
+    next: GameState,
+  ): void => options.onBeat?.({ kind, arcId, detail, state: next });
   for (const step of steps) {
     if (step.kind === "do") {
       const before = state;
       state = step.run(state);
       watch(before, state, "step", "route", step.label ?? "step");
+      beat("step", "route", step.label ?? "step", state);
       continue;
     }
     let nodeId: string | null = step.entry;
@@ -212,16 +249,35 @@ export function runRoute(
         choice?.effects ?? [],
       );
       state = outcome.state;
+      beat("choice", step.arc.id, choiceId, state);
       nodeId = outcome.nextNodeId;
       if (outcome.encounterId) {
         const before = state;
         state = autoBattle(state, outcome.encounterId);
         watch(before, state, "combat", step.arc.id, outcome.encounterId);
+        beat("combat", step.arc.id, outcome.encounterId, state);
       }
       if (outcome.ended && outcome.endingId) endings.push(outcome.endingId);
     }
   }
   return { state, endings };
+}
+
+export interface SeedOptions extends RouteOptions {
+  /**
+   * Whether a finished run is the one being looked for. A run this
+   * rejects is abandoned and the next seed tried, exactly as a lost
+   * fight is — which is how a script can ask for a night that *also*
+   * went a particular way ("somebody came out of it carrying
+   * something") without any of it being arranged.
+   *
+   * Only ever narrows: everything a route asserts still has to hold on
+   * whichever seed is accepted, so a predicate here cannot make a
+   * broken road pass. It is handed the beats as well as the result,
+   * because most of what a run is worth asking about happened somewhere
+   * in the middle of it.
+   */
+  accept?(result: RouteResult, beats: readonly RouteBeat[]): boolean;
 }
 
 /**
@@ -236,15 +292,22 @@ export function findRouteSeed(
   makeState: (seed: number) => GameState,
   steps: RouteStep[],
   maxSeed = 400,
-  options: RouteOptions = {},
+  options: SeedOptions = {},
 ): RouteResult {
+  // Beats are collected whenever anybody downstream could read them:
+  // a watcher, or the acceptance predicate.
+  const wantsBeats = options.onBeat !== undefined || options.accept !== undefined;
   for (let seed = 1; seed <= maxSeed; seed++) {
     const events: RouteCreditEvent[] = [];
+    const beats: RouteBeat[] = [];
     try {
       const result = runRoute(makeState(seed), steps, {
         onCredits: options.onCredits && ((event) => events.push(event)),
+        onBeat: wantsBeats ? (entry) => beats.push(entry) : undefined,
       });
+      if (options.accept && !options.accept(result, beats)) continue;
       events.forEach((event) => options.onCredits?.(event));
+      beats.forEach((entry) => options.onBeat?.(entry));
       return result;
     } catch (error) {
       if (error instanceof RouteFightLost) continue;

@@ -6,7 +6,6 @@ import {
   itemOptions,
   livingEnemies,
   manhattan,
-  playerCombatant,
   reachableTiles,
   runEnemyTurns,
   takeAction,
@@ -60,12 +59,20 @@ const ARROWS = [
  * heal when 10+ HP down, else first ability with a target, else first
  * attack option, else a single step toward the nearest enemy, else end
  * the turn.
+ *
+ * Everything is asked of the **acting** body, never of the player's own.
+ * A companion's turn is played through this same bar (see
+ * playerCanAct in ./combatScreen.ts), and the screen's arrow keys walk
+ * whoever is active — so a policy that read the player's position while
+ * a companion was up would record a gesture that moves somebody else's
+ * feet, and the replay would quietly diverge from the fight it is
+ * supposed to be reproducing.
  */
 function choosePlayerStep(
   combat: CombatState,
   names: Record<string, string>,
 ): { step: UiStep; action: CombatAction } {
-  const player = playerCombatant(combat);
+  const actor = activeCombatant(combat);
   const nameOf = (id: string): string => names[id] ?? id;
 
   // The biggest heal actually on offer, off the option's own preview —
@@ -73,7 +80,7 @@ function choosePlayerStep(
   const item = itemOptions(combat)
     .filter((option) => option.outcome.heal > 0)
     .sort((a, b) => b.outcome.heal - a.outcome.heal)[0];
-  if (item && player.hp <= player.maxHp - 10) {
+  if (item && actor.hp <= actor.maxHp - 10) {
     return {
       step: { kind: "item", itemName: getItem(item.itemId)?.name ?? item.itemId },
       action: { type: "use-item", itemId: item.itemId },
@@ -108,17 +115,17 @@ function choosePlayerStep(
   const foes = livingEnemies(combat);
   if (combat.moveRemaining > 0 && foes.length > 0) {
     const nearest = foes.reduce((a, b) =>
-      manhattan(player.position, b.position) <
-      manhattan(player.position, a.position)
+      manhattan(actor.position, b.position) <
+      manhattan(actor.position, a.position)
         ? b
         : a,
     );
     const reach = reachableTiles(combat);
     for (const { key, dx, dy } of ARROWS) {
-      const to = { x: player.position.x + dx, y: player.position.y + dy };
+      const to = { x: actor.position.x + dx, y: actor.position.y + dy };
       if (
         manhattan(to, nearest.position) <
-          manhattan(player.position, nearest.position) &&
+          manhattan(actor.position, nearest.position) &&
         reach.some((t) => t.x === to.x && t.y === to.y)
       ) {
         return { step: { kind: "arrow", key }, action: { type: "move", to } };
