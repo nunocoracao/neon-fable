@@ -115,7 +115,7 @@ export const abilities: Ability[] = [
       "nastier than it looks.",
     range: 5,
     cooldown: 2,
-    effect: { type: "damage", amount: 4 },
+    effect: { type: "damage", amount: 3 },
     effectRef: "shock-arc",
   },
   {
@@ -125,7 +125,7 @@ export const abilities: Ability[] = [
       "A weighted shock-mesh fired low and spinning. Being wrapped in one " +
       "costs you a beat of the fight and most of your dignity.",
     range: 4,
-    cooldown: 3,
+    cooldown: 4,
     effect: { type: "damage", amount: 2, stunTurns: 1 },
     effectRef: "snare-mesh",
   },
@@ -136,7 +136,7 @@ export const abilities: Ability[] = [
       "A gout of scalding cycler coolant dumped straight from the reservoir. " +
       "Armor plate conducts it beautifully.",
     range: 2,
-    cooldown: 2,
+    cooldown: 3,
     effect: { type: "damage", amount: 4, ignoresArmor: true },
     effectRef: "nano-cloud",
   },
@@ -147,8 +147,16 @@ export const abilities: Ability[] = [
       "A broadcast override spike tuned to civic hardware — and, at this " +
       "range, to nervous systems. The Cordon speaks and the room stops.",
     range: 5,
-    cooldown: 3,
-    effect: { type: "damage", amount: 4, stunTurns: 1 },
+    cooldown: 5,
+    // Straight into the nervous system: an override spike is not a
+    // projectile and plate is not an answer to one. The one thing in
+    // the Cordon's hands that a late-game runner's armour cannot
+    // simply subtract away.
+    effect: { type: "damage", amount: 5, ignoresArmor: true, stunTurns: 1 },
+    // The Cordon speaks and *the room* stops: the override spike earths
+    // through everything pressed in around the mark, which is what makes
+    // standing beside a companion a decision in the fights that carry it.
+    area: { shape: "blast", radius: 1 },
     effectRef: "optic-flash",
   },
   {
@@ -200,7 +208,7 @@ export const abilities: Ability[] = [
       "of a manhole. The floor takes most of it. You take the rest.",
     range: 1,
     cooldown: 2,
-    effect: { type: "damage", amount: 8, ignoresArmor: true },
+    effect: { type: "damage", amount: 7, ignoresArmor: true },
     // The deck cracks around the strike; anything pressed in beside the
     // body it landed on wears the shockwave too.
     area: { shape: "blast", radius: 1 },

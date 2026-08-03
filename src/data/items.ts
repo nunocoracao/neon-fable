@@ -44,7 +44,7 @@ export const items: Item[] = [
     description:
       "A diver's boarding tool: a collapsed rod that unfolds crackling. " +
       "Made for dropping people, not killing them.",
-    damage: 3,
+    damage: 5,
     rangeType: "melee",
     // Stun coils crackle hologram-blue at the rod tip.
     weaponLayer: { id: "baton", accent: "hologramBlue" },
@@ -71,7 +71,7 @@ export const items: Item[] = [
     description:
       "Tailored tower formalwear with a ballistic weave liner. Opens " +
       "doors in rooms where a gun would close them.",
-    armor: 1,
+    armor: 2,
     // Chrome trim: the lapel line and tie pin read corp-polished.
     outfitLayer: { id: "suit", accent: "brushedChrome" },
     effects: [
@@ -86,7 +86,7 @@ export const items: Item[] = [
     description:
       "A rig harness studded with jack points and cable spools. Ugly, " +
       "padded, and wired for the Weave.",
-    armor: 1,
+    armor: 2,
     // Hazard-amber clips and jack points over the base garb.
     outfitLayer: { id: "harness", accent: "hazardAmber" },
     effects: [{ type: "stat-mod", stat: "tech", amount: 1 }],
