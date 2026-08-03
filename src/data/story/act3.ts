@@ -2175,7 +2175,7 @@ export const act3Arc: StoryArc = {
             { type: "set-flag", key: "ending", value: "ending-regency" },
             { type: "set-flag", key: "act3-complete", value: true },
             { type: "set-flag", key: "game-complete", value: true },
-            { type: "credits", amount: 500 },
+            { type: "credits", amount: 400 },
             { type: "end", endingId: "ending-regency" },
           ],
           standing: { auric: 30, court: -25 },

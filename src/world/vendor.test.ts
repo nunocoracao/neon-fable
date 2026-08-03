@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fixtureCharacter } from "../character/testSupport";
-import { type WorldConditionId } from "../data/world";
+import { VENDOR_STOCK, type WorldConditionId } from "../data/world";
 import { listPrice, vendorShelf } from "../economy";
 import { requireNode } from "../narrative/engine";
 import { introArc } from "../data/story";
@@ -8,6 +8,17 @@ import { createNewGame, type GameState } from "../state";
 import { adjustReputation } from "../state/reputation";
 import { deriveWorldState, worldOf } from "./state";
 import { vendorCatalog, vendorEntry, vendorStock } from "./vendor";
+import { itemValue } from "../data/economy";
+/**
+ * The two figures the risk-premium rows are made of, read off the
+ * content rather than written down here — an economy balance pass moves
+ * both, and neither is what these tests are about.
+ */
+const RAIL_WORTH = itemValue("wpn-rail-spitter");
+const HOT_PREMIUM =
+  VENDOR_STOCK.find((entry) => entry.id === "buy-rail-spitter-hot")?.premium ??
+  0;
+
 
 /**
  * Stock variation, and the promise that the shelf the selector reports
@@ -53,7 +64,7 @@ describe("vendorStock", () => {
     const calm = stockIds("streets-calm", "warrant-clear");
     expect(calm).toContain("buy-rail-spitter");
     expect(calm).not.toContain("buy-rail-spitter-hot");
-    expect(priceOf("wpn-rail-spitter", "streets-calm")).toBe(320);
+    expect(priceOf("wpn-rail-spitter", "streets-calm")).toBe(RAIL_WORTH);
   });
 
   it("charges for the risk once the spike never came back", () => {
@@ -61,7 +72,9 @@ describe("vendorStock", () => {
     expect(hot).toContain("buy-rail-spitter-hot");
     expect(hot).not.toContain("buy-rail-spitter");
     // The same weapon, the same worth, plus a flat premium for holding it.
-    expect(priceOf("wpn-rail-spitter", "package-loose")).toBe(420);
+    expect(priceOf("wpn-rail-spitter", "package-loose")).toBe(
+      RAIL_WORTH + HOT_PREMIUM,
+    );
     // Exactly one line for one item, whichever way the run went.
     for (const world of [worldOf("streets-calm"), worldOf("package-loose")]) {
       const rails = vendorStock(VENDOR, world).filter(

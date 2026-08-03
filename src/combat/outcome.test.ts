@@ -5,6 +5,7 @@ import { createNewGame, type GameState } from "../state";
 import { combatResultFlag, resolveCombat } from "./outcome";
 import { createCombat } from "./setup";
 import { CombatError, type CombatState, type CombatStatus } from "./types";
+import { requireEncounter } from "../data/encounters";
 
 function makeGame(): GameState {
   const state = createNewGame({ seed: 11 });
@@ -41,7 +42,9 @@ describe("resolveCombat", () => {
     const state = makeGame();
     const combat = finish(createCombat(state, "enc-auric-scout"), "victory");
     const next = resolveCombat(state, combat);
-    expect(next.credits).toBe(state.credits + 40);
+    expect(next.credits).toBe(
+      state.credits + requireEncounter("enc-auric-scout").rewards.credits,
+    );
     // 2 carried - 1 consumed + 1 reward = 2
     expect(countItem(next.inventory, "con-trauma-patch")).toBe(2);
     expect(next.flags[combatResultFlag("enc-auric-scout")]).toBe("victory");

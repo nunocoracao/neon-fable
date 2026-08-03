@@ -97,7 +97,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-static-drone", position: { x: 6, y: 4 } },
     ],
     rewards: {
-      credits: 40,
+      credits: 45,
       items: [{ itemId: "con-trauma-patch" }],
     },
   },
@@ -113,7 +113,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-rustyard-bruiser", position: { x: 5, y: 1 }, look: 2 },
     ],
     rewards: {
-      credits: 30,
+      credits: 45,
       items: [{ itemId: "con-surge-stim" }],
     },
   },
@@ -128,7 +128,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-auric-agent", position: { x: 7, y: 1 } },
     ],
     rewards: {
-      credits: 80,
+      credits: 90,
       items: [{ itemId: "con-trauma-patch", quantity: 2 }],
     },
     fleeable: false,
@@ -144,7 +144,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-auric-warden", position: { x: 6, y: 4 }, look: 1 },
     ],
     rewards: {
-      credits: 35,
+      credits: 45,
       items: [{ itemId: "con-trauma-patch" }],
     },
   },
@@ -159,7 +159,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-static-drone", position: { x: 7, y: 4 } },
     ],
     rewards: {
-      credits: 60,
+      credits: 55,
       items: [{ itemId: "con-trauma-patch" }],
     },
     fleeable: false,
@@ -172,7 +172,7 @@ export const encounters: Encounter[] = [
     playerStart: { x: 1, y: 3 },
     enemies: [{ enemyId: "nme-pump-custodian", position: { x: 7, y: 3 } }],
     rewards: {
-      credits: 60,
+      credits: 55,
       items: [{ itemId: "con-surge-stim" }],
     },
     fleeable: false,
@@ -190,7 +190,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-court-sapper", position: { x: 7, y: 3 }, look: 2 },
     ],
     rewards: {
-      credits: 60,
+      credits: 55,
       items: [{ itemId: "con-trauma-patch" }],
     },
     fleeable: false,
@@ -206,7 +206,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-static-drone", position: { x: 5, y: 1 } },
     ],
     rewards: {
-      credits: 50,
+      credits: 55,
       items: [{ itemId: "con-trauma-patch" }],
     },
     fleeable: false,
@@ -222,7 +222,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-cordon-enforcer", position: { x: 6, y: 4 }, look: 2 },
     ],
     rewards: {
-      credits: 45,
+      credits: 85,
       items: [{ itemId: "con-trauma-patch" }],
     },
   },
@@ -237,7 +237,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-static-drone", position: { x: 6, y: 4 } },
     ],
     rewards: {
-      credits: 150,
+      credits: 125,
       items: [{ itemId: "con-trauma-patch" }],
     },
     fleeable: false,
@@ -250,7 +250,7 @@ export const encounters: Encounter[] = [
     playerStart: { x: 1, y: 3 },
     enemies: [{ enemyId: "nme-vent-crawler", position: { x: 7, y: 3 } }],
     rewards: {
-      credits: 40,
+      credits: 80,
       items: [{ itemId: "con-field-kit" }],
     },
   },
@@ -262,7 +262,7 @@ export const encounters: Encounter[] = [
     playerStart: { x: 1, y: 3 },
     enemies: [{ enemyId: "nme-halex-proxy", position: { x: 7, y: 3 }, look: 0 }],
     rewards: {
-      credits: 100,
+      credits: 110,
       items: [{ itemId: "con-trauma-patch", quantity: 2 }],
     },
     fleeable: false,
@@ -278,7 +278,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-static-drone", position: { x: 7, y: 1 } },
     ],
     rewards: {
-      credits: 100,
+      credits: 110,
       items: [{ itemId: "con-field-kit" }],
     },
     fleeable: false,
@@ -294,7 +294,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-static-drone", position: { x: 6, y: 5 } },
     ],
     rewards: {
-      credits: 120,
+      credits: 125,
       items: [{ itemId: "con-field-kit" }],
     },
     fleeable: false,
@@ -311,7 +311,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-static-drone", position: { x: 7, y: 2 } },
     ],
     rewards: {
-      credits: 60,
+      credits: 155,
       items: [{ itemId: "con-trauma-patch" }],
     },
   },
@@ -326,7 +326,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-auric-collector", position: { x: 6, y: 4 }, look: 1 },
     ],
     rewards: {
-      credits: 180,
+      credits: 185,
       items: [{ itemId: "con-field-kit" }],
     },
     fleeable: false,
@@ -347,7 +347,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-static-drone", position: { x: 6, y: 5 } },
     ],
     rewards: {
-      credits: 55,
+      credits: 85,
       items: [{ itemId: "con-surge-stim" }],
     },
   },
@@ -380,7 +380,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-vent-crawler", position: { x: 6, y: 5 } },
     ],
     rewards: {
-      credits: 45,
+      credits: 85,
       items: [{ itemId: "con-field-kit" }],
     },
   },
@@ -415,7 +415,7 @@ export const encounters: Encounter[] = [
       },
     ],
     rewards: {
-      credits: 90,
+      credits: 160,
       items: [{ itemId: "con-trauma-patch", quantity: 2 }],
     },
   },
@@ -431,7 +431,7 @@ export const encounters: Encounter[] = [
     playerStart: { x: 1, y: 3 },
     enemies: [{ enemyId: "nme-warden-chassis", position: { x: 6, y: 2 } }],
     rewards: {
-      credits: 220,
+      credits: 250,
       items: [{ itemId: "con-field-kit" }, { itemId: "con-trauma-patch", quantity: 2 }],
     },
     // A strongroom door does not let you back out of the room.
@@ -446,7 +446,7 @@ export const encounters: Encounter[] = [
     playerStart: { x: 1, y: 3 },
     enemies: [{ enemyId: "nme-locus-aspect", position: { x: 7, y: 3 }, look: 0 }],
     rewards: {
-      credits: 150,
+      credits: 230,
       items: [{ itemId: "con-field-kit" }],
     },
     fleeable: false,
@@ -463,7 +463,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-static-drone", position: { x: 7, y: 1 } },
     ],
     rewards: {
-      credits: 150,
+      credits: 230,
       items: [{ itemId: "con-trauma-patch", quantity: 2 }],
     },
     fleeable: false,
@@ -480,7 +480,7 @@ export const encounters: Encounter[] = [
       { enemyId: "nme-cordon-enforcer", position: { x: 6, y: 5 } },
     ],
     rewards: {
-      credits: 200,
+      credits: 240,
       items: [{ itemId: "con-field-kit" }],
     },
     fleeable: false,

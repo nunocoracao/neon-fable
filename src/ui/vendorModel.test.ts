@@ -1,12 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { fixtureCharacter } from "../character/testSupport";
-import { HAGGLE, type VendorId } from "../data/economy";
+import { HAGGLE, itemValue, type VendorId } from "../data/economy";
+import { VENDOR_STOCK } from "../data/world";
 import { buyFromVendor, haggleWithVendor } from "../economy";
 import { haggleAttempt } from "../economy/haggle";
 import { addItem, effectiveStats } from "../inventory";
 import { createNewGame, type GameState } from "../state";
 import { adjustReputation } from "../state/reputation";
 import { creditDelta, priceView, vendorModel } from "./vendorModel";
+
+/**
+ * The two figures the risk-premium rows are made of, read off the
+ * content rather than written down here — an economy balance pass moves
+ * both, and neither is what these tests are about.
+ */
+const RAIL_WORTH = itemValue("wpn-rail-spitter");
+const HOT_PREMIUM =
+  VENDOR_STOCK.find((entry) => entry.id === "buy-rail-spitter-hot")?.premium ??
+  0;
+
 
 /**
  * The counter screen, as data. What is pinned here is what a player can
@@ -55,15 +67,16 @@ describe("the price view", () => {
       makeState({ flags: { "act1-complete": true, "kept-spike": true } }),
       STALL,
     ).buy.find((candidate) => candidate.entryId === "buy-rail-spitter-hot");
-    expect(hot?.price.base).toBe(320);
-    expect(hot?.price.price).toBe(420);
-    expect(hot?.price.label).toBe("420 cr");
-    expect(hot?.price.baseLabel).toBe("Worth 320 cr");
+    expect(hot?.price.base).toBe(RAIL_WORTH);
+    expect(hot?.price.price).toBe(RAIL_WORTH + HOT_PREMIUM);
+    expect(hot?.price.label).toBe(`${RAIL_WORTH + HOT_PREMIUM} cr`);
+    expect(hot?.price.baseLabel).toBe(`Worth ${RAIL_WORTH} cr`);
     expect(hot?.price.lines).toEqual([
-      { label: "Risk premium", amount: "+100 cr" },
+      { label: "Risk premium", amount: `+${HOT_PREMIUM} cr` },
     ]);
     expect(hot?.price.summary).toBe(
-      "Worth 320 cr · Risk premium +100 cr · You pay 420 cr",
+      `Worth ${RAIL_WORTH} cr · Risk premium +${HOT_PREMIUM} cr · ` +
+        `You pay ${RAIL_WORTH + HOT_PREMIUM} cr`,
     );
     expect(hot?.note).toBe("They know what you kept.");
   });

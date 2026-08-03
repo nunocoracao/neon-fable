@@ -9,6 +9,18 @@ import { ledgerFor } from "../state/vendors";
 import type { OverlayHandle } from "./overlay";
 import { createSession, type Session } from "./session";
 import { createVendorOverlay } from "./vendorOverlay";
+import { itemValue } from "../data/economy";
+import { VENDOR_STOCK } from "../data/world";
+/**
+ * The two figures the risk-premium rows are made of, read off the
+ * content rather than written down here — an economy balance pass moves
+ * both, and neither is what these tests are about.
+ */
+const RAIL_WORTH = itemValue("wpn-rail-spitter");
+const HOT_PREMIUM =
+  VENDOR_STOCK.find((entry) => entry.id === "buy-rail-spitter-hot")?.premium ??
+  0;
+
 
 /**
  * The counter screen, driven in happy-dom. What is proved here is the
@@ -138,7 +150,8 @@ describe("showing its working", () => {
     mount(shopper({ flags: { "act1-complete": true, "kept-spike": true } }));
     const price = card("Rail Spitter").querySelector(".nf-vendor-price");
     expect(price?.getAttribute("title")).toBe(
-      "Worth 320 cr · Risk premium +100 cr · You pay 420 cr",
+      `Worth ${RAIL_WORTH} cr · Risk premium +${HOT_PREMIUM} cr · ` +
+        `You pay ${RAIL_WORTH + HOT_PREMIUM} cr`,
     );
   });
 
@@ -149,7 +162,7 @@ describe("showing its working", () => {
     const lines = [...overlay.el.querySelectorAll(".nf-vendor-lines li")].map(
       (li) => li.textContent,
     );
-    expect(lines).toEqual(["Risk premium+100 cr"]);
+    expect(lines).toEqual([`Risk premium+${HOT_PREMIUM} cr`]);
     expect(find("Hide breakdown").getAttribute("aria-expanded")).toBe("true");
   });
 

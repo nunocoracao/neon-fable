@@ -397,9 +397,9 @@ export const ITEM_VALUES: Readonly<Record<string, number>> = {
   "wpn-arc-lash": 160,
   "wpn-hookline": 170,
   "wpn-writ-seal": 140,
-  "wpn-rail-spitter": 320,
-  "wpn-torque-cleaver": 320,
-  "wpn-spindle-projector": 340,
+  "wpn-rail-spitter": 240,
+  "wpn-torque-cleaver": 240,
+  "wpn-spindle-projector": 280,
   // --- Outfits ---
   "out-courier-slicker": 60,
   "out-spire-suit": 70,

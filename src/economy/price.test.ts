@@ -28,22 +28,28 @@ import { priceQuote, quoteBalances, quotedPrice } from "./price";
 const stall = requireVendor("wet-market-back");
 const licensed = requireVendor("vm-broker-counter");
 
-const RAIL = "wpn-rail-spitter"; // worth 320
+const RAIL = "wpn-rail-spitter";
+/**
+ * Read rather than written down: what the derivation does to a worth is
+ * the thing under test, and pinning the worth itself here would turn
+ * every economy balance pass into a diff in this file.
+ */
+const WORTH = itemValue(RAIL);
 
 describe("derivation", () => {
   it("charges a stall the item's own worth", () => {
     const quote = priceQuote({ side: "buy", vendor: stall, itemId: RAIL });
-    expect(quote.base).toBe(320);
-    expect(quote.price).toBe(320);
+    expect(quote.base).toBe(WORTH);
+    expect(quote.price).toBe(WORTH);
     // Nothing moved it, so there is nothing to explain.
     expect(quote.lines).toEqual([]);
   });
 
   it("charges a bonded counter its markup, and says so", () => {
     const quote = priceQuote({ side: "buy", vendor: licensed, itemId: RAIL });
-    expect(quote.price).toBe(Math.round(320 * VENDOR_SPREADS.licensed.buy));
+    expect(quote.price).toBe(Math.round(WORTH * VENDOR_SPREADS.licensed.buy));
     expect(quote.lines.map((line) => line.id)).toEqual(["spread"]);
-    expect(quote.lines[0]?.amount).toBe(quote.price - 320);
+    expect(quote.lines[0]?.amount).toBe(quote.price - WORTH);
   });
 
   it("pays a fraction of worth, and pays worse on the street", () => {
@@ -53,7 +59,7 @@ describe("derivation", () => {
       vendor: licensed,
       itemId: RAIL,
     });
-    expect(atStall).toBe(Math.round(320 * VENDOR_SPREADS.stall.sell));
+    expect(atStall).toBe(Math.round(WORTH * VENDOR_SPREADS.stall.sell));
     expect(atLedger).toBeGreaterThan(atStall);
   });
 
@@ -64,7 +70,7 @@ describe("derivation", () => {
       itemId: RAIL,
       premium: 100,
     });
-    expect(hot.price).toBe(420);
+    expect(hot.price).toBe(WORTH + 100);
     expect(hot.lines.find((line) => line.id === "premium")?.amount).toBe(100);
     // A counter does not pay you extra for having brought it something
     // hot; the premium is what it charges for holding one.
@@ -147,7 +153,7 @@ describe("derivation", () => {
       itemId: RAIL,
       haggled: true,
     });
-    expect(bought).toBe(Math.round(320 * (1 - HAGGLE.step)));
+    expect(bought).toBe(Math.round(WORTH * (1 - HAGGLE.step)));
     expect(sold).toBeGreaterThan(
       quotedPrice({ side: "sell", vendor: stall, itemId: RAIL }),
     );

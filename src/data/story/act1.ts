@@ -1754,7 +1754,7 @@ export const act1Arc: StoryArc = {
             { type: "set-flag", key: "ally-voss", value: true },
             { type: "set-flag", key: "undertow-delayed", value: true },
             { type: "set-flag", key: "act1-complete", value: true },
-            { type: "credits", amount: 300 },
+            { type: "credits", amount: 250 },
             { type: "add-item", itemId: "msc-auric-writ" },
             { type: "end", endingId: "act1-voss" },
           ],

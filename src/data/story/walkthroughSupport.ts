@@ -25,7 +25,7 @@ import {
   type Loadout,
 } from "../../inventory";
 import { applyChoice, getNode } from "../../narrative";
-import type { StoryArc } from "../../narrative/types";
+import type { Effect, StoryArc } from "../../narrative/types";
 import { createNewGame, type GameState } from "../../state";
 
 /**
@@ -113,11 +113,49 @@ function autoBattle(state: GameState, encounterId: string): GameState {
 
 export type RouteStep =
   | { kind: "arc"; arc: StoryArc; entry: string; choices: string[] }
-  | { kind: "do"; run(state: GameState): GameState };
+  | {
+      kind: "do";
+      /** What the step is, for a watcher's ledger; defaults to "step". */
+      label?: string;
+      run(state: GameState): GameState;
+    };
 
 export interface RouteResult {
   state: GameState;
   endings: string[];
+}
+
+/**
+ * One credit movement a route made, and what made it.
+ *
+ * Routes are the only end-to-end trace of a real run this codebase has,
+ * so they are also the only honest place to read the economy off. A
+ * watcher gets every movement in order, attributed to the thing that
+ * moved it — which choice in which arc, which fight, which between-scene
+ * step. The economy harness (src/economy/sim) folds these into a ledger;
+ * nothing in the shipped game watches.
+ */
+export interface RouteCreditEvent {
+  kind: "choice" | "combat" | "step";
+  /** The arc the movement happened in, or "route" for a `do` step. */
+  arcId: string;
+  /** The choice id, encounter id, or step label behind it. */
+  detail: string;
+  /**
+   * The effects the choice carried, for a watcher that wants to know
+   * what the credits bought rather than only that they moved. Empty for
+   * fights and between-scene steps, which say what they are in `kind`.
+   */
+  effects: readonly Effect[];
+  /** Credits in (positive) or out (negative). Never zero. */
+  delta: number;
+  /** The balance the movement left behind. */
+  balance: number;
+}
+
+export interface RouteOptions {
+  /** Called for every credit movement, in route order. */
+  onCredits?(event: RouteCreditEvent): void;
 }
 
 /**
@@ -126,11 +164,36 @@ export interface RouteResult {
  * applyChoice throws on unmet requirements, so a route doubles as proof
  * that its gates actually pass.
  */
-export function runRoute(state: GameState, steps: RouteStep[]): RouteResult {
+export function runRoute(
+  state: GameState,
+  steps: RouteStep[],
+  options: RouteOptions = {},
+): RouteResult {
   const endings: string[] = [];
+  const watch = (
+    before: GameState,
+    after: GameState,
+    kind: RouteCreditEvent["kind"],
+    arcId: string,
+    detail: string,
+    effects: readonly Effect[] = [],
+  ): void => {
+    const delta = after.credits - before.credits;
+    if (delta === 0 || !options.onCredits) return;
+    options.onCredits({
+      kind,
+      arcId,
+      detail,
+      effects,
+      delta,
+      balance: after.credits,
+    });
+  };
   for (const step of steps) {
     if (step.kind === "do") {
+      const before = state;
       state = step.run(state);
+      watch(before, state, "step", "route", step.label ?? "step");
       continue;
     }
     let nodeId: string | null = step.entry;
@@ -139,23 +202,50 @@ export function runRoute(state: GameState, steps: RouteStep[]): RouteResult {
       const node = getNode(step.arc, nodeId);
       if (!node) throw new Error(`missing node "${nodeId}"`);
       const outcome = applyChoice(state, node, choiceId);
+      const choice = node.choices.find((entry) => entry.id === choiceId);
+      watch(
+        state,
+        outcome.state,
+        "choice",
+        step.arc.id,
+        choiceId,
+        choice?.effects ?? [],
+      );
       state = outcome.state;
       nodeId = outcome.nextNodeId;
-      if (outcome.encounterId) state = autoBattle(state, outcome.encounterId);
+      if (outcome.encounterId) {
+        const before = state;
+        state = autoBattle(state, outcome.encounterId);
+        watch(before, state, "combat", step.arc.id, outcome.encounterId);
+      }
       if (outcome.ended && outcome.endingId) endings.push(outcome.endingId);
     }
   }
   return { state, endings };
 }
 
+/**
+ * The first seed whose fights all go the player's way, and the run it
+ * produced.
+ *
+ * A watcher only ever hears about the seed that finished: abandoned
+ * attempts are buffered and dropped, so a ledger read off a route is the
+ * ledger of one coherent playthrough rather than of every rehearsal.
+ */
 export function findRouteSeed(
   makeState: (seed: number) => GameState,
   steps: RouteStep[],
   maxSeed = 400,
+  options: RouteOptions = {},
 ): RouteResult {
   for (let seed = 1; seed <= maxSeed; seed++) {
+    const events: RouteCreditEvent[] = [];
     try {
-      return runRoute(makeState(seed), steps);
+      const result = runRoute(makeState(seed), steps, {
+        onCredits: options.onCredits && ((event) => events.push(event)),
+      });
+      events.forEach((event) => options.onCredits?.(event));
+      return result;
     } catch (error) {
       if (error instanceof RouteFightLost) continue;
       throw error;
@@ -183,6 +273,7 @@ function withLoadout(state: GameState, loadout: Loadout): GameState {
 export function installStep(itemId: string): RouteStep {
   return {
     kind: "do",
+    label: `install ${itemId}`,
     run: (state) =>
       withLoadout(state, installEnhancement(state.player, state.inventory, itemId)),
   };
@@ -192,6 +283,7 @@ export function installStep(itemId: string): RouteStep {
 export function equipStep(itemId: string): RouteStep {
   return {
     kind: "do",
+    label: `equip ${itemId}`,
     run: (state) => withLoadout(state, equip(state.player, state.inventory, itemId)),
   };
 }
@@ -203,6 +295,7 @@ export function equipStep(itemId: string): RouteStep {
 export function advanceStep(stat: StatKey): RouteStep {
   return {
     kind: "do",
+    label: `raise ${stat}`,
     run: (state) => ({ ...state, player: raiseStat(state, stat) }),
   };
 }
@@ -216,6 +309,7 @@ const HEAL_ITEM_IDS = ["con-trauma-patch", "con-field-kit"];
 export function healStep(): RouteStep {
   return {
     kind: "do",
+    label: "patch up",
     run(state) {
       let next = state;
       let used = true;
