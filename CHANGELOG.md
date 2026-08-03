@@ -4,6 +4,31 @@ Written for someone deciding whether to play, or coming back after a
 while — what changed on screen, not what changed in the repository. The
 commit history has the other version.
 
+## Unreleased
+
+### Everything is drawn with four times the pixels
+
+The game is authored at one resolution and shown at another: every art
+pixel has always been painted as a 2×2 block of screen pixels, four
+dots agreeing with each other because nothing had told them not to.
+Now they can disagree. On its way to the screen every sprite, tile and
+prop is split four ways — diagonals step at half the size they were
+drawn at, so a barrier's hazard stripes actually run diagonally and a
+head has a jawline instead of a staircase, and every edge inside a
+shape picks up a half-pixel of the light the whole palette was drawn
+for. Nothing moved, nothing changed size, and no colour was invented:
+lighting an edge means stepping along a ramp the artist already chose.
+Neon is exempt — a tube is its own light source — and outlines keep
+their weight.
+
+### Walking got its missing beat
+
+A stride was three poses: plant, take the weight, swing through. It is
+four now, with the body riding up over the straightened leg before the
+next foot lands — one rise and fall per step instead of a lurch, at
+exactly the pace it walked before. The patrol drones and the warden
+chassis got the same fourth beat.
+
 ## 1.0.0 — 2026-08-03
 
 The first released version, and the whole game: the two development
