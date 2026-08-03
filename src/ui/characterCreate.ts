@@ -78,6 +78,7 @@ import { createMainMenuScreen } from "./mainMenu";
 import { portraitCanvas } from "./portraits";
 import { showScreen, type Screen } from "./screen";
 import { createSession } from "./session";
+import { plain, t, type PlainKey } from "./strings";
 
 /**
  * Character creation as a stepped wizard: identity → background →
@@ -279,7 +280,7 @@ export function createCharacterCreateScreen(
       case "background":
         return stepValid(current, "background", context)
           ? null
-          : "Pick a background";
+          : t("create.problem.background");
       case "stats": {
         const validation = validateAllocation(current.allocation, pointPool);
         const first = validation.errors[0];
@@ -288,11 +289,11 @@ export function createCharacterCreateScreen(
       case "appearance":
         return stepValid(current, "appearance", context)
           ? null
-          : "This look references unknown options";
+          : t("create.problem.appearance");
       case "review":
         return stepValid(current, "review", context)
           ? null
-          : "Finish the earlier steps before jacking in";
+          : t("create.problem.review");
     }
   }
 
@@ -301,13 +302,13 @@ export function createCharacterCreateScreen(
   function renderIdentity(body: HTMLElement): void {
     const nameLabel = document.createElement("label");
     nameLabel.className = "nf-field-label";
-    nameLabel.textContent = "Name";
+    nameLabel.textContent = t("create.name");
     nameLabel.htmlFor = "nf-name-input";
     const nameInput = document.createElement("input");
     nameInput.id = "nf-name-input";
     nameInput.className = "nf-input";
     nameInput.maxLength = 32;
-    nameInput.placeholder = "Your street name";
+    nameInput.placeholder = t("create.name.placeholder");
     nameInput.value = draft().name;
     // Update the draft without re-rendering the step, so the input
     // keeps focus and caret while typing.
@@ -323,12 +324,8 @@ export function createCharacterCreateScreen(
       const legacyNote = document.createElement("p");
       legacyNote.className = "nf-dim";
       legacyNote.textContent =
-        `New Game+ bonus: +${ngPlus.bonusPoints} point-buy points and ` +
-        "one piece of your last runner's gear. Their perks do not come " +
-        "along — street cred is earned, never inherited." +
-        (legacyLook
-          ? " Their look carries over too — restyle it on the Appearance step."
-          : "");
+        t("create.ngPlus.bonus", { points: ngPlus.bonusPoints }) +
+        (legacyLook ? t("create.ngPlus.look") : "");
       body.append(legacyNote);
     }
   }
@@ -340,11 +337,11 @@ export function createCharacterCreateScreen(
     const left = document.createElement("div");
     left.className = "nf-create-column";
     const heading = document.createElement("h3");
-    heading.textContent = "Background";
+    heading.textContent = t("create.background");
     const list = document.createElement("div");
     list.className = "nf-bg-list";
     list.setAttribute("role", "radiogroup");
-    list.setAttribute("aria-label", "Background");
+    list.setAttribute("aria-label", t("create.background"));
     for (const background of backgrounds) {
       const button = document.createElement("button");
       button.className = "nf-bg-card";
@@ -361,7 +358,7 @@ export function createCharacterCreateScreen(
       bonuses.textContent = formatBonuses(background.statBonuses);
       button.append(title, bonuses);
       button.addEventListener("click", () => {
-        announce(`Background: ${background.name}`);
+        announce(t("create.background.picked", { name: background.name }));
         patchDraft({ backgroundId: background.id });
       });
       list.append(button);
@@ -385,11 +382,11 @@ export function createCharacterCreateScreen(
       description.textContent = background.description;
       const gear = document.createElement("p");
       gear.className = "nf-dim";
-      gear.textContent =
-        "Starting gear: " +
-        background.startingGearIds
+      gear.textContent = t("create.startingGear", {
+        items: background.startingGearIds
           .map((id) => getItem(id)?.name ?? id)
-          .join(", ");
+          .join(", "),
+      });
       detail.append(description, gear);
       right.append(detail);
     }
@@ -397,15 +394,14 @@ export function createCharacterCreateScreen(
     // New Game+ carry-over: clearly labeled, one pick, nothing hidden.
     if (ngPlus) {
       const legacyHeading = document.createElement("h3");
-      legacyHeading.textContent = "Legacy carry-over";
+      legacyHeading.textContent = t("create.legacy");
       const legacyNote = document.createElement("p");
       legacyNote.className = "nf-dim";
-      legacyNote.textContent =
-        "One piece of your last runner's gear comes along.";
+      legacyNote.textContent = t("create.legacy.note");
       const legacyList = document.createElement("div");
       legacyList.className = "nf-bg-list";
       legacyList.setAttribute("role", "radiogroup");
-      legacyList.setAttribute("aria-label", "Legacy carry-over");
+      legacyList.setAttribute("aria-label", t("create.legacy"));
       const picks: Array<[string | null, string, string]> = legacyChoices.map(
         (id) => {
           const item = getItem(id)!;
@@ -414,8 +410,8 @@ export function createCharacterCreateScreen(
       );
       picks.push([
         null,
-        "Travel light",
-        "Carry nothing forward but the bonus points.",
+        t("create.legacy.travelLight"),
+        t("create.legacy.travelLight.note"),
       ]);
       for (const [id, title, detail] of picks) {
         const button = document.createElement("button");
@@ -433,7 +429,7 @@ export function createCharacterCreateScreen(
         detailEl.textContent = detail;
         button.append(nameEl, detailEl);
         button.addEventListener("click", () => {
-          announce(`Legacy carry-over: ${title}`);
+          announce(t("create.legacy.picked", { title }));
           patchDraft({ legacyItemId: id });
         });
         legacyList.append(button);
@@ -455,19 +451,22 @@ export function createCharacterCreateScreen(
     const preview = document.createElement("div");
     preview.className = "nf-derived";
     const title = document.createElement("h3");
-    title.textContent = "Derived";
+    title.textContent = t("create.derived");
     preview.append(title);
-    const entries: Array<[string, number]> = [
-      ["Max HP", derived.maxHp],
-      ["Initiative", derived.initiative],
-      ["Neural capacity", derived.neuralCapacity],
-      ["Melee damage bonus", derived.meleeDamageBonus],
-      ["Ranged damage bonus", derived.rangedDamageBonus],
+    const entries: Array<[PlainKey, number]> = [
+      ["create.derived.maxHp", derived.maxHp],
+      ["create.derived.initiative", derived.initiative],
+      ["create.derived.neuralCapacity", derived.neuralCapacity],
+      ["create.derived.meleeBonus", derived.meleeDamageBonus],
+      ["create.derived.rangedBonus", derived.rangedDamageBonus],
     ];
     for (const [label, amount] of entries) {
       const line = document.createElement("div");
       line.className = "nf-derived-row";
-      line.textContent = `${label}: ${amount}`;
+      line.textContent = t("create.derived.row", {
+        label: plain(label),
+        amount,
+      });
       preview.append(line);
     }
     return preview;
@@ -488,11 +487,16 @@ export function createCharacterCreateScreen(
     left.className = "nf-create-column";
     const heading = document.createElement("h3");
     heading.textContent = ngPlus
-      ? `Stats (${POINT_POOL} + ${ngPlus.bonusPoints} legacy points)`
-      : `Stats (${POINT_POOL} points)`;
+      ? t("create.stats.withLegacy", {
+          pool: POINT_POOL,
+          legacy: ngPlus.bonusPoints,
+        })
+      : t("create.stats", { pool: POINT_POOL });
     const remaining = document.createElement("div");
     remaining.className = "nf-remaining";
-    remaining.textContent = `Points remaining: ${validation.remaining}`;
+    remaining.textContent = t("create.stats.remaining", {
+        remaining: validation.remaining,
+      });
 
     const rows = document.createElement("div");
     rows.className = "nf-stat-rows";
@@ -510,7 +514,10 @@ export function createCharacterCreateScreen(
       const minus = document.createElement("button");
       minus.className = "nf-button nf-button-small";
       minus.textContent = "−";
-      minus.setAttribute("aria-label", `Decrease ${statLabel(key)}`);
+      minus.setAttribute(
+        "aria-label",
+        t("create.stats.decrease", { stat: statLabel(key) }),
+      );
       minus.dataset.focusKey = `stat:${key}:minus`;
       minus.disabled = allocation[key] <= STAT_MIN;
       minus.addEventListener("click", () => setStat(allocation[key] - 1));
@@ -522,7 +529,10 @@ export function createCharacterCreateScreen(
       const plus = document.createElement("button");
       plus.className = "nf-button nf-button-small";
       plus.textContent = "+";
-      plus.setAttribute("aria-label", `Increase ${statLabel(key)}`);
+      plus.setAttribute(
+        "aria-label",
+        t("create.stats.increase", { stat: statLabel(key) }),
+      );
       plus.dataset.focusKey = `stat:${key}:plus`;
       plus.disabled = allocation[key] >= STAT_MAX || validation.remaining <= 0;
       plus.addEventListener("click", () => setStat(allocation[key] + 1));
@@ -555,9 +565,10 @@ export function createCharacterCreateScreen(
       const id = draft().appearance[field];
       const row = document.createElement("div");
       row.className = "nf-appearance-row";
-      row.textContent =
-        `${APPEARANCE_LABELS[field]}: ` +
-        (getAppearanceOption(field, id)?.label ?? id);
+      row.textContent = t("create.labelledValue", {
+        label: APPEARANCE_LABELS[field],
+        value: getAppearanceOption(field, id)?.label ?? id,
+      });
       summary.append(row);
     }
     return summary;
@@ -620,8 +631,10 @@ export function createCharacterCreateScreen(
       },
       onPick: (category, id) => {
         announce(
-          `${APPEARANCE_LABELS[category]}: ` +
-            (getAppearanceOption(category, id)?.label ?? id),
+          t("create.labelledValue", {
+            label: APPEARANCE_LABELS[category],
+            value: getAppearanceOption(category, id)?.label ?? id,
+          }),
         );
         applyLook({ ...draft().appearance, [category]: id });
       },
@@ -637,14 +650,14 @@ export function createCharacterCreateScreen(
       wrap.className = "nf-thumb-section nf-preset-row";
       const heading = document.createElement("span");
       heading.className = "nf-field-label";
-      heading.textContent = "Preset looks";
+      heading.textContent = t("create.presets");
 
       const row = document.createElement("div");
       row.className = "nf-thumb-grid";
       const presets = backgroundPresets(draft().backgroundId);
       row.style.gridTemplateColumns = `repeat(${Math.max(presets.length, 1)}, max-content)`;
       row.setAttribute("role", "radiogroup");
-      row.setAttribute("aria-label", "Preset looks");
+      row.setAttribute("aria-label", t("create.presets"));
       for (const preset of presets) {
         const button = document.createElement("button");
         button.type = "button";
@@ -657,10 +670,13 @@ export function createCharacterCreateScreen(
         button.setAttribute("aria-checked", String(selected));
         button.dataset.focusKey = `preset:${preset.label}`;
         button.title = preset.label;
-        button.setAttribute("aria-label", `Preset: ${preset.label}`);
+        button.setAttribute(
+          "aria-label",
+          t("create.preset.label", { label: preset.label }),
+        );
         button.append(portraitCanvas(preset.appearance, previewEquipment()));
         button.addEventListener("click", () => {
-          announce(`Preset applied: ${preset.label}`);
+          announce(t("create.preset.applied", { label: preset.label }));
           applyLook({ ...preset.appearance });
         });
         row.append(button);
@@ -684,7 +700,7 @@ export function createCharacterCreateScreen(
       wrap.className = "nf-thumb-section";
       const heading = document.createElement("span");
       heading.className = "nf-field-label";
-      heading.textContent = "Locks — kept on Surprise Me";
+      heading.textContent = t("create.locks");
       const row = document.createElement("div");
       row.className = "nf-lock-row";
       for (const field of APPEARANCE_FIELDS) {
@@ -698,8 +714,8 @@ export function createCharacterCreateScreen(
           button.classList.toggle("nf-selected", locked);
           button.setAttribute("aria-pressed", String(locked));
           button.title = locked
-            ? `${APPEARANCE_LABELS[field]}: locked (survives Surprise Me)`
-            : `${APPEARANCE_LABELS[field]}: unlocked`;
+            ? t("create.lock.locked", { label: APPEARANCE_LABELS[field] })
+            : t("create.lock.unlocked", { label: APPEARANCE_LABELS[field] });
         };
         sync();
         button.addEventListener("click", () => {
@@ -716,18 +732,18 @@ export function createCharacterCreateScreen(
     controls.className = "nf-wizard-controls";
     const surprise = document.createElement("button");
     surprise.className = "nf-button";
-    surprise.textContent = "Surprise Me";
+    surprise.textContent = t("create.surpriseMe");
     surprise.addEventListener("click", () => {
       const roll = randomizeUnlocked(draft().appearance, locks, surpriseRng);
       surpriseRng = roll.state;
-      announce("Randomized look applied");
+      announce(t("create.surpriseMe.applied"));
       applyLook(roll.value);
     });
     const stock = document.createElement("button");
     stock.className = "nf-button";
-    stock.textContent = "Stock Look";
+    stock.textContent = t("create.stockLook");
     stock.addEventListener("click", () => {
-      announce("Stock look applied");
+      announce(t("create.stockLook.applied"));
       applyLook(defaultAppearance());
     });
     controls.append(surprise, stock);
@@ -751,8 +767,11 @@ export function createCharacterCreateScreen(
     heading.textContent = title;
     const edit = document.createElement("button");
     edit.className = "nf-button nf-button-small nf-review-edit";
-    edit.textContent = "Edit";
-    edit.setAttribute("aria-label", `Edit ${title.toLowerCase()}`);
+    edit.textContent = t("create.edit");
+    edit.setAttribute(
+      "aria-label",
+      t("create.edit.label", { section: title.toLowerCase() }),
+    );
     edit.addEventListener("click", () => {
       returnToReview = true;
       navigate(jumpTo(wizard, step, context));
@@ -784,7 +803,7 @@ export function createCharacterCreateScreen(
     const header = document.createElement("div");
     header.className = "nf-review-header";
     const heading = document.createElement("h3");
-    heading.textContent = "Difficulty";
+    heading.textContent = t("create.difficulty");
     header.append(heading);
     section.append(header);
 
@@ -819,9 +838,7 @@ export function createCharacterCreateScreen(
     section.append(row, blurb);
     const changeable = document.createElement("p");
     changeable.className = "nf-review-line nf-dim";
-    changeable.textContent =
-      "Changeable later from Settings, along with the assists — the save " +
-      "will simply record that it happened.";
+    changeable.textContent = t("create.difficulty.note");
     section.append(changeable);
     return section;
   }
@@ -860,7 +877,7 @@ export function createCharacterCreateScreen(
     right.className = "nf-create-column nf-review-sheet";
 
     right.append(
-      reviewSection("Identity", "identity", model.name || "—"),
+      reviewSection(t("create.review.identity"), "identity", model.name || "—"),
     );
 
     const backgroundLines: (HTMLElement | string)[] = [];
@@ -876,7 +893,7 @@ export function createCharacterCreateScreen(
       backgroundLines.push(blurb);
     }
     if (model.gear.length > 0) {
-      backgroundLines.push("Starting gear:");
+      backgroundLines.push(t("create.review.startingGear"));
       const gear = document.createElement("ul");
       gear.className = "nf-review-gear";
       for (const name of model.gear) {
@@ -887,12 +904,12 @@ export function createCharacterCreateScreen(
       backgroundLines.push(gear);
     }
     right.append(
-      reviewSection("Background", "background", ...backgroundLines),
+      reviewSection(t("create.background"), "background", ...backgroundLines),
     );
 
     right.append(
       reviewSection(
-        "Stats",
+        t("create.review.stats"),
         "stats",
         model.statLine,
         derivedPreview(model.derived),
@@ -904,10 +921,13 @@ export function createCharacterCreateScreen(
     for (const line of model.appearance) {
       const row = document.createElement("div");
       row.className = "nf-review-line";
-      row.textContent = `${line.label}: ${line.value}`;
+      row.textContent = t("create.labelledValue", {
+        label: line.label,
+        value: line.value,
+      });
       look.append(row);
     }
-    right.append(reviewSection("Appearance", "appearance", look));
+    right.append(reviewSection(t("create.review.appearance"), "appearance", look));
 
     if (model.legacy) {
       const legacy = document.createElement("div");
@@ -920,7 +940,7 @@ export function createCharacterCreateScreen(
       excludes.className = "nf-review-line nf-dim";
       excludes.textContent = model.legacy.excludes;
       legacy.append(legacyLine, excludes);
-      right.append(reviewSection("Legacy carry-over", "background", legacy));
+      right.append(reviewSection(t("create.legacy"), "background", legacy));
     }
 
     // The one thing on this panel that is not about the runner: how
@@ -1014,15 +1034,15 @@ export function createCharacterCreateScreen(
     navHint.textContent = problem ?? "";
     renderStepHelp();
     if (wizard.step === "review") {
-      nextButton.textContent = "Jack In";
+      nextButton.textContent = t("create.jackIn");
       nextButton.disabled = !stepValid(draft(), "review", context);
     } else if (returnToReview) {
       // Entered from a review Edit link: finishing the step goes back
       // to review, under the same validity gate as advancing there.
-      nextButton.textContent = "Done";
+      nextButton.textContent = t("create.done");
       nextButton.disabled = !canJumpTo(wizard, "review", context);
     } else {
-      nextButton.textContent = "Next";
+      nextButton.textContent = t("create.next");
       nextButton.disabled = !canAdvance(wizard, context);
     }
   }
@@ -1052,20 +1072,19 @@ export function createCharacterCreateScreen(
     const panel = document.createElement("div");
     panel.className = "nf-panel nf-wizard-confirm";
     const title = document.createElement("h2");
-    title.textContent = "Abandon this runner?";
+    title.textContent = t("create.abandon.title");
     const note = document.createElement("p");
     note.className = "nf-dim";
-    note.textContent =
-      "Drafts aren't saved — backing out to the menu discards every choice.";
+    note.textContent = t("create.abandon.note");
     const menu = document.createElement("div");
     menu.className = "nf-menu";
     const keep = document.createElement("button");
     keep.className = "nf-button";
-    keep.textContent = "Keep Editing";
+    keep.textContent = t("create.abandon.keep");
     keep.addEventListener("click", closeExitConfirm);
     const discard = document.createElement("button");
     discard.className = "nf-button nf-button-danger";
-    discard.textContent = "Discard Draft";
+    discard.textContent = t("create.abandon.discard");
     discard.addEventListener("click", exitToMenu);
     menu.append(keep, discard);
     panel.append(title, note, menu);
@@ -1175,16 +1194,18 @@ export function createCharacterCreateScreen(
       const header = document.createElement("div");
       header.className = "nf-panel-header";
       const title = document.createElement("h2");
-      title.textContent = ngPlus ? "New Runner — New Game+" : "New Runner";
+      title.textContent = ngPlus
+        ? t("create.title.ngPlus")
+        : t("create.title");
       const menuButton = document.createElement("button");
       menuButton.className = "nf-button nf-button-small";
-      menuButton.textContent = "Menu";
+      menuButton.textContent = t("create.menu");
       menuButton.addEventListener("click", requestExit);
       header.append(title, menuButton);
 
       progressEl = document.createElement("nav");
       progressEl.className = "nf-wizard-steps";
-      progressEl.setAttribute("aria-label", "Creation steps");
+      progressEl.setAttribute("aria-label", t("create.steps"));
 
       stepHelp = document.createElement("p");
       stepHelp.className = "nf-dim nf-wizard-help";
@@ -1201,7 +1222,7 @@ export function createCharacterCreateScreen(
       nav.className = "nf-wizard-nav";
       backButton = document.createElement("button");
       backButton.className = "nf-button";
-      backButton.textContent = "Back";
+      backButton.textContent = t("common.back");
       backButton.addEventListener("click", () => navigate(goBack(wizard)));
       navHint = document.createElement("p");
       // Guidance, not an error. The line says what the step still needs

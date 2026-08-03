@@ -417,6 +417,81 @@ export const STRINGS = {
   "settings.controls.pointer.what": "Move and interact · pan the camera",
   "settings.controls.zoom.keys": "Wheel / + −",
   "settings.controls.zoom.what": "Zoom the camera while exploring",
+
+  /* -------------------------------------------------------------- *
+   * Character creation. Backgrounds, appearance options and their
+   * blurbs are content; the wizard around them is not.
+   * -------------------------------------------------------------- */
+  "create.title": "New Runner",
+  "create.title.ngPlus": "New Runner — New Game+",
+  "create.menu": "Menu",
+  "create.steps": "Creation steps",
+  "create.next": "Next",
+  "create.done": "Done",
+  "create.jackIn": "Jack In",
+  "create.edit": "Edit",
+  "create.edit.label": "Edit {section}",
+  /** "Hair: Undercut" — the shape every labelled read-out on the wizard takes. */
+  "create.labelledValue": "{label}: {value}",
+
+  "create.problem.background": "Pick a background",
+  "create.problem.appearance": "This look references unknown options",
+  "create.problem.review": "Finish the earlier steps before jacking in",
+
+  "create.name": "Name",
+  "create.name.placeholder": "Your street name",
+  "create.ngPlus.bonus":
+    "New Game+ bonus: +{points} point-buy points and one piece of your last runner's gear. Their perks do not come along — street cred is earned, never inherited.",
+  "create.ngPlus.look":
+    " Their look carries over too — restyle it on the Appearance step.",
+
+  "create.background": "Background",
+  "create.background.picked": "Background: {name}",
+  "create.startingGear": "Starting gear: {items}",
+  "create.legacy": "Legacy carry-over",
+  "create.legacy.note": "One piece of your last runner's gear comes along.",
+  "create.legacy.picked": "Legacy carry-over: {title}",
+  "create.legacy.travelLight": "Travel light",
+  "create.legacy.travelLight.note":
+    "Carry nothing forward but the bonus points.",
+
+  "create.stats": "Stats ({pool} points)",
+  "create.stats.withLegacy": "Stats ({pool} + {legacy} legacy points)",
+  "create.stats.remaining": "Points remaining: {remaining}",
+  "create.stats.decrease": "Decrease {stat}",
+  "create.stats.increase": "Increase {stat}",
+  "create.derived": "Derived",
+  "create.derived.row": "{label}: {amount}",
+  "create.derived.maxHp": "Max HP",
+  "create.derived.initiative": "Initiative",
+  "create.derived.neuralCapacity": "Neural capacity",
+  "create.derived.meleeBonus": "Melee damage bonus",
+  "create.derived.rangedBonus": "Ranged damage bonus",
+
+  "create.presets": "Preset looks",
+  "create.preset.label": "Preset: {label}",
+  "create.preset.applied": "Preset applied: {label}",
+  "create.locks": "Locks — kept on Surprise Me",
+  "create.lock.locked": "{label}: locked (survives Surprise Me)",
+  "create.lock.unlocked": "{label}: unlocked",
+  "create.surpriseMe": "Surprise Me",
+  "create.surpriseMe.applied": "Randomized look applied",
+  "create.stockLook": "Stock Look",
+  "create.stockLook.applied": "Stock look applied",
+
+  "create.review.identity": "Identity",
+  "create.review.stats": "Stats",
+  "create.review.appearance": "Appearance",
+  "create.review.startingGear": "Starting gear:",
+  "create.difficulty": "Difficulty",
+  "create.difficulty.note":
+    "Changeable later from Settings, along with the assists — the save will simply record that it happened.",
+
+  "create.abandon.title": "Abandon this runner?",
+  "create.abandon.note":
+    "Drafts aren't saved — backing out to the menu discards every choice.",
+  "create.abandon.keep": "Keep Editing",
+  "create.abandon.discard": "Discard Draft",
 } as const;
 
 export type StringTable = typeof STRINGS;
