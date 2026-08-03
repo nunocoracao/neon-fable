@@ -1,13 +1,14 @@
 # Authoring guide
 
-How Neon Fable is built and how content is added to it. The
-[README](../README.md) is the short version; the
-[player guide](PLAYER_GUIDE.md) is the other audience. This document is
-for whoever is writing the next district.
+How Neon Fable is put together and how content is added to it — for
+whoever is writing the next district. The [README](../README.md) is the
+one-screen version of the stack; the [player guide](PLAYER_GUIDE.md) is
+the same game described to the person playing it.
 
-Everything below was the second half of the README until the docs were
-split; it is the same text, kept where the people who need it will look
-for it.
+Each section below is the contract for one kind of content: what the
+type demands, what the tests lint, and which rule exists for a reason
+you would otherwise have to rediscover. Where a rule reads as arbitrary,
+the paragraph under it says what breaks without it.
 
 ## Layout
 
