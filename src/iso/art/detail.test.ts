@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DARKER_STEP,
   EMISSIVE_COLORS,
+  HALF_STEPS,
   LIGHTER_STEP,
   PALETTE,
   RAMP_OF,
@@ -9,6 +10,9 @@ import {
   SHADOW,
   TRANSPARENT,
 } from "./palette";
+
+/** The v3 half-steps, which sit between ramp rungs rather than on them. */
+const HALF_STEP_CHARS = new Set(HALF_STEPS.map((step) => step.char));
 import { DETAIL_SCALE, beveled, doubled, refined } from "./detail";
 import { gridErrors, silhouetteArea, type PixelGrid } from "./pixel";
 import { TILE_ART } from "./tiles";
@@ -66,6 +70,9 @@ describe("shading ramps", () => {
   it("steps stay inside the palette and reverse each other", () => {
     for (const [from, to] of Object.entries(LIGHTER_STEP)) {
       expect(PALETTE[to], `lighter of "${from}"`).toBeDefined();
+      // A half-step is not a rung: it lights to the named step above it,
+      // which naturally darkens back past it to the step below.
+      if (HALF_STEP_CHARS.has(from)) continue;
       // The reverse step returns home unless `to` was claimed elsewhere
       // first, which is exactly what the first-claim rule allows.
       const back = DARKER_STEP[to];
@@ -80,9 +87,46 @@ describe("shading ramps", () => {
 
   it("gives every ramp member exactly one ramp", () => {
     for (const [ch, index] of Object.entries(RAMP_OF)) {
+      if (HALF_STEP_CHARS.has(ch)) continue;
       expect(SHADING_RAMPS[index]).toContain(ch);
       const claimants = SHADING_RAMPS.filter((ramp) => ramp.includes(ch));
       expect(claimants[0], `first claim of "${ch}"`).toBe(SHADING_RAMPS[index]);
+    }
+  });
+
+  it("puts every half-step on the ramp whose steps it splits", () => {
+    for (const step of HALF_STEPS) {
+      const [darker, lighter] = step.between;
+      const ramp = SHADING_RAMPS[RAMP_OF[step.char] as number] ?? [];
+      // Its ramp is the one where its two anchors are neighbors — which
+      // for "6" -> "T" is brushed chrome, not the neutrals "6" also ends.
+      expect(ramp.indexOf(lighter), `ramp of "${step.char}"`).toBe(
+        ramp.indexOf(darker) + 1,
+      );
+      expect(LIGHTER_STEP[step.char], `lighter of "${step.char}"`).toBe(lighter);
+      expect(DARKER_STEP[step.char], `darker of "${step.char}"`).toBe(darker);
+      // And its color really does fall between the two it splits.
+      const between = (channel: number): void => {
+        const at = (ch: string): number =>
+          parseInt((PALETTE[ch] as string).slice(1 + channel * 2, 3 + channel * 2), 16);
+        expect(at(step.char)).toBeGreaterThan(Math.min(at(darker), at(lighter)) - 1);
+        expect(at(step.char)).toBeLessThan(Math.max(at(darker), at(lighter)) + 1);
+      };
+      [0, 1, 2].forEach(between);
+    }
+  });
+
+  it("leaves every pre-v3 character stepping exactly where it stepped", () => {
+    // The half-steps are shades to paint with, not rungs to climb: a
+    // base still lights to its highlight. This is the whole reason
+    // palette v3 could not recolor a single existing sprite.
+    expect(LIGHTER_STEP.q).toBe("A");
+    expect(DARKER_STEP.q).toBe("r");
+    expect(LIGHTER_STEP.T).toBe("9");
+    expect(DARKER_STEP.R).toBe("Q");
+    for (const step of HALF_STEPS) {
+      expect(Object.values(LIGHTER_STEP)).not.toContain(step.char);
+      expect(Object.values(DARKER_STEP)).not.toContain(step.char);
     }
   });
 

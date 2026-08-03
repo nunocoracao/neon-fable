@@ -421,8 +421,10 @@ describe("the sweep would notice", () => {
   });
 
   it("catches an off-palette pixel in a composed frame", () => {
+    // "@" is deliberately not a palette entry, and stays that way: the
+    // v3 half-steps took most of the punctuation (see ../../iso/art/palette).
     const broken = Array.from({ length: BODY_FRAME.height }, () =>
-      "~".repeat(BODY_FRAME.width),
+      "@".repeat(BODY_FRAME.width),
     );
     expect(frameFaults(broken, "fixture").join("\n")).toContain("not in the palette");
   });

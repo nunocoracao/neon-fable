@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  EMISSIVE_COLORS,
+  HALF_STEPS,
   HAIR_COLORS,
+  halfStepBetween,
   MATERIAL_RAMPS,
   PALETTE,
   REMAP_CHANNELS,
@@ -73,10 +76,55 @@ describe("palette v2", () => {
     expect(new Set(colors).size).toBe(colors.length);
   });
 
-  it("reaches roughly 56 curated entries", () => {
+  it("reaches roughly 78 curated entries — 56 colors plus their half-steps", () => {
     const size = Object.keys(PALETTE).length;
     expect(size).toBeGreaterThanOrEqual(52);
-    expect(size).toBeLessThanOrEqual(64);
+    expect(size).toBeLessThanOrEqual(96);
+  });
+});
+
+describe("palette v3 half-steps", () => {
+  it("splits every ramp that carries material detail, twice", () => {
+    expect(HALF_STEPS.length).toBe(20);
+    const chars = HALF_STEPS.map((step) => step.char);
+    expect(new Set(chars).size).toBe(chars.length);
+    for (const step of HALF_STEPS) {
+      expect(PALETTE[step.char], `half-step "${step.char}"`).toBeDefined();
+      expect(step.char.length).toBe(1);
+      expect(step.char).not.toBe(TRANSPARENT);
+    }
+  });
+
+  it("adds only new characters — no v1 or v2 slot is reused", () => {
+    for (const step of HALF_STEPS) {
+      expect(LEGACY_PALETTE[step.char], `half-step "${step.char}"`).toBeUndefined();
+      expect(step.between.some((anchor) => anchor === step.char)).toBe(false);
+    }
+  });
+
+  it("splits named steps that exist and are not each other", () => {
+    for (const step of HALF_STEPS) {
+      const [darker, lighter] = step.between;
+      expect(PALETTE[darker], `"${step.char}" darker anchor`).toBeDefined();
+      expect(PALETTE[lighter], `"${step.char}" lighter anchor`).toBeDefined();
+      expect(darker).not.toBe(lighter);
+    }
+  });
+
+  it("is reachable by the two steps it sits between", () => {
+    expect(halfStepBetween("r", "q")).toBe("v");
+    expect(halfStepBetween("T", "9")).toBe("]");
+    // Backwards is not a half-step: ramps are ordered dark to light.
+    expect(halfStepBetween("q", "r")).toBeUndefined();
+    expect(halfStepBetween("K", "L")).toBeUndefined();
+  });
+
+  it("leaves the remap channels and the emissive set exactly as they were", () => {
+    const chars = new Set(HALF_STEPS.map((step) => step.char));
+    for (const channel of Object.values(REMAP_CHANNELS)) {
+      for (const ch of channel) expect(chars.has(ch)).toBe(false);
+    }
+    for (const ch of EMISSIVE_COLORS) expect(chars.has(ch)).toBe(false);
   });
 });
 

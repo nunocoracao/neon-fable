@@ -164,7 +164,7 @@ describe("channel remaps", () => {
 
   it("maps the iris channel to any palette entry and rejects others", () => {
     expect(eyeColorRemap("m")).toEqual({ g: "m" });
-    expect(() => eyeColorRemap("?")).toThrow(/not a palette entry/);
+    expect(() => eyeColorRemap("@")).toThrow(/not a palette entry/);
     expect(() => eyeColorRemap(".")).toThrow(/not a palette entry/);
   });
 

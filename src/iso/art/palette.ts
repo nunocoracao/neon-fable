@@ -12,6 +12,12 @@
  *   colors, and material ramps for the layered-character and hi-res
  *   tile work. Ramps run shade -> base -> highlight so the top-left
  *   light source stays consistent.
+ * - Lowercase v-y and punctuation: v3 half-steps (see HALF_STEPS), one
+ *   between each pair of named steps on the ramps that carry detail.
+ *   Art drawn at density 2 has four times the pixels to model a
+ *   material with; these are the shades to model it in. They are
+ *   additions only — every character above keeps its color and its
+ *   place in the lighting, so nothing already drawn changes.
  *
  * Ramp/channel membership (see the typed constants below):
  * - Skin ramps:      [r q A] [C B D] [F E G] [I H J]
@@ -119,6 +125,41 @@ export const PALETTE: Readonly<Record<string, string>> = {
   s: "#1e3d85", // hologram dim
   t: "#4477e8", // hologram base
   u: "#a8c4ff", // hologram bright
+
+  // ---- v3 half-steps below: never reassign anything above this line. ----
+  //
+  // Art authored at density 2 (see ./density.ts) has four times the
+  // pixels to spend on the same material, and a three-step ramp runs out
+  // of shades long before the pixels run out. Each character here sits
+  // exactly between two named steps of an existing ramp, so a five-step
+  // gradient is available where a material earns one — and no existing
+  // character means anything different than it did. See HALF_STEPS for
+  // which sits between which.
+  //
+  // Punctuation, because every letter and digit is already spoken for.
+  // The pairing is deliberate: brackets that open are the darker half of
+  // their ramp and brackets that close are the lighter half, so a row of
+  // art can be read without the table.
+  v: "#bca895", // skin porcelain: shade -> base
+  w: "#e4d6c5", // skin porcelain: base -> highlight
+  x: "#ae8455", // skin golden tan: shade -> base
+  y: "#d8af7a", // skin golden tan: base -> highlight
+  "-": "#744930", // skin warm brown: shade -> base
+  "+": "#9f6b46", // skin warm brown: base -> highlight
+  "=": "#482e22", // skin deep umber: shade -> base
+  "~": "#694636", // skin deep umber: base -> highlight
+  "(": "#41434a", // concrete: shade -> base
+  ")": "#62646c", // concrete: base -> highlight
+  "[": "#6d7e9b", // brushed chrome: shade -> base
+  "]": "#bbc6dc", // brushed chrome: base -> specular
+  "{": "#1e1a2b", // dark fabric: shade -> base
+  "}": "#332d48", // dark fabric: base -> highlight
+  "<": "#224a5f", // glass: tint -> base
+  ">": "#56a8ad", // glass: base -> glint
+  "%": "#b56716", // hazard amber: shade -> base
+  "&": "#efaf49", // hazard amber: base -> highlight
+  "!": "#3c2a20", // rust: dark -> base
+  "?": "#5c432e", // rust: base -> light
 };
 
 /**
@@ -251,6 +292,83 @@ export const SHADING_RAMPS: readonly (readonly string[])[] = [
   ["6", "T", "9"], // brushed chrome
 ];
 
+/**
+ * A palette v3 half-step: a color sitting between two adjacent named
+ * steps of one of the ramps above, for art drawn finely enough to want
+ * a gradient where a three-step ramp only offers a jump.
+ */
+export interface HalfStep {
+  /** The character art is authored with. */
+  readonly char: string;
+  /** The named steps it falls between, darker first. */
+  readonly between: readonly [string, string];
+}
+
+/**
+ * Every half-step, and which two named steps it splits. The ramps
+ * themselves (SHADING_RAMPS) are untouched: a half-step is a shade an
+ * artist may reach for, not a rung the automatic lighting climbs.
+ */
+export const HALF_STEPS: readonly HalfStep[] = [
+  { char: "v", between: ["r", "q"] },
+  { char: "w", between: ["q", "A"] },
+  { char: "x", between: ["C", "B"] },
+  { char: "y", between: ["B", "D"] },
+  { char: "-", between: ["F", "E"] },
+  { char: "+", between: ["E", "G"] },
+  { char: "=", between: ["I", "H"] },
+  { char: "~", between: ["H", "J"] },
+  { char: "(", between: ["Q", "R"] },
+  { char: ")", between: ["R", "S"] },
+  { char: "[", between: ["6", "T"] },
+  { char: "]", between: ["T", "9"] },
+  { char: "{", between: ["V", "W"] },
+  { char: "}", between: ["W", "X"] },
+  { char: "<", between: ["f", "U"] },
+  { char: ">", between: ["U", "h"] },
+  { char: "%", between: ["Y", "Z"] },
+  { char: "&", between: ["Z", "n"] },
+  { char: "!", between: ["a", "b"] },
+  { char: "?", between: ["b", "c"] },
+];
+
+/**
+ * Which ramp a half-step belongs to: the one where its two anchors are
+ * adjacent rungs. Resolving it this way rather than by looking up either
+ * anchor alone matters for the entries doing double duty — "6" is steel
+ * to the neutrals and the shade of brushed chrome, and a half-step
+ * between it and "T" is chrome, not neutral. Throws at module load if a
+ * half-step names two steps that are not neighbors anywhere, so a
+ * mis-declared shade never reaches a sprite.
+ */
+function halfStepRamp(step: HalfStep): number {
+  const [darker, lighter] = step.between;
+  const index = SHADING_RAMPS.findIndex((ramp) => {
+    const at = ramp.indexOf(darker);
+    return at >= 0 && ramp[at + 1] === lighter;
+  });
+  if (index < 0) {
+    throw new Error(
+      `half-step "${step.char}" sits between "${darker}" and "${lighter}", which are not adjacent on any ramp`,
+    );
+  }
+  return index;
+}
+
+/**
+ * A step along a color's ramp, in the given direction.
+ *
+ * Named steps keep the neighbors they have always had: a base lights to
+ * its highlight, not to the half-step in between. The bevel this feeds
+ * (./detail.ts) is a single lit pixel along a material edge, and it has
+ * to move a whole shade to read as anything at all — half a shade on one
+ * pixel is a pixel nobody can see. Half-steps step to the named steps
+ * that enclose them, so a hand-painted gradient still lights and shades
+ * like the material it belongs to.
+ *
+ * This is also what keeps palette v3 from touching a single existing
+ * sprite: no character that existed before it has a new neighbor.
+ */
 function rampSteps(direction: 1 | -1): Readonly<Record<string, string>> {
   const steps: Record<string, string> = {};
   for (const ramp of SHADING_RAMPS) {
@@ -259,6 +377,9 @@ function rampSteps(direction: 1 | -1): Readonly<Record<string, string>> {
       const to = ramp[i + direction];
       if (to !== undefined && steps[from] === undefined) steps[from] = to;
     }
+  }
+  for (const step of HALF_STEPS) {
+    steps[step.char] = step.between[direction === 1 ? 1 : 0];
   }
   return Object.freeze(steps);
 }
@@ -273,11 +394,29 @@ export const DARKER_STEP: Readonly<Record<string, string>> = rampSteps(-1);
  * Which ramp a color belongs to, by the same first-claim rule. Two
  * colors sharing a ramp are the same material at two brightnesses —
  * the artist's own shading — which is how the detail pass tells a
- * boundary between materials from one drawn inside a single one.
+ * boundary between materials from one drawn inside a single one. A
+ * half-step joins the ramp it splits, so painting a gradient inside a
+ * material never reads as an edge between two of them.
  */
 export const RAMP_OF: Readonly<Record<string, number>> = Object.freeze(
-  SHADING_RAMPS.reduce<Record<string, number>>((into, ramp, index) => {
-    for (const ch of ramp) if (into[ch] === undefined) into[ch] = index;
-    return into;
-  }, {}),
+  HALF_STEPS.reduce<Record<string, number>>(
+    (into, step) => {
+      into[step.char] = halfStepRamp(step);
+      return into;
+    },
+    SHADING_RAMPS.reduce<Record<string, number>>((into, ramp, index) => {
+      for (const ch of ramp) if (into[ch] === undefined) into[ch] = index;
+      return into;
+    }, {}),
+  ),
 );
+
+/** The half-step between two named steps, where one is authored. */
+export function halfStepBetween(
+  darker: string,
+  lighter: string,
+): string | undefined {
+  return HALF_STEPS.find(
+    (step) => step.between[0] === darker && step.between[1] === lighter,
+  )?.char;
+}
