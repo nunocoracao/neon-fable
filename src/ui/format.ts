@@ -769,6 +769,13 @@ export function stepsLabel(amount: number): string {
     : t("count.step.many", { amount });
 }
 
+/** "1 tile", "6 tiles" — how much ground a move still reaches. */
+export function tilesLabel(amount: number): string {
+  return amount === 1
+    ? t("count.tile.one", { amount })
+    : t("count.tile.many", { amount });
+}
+
 /** How many hints a run has been shown, for the settings row. */
 export function hintCountLabel(amount: number): string {
   return amount === 1

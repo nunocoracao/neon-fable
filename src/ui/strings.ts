@@ -510,6 +510,8 @@ export const STRINGS = {
   "count.step.many": "{amount} steps",
   "count.hint.one": "{amount} hint",
   "count.hint.many": "{amount} hints",
+  "count.tile.one": "{amount} tile",
+  "count.tile.many": "{amount} tiles",
 
   /* -------------------------------------------------------------- *
    * Companions and factions — where somebody stands, in a word
@@ -701,6 +703,66 @@ export const STRINGS = {
   "log.end.victory": "All hostiles are down.",
   "log.end.defeat": "You collapse. The fight is over.",
   "log.end.fled": "You are clear of the fight.",
+
+  /* -------------------------------------------------------------- *
+   * Combat HUD: the action bar, why a button is off, and what the
+   * engine's figures read as on a tooltip.
+   * -------------------------------------------------------------- */
+  "combat.action.attack": "Attack",
+  "combat.action.ability": "Ability",
+  "combat.action.item": "Item",
+  "combat.action.move": "Move",
+  "combat.action.flee": "Flee",
+  "combat.action.flee.odds": "Flee ({chance})",
+  "combat.action.endTurn": "End Turn",
+
+  "combat.blocked.over": "The fight is over.",
+  "combat.blocked.notYourTurn": "Not your turn.",
+  "combat.blocked.actionUsed": "No AP — this turn's action is spent.",
+  "combat.blocked.noTargets": "Nothing left to target.",
+  "combat.blocked.outOfRange": "Out of range — move closer.",
+  "combat.blocked.noAbilities": "No abilities installed.",
+  "combat.blocked.allCooling": "Every ability is still cooling down.",
+  "combat.blocked.noItems": "No usable items carried.",
+  "combat.blocked.noSteps": "No steps left this turn.",
+  "combat.blocked.noRoom": "Nowhere to step.",
+  "combat.blocked.cannotFlee": "No way out of this one.",
+  "combat.blocked.playerOnly": "Yours to call, not theirs.",
+
+  "combat.idle.choose": "Choose an action.",
+  "combat.idle.outOfRange": "Nothing in reach — Move closer, then Attack.",
+  "combat.idle.actionUsed": "This turn's action is spent. Move, or End Turn.",
+  "combat.idle.noTargets": "Nothing left to fight.",
+
+  "combat.tip.attack": "{weapon} — {damage} dmg · {chance} to hit · {targets} in range",
+  "combat.tip.item": "{name} ×{quantity} — {outcome}",
+  "combat.tip.move": "{steps} left · {tiles} in reach",
+  "combat.tip.flee": "{chance} to break contact and leave the fight",
+  "combat.tip.endTurn": "Pass the turn; unspent steps are lost.",
+  "combat.tip.ability": "{name} — {damage} dmg{stun}{bodies}",
+  "combat.tip.ability.cooling": "{name} — cooling down ({turns})",
+  "combat.tip.ability.boost": "{name} — +{amount} {stat} for {turns} turns",
+  "combat.tip.ability.noTarget": "{name} — nothing within {range}",
+  "combat.tip.ability.stun": " · stuns {turns}",
+  "combat.tip.ability.bodies": " · hits {bodies}",
+
+  "combat.tile.offGrid": "Outside the arena.",
+  "combat.tile.sameTile": "You are already standing here.",
+  "combat.tile.occupied": "Someone is standing here.",
+  "combat.tile.outOfRange": "Out of range.",
+  "combat.tile.noTarget": "Nothing to hit here.",
+  "combat.tile.cooling": "Still cooling down.",
+  "combat.tile.selfOnly": "This one only ever hits you.",
+
+  "combat.damage": "{damage} dmg",
+  "combat.damage.range": "{min}–{max} dmg",
+  "combat.hitChance": "{chance} to hit",
+  "combat.status.stun": "stuns {turns}",
+  "combat.status.boost": "+{amount} {stat} for {turns} turns",
+  "combat.noEffect": "no effect",
+  "combat.surge.armed":
+    "Static armed — end this turn with your action unspent to bleed it off.",
+  "combat.surge.building": "Static building — {turns} until it peaks.",
 } as const;
 
 export type StringTable = typeof STRINGS;

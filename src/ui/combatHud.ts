@@ -38,7 +38,14 @@ import {
   type TelegraphTintId,
 } from "../iso";
 import type { ActionIconId } from "../iso/art/actionIcons";
-import { consumableOutcomeText, percentLabel } from "./format";
+import {
+  consumableOutcomeText,
+  percentLabel,
+  stepsLabel,
+  tilesLabel,
+  turnsLabel,
+} from "./format";
+import { plain, t, type PlainKey } from "./strings";
 
 /**
  * The combat HUD's model layer: everything shown in the initiative rail,
@@ -207,11 +214,11 @@ export function staticSurgeWarning(state: CombatState): string | null {
   const surge = pendingSurge(state);
   if (!surge) return null;
   if (surge.armed) {
-    return "Static armed — end this turn with your action unspent to bleed it off.";
+    return t("combat.surge.armed");
   }
   const turns = surgeTurnsToArm(state);
   if (turns === null) return null;
-  return `Static building — ${turns} turn${turns === 1 ? "" : "s"} until it peaks.`;
+  return t("combat.surge.building", { turns: turnsLabel(turns) });
 }
 
 /* --- Action bar ------------------------------------------------------ */
@@ -232,13 +239,13 @@ export interface ActionButton {
 }
 
 /** Button faces, in bar order. The hotkey is the button's 1-based slot. */
-const ACTION_LABELS: Readonly<Record<CombatActionKind, string>> = {
-  attack: "Attack",
-  ability: "Ability",
-  item: "Item",
-  move: "Move",
-  flee: "Flee",
-  "end-turn": "End Turn",
+const ACTION_LABELS: Readonly<Record<CombatActionKind, PlainKey>> = {
+  attack: "combat.action.attack",
+  ability: "combat.action.ability",
+  item: "combat.action.item",
+  move: "combat.action.move",
+  flee: "combat.action.flee",
+  "end-turn": "combat.action.endTurn",
 };
 
 /** The hotkey digit for an action, or null when it has none. */
@@ -256,29 +263,29 @@ export function actionForHotkey(key: string): CombatActionKind | null {
 export function blockReasonText(reason: ActionBlockReason): string {
   switch (reason) {
     case "combat-over":
-      return "The fight is over.";
+      return t("combat.blocked.over");
     case "not-your-turn":
-      return "Not your turn.";
+      return t("combat.blocked.notYourTurn");
     case "action-used":
-      return "No AP — this turn's action is spent.";
+      return t("combat.blocked.actionUsed");
     case "no-targets":
-      return "Nothing left to target.";
+      return t("combat.blocked.noTargets");
     case "out-of-range":
-      return "Out of range — move closer.";
+      return t("combat.blocked.outOfRange");
     case "no-abilities":
-      return "No abilities installed.";
+      return t("combat.blocked.noAbilities");
     case "on-cooldown":
-      return "Every ability is still cooling down.";
+      return t("combat.blocked.allCooling");
     case "no-items":
-      return "No usable items carried.";
+      return t("combat.blocked.noItems");
     case "no-steps":
-      return "No steps left this turn.";
+      return t("combat.blocked.noSteps");
     case "no-room":
-      return "Nowhere to step.";
+      return t("combat.blocked.noRoom");
     case "cannot-flee":
-      return "No way out of this one.";
+      return t("combat.blocked.cannotFlee");
     case "player-only":
-      return "Yours to call, not theirs.";
+      return t("combat.blocked.playerOnly");
   }
 }
 
@@ -295,16 +302,16 @@ export function blockReasonText(reason: ActionBlockReason): string {
  */
 export function idleHintText(state: CombatState): string {
   const attack = actionAvailability(state, "attack");
-  if (attack.available) return "Choose an action.";
+  if (attack.available) return t("combat.idle.choose");
   switch (attack.reason) {
     case "out-of-range":
-      return "Nothing in reach — Move closer, then Attack.";
+      return t("combat.idle.outOfRange");
     case "action-used":
-      return "This turn's action is spent. Move, or End Turn.";
+      return t("combat.idle.actionUsed");
     case "no-targets":
-      return "Nothing left to fight.";
+      return t("combat.idle.noTargets");
     default:
-      return "Choose an action.";
+      return t("combat.idle.choose");
   }
 }
 
@@ -319,41 +326,48 @@ function availableTooltip(state: CombatState, kind: CombatActionKind): string {
       const preview = attackPreview(state);
       const best = preview.best;
       if (!best) return preview.weaponName;
-      return (
-        `${preview.weaponName} — ${best.damage} dmg · ` +
-        `${percentLabel(best.hitChance)} to hit · ` +
-        `${preview.options.length} in range`
-      );
+      return t("combat.tip.attack", {
+        weapon: preview.weaponName,
+        damage: best.damage,
+        chance: percentLabel(best.hitChance),
+        targets: preview.options.length,
+      });
     }
     case "ability": {
       const lines = abilityPreviews(state)
         .map(abilityTooltipLine)
         .filter((line) => line.length > 0);
-      return lines.length > 0 ? lines.join("\n") : "No abilities installed.";
+      return lines.length > 0
+        ? lines.join("\n")
+        : t("combat.blocked.noAbilities");
     }
     case "item": {
       // The figures a dose would actually land, off the same derivation
       // the button in the selection rail quotes.
-      const lines = itemOptions(state).map(
-        ({ itemId, quantity, outcome }) =>
-          `${getItem(itemId)?.name ?? itemId} ×${quantity} — ` +
-          `${consumableOutcomeText(outcome)}`,
+      const lines = itemOptions(state).map(({ itemId, quantity, outcome }) =>
+        t("combat.tip.item", {
+          name: getItem(itemId)?.name ?? itemId,
+          quantity,
+          outcome: consumableOutcomeText(outcome),
+        }),
       );
-      return lines.length > 0 ? lines.join("\n") : "No usable items carried.";
+      return lines.length > 0 ? lines.join("\n") : t("combat.blocked.noItems");
     }
     case "move": {
       const { stepsLeft, tiles } = movePreview(state);
-      return `${stepsLeft} step${stepsLeft === 1 ? "" : "s"} left · ` +
-        `${tiles} tile${tiles === 1 ? "" : "s"} in reach`;
+      return t("combat.tip.move", {
+        steps: stepsLabel(stepsLeft),
+        tiles: tilesLabel(tiles),
+      });
     }
     case "flee": {
       const chance = fleeChanceFor(state);
       return chance === null
-        ? "No way out of this one."
-        : `${percentLabel(chance)} to break contact and leave the fight`;
+        ? t("combat.blocked.cannotFlee")
+        : t("combat.tip.flee", { chance: percentLabel(chance) });
     }
     case "end-turn":
-      return "Pass the turn; unspent steps are lost.";
+      return t("combat.tip.endTurn");
   }
 }
 
@@ -362,20 +376,36 @@ export function abilityTooltipLine(preview: AbilityPreview): string {
   const ability = getAbility(preview.abilityId);
   const name = ability?.name ?? preview.abilityId;
   if (preview.cooldown > 0) {
-    return `${name} — cooling down (${preview.cooldown})`;
+    return t("combat.tip.ability.cooling", { name, turns: preview.cooldown });
   }
   const effect = ability?.effect;
   if (effect?.type === "boost") {
-    return `${name} — +${effect.amount} ${effect.stat} for ${effect.turns} turns`;
+    return t("combat.tip.ability.boost", {
+      name,
+      amount: effect.amount,
+      stat: effect.stat,
+      turns: effect.turns,
+    });
   }
   if (preview.targetCount === 0) {
-    return `${name} — nothing within ${preview.range}`;
+    return t("combat.tip.ability.noTarget", { name, range: preview.range });
   }
-  const stun = preview.stunTurns > 0 ? ` · stuns ${preview.stunTurns}` : "";
+  const stun =
+    preview.stunTurns > 0
+      ? t("combat.tip.ability.stun", { turns: preview.stunTurns })
+      : "";
   // An area ability says how many bodies its best aim catches, so the
   // reason to line enemies up is legible before you go aiming it.
-  const bodies = preview.bodies > 1 ? ` · hits ${preview.bodies}` : "";
-  return `${name} — ${preview.damage} dmg${stun}${bodies}`;
+  const bodies =
+    preview.bodies > 1
+      ? t("combat.tip.ability.bodies", { bodies: preview.bodies })
+      : "";
+  return t("combat.tip.ability", {
+    name,
+    damage: preview.damage,
+    stun,
+    bodies,
+  });
 }
 
 /** Conditions the HUD applies on top of the engine's own availability. */
@@ -404,7 +434,7 @@ export function actionButtons(
       : availability.reason;
     return {
       kind,
-      label: kind === "flee" ? fleeLabel(state) : ACTION_LABELS[kind],
+      label: kind === "flee" ? fleeLabel(state) : plain(ACTION_LABELS[kind]),
       hotkey: actionHotkey(kind),
       iconId: kind,
       enabled,
@@ -419,7 +449,9 @@ export function actionButtons(
 /** Flee carries its odds on its face; they change every turn. */
 function fleeLabel(state: CombatState): string {
   const chance = fleeChanceFor(state);
-  return chance === null ? "Flee" : `Flee (${percentLabel(chance)})`;
+  return chance === null
+    ? t("combat.action.flee")
+    : t("combat.action.flee.odds", { chance: percentLabel(chance) });
 }
 
 /* --- Target card ----------------------------------------------------- */
@@ -532,40 +564,46 @@ export function telegraphTileViews(
 export function telegraphReasonText(reason: TelegraphReason): string {
   switch (reason) {
     case "combat-over":
-      return "The fight is over.";
+      return t("combat.blocked.over");
     case "not-your-turn":
-      return "Not your turn.";
+      return t("combat.blocked.notYourTurn");
     case "action-used":
-      return "No AP — this turn's action is spent.";
+      return t("combat.blocked.actionUsed");
     case "off-grid":
-      return "Outside the arena.";
+      return t("combat.tile.offGrid");
     case "no-steps":
-      return "No steps left this turn.";
+      return t("combat.blocked.noSteps");
     case "same-tile":
-      return "You are already standing here.";
+      return t("combat.tile.sameTile");
     case "occupied":
-      return "Someone is standing here.";
+      return t("combat.tile.occupied");
     case "out-of-range":
-      return "Out of range.";
+      return t("combat.tile.outOfRange");
     case "no-target":
-      return "Nothing to hit here.";
+      return t("combat.tile.noTarget");
     case "on-cooldown":
-      return "Still cooling down.";
+      return t("combat.tile.cooling");
     case "self-only":
-      return "This one only ever hits you.";
+      return t("combat.tile.selfOnly");
   }
 }
 
 /** Damage as the span it can land in: one figure when nothing can miss. */
 export function damageRangeLabel(min: number, max: number): string {
-  return min === max ? `${max} dmg` : `${min}–${max} dmg`;
+  return min === max
+    ? t("combat.damage", { damage: max })
+    : t("combat.damage.range", { min, max });
 }
 
 /** One condition an outcome would apply, in words. */
 export function outcomeStatusLabel(status: OutcomeStatus): string {
   return status.kind === "stun"
-    ? `stuns ${status.turns}`
-    : `+${status.amount} ${status.stat} for ${status.turns} turns`;
+    ? t("combat.status.stun", { turns: status.turns })
+    : t("combat.status.boost", {
+        amount: status.amount,
+        stat: status.stat,
+        turns: status.turns,
+      });
 }
 
 /** One body's line on the outcome chip. */
@@ -663,11 +701,11 @@ function telegraphTitle(state: CombatState, intent: TelegraphIntent): string {
 function outcomeText(outcome: OutcomePreview): string {
   const parts: string[] = [];
   if (outcome.hitChance !== null) {
-    parts.push(`${percentLabel(outcome.hitChance)} to hit`);
+    parts.push(t("combat.hitChance", { chance: percentLabel(outcome.hitChance) }));
   }
   if (outcome.damageMax > 0) {
     parts.push(damageRangeLabel(outcome.damageMin, outcome.damageMax));
   }
   parts.push(...outcome.statuses.map(outcomeStatusLabel));
-  return parts.length > 0 ? parts.join(" · ") : "no effect";
+  return parts.length > 0 ? parts.join(" · ") : t("combat.noEffect");
 }
