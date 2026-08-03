@@ -176,8 +176,10 @@ game does not warn you which.
 Combat is turn-based on an isometric arena grid.
 
 **The order** comes from Reflexes — yours, theirs, and whatever is
-modifying them. The initiative rail along the top says who is next,
-what state they are in, and what they are carrying.
+modifying them. The initiative rail along the top is a portrait chip
+per combatant in that order: whose turn it is, how much frame each has
+left, whatever is currently being done to them, and any wound they are
+carrying.
 
 **On your turn** the action bar offers: Attack, an Ability, an Item,
 Move, Flee, and End Turn. It is numbered in the order it is drawn, so
@@ -222,8 +224,10 @@ work, and is not supposed to.
 **Cyberware** installs into body slots — eyes, arms, neural and so on —
 and costs neural load against your capacity (`(Body + Cool) / 2`,
 rounded down). Installed chrome can unlock dialogue and grant combat
-abilities. Uninstalling destroys the implant and hurts, so plan the
-sockets rather than the shopping.
+abilities. Pulling one back out **destroys it** — it does not return to
+your inventory — and costs you HP in proportion to the load it frees,
+though never enough to drop you below one. Plan the sockets rather than
+the shopping.
 
 **Static** is the second price, and the one nothing caps. Every implant
 carries a Static load; the loads on everything you have installed sum
