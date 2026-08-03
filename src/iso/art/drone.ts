@@ -23,9 +23,11 @@
  * - **idle** — four frames of hover bob (0, −1, −2, −1 px) with the
  *   rotor blur alternating phase, so the ring shimmers while the hull
  *   breathes. Frame count matches BODY_TIMING.idle.
- * - **walk** — six frames of the same bob under a forward tilt: the
- *   ring and hull top lead, the stinger trails at half the shift.
- *   Frame count matches BODY_TIMING.walk.
+ * - **walk** — eight frames of the same bob under a forward tilt: the
+ *   ring and hull top lead, the stinger trails at half the shift. Two
+ *   full bobs across the set, the second leaning a pixel further into
+ *   the travel than the first, so a drone on the move never settles
+ *   into one repeated pose. Frame count matches BODY_TIMING.walk.
  * - **attack** — four frames on the pistol timing (raise, settle, fire,
  *   lower): the chassis rears back onto its charge, throws the bolt on
  *   the impact beat, and settles. Frame count matches
@@ -262,8 +264,10 @@ const WALK_SPEC: readonly DroneFrameSpec[] = [
   { rotor: 1, dy: -1, dx: 2 },
   { rotor: 0, dy: -2, dx: 3 },
   { rotor: 1, dy: -1, dx: 3 },
-  { rotor: 0, dy: 0, dx: 2 },
+  { rotor: 0, dy: 0, dx: 3 },
   { rotor: 1, dy: -1, dx: 3 },
+  { rotor: 0, dy: -2, dx: 2 },
+  { rotor: 1, dy: -1, dx: 2 },
 ];
 
 /** Raise, rear back onto the charge, throw it, settle. */

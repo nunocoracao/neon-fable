@@ -229,9 +229,18 @@ describe("clamp01", () => {
 });
 
 describe("bodyFrameAt / BODY_TIMING", () => {
-  it("gives the hi-res sets six walk and four idle frames", () => {
-    expect(BODY_TIMING.walk.frameCount).toBe(6);
+  it("gives the hi-res sets eight walk and four idle frames", () => {
+    expect(BODY_TIMING.walk.frameCount).toBe(8);
     expect(BODY_TIMING.idle.frameCount).toBe(4);
+  });
+
+  it("strides at the pace it always did, in smaller steps", () => {
+    // Four poses a step instead of three, over the same ~660ms cycle:
+    // the walk did not slow down or speed up, it got smoother.
+    const cycle = BODY_TIMING.walk.frameMs * BODY_TIMING.walk.frameCount;
+    expect(cycle).toBeGreaterThan(600);
+    expect(cycle).toBeLessThan(720);
+    expect(BODY_TIMING.walk.frameCount % 4).toBe(0);
   });
 
   it("breathes at a slower cadence than it strides", () => {
@@ -243,7 +252,7 @@ describe("bodyFrameAt / BODY_TIMING", () => {
     const seen = Array.from({ length: frameCount }, (_, i) =>
       bodyFrameAt("walk", i * frameMs),
     );
-    expect(seen).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(seen).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
     const cycle = frameMs * frameCount;
     expect(bodyFrameAt("walk", cycle)).toBe(0);
     expect(bodyFrameAt("walk", cycle + 42)).toBe(bodyFrameAt("walk", 42));

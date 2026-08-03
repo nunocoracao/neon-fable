@@ -202,7 +202,7 @@ describe("headwear through the composed animation pipeline", () => {
     }
   });
 
-  it("tracks the walk bob: recoil sinks headwear one row, passing lifts it", () => {
+  it("tracks the walk bob: recoil sinks headwear one row, reach lifts it", () => {
     for (const id of HEADWEAR_IDS) {
       const character = headwearCharacter(id);
       const contact = pixelCells(
@@ -213,11 +213,17 @@ describe("headwear through the composed animation pipeline", () => {
         composedCharacterGrid(character, "e", "walk", 1),
         MARKER,
       );
-      const raised = pixelCells(
+      const passing = pixelCells(
         composedCharacterGrid(character, "e", "walk", 2),
         MARKER,
       );
+      const raised = pixelCells(
+        composedCharacterGrid(character, "e", "walk", 3),
+        MARKER,
+      );
       expect(sunk, id).toEqual(contact.map(([x, y]) => [x, y + 1]));
+      // Passing carries the body at standing height; reach is the lift.
+      expect(passing, id).toEqual(contact);
       expect(raised, id).toEqual(contact.map(([x, y]) => [x, y - 1]));
     }
   });

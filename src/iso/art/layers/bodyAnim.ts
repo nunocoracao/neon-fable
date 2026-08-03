@@ -3,20 +3,29 @@
  * both builds and both authored views, derived from BODY_GRIDS by pure
  * row and column-band transforms rather than hand-drawn duplicates.
  *
- * ## Walk (contact → recoil → passing, then the mirrored stride)
+ * ## Walk (contact → recoil → passing → reach, then the mirrored stride)
  *
- * Each stride half shears the two leg bands from the standing pose —
- * the lead leg swings forward (+x), the trailing leg back — with the
- * arms counter-swinging (trail-side hand up in front of the belt, lead
- * hand down onto the hip). The recoil frame sinks the whole body one
- * pixel (bottom boot row compresses, feet stay planted); the passing
- * frame tucks the swing leg under the body, lifts its foot, and raises
- * the body one pixel — the cycle's high point. The second half swaps
- * which leg leads, so the loop is seamless and lighting stays authored
- * (no whole-row mirroring).
+ * The four poses of a walk cycle, per stride half. Each half shears the
+ * two leg bands from the standing pose — the lead leg swings forward
+ * (+x), the trailing leg back — with the arms counter-swinging
+ * (trail-side hand up in front of the belt, lead hand down onto the
+ * hip). The second half swaps which leg leads, so the loop is seamless
+ * and lighting stays authored (no whole-row mirroring).
+ *
+ * - **Contact**: the stride at full extension, both feet down.
+ * - **Recoil**: weight lands, the whole body sinks one pixel (bottom
+ *   boot row compresses, feet stay planted). The low point.
+ * - **Passing**: the swing leg tucks under the body and lifts its foot
+ *   clear; the planted leg carries the body at standing height.
+ * - **Reach**: the swing leg is out in front and the body rides one
+ *   pixel up over the straightened support leg. The high point, and
+ *   where the arms have already begun the next half's counter-swing.
+ *
+ * That is one rise and fall per step (0, −1, 0, +1) rather than the
+ * single bob the older three-pose half could describe.
  *
  * Foot treadmill (bottom-row dx from a leg's own hip): +2, +1, 0 while
- * planted, then −2, −3 and lift — monotonically backward under the
+ * planted, then −2, −2, −3 and lift — monotonically backward under the
  * advancing body, so feet never slide forward while grounded.
  *
  * ## Idle (4-frame breathing)
@@ -56,6 +65,13 @@ const CONTACT_STEPS: StrideSteps = [0, 1, 2];
 /** At recoil the body has advanced: both feet shift one back. */
 const RECOIL_LEAD_STEPS: StrideSteps = [0, 0, 1];
 const RECOIL_REAR_STEPS: StrideSteps = [1, 2, 3];
+/**
+ * Reach: the swing leg is out in front of the body but has not landed,
+ * so it is short of the contact extension; the support leg has already
+ * swung back to where it will stand at the next contact.
+ */
+const REACH_LEAD_STEPS: StrideSteps = [0, 0, 1];
+const REACH_REAR_STEPS: StrideSteps = [0, 1, 2];
 
 const BLANK = ".".repeat(BODY_FRAME.width);
 
@@ -169,7 +185,7 @@ function armsSwung(
   return out;
 }
 
-/** One stride half: contact, recoil (sunk), passing (raised). */
+/** One stride half: contact, recoil (sunk), passing, reach (raised). */
 function strideHalf(
   base: PixelGrid,
   build: BodyBuildId,
@@ -189,7 +205,17 @@ function strideHalf(
         trail,
       ),
     ),
-    raisedBody(passingLegs(base, build, trail)),
+    passingLegs(base, build, trail),
+    // The swing leg leads from here on, so the arms swing with it: the
+    // hand that will be trailing at the next contact is already coming
+    // up. The half hands over mid-pose rather than at the frame break.
+    raisedBody(
+      armsSwung(
+        stridedLegs(base, build, trail, REACH_LEAD_STEPS, REACH_REAR_STEPS),
+        build,
+        lead,
+      ),
+    ),
   ];
 }
 
