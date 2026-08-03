@@ -82,7 +82,11 @@ spoiler-light manual to every system, including the full key map.
 - **The art is source code.** Every sprite, tile and prop is a
   palette-indexed grid of characters in `src/iso/art/` — a row of a
   character's coat is a string — validated by tests and baked to
-  offscreen canvases at integer scale on load. Characters are composited
+  offscreen canvases at integer scale on load. On the way to the canvas
+  a detail pass splits every authored pixel four ways: diagonals step at
+  half the size they were drawn at, and interior edges get a half-pixel
+  of the light the palette's ramps were authored for. Same sprite, same
+  size, four times the pixels. Characters are composited
   from layers (body, outfit, face, hair, weapon, cyberware) sharing one
   frame and anchor, so equipping a coat changes what you look like and
   portraits derive from the same data as the map sprite. No image file

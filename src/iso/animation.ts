@@ -187,16 +187,21 @@ export function dissolvedAt(progress: number, bx: number, by: number): boolean {
 }
 
 /**
- * Frame timing for the hi-res layered bodies: a six-frame stride
- * (contact, recoil, passing per half) and a four-frame breathing loop
- * at a slow cadence. The vertical bob is baked into the frames
+ * Frame timing for the hi-res layered bodies: an eight-frame stride
+ * (contact, recoil, passing, reach per half) and a four-frame breathing
+ * loop at a slow cadence. The vertical bob is baked into the frames
  * themselves, so this replaces the legacy 2-frame bob approach.
+ *
+ * The stride keeps its old pace — eight frames at 82ms is the same
+ * ~660ms per cycle the six-frame version ran at, so a walk covers the
+ * same ground at the same speed and only the steps between the poses
+ * got smaller.
  */
 export const BODY_TIMING: Readonly<
   Record<LoopState, { frameMs: number; frameCount: number }>
 > = {
   idle: { frameMs: 450, frameCount: 4 },
-  walk: { frameMs: 110, frameCount: 6 },
+  walk: { frameMs: 82, frameCount: 8 },
 };
 
 /** Looping hi-res body frame index for a motion state. */

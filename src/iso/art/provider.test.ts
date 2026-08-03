@@ -310,8 +310,8 @@ describe("createPixelArtSprites cache", () => {
     };
     drive(0, 4_000);
     const warm = sprites.cacheStats();
-    // 4 facings × (4 idle + 6 walk) frames, sprites and silhouettes.
-    expect(warm.misses).toBe(2 * 4 * 10);
+    // 4 facings × (4 idle + 8 walk) frames, sprites and silhouettes.
+    expect(warm.misses).toBe(2 * 4 * 12);
     drive(4_000, 8_000);
     expect(sprites.cacheStats().misses).toBe(warm.misses);
     expect(sprites.cacheStats().evictions).toBe(0);

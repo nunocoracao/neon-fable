@@ -23,9 +23,10 @@
  *
  * - **idle** — four frames of servo shift: the torso settles a pixel and
  *   sways, the legs never move. Frame count matches BODY_TIMING.idle.
- * - **walk** — six frames of stomp-step: the whole chassis rises and
+ * - **walk** — eight frames of stomp-step: the whole chassis rises and
  *   drops on alternating legs, leaning into the travel, with the near
- *   foot lifting clear on the contact beats. Frame count matches
+ *   foot lifting clear on the contact beats and the frame recovering
+ *   off the landing before the other leg goes. Frame count matches
  *   BODY_TIMING.walk.
  * - **attack, variant 0 — piston smash** — the hydraulic arm goes up,
  *   hangs, and comes down through the deck. Four frames on the `baton`
@@ -518,14 +519,21 @@ const IDLE_SPEC: readonly MechFrameSpec[] = [
   { batteryDy: -1 },
 ];
 
-/** Stomp-step: rise, plant, rise, plant, leaning into the travel. */
+/**
+ * Stomp-step, four beats a leg: the foot comes up, swings through,
+ * lands hard enough to drop the chassis a pixel, then the frame
+ * recovers onto it while the other leg takes its turn. Leaning into
+ * the travel throughout.
+ */
 const WALK_SPEC: readonly MechFrameSpec[] = [
   { dy: -1, lean: 1, nearLift: 3 },
   { dy: 0, lean: 2, nearLift: 1 },
   { dy: 1, lean: 2 },
+  { dy: 0, lean: 1 },
   { dy: -1, lean: 1, farLift: 3 },
   { dy: 0, lean: 2, farLift: 1 },
   { dy: 1, lean: 2 },
+  { dy: 0, lean: 1 },
 ];
 
 /** Piston smash, on the `baton` timing: raise, hang, strike, recover. */

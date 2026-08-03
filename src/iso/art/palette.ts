@@ -27,6 +27,14 @@
 
 export const TRANSPARENT = ".";
 
+/**
+ * The shadow channel: the soft ellipse a body casts on the ground. It
+ * is under the figure rather than part of it, so it is the one opaque
+ * thing a silhouette leaves out — and the one thing the detail pass
+ * refuses to light.
+ */
+export const SHADOW = "z";
+
 export const PALETTE: Readonly<Record<string, string>> = {
   // Neutrals, dark to light (consistent top-left light source).
   "0": "#05060c", // void / outline
@@ -209,3 +217,67 @@ export const REMAP_CHANNELS = {
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
 export type RemapChannelName = keyof typeof REMAP_CHANNELS;
+
+/**
+ * The palette read as ordered ramps, dark to light — which color is one
+ * step further into shadow than which, stated once so the detail pass
+ * (./detail.ts) can light a raised edge without inventing a color.
+ *
+ * The list is resolved in order and each character is claimed by the
+ * first ramp that names it, so an entry doing double duty (steel "6"
+ * and white ink "9" are also the ends of brushed chrome; "n" is both
+ * neon amber's highlight and hazard amber's) takes its neighbors from
+ * the ramp it most belongs to and the later ramp still gets a run for
+ * its own exclusive entries. Colors named by no ramp — the six hair
+ * dyes, danger red — simply have no lighter or darker step, and the
+ * detail pass leaves them exactly as authored.
+ */
+export const SHADING_RAMPS: readonly (readonly string[])[] = [
+  ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"], // neutrals
+  ["a", "b", "c"], // rust
+  ["d", "e", "f"], // canal water
+  ["i", "g", "h"], // neon cyan
+  ["l", "j", "k"], // neon magenta
+  ["o", "m", "n"], // neon amber
+  ["r", "q", "A"], // skin: porcelain
+  ["C", "B", "D"], // skin: golden tan
+  ["F", "E", "G"], // skin: warm brown
+  ["I", "H", "J"], // skin: deep umber
+  ["Q", "R", "S"], // concrete
+  ["V", "W", "X"], // dark fabric
+  ["s", "t", "u"], // hologram blue
+  ["Y", "Z", "n"], // hazard amber
+  ["f", "U", "h"], // glass
+  ["6", "T", "9"], // brushed chrome
+];
+
+function rampSteps(direction: 1 | -1): Readonly<Record<string, string>> {
+  const steps: Record<string, string> = {};
+  for (const ramp of SHADING_RAMPS) {
+    for (let i = 0; i < ramp.length; i++) {
+      const from = ramp[i] as string;
+      const to = ramp[i + direction];
+      if (to !== undefined && steps[from] === undefined) steps[from] = to;
+    }
+  }
+  return Object.freeze(steps);
+}
+
+/** One step toward the light along a color's own ramp, where it has one. */
+export const LIGHTER_STEP: Readonly<Record<string, string>> = rampSteps(1);
+
+/** One step into shadow along a color's own ramp, where it has one. */
+export const DARKER_STEP: Readonly<Record<string, string>> = rampSteps(-1);
+
+/**
+ * Which ramp a color belongs to, by the same first-claim rule. Two
+ * colors sharing a ramp are the same material at two brightnesses —
+ * the artist's own shading — which is how the detail pass tells a
+ * boundary between materials from one drawn inside a single one.
+ */
+export const RAMP_OF: Readonly<Record<string, number>> = Object.freeze(
+  SHADING_RAMPS.reduce<Record<string, number>>((into, ramp, index) => {
+    for (const ch of ramp) if (into[ch] === undefined) into[ch] = index;
+    return into;
+  }, {}),
+);

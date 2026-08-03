@@ -76,13 +76,15 @@ describe("hi-res body animation frames", () => {
     }
   });
 
-  it("plants feet on contact and recoil frames and rises on passing frames", () => {
+  it("plants feet through the step and clears the ground only on reach", () => {
     const grounded = BODY_FRAME.shadow.top - 1;
     for (const { anim, label } of ALL_SETS) {
       for (const [i, frame] of anim.walk.entries()) {
-        const isPassing = i % 3 === 2;
+        // One rise and fall per step: contact and passing stand, recoil
+        // sinks into the boot row, reach is the pose that lifts.
+        const isReach = i % 4 === 3;
         expect(bottomBodyRow(frame), `${label} walk ${i}`).toBe(
-          isPassing ? grounded - 1 : grounded,
+          isReach ? grounded - 1 : grounded,
         );
       }
       for (const [i, frame] of anim.idle.entries()) {
@@ -98,7 +100,7 @@ describe("hi-res body animation frames", () => {
       const skinAt = (frame: PixelGrid, r: number, cols: readonly number[]) =>
         cols.every((c) => SKIN.includes(frame[r]?.[c] ?? "."));
       const contactA = anim.walk[0] ?? [];
-      const contactB = anim.walk[3] ?? [];
+      const contactB = anim.walk[4] ?? [];
       // Right leg leads first: left hand rides above the belt, right
       // hand drops onto the hip; the second half swaps sides.
       expect(skinAt(contactA, top - 1, hands.left), `${label} A left up`).toBe(true);

@@ -186,9 +186,9 @@ describe("frame bounds", () => {
         }
       }
     }
-    // The walk high point lifts the crest to row 2 — still inside.
+    // The walk high point (reach) lifts the crest to row 2 — still inside.
     const raised = pixelCells(
-      composedCharacterGrid(character, "e", "walk", 2),
+      composedCharacterGrid(character, "e", "walk", 3),
       MARKER,
     );
     expect(Math.min(...raised.map(([, y]) => y))).toBe(2);
@@ -353,7 +353,7 @@ describe("hair through the composed animation pipeline", () => {
     }
   });
 
-  it("tracks the walk bob: recoil sinks hair one row, passing lifts it", () => {
+  it("tracks the walk bob: recoil sinks hair one row, reach lifts it", () => {
     for (const style of HAIR_STYLE_IDS) {
       const character = hairCharacter(style, MARKER);
       const contact = pixelCells(
@@ -364,11 +364,17 @@ describe("hair through the composed animation pipeline", () => {
         composedCharacterGrid(character, "e", "walk", 1),
         MARKER,
       );
-      const raised = pixelCells(
+      const passing = pixelCells(
         composedCharacterGrid(character, "e", "walk", 2),
         MARKER,
       );
+      const raised = pixelCells(
+        composedCharacterGrid(character, "e", "walk", 3),
+        MARKER,
+      );
       expect(sunk, style).toEqual(contact.map(([x, y]) => [x, y + 1]));
+      // Passing carries the body at standing height; reach is the lift.
+      expect(passing, style).toEqual(contact);
       expect(raised, style).toEqual(contact.map(([x, y]) => [x, y - 1]));
     }
   });
