@@ -94,7 +94,7 @@ export const AUDIT_WAIVERS: readonly AuditWaiver[] = [
     why:
       "Every disposition reads one of the four flags Act 2's endings " +
       "write — a2-end-charter, a2-end-takeover, and a2-end-severance " +
-      "each set exactly one — and the crown ring is behind " +
+      "each set exactly one — and the Crown Ring is behind " +
       "act2-complete. A run that reaches the keys is holding one.",
   },
 

@@ -436,12 +436,6 @@ export function socketLabel(socket: ModSocketKind): string {
   }
 }
 
-/** "1 barrel, 1 core" — the sockets a weapon offers, or "no sockets". */
-export function socketSummary(sockets: readonly ModSocketKind[]): string {
-  if (sockets.length === 0) return t("socket.none");
-  return sockets.map(socketLabel).join(" · ");
-}
-
 /**
  * Per-effect labels for gear ("+1 Reflexes", "Grants Stun Strike", …).
  * A weapon mod's list is wider than a coat's — it also says what it
@@ -586,14 +580,6 @@ export function injuryLine(
     name,
     effect: injuryEffectText(carried) ?? "",
   });
-}
-
-/** What a clinic charges to close it now; null when there is nothing to pay for. */
-export function injuryFeeLabel(
-  carried: CarriedInjury | null | undefined,
-): string | null {
-  const def = injuryDef(carried);
-  return def ? t("counter.credits", { credits: def.treatCost }) : null;
 }
 
 /** Trade-off warning shown before confirming a cyberware extraction. */

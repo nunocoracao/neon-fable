@@ -371,7 +371,7 @@ export const lastMileNodes: StoryNode[] = [
   {
     id: "lm-scaffold",
     text:
-      "The sixth level is scaffold row: plank walkways on pipe couplers, " +
+      "The sixth level is Scaffold Row: plank walkways on pipe couplers, " +
       "the light well dropping away black on one side and the tenement " +
       "wall on the other. The Rung have the stair-head — three of them " +
       "and a drone on a tether, arranged like people who have been paid " +

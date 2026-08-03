@@ -28,7 +28,7 @@
  * chrome (6/T/9) — it is a lit edge, not a fire — and a miss throws
  * concrete: steel and chrome neutrals with the concrete highlight.
  */
-import { EFFECT_SPRITE_IDS, EFFECT_TIMING, effectKind, type EffectSpriteId } from "../impact";
+import { EFFECT_TIMING, effectKind, type EffectSpriteId } from "../impact";
 import { mirrored, type PixelGrid } from "./pixel";
 
 /** One effect's frames plus the point they are anchored on. */
@@ -332,6 +332,3 @@ export const EFFECT_ART: Readonly<Record<EffectSpriteId, EffectArt>> = {
     "tracer-s",
   ),
 };
-
-/** Every registered effect id, in registry order (for tests and dev). */
-export const EFFECT_ART_IDS: readonly EffectSpriteId[] = EFFECT_SPRITE_IDS;

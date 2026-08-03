@@ -46,4 +46,6 @@ no assertion in the suite can hear a rotor: whether the reading order of
 a screen is sensible, whether an announcement interrupts something worth
 hearing, and whether a label reads as a sentence are still questions for
 a person with VoiceOver switched on. That pass is outstanding, and is
-worth repeating whenever a screen changes shape.
+worth repeating whenever a screen changes shape. It ships outstanding
+in 1.0, alongside the visual pass, and both are written up in
+[KNOWN_ISSUES.md](../KNOWN_ISSUES.md).

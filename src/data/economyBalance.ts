@@ -1,4 +1,4 @@
-import { encounterBalance, type EncounterClass, type ProgressionTier } from "./balance";
+import type { EncounterClass, ProgressionTier } from "./balance";
 
 /**
  * What credits are supposed to *mean*, written down as numbers.
@@ -109,9 +109,6 @@ export function rewardBand(
 ): RewardBand {
   return ENCOUNTER_REWARD_BANDS[tier][encounterClass];
 }
-
-/** Every banded encounter, for a sweep that wants the whole ladder. */
-export const bandedEncounters = encounterBalance;
 
 /* ------------------------------------------------------------------ *
  * Sinks: the floors that must never close

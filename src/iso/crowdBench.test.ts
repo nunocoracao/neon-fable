@@ -12,6 +12,7 @@ import {
 import { createPixelArtSprites } from "./art/provider";
 import { clampCamera, mapPixelBounds, type Camera } from "./camera";
 import { clearRenderCounters, createRenderCounters } from "./perf";
+import { budgetLine, overBudget } from "./benchSupport";
 import { renderScene, type RenderView } from "./render";
 import { collectSetPieces } from "./setpiece";
 import { tileMaterial } from "./tilemap";
@@ -29,9 +30,15 @@ import { resolveWeather } from "./weather";
  * a crowd costs lookups, not re-bakes.
  *
  * A warmed frame lands around 0.2ms on a dev machine against a 16.6ms
- * budget at 60fps; the ceiling here leaves room for slow CI while
- * still catching an order-of-magnitude regression (a per-frame
- * recompose, a cache key that never hits, an O(n^2) crowd step).
+ * budget at 60fps; the ceiling here catches an order-of-magnitude
+ * regression (a per-frame recompose, a cache key that never hits, an
+ * O(n^2) crowd step).
+ *
+ * The millisecond figures are only *asserted* under `PERF_BENCH=1` —
+ * see `./benchSupport.ts`. Everything else in this file is
+ * deterministic and runs on every `npm test`: the draw ceiling, the
+ * cache hit/miss ratios, the eviction count, and the guards that prove
+ * the crossing really was up and the culling really was live.
  */
 const FRAMES = 120;
 const FRAME_BUDGET_MS = 4;
@@ -146,9 +153,10 @@ describe("crowded-scene frame budget", () => {
     const elapsed = performance.now() - start;
 
     const perFrame = elapsed / FRAMES;
-    expect(perFrame, `${perFrame.toFixed(3)}ms per frame`).toBeLessThan(
-      FRAME_BUDGET_MS,
-    );
+    expect(
+      overBudget(perFrame, FRAME_BUDGET_MS),
+      budgetLine(perFrame, FRAME_BUDGET_MS, "per frame"),
+    ).toBe(false);
 
     // Steady state must be nearly all cache hits: a crowd that re-baked
     // its sprites every frame would blow the budget on a slower machine
@@ -212,9 +220,10 @@ describe("crowded-scene frame budget", () => {
     const start = performance.now();
     runRainFrames();
     const perFrame = (performance.now() - start) / FRAMES;
-    expect(perFrame, `${perFrame.toFixed(3)}ms per rainy frame`).toBeLessThan(
-      FRAME_BUDGET_MS,
-    );
+    expect(
+      overBudget(perFrame, FRAME_BUDGET_MS),
+      budgetLine(perFrame, FRAME_BUDGET_MS, "per rainy frame"),
+    ).toBe(false);
     expect(sprites.cacheStats().misses - warmed.misses).toBe(0);
   });
 
@@ -284,9 +293,10 @@ describe("crowded-scene frame budget", () => {
     const perFrame = (performance.now() - begin) / FRAMES;
     // The train really was up for the run being measured.
     expect(drawn).toBeGreaterThanOrEqual(FRAMES * (track.cars + 1));
-    expect(perFrame, `${perFrame.toFixed(3)}ms per hub frame`).toBeLessThan(
-      FRAME_BUDGET_MS,
-    );
+    expect(
+      overBudget(perFrame, FRAME_BUDGET_MS),
+      budgetLine(perFrame, FRAME_BUDGET_MS, "per hub frame"),
+    ).toBe(false);
     // Set-piece bake keys are frame indices, never the clock, so a
     // warmed crossing re-bakes nothing at all.
     expect(sprites.cacheStats().misses - warmed.misses).toBe(0);
@@ -382,9 +392,10 @@ describe("crowded-scene frame budget", () => {
     const start = performance.now();
     runScene();
     const perFrame = (performance.now() - start) / FRAMES;
-    expect(perFrame, `${perFrame.toFixed(3)}ms per scripted frame`).toBeLessThan(
-      FRAME_BUDGET_MS,
-    );
+    expect(
+      overBudget(perFrame, FRAME_BUDGET_MS),
+      budgetLine(perFrame, FRAME_BUDGET_MS, "per scripted frame"),
+    ).toBe(false);
     // A scroll must not re-bake: the tiles coming into view are ones the
     // opening lap already paid for.
     expect(sprites.cacheStats().misses - warmed.misses).toBe(0);

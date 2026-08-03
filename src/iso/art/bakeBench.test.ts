@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BODY_TIMING, type Facing, type LoopState } from "../animation";
+import { budgetLine, overBudget } from "../benchSupport";
 import { composeVisual } from "../../character/appearance";
 import { enemies } from "../../data/enemies";
 import { INTERACTABLE_ART } from "./interactables";
@@ -22,9 +23,13 @@ import { TILE_ART } from "./tiles";
  * — grid transforms (compose, remap, mirror) and the run-collapsing
  * paint loop — which is exactly what a scene pays on a cache miss.
  * The full current set (~320 sprites) bakes in ~9ms on a dev machine;
- * the budget leaves room for slower CI and severalfold art growth while
- * still catching order-of-magnitude regressions (a per-pixel paint
- * path, an accidental deep copy in the compose chain).
+ * the budget leaves room for severalfold art growth while still
+ * catching order-of-magnitude regressions (a per-pixel paint path, an
+ * accidental deep copy in the compose chain).
+ *
+ * The timing is only *asserted* under `PERF_BENCH=1` — see
+ * `../benchSupport.ts`. The sprite count below is checked always, so a
+ * broken enumeration still fails an ordinary run.
  */
 const TIME_BUDGET_MS = 1000;
 /** Sanity floor so a broken enumeration can't pass an empty benchmark. */
@@ -148,6 +153,9 @@ describe("compose+bake micro-benchmark", () => {
     const baked = bakeEverything();
     const elapsed = performance.now() - start;
     expect(baked).toBeGreaterThanOrEqual(MIN_SPRITES);
-    expect(elapsed).toBeLessThan(TIME_BUDGET_MS);
+    expect(
+      overBudget(elapsed, TIME_BUDGET_MS),
+      budgetLine(elapsed, TIME_BUDGET_MS, "for the full set"),
+    ).toBe(false);
   });
 });

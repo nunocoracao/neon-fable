@@ -23,17 +23,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       # The build type-checks (tsc --noEmit) before it bundles, and the
       # suite covers the game logic; neither is worth publishing past.
       #
-      # The compose+bake micro-benchmark is left out on purpose: it
-      # asserts a wall-clock budget, which a shared runner cannot hold
-      # to. It stays a local guard (`npm test` runs it) rather than a
-      # deploy gate that fails on how busy the machine was.
-      - run: npx vitest run --exclude '**/node_modules/**' --exclude '**/bakeBench.test.ts'
+      # The whole suite runs here, benches included. Their wall-clock
+      # budgets are the one thing a shared runner cannot hold to, and
+      # those assertions are opt-in (`PERF_BENCH=1`, see
+      # src/iso/benchSupport.ts) — so nothing has to be excluded to keep
+      # the deploy honest.
+      - run: npm test
       - run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
